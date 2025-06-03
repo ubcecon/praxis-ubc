@@ -1,0 +1,214 @@
+---
+title: "AMNE 170"
+subtitle: "Integrating Machine Learning into Archeological Research"
+author: "Irene Berezin, Krishaant Pathman, Yash Mali, Kaiyan Zhang"
+format: 
+    revealjs:
+        css: fig_captions.scss
+theme: serif
+scrollable: true
+fontsize: 190%
+---
+## Introduction
+
+Modern day archeology often involves working with massive repositories of **images, geospatial datasets, and textual corpora**. Traditional approaches, while still incredibly valuable, can not only be slow, but sometimes ineffective at revealing the relationships and patterns archeologists are looking for. Machine learning for archeology helps uncover relationships in archeological data that would be incredibly difficult to spot with the naked eye: from hidden structures under forests to small changes in handwriting in cuneiform scripts. Our aim is hence to show how machine learning tools directly fit into an archeologist's toolbox.
+
+:::{.columns}
+::: {.column width="100%"}
+![CNNs have helped uncover hundreds of new geoglyphs in Peru. Image source: The Guardian](images/maya.png){width="500%"}
+:::
+:::
+
+
+## Notebook 0: Applications of AI in Archaeology
+
+### Learning Outcomes
+- Understand the role of AI in archaeology  
+- Categorize key AI methods (e.g., **CNNs, transformers, clustering**)  
+- Analyze archaeological data through the lens of AI  
+- Understand that these methods have broad applications (not just a neat trick !)
+
+---
+
+## Class Structure
+
+| Segment                         | Time | Activity Type         |
+|----------------------------------|------|------------------------|
+| Intro to AI in Archaeology       | 10 min | Lecture               |
+| Key Application Areas            | 10 min | Visual Walkthrough    |
+| Case Study: Lost City Mapping    | 10 min | Model Q&A             |
+| Match Task to AI Model           | 10 min | Group Exercise        |
+
+---
+
+## Applications of AI
+
+| Application Area        | AI Method Used                | Example Project                          |
+|-------------------------|-------------------------------|-------------------------------------------|
+| Image classification    | CNNs                          | (notebook2) Cuneiform tablets, wall paintings            |
+| Text translation        | Transformers (BERT)       | Akkadian/Cuneiform                       |
+| Artifact clustering     | K-Means                 | Grouping tools by use or form            |
+| Predictive modeling     | Regression             | (notebook4) Estimating age from skeletal data        |
+| Satellite mapping       | Object Detection (CNN)        | Finding lost cities in Mesopotamia ()      |
+<!-- 
+For the satellite mapping one, we could create a notebook that students just run through, just so they can see what its like even if they might not understand how it works  -->
+
+---
+
+## Match Task to Model
+
+| Task                                       | Best AI Model               |
+|--------------------------------------------|------------------------------|
+| Classify tablets into genre                | CNN  |
+| Translate Akkadian inscriptions            | Transformer (e.g. BERT)     |
+| Group arrowheads by shape                  | Clustering (K-Means)        |
+| Identify temples in aerial images          | CNN / Object Detection      |
+| Predict age from bones                     | Regression                  |
+
+---
+
+## Notebook 1: Zero-Shot Classification
+
+Students use a **pre-trained LLM** to classify ancient cuneiform texts without training — zero-shot classification. Here is a notebook [demo](https://colab.research.google.com/drive/1mD6A0TZARr7bAaKUfNvrXLvgkpgFo99t?usp=sharing) 
+
+### Learning Outcome:
+- Students understand classification logic using language model reasoning.
+- Students will use the model to guess : 
+    - What kind of document it is (e.g., legal, economic, literary)
+    - Where it might come from (e.g., Nippur, Uruk)
+
+
+## Class sturcture 
+
+| Segment                         | Time | Activity Type         |
+|----------------------------------|------|------------------------|
+| Introduce classification using vector example [demo]      | 15 min | Lecture               |
+| Introduce pre-trained model, loading and setup            | 10 min | Code Demo    |
+| Hands-On session   | 20 min | Students work through notebook            |
+
+
+## Key features and resutlts : 
+### Zero-Shot Classification (Demo)
+
+```python
+from transformers import pipeline
+
+# Step 1: Load the classifier
+classifier = pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
+
+# Step 2: Try classifying a cuneiform text
+text = "grain delivery to Lagash recorded by Ensi"
+labels = ["economic", "legal", "religious", "literary"]
+result = classifier(text, candidate_labels=labels)
+print("Prediction:", result["labels"][0])
+print("Scores:", list(zip(result["labels"], result["scores"])))
+# Output:
+# Prediction: economic
+# Scores: [('economic', 0.78), ('legal', 0.12), ('religious', 0.07), ('literary', 0.03)]
+
+
+# Step 3: Try your own input
+text = "Gilgamesh speaks with Utnapishtim about the secret of eternal life"
+result = classifier(text, candidate_labels=labels)
+print("Prediction:", result["labels"][0])
+# Output:
+# Prediction: literary
+# Scores: [('literary', 0.87), ('religious', 0.10), ('legal', 0.02), ('economic', 0.01)]
+
+
+# Step 4: Predict provenance
+geo_labels = ["Lagash", "Nippur", "Uruk", "Babylon"]
+text = "temple donation recorded by the priest of Nippur"
+result = classifier(text, candidate_labels=geo_labels)
+print("Likely origin:", result["labels"][0])
+# Output:
+# Likely origin: Nippur
+# Scores: [('Nippur', 0.91), ('Uruk', 0.05), ('Lagash', 0.03), ('Babylon', 0.01)]
+```
+
+## Notebook 2: Classification of cuneiform tablets using Machine Learning
+
+ **Cuneiform** is one of the world’s oldest writing systems, invented by Sumerian scribes around 3200 BCE in what is now southern-Iraq. Over time, the writing system was adapted to write multiple languages and covered diverse content, such a economic transactions, songs, legal decrees, and even prescriptions. Using machine learning, we can identify patterns in the contents of cuneiform tablets, and uncover how those patterns evolve across regions and time. 
+
+
+:::{.columns}
+::: {.column width="100%"}
+![Image source: Kapon et al., 2024](images/cuneiform_tablets.png){fig-align="center" width="80%"}
+:::
+:::
+
+ The **Cuneiform Digital Library Initiative (CDLI)** is a catalog hundreds of thousands of tablets with images and metadata. We focus on a subset of that dataset specifically designed for machine learning (CuneiML), containing "38,947 high-resolution 2D photos of Sumerian and Akkadian cuneiform tablets, accompanied by their cuneiform Unicode transcriptions, transliterations, lineart, and metadata".
+
+---  
+
+## Learning objectives: 
+
+ - Understand how Machine learning tools can enrich or challenge existing archeological narratives by contrasting against older historical narratives (LO5).
+
+ - Understand how surface-level analyses can mislead both researchers and machine learning tools into making invalid historical arguments (LO4): Ex; Is a given tablet truly a economic text, or is it simply a legal text with economic language?
+ 
+ -  Learn to prioritize the importance of interpretations grounded in multiple lines of evidence such as linguistic markers and material context (LO5).
+
+ - Learn a bit more about the modern machine-learning techniques used to understand textual archeological data (LO1-LO3). 
+
+## Key Features and Results
+
+:::{.columns}
+::: {.column width="50%"}
+![Image source: Bogacz and Mara (2020)](images/predicting_time_period.png){width="100%"}
+:::
+
+::: {.column width="50%"}
+Using a pre-trained convolutional neural network, students will be able to classify a wide collection of cuneiform tablets by their location of origin, approximate age, and topic inscribed in the tablets. Students would discover how models differentiate between different types of classes through various types of evidence (linguistic markers such as vocabulary and sentence structures, as well as visual markers such as tablet shape, clay textures, and color variation), and how all those pieces of evidence come together to form a concrete label.
+:::
+:::
+
+
+## Notebook 3 : Regression - predicting age of skeletons from bone data
+
+### Learning Outcome:
+- Students will load a dataset of skeletal measurements and use regression to predict age-at-death
+- Students will understand the concept behind regression and why its a useful technique in archaeology
+
+### Class Structure 
+
+| Segment                                                     | Time   | Activity Type         |
+|-------------------------------------------------------------|--------|------------------------|
+| Introduction of applications of regression in archaeology (eg. stratigraphy)  | 10 min | Lecture                |
+| Overview of dataset (bone_data.txt) and variables           | 10 min | Lecture + Discussion   |
+| Regression basics refresher (target + predictors)           | 10 min | Lecture                |
+| Load and explore the dataset                                | 5 min  | Code Demo              |
+| Hands-on student coding (explore, modify model)             | 25 min | In-class activity|
+| Discussion: interpreting results + anthropological limits   | 10 min | In-class activity |
+
+
+## Notebook 4 : Build your own LLM ! 
+<!-- Maybe this was not as great an idea as I initially thought it to be  -->
+
+### Learning Outcome: 
+- Students will be able to create an LLM that is based on only the material they provide 
+- Help students understand bias LLMs have on historical narratives. 
+- Students understand that LLMs are pattern matchers, not intelligent historians
+
+## Class Strucutre : 
+Create a notebook where students can upload a corpus (2-3 texts). Load into a notebook using llama and ask the model questions related to their research topic. Make sure students become critically aware of how they are using AI. 
+
+
+| Segment                         | Time | Activity Type         |
+|----------------------------------|------|------------------------|
+| Discussing : How LLMs work ?     | 15 min | Lecture               |
+| Comparing ChatGPT vs custom corpus       | 10 min | Code Demo (eg. Ask ChatGPT a question on the Epic of Gilgamesh, then compare with a model queried over just Preziosi’s text or an archaeological field report. Highlight differences. )    |
+| Code Walkthrough   | 20 min | Students work through notebook            |
+
+Students can use custom corpus LLMs in the final paper !
+
+## References
+
+- “The Largest Surviving Medical Treatise from Ancient Mesopotamia : History of Information.” <https://www.historyofinformation.com/detail.php?id=2155>.
+
+- Kapon, Danielle, et al. “Shaping History: Advanced Machine Learning Techniques for the Analysis and Dating of Cuneiform Tablets over Three Millennia.” ArXiv.org, 2024, <https://arxiv.org/abs/2406.04039>. 
+
+- Bogacz, Bartosz, and Hubert Mara. “Period Classification of 3D Cuneiform Tablets with Geometric Neural Networks.” 2020 17th International Conference on Frontiers in Handwriting Recognition (ICFHR), Sept. 2020, ieeexplore.ieee.org/abstract/document/9257733, <https://doi.org/10.1109/icfhr2020.2020.00053>. 
+
+- Chen, Danlu, et al. “CuneiML: A Cuneiform Dataset for Machine Learning.” Journal of Open Humanities Data, vol. 9, 1 Jan. 2023, <https://doi.org/10.5334/johd.151>.
+
