@@ -1,4 +1,4 @@
-# Taken from COMET will have to be changed for Praxis use case
+# Taken from COMET might have to be changed for prAxIs use case
 # Date 2025-06-04
 FROM rocker/tidyverse:4.2.2 AS builder
 
