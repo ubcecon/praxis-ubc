@@ -10,7 +10,9 @@ COPY ./meta/building/renv.lock ./project ./
 RUN mkdir output
 
 # Quarto render all our documents
-RUN quarto render --output-dir /app/output  # Absolute path
+RUN quarto render
+# Move rendered output to output directory
+RUN rm -rf output && mv _site output
 
 # Final Stage (Added this so it can be ran locally and tested properly)
 FROM nginx:alpine
