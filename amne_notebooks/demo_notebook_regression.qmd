@@ -1,0 +1,315 @@
+---
+title: 'Notebook 2: Using Regressions to Predict Age-of-Death of Skeletal Remains'
+jupyter: python3
+---
+
+
+In archaeology, a regression is a type predictive model in which we use **measured attributes from known examples** to predict **outcomes for new finds**. 
+
+- **Dependent Variable:** The single numerical value we want our model to estimate for each new observation, also called an outcome variable. Typically denoted using $Y_i$. 
+
+- **Independent Variables**: The measurements or attributes we use to explain or predict our dependent variable, usually denoted using $X_{ij}$. 
+
+Our dependent variable might be something like an individual’s age at death, estimated from osteometric measurements, or the approximate date of an artifact, inferred from its dimensional and compositional features. For instance, we could use a suite of cranial measurements collected from skeletal remains to predict a individual's age, or leverage sherd thickness, fabric inclusions, and decoration motifs to estimate an artifact’s production century.
+
+![41598_2022_13983_Fig1_HTML.webp](attachment:41598_2022_13983_Fig1_HTML.webp)
+
+Much arecheological research goes into reconstructing information about skeletal remains. This often poses a significant challenge-- remains are often poorly preseved, for instane, taphonomic damage such as weathering and soil activity can erode features archeologists use for identification, and many skeletal remains are incomplete, lacking bones that exibit diagnostic traits for ancestry/sex/age/stature identification such as the pelvis and pubic symphysis. Additionally, the osteoloical standards used for grouping remains were primarily developed on 19th and 20th century European collections, making applying them to prehistroic or non-european populations innacurate. 
+
+<div class="alert alert-block alert-warning">
+<b>Emphasizing ancestry over race:</b> 
+
+Early physical anthropologists attempted to divide humans into a few “continental races” based on cranial measurements and other morphological traits. Not only did were these typological methods arbitrary and varied wildly between scholars, but where deeply rooted in colonialism, eugenics, and scientific racism. The concept of a distinct set of races rooted in biology was widely used to justify discrimination and colonial domination: measurements of morphological traits were used to legitimize chattel slavery in the United States, and were used to justify seperate schooling and differential legal codes for Algerian rersidents well after World War II. Modern archeologists now frame bone-based classifications of skeletal remains in terms of clinical variation (gradual changes across geography) amd genomic population structure rather than discrete race boxes. The American Association of Physical Anthropologists writes: “Race does not provide an accurate representation of human biological variation. It was never accurate in the past, and it remains inaccurate when referencing contemporary human populations. Humans are not divided biologically into distinct continental types or racial genetic clusters…”. 
+
+In short, archeologists must be very careful in how they frame their analyses of skeletal morphology, and not use race as a biological descriptor, rather framing analyses in terms of ancestry, population affinity, and clinical variation. 
+</div>
+
+Here is where predictive models step in: by 
+
+Among the many regression techniques available, the K-nearest neighbors (KNN) algorithm is particularly intuitive and flexible. In short, to apply KNN, we first assemble a reference dataset of specimens whose ages or dates are reliably known—perhaps through radiocarbon dating or historical documentation. Each new specimen is then compared to its K most similar neighbors (e.g., measurements of bone lengths, cortical thickness, strontium ratios, decoration counts), and its predicted age or date is calculated to be the average value of those neighbors.
+
+## 1.2 Exploring the dataset
+
+The **Goldman Osteometric Dataset** is a collection of 1538 osteometric measurements taken from a sample of human skeletons belonging to various periods of the Holocene. The dataset contains measurements for the femur, tibia, radius, pelvis, and humerus. 
+
+
+```{python}
+import altair as alt
+import numpy as np
+import pandas as pd
+from sklearn.model_selection import GridSearchCV, train_test_split
+from sklearn.compose import make_column_transformer
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn import set_config
+from pytimetk import glimpse
+import matplotlib.pyplot as plt
+
+    
+# Output dataframes instead of arrays
+set_config(transform_output="pandas")
+
+np.random.seed(10)
+
+goldman_skeletons = pd.read_csv('Goldman.csv', encoding="utf-8")
+```
+
+```{python}
+goldman_skeletons
+```
+
+```{python}
+print(goldman_skeletons.columns.values)
+```
+
+```{python}
+glimpse(goldman_skeletons)
+```
+
+```{python}
+
+plt.figure()
+goldman_skeletons['Age'].value_counts().sort_index().plot.bar()
+plt.title('Count by Age Category')
+plt.xlabel('Age Category')
+plt.ylabel('Count')
+plt.tight_layout()
+plt.show()
+```
+
+```{python}
+plt.figure()
+goldman_skeletons.boxplot(column='AVG FHD', by='Sex')
+plt.title('Average FHD by Sex')
+plt.suptitle('')
+plt.xlabel('Sex')
+plt.ylabel('AVG FHD')
+plt.tight_layout()
+plt.show()
+```
+
+```{python}
+plt.figure()
+plt.scatter(
+    goldman_skeletons['Brachial'],
+    goldman_skeletons['Crural'],
+    alpha=0.5
+)
+plt.title('Crural vs Brachial')
+plt.xlabel('Brachial')
+plt.ylabel('Crural')
+plt.tight_layout()
+plt.show()
+```
+
+```{python}
+import pandas as pd
+import geopandas as gpd
+from shapely.geometry import Point
+from shapely.ops import unary_union
+import geoplot as gplt
+import matplotlib.pyplot as plt
+import contextily as ctx
+from geopy.geocoders import Nominatim
+
+sites = goldman_skeletons['NOTE'].unique()
+print(f"Total unique sites to geocode: {len(sites)}")
+
+geolocator = Nominatim(user_agent="archaeo_mapper")
+coords = {}
+for site in sites:
+    try:
+        loc = geolocator.geocode(f"{site}, USA")
+        if loc:
+            coords[site] = (loc.longitude, loc.latitude)
+    except Exception:
+        pass
+
+print(f"Number of sites successfully geocoded: {len(coords)}")
+
+# 2) Map coords back and drop any misses
+
+```
+
+```{python}
+import pandas as pd
+import geopandas as gpd
+from folium import Map, CircleMarker
+from folium.plugins import HeatMap
+import branca.colormap as cm
+
+df = goldman_skeletons.dropna(subset=['lon','lat']).copy()
+
+
+center = [df['lat'].mean(), df['lon'].mean()]
+m = Map(location=center, zoom_start=4, tiles='CartoDB positron')
+
+
+heat_data = [
+    [row['lat'], row['lon'], 1.0]
+    for idx, row in df.iterrows()
+]
+
+m.add_child(HeatMap(
+    heat_data,
+    min_opacity=0.3,
+    max_zoom=10,
+    radius=50,
+    blur=30,
+    gradient={0.0: 'navy', 0.2: 'blue', 0.4: 'lime', 0.6: 'yellow', 0.8: 'orange', 1.0: 'red'},
+    name='Site Density'
+))
+
+for idx, row in df.iterrows():
+    CircleMarker(
+        location=(row['lat'], row['lon']),
+        radius=3,
+        color='black',
+        fill=True,
+        fill_opacity=0.6
+    ).add_to(m)
+
+
+colormap = cm.LinearColormap(
+    ['navy','blue','lime','yellow','orange','red'],
+    vmin=0, vmax=1
+)
+colormap.caption = 'Relative Site Density' 
+colormap.add_to(m)
+
+m.save('archaeo_heatmap.html')
+
+```
+
+```{python}
+df.drop(columns=['Brachial', 'Crural', 'IL.UL.LL', 'IL.LL.UL', 'CBR.FHD', 'McH.FHD', 'GRINE.FHD', 'AVG.FHD'], 
+        inplace=True, errors='ignore')
+
+# Drop right-side measurement columns to avoid duplication (use left-side measurements by convention:contentReference[oaicite:8]{index=8})
+right_side_cols = ['RHUM','RRAD','RFEM','RTIB','RIBL','RAcH']  # presence of right bones & right pelvic measures
+right_side_cols += [col for col in df.columns if col.startswith('R') and col not in ['Sex','Age']] 
+df.drop(columns=right_side_cols, inplace=True, errors='ignore')
+
+# At this point, df contains sex, age, left-side bone presence, and left-side measurements.
+# (Presence columns like LHUM, LRAD, etc., indicate if a bone was present; measurements have NaN if absent.)
+# Drop the presence indicator columns as we will directly handle missing measurements by dropping rows
+df.drop(columns=['LHUM','LRAD','LFEM','LTIB','OSCX'], inplace=True, errors='ignore')
+
+# Display the remaining columns for verification (optional)
+print("Remaining columns:", df.columns.tolist())
+print("Remaining rows:", len(df))
+```
+
+```{python}
+features = ['LHML', 'LHHD', 'LFML', 'LFHD', 'LFMLD', 'LTML']
+
+# Drop any rows that have NaN in any of these feature columns (complete-case analysis)
+df_final = df.dropna(subset=features).copy()
+
+# For modeling, separate the target and features; also drop Sex (we focus on osteometric features only)
+X = df_final[features]
+y = df_final['Age']
+df_final.drop(columns=['Sex'], inplace=True, errors='ignore')  # (Sex could be included as a feature, but we exclude it to let bone metrics drive the model)
+
+print(f"Selected features: {features}")
+print(f"Remaining samples after dropping missing data: {df_final.shape[0]} (out of 1538 original)")
+```
+
+```{python}
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+
+# Split the data into train and test sets (stratify by age class to maintain class proportions)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+print("Train size:", X_train.shape[0], "Test size:", X_test.shape[0])
+
+# Feature scaling: fit on train set and transform both train and test
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+
+```
+
+```{python}
+from sklearn.linear_model import LogisticRegression
+from sklearn.neighbors import KNeighborsClassifier
+
+# Initialize the models
+log_clf = LogisticRegression(multi_class='multinomial', solver='lbfgs', max_iter=500, random_state=42)
+knn_clf = KNeighborsClassifier(n_neighbors=5)
+
+# Train (fit) the models on the training set
+log_clf.fit(X_train_scaled, y_train)
+knn_clf.fit(X_train_scaled, y_train)
+```
+
+```{python}
+import plotly.express as px
+from ipywidgets import interact, IntSlider
+```
+
+```{python}
+@interact(feature=features)
+def plot_feature_distribution(feature):
+    fig = px.box(df_final, x='Age', y=feature, color='Age', 
+                 title=f"Distribution of {feature} by Age-at-Death Category",
+                 labels={feature: f"{feature} (mm)"})
+    fig.update_layout(xaxis_title="Age-at-Death Category", yaxis_title=f"{feature} (mm)", showlegend=False)
+    fig.show()
+```
+
+```{python}
+y_pred_log = log_clf.predict(X_test_scaled)
+y_pred_knn = knn_clf.predict(X_test_scaled)
+
+classes = sorted(y_test.unique())
+```
+
+```{python}
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
+report_log = classification_report(y_test, y_pred_log, output_dict=True)
+report_knn = classification_report(y_test, y_pred_knn, output_dict=True)
+metrics = ['precision', 'recall', 'f1-score']
+
+@interact(metric=metrics)
+def plot_model_metrics(metric):
+    # Build a dataframe of metric values for each class and model
+    data = []
+    for cls in classes:
+        data.append({
+            'Age': cls,
+            'Model': 'Logistic',
+            'Score': report_log[cls][metric]
+        })
+        data.append({
+            'Age': cls,
+            'Model': 'KNN',
+            'Score': report_knn[cls][metric]
+        })
+    df_metrics = pd.DataFrame(data)
+    # Create grouped bar chart
+    fig = px.bar(df_metrics, x='Age', y='Score', color='Model', barmode='group',
+                 title=f"{metric.capitalize()} by Age-at-Death Class: Logistic vs KNN",
+                 labels={'Score': metric.capitalize(), 'Age': 'Age-at-Death Category'})
+    fig.update_layout(xaxis_title="Age-at-Death Category", yaxis_title=metric.capitalize())
+    fig.show()
+```
+
+```{python}
+@interact(k=IntSlider(min=1, max=15, step=1, value=5))
+def plot_knn_confusion(k):
+    # Train a new KNN with the given k
+    knn = KNeighborsClassifier(n_neighbors=k)
+    knn.fit(X_train_scaled, y_train)
+    y_pred_k = knn.predict(X_test_scaled)
+    # Compute confusion matrix
+    cm = confusion_matrix(y_test, y_pred_k, labels=classes)
+    acc = accuracy_score(y_test, y_pred_k)
+    # Plot confusion matrix heatmap
+    fig = px.imshow(cm, text_auto=True, color_continuous_scale="Blues",
+                    x=classes, y=classes,
+                    title=f"KNN Confusion Matrix (k={k}) – Accuracy: {acc:.2%}")
+    fig.update_layout(xaxis_title="Predicted Age-at-Death", yaxis_title="Actual Age-at-Death")
+    fig.show()
+```
+
