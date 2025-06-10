@@ -547,3 +547,6 @@ interact(plot, s=FloatSlider(value=2, min=-4, max=6, step=0.1))
 ```python
 
 ```
+
+## TODO Complete Optimization
+## TODO Ethics
