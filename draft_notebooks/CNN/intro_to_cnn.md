@@ -604,7 +604,7 @@ dloader_val = torch.utils.data.DataLoader(
 
 After carefully processing both the training and the test data, we finally came to a stage where we can train our own CNN classifier. The first thing we need to do is to decide which **architecture** we want to use for the model.
 
-Architecture determines the way how a CNN integrate and learn from the features it extracted, and thus largely determines the performance of a model. Throughout the years, there have been several hugely successful CNN architectures, which we won't be able to discuss in detail. Here, I will only demonstrate the architecture of **LeNet-5**: It reads images in a sequence that starts with a partial and combines the partials into a comprehensive one.
+Architecture determines the way how a CNN integrate and learn from the features it extracted, and thus largely determines the performance of a model. Throughout the years, there have been several hugely successful CNN architectures, which we won't be able to discuss in detail. Here, I will only demonstrate the architecture of **LeNet-5**: It reads images in a sequence that starts with a partial and combines the partials into a comprehensive one. Intuitively, the learning process of this architecture can be thought as learning to write a new character: You learn to write each stroke first, and then follow the structure of the character to put those strokes together into a complete character.
 
 <img src="data/lenet5.png" alt="A visual comparison of two neural networks" width="700"/>
 
@@ -688,14 +688,16 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 model = ConvNeuralNet(num_classes).to(device)
 ```
 
-Next, we will set the loss and optimizer function used during the training. These are the factors that determines how much your network learn from the mistakes.
+Next, we will set the loss and optimizer function used during the training. These are the factors that determine how much your network learn from the mistakes and adjust the distribution of weights how it trust the "experts". 
+
+The **loss function** is a metric that measures the classification performance. Here the Cross-Entropy Loss function is one of them that is commonly used in neural networks. The **optimizer function drives** the model to reflect and adjust its weights after each validation, and its parameter **learning rate** decides how much the model absorb from the lessons. While it seems that a higher learning rate is beneficial, it is actually not as a high learning rate could lead to severe overshooting. That's why we set the learning rate `lr = 0.01` here to prevent overly progressive learning.
 
 
 ```python
 # set loss function
 loss_func = nn.CrossEntropyLoss()
 # set learning rate 
-lr = 0.008
+lr = 0.01
 # set optimizer as SGD
 optimizer = torch.optim.SGD(
     model.parameters(), lr=lr
@@ -704,7 +706,7 @@ optimizer = torch.optim.SGD(
 
 We will train the model for 25 epochs. To ensure we’re not overfitting to the training set, we pass the validation set through the model for inference only at the end of each epoch. If we see validation set performance suddenly degrade while train set performance improves, we are likely overfitting.
 
-We design the training and fitting loop as follows:
+You can run the training and fitting loop as follows, but **be cautious: This cell will take a long time to run**. Alternatively, you can skip 3 cells and load the model we pre-trained directly.
 
 
 ```python
@@ -756,31 +758,31 @@ for epoch in range(num_epochs):
     print(f'Epoch [{epoch+1}/{num_epochs}], Train Loss: {avg_train_loss:.4f}, Val Loss: {mean_val_loss:.4f}, Val Acc: {mean_val_acc:.2f}%')
 ```
 
-    Epoch [1/25], Train Loss: 2.3027, Val Loss: 2.3019, Val Acc: 10.10%
-    Epoch [2/25], Train Loss: 2.3015, Val Loss: 2.3000, Val Acc: 15.13%
-    Epoch [3/25], Train Loss: 2.2979, Val Loss: 2.2879, Val Acc: 17.81%
-    Epoch [4/25], Train Loss: 2.1603, Val Loss: 1.9651, Val Acc: 22.68%
-    Epoch [5/25], Train Loss: 1.9362, Val Loss: 1.8812, Val Acc: 25.04%
-    Epoch [6/25], Train Loss: 1.8544, Val Loss: 1.8119, Val Acc: 26.94%
-    Epoch [7/25], Train Loss: 1.7687, Val Loss: 1.7249, Val Acc: 31.10%
-    Epoch [8/25], Train Loss: 1.6734, Val Loss: 1.5913, Val Acc: 39.25%
-    Epoch [9/25], Train Loss: 1.5712, Val Loss: 1.4819, Val Acc: 44.08%
-    Epoch [10/25], Train Loss: 1.4939, Val Loss: 1.5056, Val Acc: 43.04%
-    Epoch [11/25], Train Loss: 1.4132, Val Loss: 1.4392, Val Acc: 46.04%
-    Epoch [12/25], Train Loss: 1.3396, Val Loss: 1.9725, Val Acc: 36.43%
-    Epoch [13/25], Train Loss: 1.2717, Val Loss: 1.4409, Val Acc: 48.28%
-    Epoch [14/25], Train Loss: 1.2114, Val Loss: 1.2350, Val Acc: 55.46%
-    Epoch [15/25], Train Loss: 1.1476, Val Loss: 1.1579, Val Acc: 57.96%
-    Epoch [16/25], Train Loss: 1.0797, Val Loss: 1.1142, Val Acc: 60.25%
-    Epoch [17/25], Train Loss: 1.0194, Val Loss: 1.0641, Val Acc: 62.05%
-    Epoch [18/25], Train Loss: 0.9687, Val Loss: 0.9634, Val Acc: 66.13%
-    Epoch [19/25], Train Loss: 0.9189, Val Loss: 0.9380, Val Acc: 67.16%
-    Epoch [20/25], Train Loss: 0.8750, Val Loss: 1.0063, Val Acc: 64.50%
-    Epoch [21/25], Train Loss: 0.8300, Val Loss: 0.9859, Val Acc: 66.31%
-    Epoch [22/25], Train Loss: 0.7905, Val Loss: 1.4402, Val Acc: 52.01%
-    Epoch [23/25], Train Loss: 0.7461, Val Loss: 0.9326, Val Acc: 69.37%
-    Epoch [24/25], Train Loss: 0.7066, Val Loss: 0.8555, Val Acc: 71.21%
-    Epoch [25/25], Train Loss: 0.6730, Val Loss: 0.8360, Val Acc: 72.28%
+    Epoch [1/25], Train Loss: 2.3021, Val Loss: 2.3001, Val Acc: 13.34%
+    Epoch [2/25], Train Loss: 2.2898, Val Loss: 2.2234, Val Acc: 17.42%
+    Epoch [3/25], Train Loss: 2.0538, Val Loss: 1.9328, Val Acc: 23.68%
+    Epoch [4/25], Train Loss: 1.8942, Val Loss: 1.8471, Val Acc: 26.64%
+    Epoch [5/25], Train Loss: 1.7916, Val Loss: 1.8081, Val Acc: 31.44%
+    Epoch [6/25], Train Loss: 1.6934, Val Loss: 1.6122, Val Acc: 38.49%
+    Epoch [7/25], Train Loss: 1.5806, Val Loss: 1.5241, Val Acc: 41.75%
+    Epoch [8/25], Train Loss: 1.4779, Val Loss: 1.7349, Val Acc: 38.25%
+    Epoch [9/25], Train Loss: 1.3871, Val Loss: 1.3291, Val Acc: 50.46%
+    Epoch [10/25], Train Loss: 1.2993, Val Loss: 1.3906, Val Acc: 47.77%
+    Epoch [11/25], Train Loss: 1.2242, Val Loss: 1.2780, Val Acc: 51.84%
+    Epoch [12/25], Train Loss: 1.1526, Val Loss: 1.3043, Val Acc: 53.84%
+    Epoch [13/25], Train Loss: 1.0791, Val Loss: 1.0770, Val Acc: 61.68%
+    Epoch [14/25], Train Loss: 1.0063, Val Loss: 1.3263, Val Acc: 53.47%
+    Epoch [15/25], Train Loss: 0.9457, Val Loss: 1.3407, Val Acc: 56.76%
+    Epoch [16/25], Train Loss: 0.8896, Val Loss: 1.4115, Val Acc: 53.55%
+    Epoch [17/25], Train Loss: 0.8397, Val Loss: 0.8510, Val Acc: 70.24%
+    Epoch [18/25], Train Loss: 0.7916, Val Loss: 0.8549, Val Acc: 69.86%
+    Epoch [19/25], Train Loss: 0.7471, Val Loss: 0.8846, Val Acc: 69.61%
+    Epoch [20/25], Train Loss: 0.7033, Val Loss: 0.8904, Val Acc: 69.75%
+    Epoch [21/25], Train Loss: 0.6587, Val Loss: 0.9046, Val Acc: 69.67%
+    Epoch [22/25], Train Loss: 0.6242, Val Loss: 0.9393, Val Acc: 69.71%
+    Epoch [23/25], Train Loss: 0.5850, Val Loss: 0.7304, Val Acc: 75.31%
+    Epoch [24/25], Train Loss: 0.5470, Val Loss: 1.0986, Val Acc: 67.19%
+    Epoch [25/25], Train Loss: 0.5170, Val Loss: 0.7533, Val Acc: 74.79%
     
 
 We can visualize how training loss, validation loss and validation accuracy evolve over time.
@@ -816,14 +818,18 @@ plt.show()
     
 
 
-The loss curve and validation accuracy curve show that the validation accuracy of the model basically shows an upward momentum as the training epochs increase. If we add more epochs (costly!), the accuracy of the model will be higher, but also more at risk of overfitting.
+The loss curve and validation accuracy curve show that the training loss and validation loss goes down while the validation accuracy of the model goes up as the training epochs increase. If we add more epochs (costly!), the validation accuracy of the model will be higher, but the model will also be more at risk of overfitting. To prevent which, we often need to regularize the model.
 
-After training for 25 epochs, we see our validation accuracy has passed 25%, we can save the model to file and load it again with the following:
+After training for 25 epochs, we see our validation accuracy has passed 70%, we can save the model to file and load it again with the following codes:
 
 
 ```python
 # save to file
 torch.save(model, 'cnn.pt')
+```
+
+
+```python
 
 # load from file and switch to inference mode
 model = torch.load('cnn.pt', weights_only=False)
@@ -932,61 +938,136 @@ for i in range(10):
 
 
     
-![png](intro_to_cnn_files/intro_to_cnn_50_0.png)
+![png](intro_to_cnn_files/intro_to_cnn_51_0.png)
     
 
 
 
     
-![png](intro_to_cnn_files/intro_to_cnn_50_1.png)
+![png](intro_to_cnn_files/intro_to_cnn_51_1.png)
     
 
 
 
     
-![png](intro_to_cnn_files/intro_to_cnn_50_2.png)
+![png](intro_to_cnn_files/intro_to_cnn_51_2.png)
     
 
 
 
     
-![png](intro_to_cnn_files/intro_to_cnn_50_3.png)
+![png](intro_to_cnn_files/intro_to_cnn_51_3.png)
     
 
 
 
     
-![png](intro_to_cnn_files/intro_to_cnn_50_4.png)
+![png](intro_to_cnn_files/intro_to_cnn_51_4.png)
     
 
 
 
     
-![png](intro_to_cnn_files/intro_to_cnn_50_5.png)
+![png](intro_to_cnn_files/intro_to_cnn_51_5.png)
     
 
 
 
     
-![png](intro_to_cnn_files/intro_to_cnn_50_6.png)
+![png](intro_to_cnn_files/intro_to_cnn_51_6.png)
     
 
 
 
     
-![png](intro_to_cnn_files/intro_to_cnn_50_7.png)
+![png](intro_to_cnn_files/intro_to_cnn_51_7.png)
     
 
 
 
     
-![png](intro_to_cnn_files/intro_to_cnn_50_8.png)
+![png](intro_to_cnn_files/intro_to_cnn_51_8.png)
     
 
 
 
     
-![png](intro_to_cnn_files/intro_to_cnn_50_9.png)
+![png](intro_to_cnn_files/intro_to_cnn_51_9.png)
+    
+
+
+We can visualize the feature maps at different layers to see how the CNN see images.
+
+
+```python
+# Visualization of features at different layers
+import torchvision.transforms as T
+
+to_tensor = T.ToTensor()
+
+pil_img, _ = dataset_val[0]['img'], dataset_val[0]['label']
+
+input_tensor = to_tensor(pil_img).unsqueeze(0).to(device)
+
+activations = {}
+def get_activation(name):
+    def hook(model, input, output):
+        activations[name] = output.detach().cpu()
+    return hook
+
+for layer_name in ['conv_layer1','conv_layer2','conv_layer3','conv_layer4','conv_layer5']:
+    getattr(model, layer_name).register_forward_hook(get_activation(layer_name))
+
+model.eval()
+with torch.no_grad():
+    _ = model(input_tensor)
+
+# Plot the feature map
+for name, fmap in activations.items():
+    num_filters = fmap.shape[1]
+    cols = 6
+    rows = min((num_filters + cols - 1) // cols, 4)
+    fig, axes = plt.subplots(rows, cols, figsize=(cols*2, rows*2))
+    fig.suptitle(f'Feature maps from {name}', fontsize=16)
+    for i in range(rows * cols):
+        r, c = divmod(i, cols)
+        ax = axes[r, c] if rows > 1 else axes[c]
+        if i < num_filters:
+            ax.imshow(fmap[0, i], cmap='viridis')
+            ax.set_title(f'#{i}')
+        ax.axis('off')
+    plt.tight_layout()
+    plt.show()
+
+```
+
+
+    
+![png](intro_to_cnn_files/intro_to_cnn_53_0.png)
+    
+
+
+
+    
+![png](intro_to_cnn_files/intro_to_cnn_53_1.png)
+    
+
+
+
+    
+![png](intro_to_cnn_files/intro_to_cnn_53_2.png)
+    
+
+
+
+    
+![png](intro_to_cnn_files/intro_to_cnn_53_3.png)
+    
+
+
+
+    
+![png](intro_to_cnn_files/intro_to_cnn_53_4.png)
     
 
 
