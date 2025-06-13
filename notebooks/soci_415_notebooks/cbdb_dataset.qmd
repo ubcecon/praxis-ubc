@@ -17,20 +17,71 @@ format:
 
 The China Biographical Database Abstract:  The China Biographical Database is a freely accessible relational database with biographical information about approximately 641,568 individuals as of August 2024, currently mainly from the 7th through 19th centuries. With both online and offline versions, the data is meant to be useful for statistical, social network, and spatial analysis as well as serving as a kind of biographical reference. The image below shows the spatial distribution of a cross dynastic subset of 190,000 people in CBDB by basic affiliations
 
+
+Display values within the dataset
 ```{python}
 import sqlite3
 import pandas as pd
 
+db_path = r'C:\Users\alexr\OneDrive\Desktop\WORK\Summer2025\latest.db'
+conn = sqlite3.connect(db_path)
+cursor = conn.cursor()
+
+# List all tables
+cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+tables = cursor.fetchall()
+
+print("Tables in database:", tables)
+
+conn.close()
+```
+
+Load the one we want
+```{python}
 db_path = r'C:\Users\alexr\OneDrive\Desktop\WORK\Summer2025\latest.db'
 
 # Connect to the database
 conn = sqlite3.connect(db_path)
 
 # Replace 'person' with the actual table name you want to load
-df = pd.read_sql_query("SELECT * FROM person", conn)
+df = pd.read_sql_query("SELECT * FROM KIN_DATA", conn)
 
 # Show the first few rows
 print(df.head())
 
 conn.close()
+
+```
+
+Build the NetworkX Graph
+```{python}
+import networkx as nx
+import matplotlib.pyplot as plt
+
+# Create an empty graph
+G = nx.Graph()
+
+# Add edges with kinship type as edge attribute
+for _, row in df.iterrows():
+    person = row['c_personid']
+    kin = row['c_kin_id']
+    kin_type = row['c_kin_code']
+    G.add_edge(person, kin, kinship=kin_type)
+
+print(f"Number of nodes: {G.number_of_nodes()}")
+print(f"Number of edges: {G.number_of_edges()}")
+```
+
+Visualize the network
+```{python}
+plt.figure(figsize=(12, 12))
+pos = nx.spring_layout(G, k=0.15)  # Layout for better spacing
+
+# Draw nodes and edges
+nx.draw_networkx_nodes(G, pos, node_size=50, node_color='skyblue')
+nx.draw_networkx_edges(G, pos, alpha=0.5)
+
+plt.title("Kinship Network from CBDB KIN_DATA")
+plt.axis('off')
+plt.show()
 ```
