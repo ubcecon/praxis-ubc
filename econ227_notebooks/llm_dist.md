@@ -3,6 +3,7 @@ author:
 - Yash Mali
 authors:
 - Yash Mali
+html: true
 title: LLM Probability Distribution
 toc-title: Table of contents
 ---
