@@ -1,12 +1,12 @@
 ---
 title: "LLM Probability Distribution"
-author: "Yash Mali"
+author: "Yash Mali, Kaiyan Zhang"
 format:
-  markdown:
+  html:
     embed-resources: true
+  markdown:
     html: true
 ---
-
 ## What do Large Language Models do?
 
 Large language models like ChatGPT do something that seems very simple: **Next word prediction.**
@@ -28,6 +28,7 @@ flowchart LR
     style MAT fill:#FFD700,stroke:#333,stroke-width:2px,font-weight:bold
     style MODEL fill:#ADD8E6,stroke:#333,stroke-width:2px
 ```
+
 We saw an example of predicting just one word. These models predict only one word at a time, but they can do this for very long sequences of words.
 
 For example: "bob went to the store"  to buy some milk.
@@ -56,22 +57,13 @@ flowchart TB
     style P3 fill:#FFD700,stroke:#333,stroke-width:2px,font-weight:bold
   end
 
-  subgraph S4["bob went to buy some milk"]
-    direction LR
-    B4[bob] --> W4[went] --> T4[to] --> B4b[buy] --> S4b[some] --> M4[LLM] --> P4[next?]
-    style M4 fill:#ADD8E6,stroke:#333,stroke-width:2px
-    style P4 fill:#FFD700,stroke:#333,stroke-width:2px,font-weight:bold
-  end
-
   %% Connect subgraphs to stack vertically
   S1 --> S2
   S2 --> S3
-  S3 --> S4
 
   style S1 fill:none,stroke:none
   style S2 fill:none,stroke:none
   style S3 fill:none,stroke:none
-  style S4 fill:none,stroke:none
 ```
 
 What the model is doing is learning the probability distribution of the next word given the previous words.
@@ -95,6 +87,8 @@ $$
 $$
 
 These models give a probability distribution over the entire vocabulary (all the words the model was trained on). We can then pick the word with the highest probability as the next word or we can sample from this distribution to get more varied (creative) outputs.
+
+Lets look at an example of how this works in practice:
 
 ```{python}
 #| echo: false
@@ -129,6 +123,53 @@ for i, ax in enumerate(axes):
 plt.tight_layout()
 plt.show()
 ```
+
+To get more creative responses you change the distribution at the output where you pick the next word. Very simply this involves making the distribution sharper or flatter.
+If you make the distribution sharper, you are more likely to pick the word with the highest probability. If you make it flatter, you are more likely to pick a word that is not the most probable one.
+
+This is called **temperature**. A higher temperature makes the distribution flatter, while a lower temperature makes it sharper. You would want to use a temperature of more than 1 $(1.2-1.5)$ for creative responses, and a temperature of less than 1 $(0.1 - 0.5)$ for more focused responses. For a balanced response, you can use a temperature of $0.7-1$.
+Another set of parameters are called top-p and top-k sampling.
+
+```{python}
+#| echo: false
+import warnings
+warnings.filterwarnings("ignore")
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+np.random.seed(42)
+vocab_size = 20
+vocab = [f'token{i}' for i in range(1, vocab_size+1)]
+base_probs = np.random.rand(vocab_size)
+base_probs /= base_probs.sum()  # Normalize to sum to 1
+
+def apply_temperature(probs, temp):
+    logits = np.log(probs + 1e-20)
+    scaled_logits = logits / temp
+    exp_logits = np.exp(scaled_logits)
+    return exp_logits / exp_logits.sum()
+
+temperatures = [0.5, 1.0, 1.5]
+distributions = [apply_temperature(base_probs, t) for t in temperatures]
+
+fig, axes = plt.subplots(1, 3, figsize=(20, 5), sharey=True)
+for i, (ax, dist, temp) in enumerate(zip(axes, distributions, temperatures)):
+    sns.barplot(x=vocab, y=dist, palette='muted', ax=ax)
+    ax.set_title(f'Temperature = {temp}')
+    ax.set_ylim(0, 0.25)
+    ax.set_ylabel('Probability' if i == 0 else '')
+    ax.set_xlabel('Vocabulary')
+    ax.tick_params(axis='x', rotation=90) # Rotate x-axis labels
+    max_idx = dist.argmax()
+    ax.bar(max_idx, dist[max_idx], color='gold')
+
+plt.tight_layout()
+plt.show()
+```
+
+In the example above, we see how the probability distribution changes with different temperatures. A high temperature (1.5) results in a flatter distribution, meaning the model is more likely to sample from less probable tokens, while a low temperature (0.5) results in a sharper distribution, favoring the most probable tokens.
+
 Note that while this is with words and language, the same idea applies to any sequential data, like stock prices, weather data, etc. The model learns the probability distribution of the next value given the previous values.
 
 ```{python}
