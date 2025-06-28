@@ -1,0 +1,1205 @@
+---
+title: 'AMNE 376: A Study of Richter''s Kouroi Through Image Embedding'
+author: prAxIs UBC Team <br> _Kaiyan Zhang, Yash Mali, Krishaant Pathman_
+date: July 2025
+description: Using examples from Richter's classic book on Kouroi, this notebook demonstrates the basics of computer vision and image embedding, introducing students to how computers “see” art and how we can use pre-trained convolutional neural networks for data exploration and formalist analysis.
+jupyter: python3
+---
+
+Before you start, make sure you have the required libraries installed, if not, uncomment by `ctrl` + `/` and run the following lines:
+
+```{python}
+# !pip install matplotlib
+# !pip install numpy
+# !pip install pandas
+# !pip install opencv-python
+# !pip install sklearn
+# !pip install torch
+# !pip install torchvision
+# !pip install transformers
+# !pip install datasets
+# !pip install grad-cam
+```
+
+### 1. Introduction: How Computers See Visual Art?
+
+Have you ever wondered how images are stored in computers, how computers see them and distinguish the difference between them? 
+
+Many of you probably know digital images are stored based on pixels as a grid of figures, but when we are doing image searches using a search engine or uploading them to a Generative AI model, how are computers interpret them, distinguish the difference and process them exactly? Here is a brief introduction that introduce you to some of the basic forms and methods.
+
+#### 1.1 Digital Representations of Images
+
+Have you ever heard of the RGB primary color model? For those who are unfamiliar with the concept, the model uses numbers in a range 0 ~ 255 to represent the color intensity of red, green and blue and add up the three color channels to generate any color that's visible to human. In a colorful digital image, each pixel is characterized by its color stored in the form (R, G, B), so knowing the distribution of color intensity gives you a lot of information about the image. 
+
+However, for monochrome images, there is only one color channel, the grayscale. We can still use the distribution of grayscale intensities to represent the image. Since all of our images (cropped from scanned pdf books) are printed in monochrome, we can represent them using a **grayscale color histogram**. 
+
+Let's start with a three-view of the New York Kouros, here we read in the images and present them together.
+```{python}
+import os
+from PIL import Image
+import matplotlib.pyplot as plt
+
+# Define the folder path where the images are stored
+image_path = '../data/richter_kouroi_filtered_photos' 
+
+fig, axes = plt.subplots(1, 3, figsize=(7, 4))
+
+# List of specific image filenames
+image_names = {'page188_img01_photo12.jpg': "Left", 'page188_img01_photo13.jpg': "Front", 'page189_img01_photo3.jpg': "Back"}
+
+# Display the images side by side
+axes = axes.flatten()
+for i, img_name in enumerate(image_names):
+    img_path = f"{image_path}/{img_name}"
+    image = Image.open(img_path)
+    axes[i].imshow(image)
+    axes[i].set_title(image_names[img_name])
+    axes[i].axis('off')
+
+plt.suptitle("Selected Images from Richter's Kouroi Dataset")
+plt.tight_layout()
+plt.show()
+```
+
+We then plot the color histogram for each image representing the distribution of grayscale intensity. What do you notice by looking at the three histograms?
+```{python}
+# Generate and plot greyscale histograms for the selected images
+fig, axes = plt.subplots(1, 3, figsize=(7, 4))
+
+for i, img_name in enumerate(image_names):
+    img_path = f"{image_path}/{img_name}"
+    image = Image.open(img_path)
+    histogram = image.histogram()
+
+    axes[i].plot(histogram, color='black')
+    axes[i].set_title(f'{image_names[img_name]}')
+    axes[i].set_xlim([0, 255])
+    axes[i].set_xlabel("Intensity")
+    if i == 0:
+        axes[i].set_ylabel("Frequency")
+
+plt.tight_layout()
+plt.show()
+```
+
+They look very similar! This result is not surprising given that the three images were taken at the same time with the same equipment of the same Kouros. The above example shows us that comparing the similarity of color distributions is one way that computers understand the similarity of images.
+
+However, one can quickly realize the drawbacks of this approach. First, it relies on the correct representation of color, so two identical images with color differences may not be recognized as similar. Second, since it focuses only on color, it ignores the fundamental information for object recognition such as spatial, shape and texture in the image. Last but not least, there may exist two completely different images with exactly the same color distribution. Therefore, we need better methods to consider the similarity between images.
+
+**Bag of Visual Words (BoVW)** is a more practical method for recognizing similarity. The rationale behind this is very complicated, but to put it simply, it treats a “feature” in an image as a “word” (a set of numbers containing information about the feature) and calculates how often each word appears in the image. Here, we created a visual vocabulary containing 20 “words” using three-view photos of the New York Kouros, and visualized the frequency distribution using histograms.
+```{python}
+import cv2
+import numpy as np
+from sklearn.cluster import KMeans
+
+# Define the number of clusters for KMeans
+n_clusters = 20
+
+# Initialize ORB detector
+orb = cv2.ORB_create(nfeatures=500)
+all_descriptors = []
+image_data = []
+
+for img_name in image_names:
+    img_path = os.path.join(image_path, img_name)
+    img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+    keypoints, descriptors = orb.detectAndCompute(img, None)
+
+    all_descriptors.append(descriptors)
+    
+    image_data.append((img_name, descriptors))
+
+# Stack descriptors for clustering
+all_descriptors_stacked = np.vstack(all_descriptors)
+
+# Build the visual vocabulary using KMeans
+kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+kmeans.fit(all_descriptors_stacked)
+
+# Compute histogram for each image
+histograms = []
+for img_name, descriptors in image_data:
+    if descriptors.shape[0] > 0:
+        words = kmeans.predict(descriptors)
+        hist, _ = np.histogram(words, bins=np.arange(n_clusters+1))
+    else:
+        hist = np.zeros(n_clusters, dtype=int)
+        
+    histograms.append((img_name, hist))
+    
+fig, axes = plt.subplots(1, len(histograms), figsize=(2.5 * len(histograms), 4), sharey=True)
+if len(histograms) == 1:
+    axes = [axes]
+
+x = np.arange(n_clusters)
+for ax, (img_name, hist) in zip(axes, histograms):
+    ax.bar(x, hist)
+    ax.set_title(f"{image_names[img_name]}")
+    ax.set_xlabel("Visual Word ID")
+    ax.set_xlim([-0.5, n_clusters - 0.5])
+    if ax is axes[0]:
+        ax.set_ylabel("Frequency")
+
+plt.suptitle("Bag of Visual Words Histograms")
+plt.tight_layout()
+plt.show()
+```
+
+We can also visualize a single visual word on the original image to see what it might represent. Here, we visualize the visual word with ID 6 on the left view photo. We note that the word 6 could represent the beads in the beadwork worn by the Kouros.
+```{python}
+from collections import defaultdict
+
+# Define the parameters
+n_clusters, patch_size, word_to_show, max_patches = 20, 32, 6, 30
+image_files = list(image_names.keys())
+
+orb = cv2.ORB_create(nfeatures=500)
+all_descs, descs_stack = [], []
+
+for idx, fname in enumerate(image_files):
+    img = cv2.imread(os.path.join(image_path, fname), cv2.IMREAD_GRAYSCALE)
+    kp, desc = orb.detectAndCompute(img, None)
+    if desc is None: 
+        continue
+    for k, d in zip(kp, desc):
+        all_descs.append((idx, k, d))
+        descs_stack.append(d)
+
+descs_stack = np.vstack(descs_stack)
+
+kmeans = KMeans(n_clusters=n_clusters, random_state=42).fit(descs_stack)
+assignments = kmeans.labels_
+
+# Collect locations of words
+locations = []
+for (idx, kp, _), w in zip(all_descs, assignments):
+    if w == word_to_show:
+        x, y = map(int, kp.pt)
+        locations.append((idx, x, y))
+        if len(locations) >= max_patches:
+            break
+
+# Group by image
+imgs = defaultdict(list)
+for idx, x, y in locations:
+    imgs[idx].append((x, y))
+
+# Pick the first image that has it
+img_idx, pts = next(iter(imgs.items()))
+fname = image_files[img_idx]
+
+# display image with key points labeled
+img = cv2.imread(os.path.join(image_path, fname), cv2.IMREAD_GRAYSCALE)
+img_rgb = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+for x, y in pts:
+    cv2.circle(img_rgb, (x, y), radius=25, color=(0,255,0), thickness=2)
+
+plt.figure(figsize=(6,6))
+plt.imshow(img_rgb)
+plt.title(f"Word {word_to_show} Keypoints on Left")
+plt.axis('off')
+plt.tight_layout()
+plt.show()
+```
+
+#### 1.2 Measurement of Similarity
+
+As you may have realized, the visual word frequency distributions of different images are not exactly the same, so how can we determine if these images are similar? More importantly, what can we use as a criterion to categorize different images based on visual words? Here, we will use something called **cosine similarity** to make a measurement.
+
+You can think of the visual word frequency histogram for each image as an arrow in space, and cosine similarity is a measure of how much those arrows are pointing in the same direction. The criterion is very intuitive: the closer the cosine similarity of two images is to 1, the more similar the two images are; the closer the cosine similarity is to 0, the less similar the two images are.
+
+Here, we perform pairwise cosine similarity measurements on left-view, front-view, and back-view photographs of New York Kouros, and show the results.
+```{python}
+from sklearn.metrics.pairwise import cosine_similarity
+
+hist_list = []
+for img_name, descriptors in image_data:
+    if descriptors.shape[0] > 0:
+        words = kmeans.predict(descriptors)
+        hist, _ = np.histogram(words, bins=np.arange(n_clusters + 1))
+    else:
+        hist = np.zeros(n_clusters, dtype=int)
+    hist = hist.astype(float)
+    if hist.sum() > 0:
+        hist /= hist.sum()
+    hist_list.append(hist)
+    
+histograms = np.array(hist_list)
+
+sim_matrix = cosine_similarity(histograms)
+
+image_keys = list(image_names.keys())
+image_labels = list(image_names.values())
+
+# Display the similarity matrix
+fig, ax = plt.subplots(figsize=(5, 5))
+cax = ax.imshow(sim_matrix, interpolation='nearest', cmap='viridis')
+ax.set_title('BoVW Cosine Similarity between Images')
+ax.set_xticks(np.arange(len(image_labels)))
+ax.set_yticks(np.arange(len(image_labels)))
+ax.set_xticklabels(image_labels, rotation=45, ha='right')
+ax.set_yticklabels(image_labels)
+fig.colorbar(cax, ax=ax, label='Cosine Similarity')
+plt.tight_layout()
+plt.show()
+
+print("Pairwise Cosine Similarity Matrix:")
+for i in range(len(image_labels)):
+    for j in range(i + 1, len(image_labels)):
+        print(f"{image_labels[i]} vs {image_labels[j]}: {sim_matrix[i, j]:.3f}")
+```
+
+As you can see, the pairwise cosine similarities are all very high, even though the BoVW histograms look very different! This is good evidence that they are photographs of the same object, and computers can understand this by setting appropriate threshold. 
+
+However, would this also work for photos of different objects? Let's find out by calculating the cosine similarity between existing images and another Kouros currently exhibited in Piraeus Archaeological Museum.
+```{python}
+# Define a new image to compare with the existing ones
+new_image_path = '../data/richter_kouroi_filtered_photos/page312_img01_photo4.jpg'
+new_image_label = 'A Kouros from Athens' # Suppose this is a new artifact we just discovered
+
+img_new = cv2.imread(new_image_path, cv2.IMREAD_GRAYSCALE)
+orb = cv2.ORB_create(nfeatures=500)
+kp_new, desc_new = orb.detectAndCompute(img_new, None)
+
+if desc_new is not None and len(desc_new) > 0:
+    words_new = kmeans.predict(desc_new)
+    hist_new, _ = np.histogram(words_new, bins=np.arange(kmeans.n_clusters + 1))
+else:
+    hist_new = np.zeros(kmeans.n_clusters, dtype=int)
+    
+hist_new = hist_new.astype(float)
+if hist_new.sum() > 0:
+    hist_new /= hist_new.sum()
+
+sims = cosine_similarity(histograms, hist_new.reshape(1, -1)).flatten() 
+
+# Print the cosine similarity of the new image with existing images
+print(f"\nCosine Similarity of '{new_image_label}' with existing images:")
+for i, label in enumerate(image_labels):
+    print(f"{label} vs {new_image_label}: {sims[i]:.3f}")
+
+# Show the new image
+plt.figure(figsize=(5, 5))
+plt.imshow(img_new, cmap='gray')
+plt.title(f"{new_image_label}")
+plt.axis('off')
+plt.show()
+```
+
+By looking at the results, we see that it has a lower but still relatively high cosine similarity to the previous images, albeit with different textures and poses. Although computers do not understand what "Kouroi" are simply by collecting visual words, they can still see the similarity! To support this view, let's look at an example that is also a standing figure, but from a different culture (China, Sanxingdui). If our conjecture is correct, its cosine similarity to the previous images will decrease significantly.
+```{python}
+# Define a new image to compare with the existing ones
+new_image_path2 = '../data/example_images/sanxingdui.jpeg'
+new_image_label2 = 'A Bronze Figure from Sanxingdui' # Suppose this is a new artifact we just discovered
+
+img_new2 = cv2.imread(new_image_path2, cv2.IMREAD_GRAYSCALE)
+orb = cv2.ORB_create(nfeatures=500)
+kp_new, desc_new = orb.detectAndCompute(img_new2, None)
+
+if desc_new is not None and len(desc_new) > 0:
+    words_new = kmeans.predict(desc_new)
+    hist_new, _ = np.histogram(words_new, bins=np.arange(kmeans.n_clusters + 1))
+else:
+    hist_new = np.zeros(kmeans.n_clusters, dtype=int)
+    
+hist_new = hist_new.astype(float)
+if hist_new.sum() > 0:
+    hist_new /= hist_new.sum()
+
+sims = cosine_similarity(histograms, hist_new.reshape(1, -1)).flatten()  
+
+# Print the cosine similarity of the new image with existing images
+print(f"\nCosine Similarity of '{new_image_label2}' with existing images:")
+for i, label in enumerate(image_labels):
+    print(f"{label} vs {new_image_label2}: {sims[i]:.3f}")
+
+# Show the new image
+plt.figure(figsize=(5, 5))
+plt.imshow(img_new2, cmap='gray')
+plt.title(f"{new_image_label2}")
+plt.axis('off')
+plt.show()
+```
+
+The results were exactly as we expected. The cosine similarity measured for different artistic styles, different poses and different angles of the Sanxingdui sculpture is significantly lower.
+
+This provides us with a hint on how to build an automatic image-based classifier for art and artifacts of different genres, cultures, and textures. Although BoVW also has some obvious limitations (lack of spatial relationships, lack of ability to detect specific objects in complex images), the examples above demonstrate the fundamentals of computer vision, and with the help of more advanced techniques we can do much more in analyzing artwork based on digitized images.
+
+### 2. Convolutions on Images
+
+**What are convolutions?**
+Before diving into applying a **convolutional neural network**, let's first make an intuitive introduction to the concept **convolution**.
+
+Imagine sliding a tiny image over an image as a filter to make the actual image appear the same as the filter. Convolution is the mathematical operation to achieve such an effect.
+
+Below is one of such filters, or in professional term, a kernel, how do you think it will filter an image to make the image look like it?
+
+```{python}
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Kernel
+kernel = np.array([
+    [-1, -1, -1],
+    [ 0,  0,  0],
+    [ 1,  1,  1]
+])
+
+# Map: 1 -> 1.0 (white), 0 -> 0.0 (black), -1 -> 1.0 (white)
+display_kernel = np.where(kernel == 0, 0, 1)
+
+fig, ax = plt.subplots()
+cax = ax.matshow(display_kernel, cmap='gray', vmin=0, vmax=1)
+plt.colorbar(cax)
+
+# Annotate the kernel values
+
+ax.set_title('Example of a Kernel')
+plt.show()
+```
+
+This is how an actual image **Convolved** with the filter:
+
+```{python}
+from scipy.ndimage import convolve
+from PIL import Image
+
+# Load the image as grayscale
+img_path = "../data/richter_kouroi_filtered_photos/page300_img01_photo8.jpg"
+image = Image.open(img_path).convert('L')
+img_array = np.array(image)
+
+# Define the horizontal edge detection kernel
+kernel = np.array([
+    [-1, -1, -1],
+    [ 0,  0,  0],
+    [ 1,  1,  1]
+])
+
+# Convolve the image with the kernel
+convolved = convolve(img_array, kernel, mode='reflect')
+
+# Display the original and convolved images
+fig, ax = plt.subplots(1, 2, figsize=(8, 4))
+ax[0].imshow(img_array, cmap='gray')
+ax[0].set_title("Original Image")
+ax[0].axis('off')
+ax[1].imshow(convolved, cmap='gray')
+ax[1].set_title("Convolved with Kernel")
+ax[1].axis('off')
+plt.show()
+```
+
+The above is just one example of a convolutional kernel that extracts horizontal edges in an image. In fact, there are many different kernels with different effects. For example, here is a filter that blurs all images:
+
+```{python}
+img_path = "../data/richter_kouroi_filtered_photos/page300_img01_photo8.jpg"
+img = np.array(Image.open(img_path).convert('L'))
+
+def gaussian_kernel(size=21, sigma=5):
+    ax = np.linspace(-(size-1)//2, (size-1)//2, size)
+    xx, yy = np.meshgrid(ax, ax)
+    kernel = np.exp(-(xx**2 + yy**2) / (2. * sigma**2))
+    return kernel / np.sum(kernel)
+
+kernel = gaussian_kernel(21, 5)
+conv = convolve(img, kernel)
+fig, ax = plt.subplots(1, 3, figsize=(8, 3))
+ax[0].imshow(img, cmap='gray'); ax[0].set_title("Original"); ax[0].axis('off')
+ax[1].imshow(kernel, cmap='gray'); ax[1].set_title("21x21 Gaussian Kernel"); ax[1].axis('off')
+ax[2].imshow(conv, cmap='gray'); ax[2].set_title("Heavily Blurred"); ax[2].axis('off')
+plt.tight_layout(); plt.show()
+```
+
+Below is a kernel that preserves the input image as it is; it is also known as the identity kernel:
+
+```{python}
+img_path = "../data/richter_kouroi_filtered_photos/page300_img01_photo8.jpg"
+img = np.array(Image.open(img_path).convert('L'))
+
+# Identity kernel (3x3)
+kernel = np.zeros((3, 3))
+kernel[1, 1] = 1
+
+conv = convolve(img, kernel)
+fig, ax = plt.subplots(1, 3, figsize=(8, 3))
+ax[0].imshow(img, cmap='gray'); ax[0].set_title("Original"); ax[0].axis('off')
+ax[1].imshow(kernel, cmap='gray', vmin=0, vmax=1); ax[1].set_title("Identity Kernel"); ax[1].axis('off')
+ax[2].imshow(conv, cmap='gray'); ax[2].set_title("Convolved"); ax[2].axis('off')
+plt.tight_layout(); plt.show()
+```
+
+There is also a kernel that sharpens the images, known as the sharpening filter:
+
+```{python}
+img_path = "../data/richter_kouroi_filtered_photos/page300_img01_photo8.jpg"
+img = np.array(Image.open(img_path).convert('L'))
+
+# Sharpen kernel
+kernel = np.array([[ 0, -1,  0],
+                   [-1,  5, -1],
+                   [ 0, -1,  0]])
+
+conv = convolve(img, kernel)
+fig, ax = plt.subplots(1, 3, figsize=(8, 3))
+ax[0].imshow(img, cmap='gray'); ax[0].set_title("Original"); ax[0].axis('off')
+ax[1].imshow(kernel, cmap='gray'); ax[1].set_title("Sharpen Kernel"); ax[1].axis('off')
+ax[2].imshow(conv, cmap='gray'); ax[2].set_title("Convolved"); ax[2].axis('off')
+plt.tight_layout(); plt.show()
+```
+
+Other than sharpening, there is even a filter to emboss the image:
+
+```{python}
+img_path = "../data/richter_kouroi_filtered_photos/page300_img01_photo8.jpg"
+img = np.array(Image.open(img_path).convert('L'))
+
+# Emboss kernel
+kernel = np.array([[-2, -1, 0],
+                   [-1,  1, 1],
+                   [ 0,  1, 2]])
+
+conv = convolve(img, kernel)
+fig, ax = plt.subplots(1, 3, figsize=(8, 3))
+ax[0].imshow(img, cmap='gray'); ax[0].set_title("Original"); ax[0].axis('off')
+ax[1].imshow(kernel, cmap='gray'); ax[1].set_title("Emboss Kernel"); ax[1].axis('off')
+ax[2].imshow(conv, cmap='gray'); ax[2].set_title("Convolved"); ax[2].axis('off')
+plt.tight_layout(); plt.show()
+```
+
+Other than only detecting vertical or horizontal edges, a filter named after Laplace was discovered to detect all edges:
+
+```{python}
+img_path = "../data/richter_kouroi_filtered_photos/page300_img01_photo8.jpg"
+img = np.array(Image.open(img_path).convert('L'))
+
+laplacian = np.array([[0,-1,0],[-1,8,-1],[0,-1,0]])
+edge = convolve(img, laplacian)
+
+fig, ax = plt.subplots(1, 3, figsize=(8, 3))
+ax[0].imshow(img, cmap='gray'); ax[0].set_title("Original"); ax[0].axis('off'
+)
+ax[1].imshow(laplacian, cmap='gray'); ax[1].set_title("Laplacian Kernel"); ax[1].axis('off')
+ax[2].imshow(edge, cmap='gray'); ax[2].set_title("Edges"); ax[2].axis('off')
+plt.tight_layout(); plt.show()
+```
+
+Over the years, people have discovered these tiny images or “kernels” or “filters”. In machine learning, we discover or learn these potentially useful filters directly from the data, rather than through mathematical derivation.
+
+Typically, a model used for image classification can (on its own) learn filters to highlight things the model needs, such as edges and lines, and more importantly, in addition to these simple features, the model can learn filters to detect heads, eyes, ears, and other abstract concepts, and this is exactly how convolution makes it possible to detect, characterize, and categorize complex objects in complex images. In order to achieve these amazing features, we usually need to employ models such as **Convolutional Neural Networks**.
+
+### 3. Data Exploration
+
+#### 3.1 Exploring the Metadata
+
+For the rest of the notebook, we will use a small selection of photographs from Richter's Kouroi (1942), which contain frontal shots of Kouroi with a full torso and recognizable facial features. We have also prepared a labeled metadata that shows information about which group and era these Kouroi belong to and what materials they are made of. We can begin by looking at some basic information from the metadata:
+```{python}
+import pandas as pd
+
+# Read in the metadata CSV file
+# Note that we are only going to investigate a subset of the full dataset
+df = pd.read_csv('../data/complete_sculpture_dataset_labeled.csv')
+
+df = df.drop(columns = 'page')
+
+print(df.head())
+```
+
+```{python}
+print("Information of the dataset:")
+print(f"Number of images: {df.shape[0]}")
+print(f"Number of distinct eras: {df['era'].nunique()}")
+print(f"Number of distinct materials: {df['material'].nunique()}")
+```
+
+We can also see the distribution of each label by plotting histograms:
+```{python}
+def bar_plot(df, column1, column2):
+    # Calculate counts of each value in the specified columns
+    label_counts1 = df[column1].value_counts()
+    label_counts2 = df[column2].value_counts()
+
+    # Create a figure with a fixed size
+    fig, axes = plt.subplots(1, 2, figsize=(6, 3))
+    
+    # Plot the bar chart
+    label_counts1.plot(kind='bar', ax=axes[0], color='skyblue')
+    axes[0].set_title(f'Distribution of {column1.capitalize()}')
+    axes[0].set_xlabel(column1.capitalize())
+    axes[0].set_ylabel('Count')
+    axes[0].tick_params(axis='x', rotation=45)
+    label_counts2.plot(kind='bar', ax=axes[1], color='lightgreen')
+    axes[1].set_title(f'Distribution of {column2.capitalize()}')
+    axes[1].set_xlabel(column2.capitalize())
+    axes[1].set_ylabel('Count')
+    axes[1].tick_params(axis='x', rotation=45)
+    
+    plt.tight_layout()
+    plt.show()
+
+# Plot the distribution of labels in the dataset
+bar_plot(df, 'era', 'material')
+```
+
+#### 3.2 Exploring the Images
+
+To get a direct idea of the general characteristics of this subset of photographs, we read the photographs from the image directory and show the first 4 images in this dataset.
+```{python}
+# Read in the images as a list 
+from pathlib import Path
+
+data_dir = Path("../data/richter_kouroi_complete_front_only")
+image_paths = sorted(data_dir.glob("*.jpg"))
+
+images = []
+for p in image_paths:
+    img = Image.open(p).convert("RGB")   # ensure 3‑channel
+    img_arr = np.array(img)
+    images.append(img_arr)
+    
+fig, axes = plt.subplots(1, 4, figsize=(6, 4))
+for ax, img in zip(axes, images[:4]):
+    ax.imshow(img)
+    ax.axis("off")
+plt.suptitle("First 4 images in the dataset")
+plt.show()
+```
+
+### 4. Image Embedding Using ConvNeXt V2
+
+#### 4.1 CNN and Models See Images
+
+
+```{python}
+# Read in the pre-trained ConvNeXtV2 model
+from transformers import AutoImageProcessor
+from transformers import ConvNextV2Model
+from torchvision.models import convnext_base,  ConvNeXt_Base_Weights
+import torch
+from tqdm.notebook import tqdm
+
+# Load the pre-trained ConvNeXtV2 model and image processor
+processor = AutoImageProcessor.from_pretrained("facebook/convnextv2-base-22k-224") 
+attention_model = convnext_base(weights=ConvNeXt_Base_Weights.IMAGENET1K_V1)
+
+# Move the model to the appropriate device (GPU or CPU)
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+```
+
+Below is a heatmap that highlights the important regions of the first four images using the target gradient of the final convolutional layer. More generally, it visualizes where the CNN model looks on the image before making a final decision. While this approach does not fully reflect the decision-making process of a CNN, it helps us recognize how a CNN sees an object.
+
+```{python}
+# Load the Grad-CAM library for attention visualization
+import torchvision.transforms as T
+from pytorch_grad_cam import GradCAM
+from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
+from pytorch_grad_cam.utils.image import show_cam_on_image
+
+transform = T.Compose([
+    T.Resize((224, 224)),
+    T.ToTensor(),
+    T.Normalize(mean=[0.485, 0.456, 0.406],
+                std=[0.229, 0.224, 0.225]),
+])
+
+# Hook into the last feature layer of the network
+target_layers = [attention_model.features[-1]]
+cam = GradCAM(model=attention_model, target_layers=target_layers)
+
+n_cols = 4
+fig, axes = plt.subplots(1, n_cols, figsize=(1.5 * n_cols, 4))
+for i, rgb_orig in enumerate(images[:n_cols]):
+    # rgb_orig: float array H×W×3 in [0,1]
+    rgb_orig = rgb_orig.astype(np.float32) / 255.0
+    h, w, _ = rgb_orig.shape
+    
+    # Convert to PIL for resizing + normalization
+    img_pil = Image.fromarray((rgb_orig * 255).astype(np.uint8))
+    input_tensor = transform(img_pil).unsqueeze(0)
+    
+    # Compute CAM 
+    grayscale_cam = cam(input_tensor=input_tensor,
+                        targets=[ClassifierOutputTarget(0)])[0]
+    
+    # Upsample back to original size
+    grayscale_cam_orig = cv2.resize(grayscale_cam, (w, h),
+                                    interpolation=cv2.INTER_LINEAR)
+    
+    # Overlay heatmap on the original image
+    visualization = show_cam_on_image(rgb_orig, grayscale_cam_orig, use_rgb=True)
+    
+    # Display
+    ax = axes[i]
+    ax.imshow(visualization)
+    ax.axis("off")
+
+plt.suptitle("Visualization with Grad-CAM on ConvNeXtV2")
+plt.tight_layout()
+plt.show()
+```
+
+The highlighted area is the area with the highest density of target gradients. What did you notice? Do you think the model focuses on key regions of interest? If we were to apply the ConvNeXt V2 model directly on Kouroi photos, do you think this would cause some problems?
+
+#### 4.2 Creating Image Embeddings
+
+Image embedding is a process where images are transformed into numerical representations, specifically, lists of numbers that carry informations about the images. While this sounds somewhat similar to the idea of visual words, they are not the same. Think of BoVW as counting how many times specific words appear in a book without caring about grammar or sentence structure, this can identify simple patterns, but cannot summarize the big picture of the book. Image embeddings, on the other hand, are like reading the entire book and summarizing its meaning in a well crafted passage, they capture the bigger picture, context, and nuance.
+
+We can build a vocabulary of visual words quite easily, but creating image embeddings usually require using deep neural networks pretrained on millions of images. These networks process the entire image and learn hierarchical, abstract features that are more semantically meaningful.  
+
+Here, we will load the pre-trained ConvNeXt V2 model, pass the image folder to generate embeddings, and save the embeddings in a grid of numbers.
+
+```{python}
+model = ConvNextV2Model.from_pretrained("facebook/convnextv2-base-22k-224")
+
+# Move the model to the appropriate device (GPU or CPU)
+_ = model.to(device)
+```
+
+```{python}
+batch_size = 16
+embeddings = []
+valid_filenames = []
+
+image_directory = "../data/richter_kouroi_complete_front_only"
+
+filenames = df['filename'].tolist()
+
+for i in tqdm(range(0, len(filenames), batch_size), desc="Processing Images in Batches"):
+    batch_filenames = filenames[i : i + batch_size]
+    images = []
+    for filename in batch_filenames:
+        path = os.path.join(image_directory, filename)
+        try:
+            img = Image.open(path).convert("RGB")
+            images.append(img)
+        except FileNotFoundError:
+            print(f"Missing: {path}")
+        except Exception as e:
+            print(f"Error with {filename}: {e}")
+
+    if not images:
+        continue
+
+    # Prepare inputs
+    inputs = processor(images=images, return_tensors="pt")
+    pixel_values = inputs["pixel_values"].to(device)
+
+    # Forward through feature extractor
+    with torch.no_grad():
+        outputs = model(pixel_values)   
+    # Global average pool
+    if isinstance(outputs, torch.Tensor):
+        hidden = outputs           
+    else:
+        hidden = outputs.last_hidden_state 
+
+    batch_emb = hidden.mean(dim=(2, 3)).cpu().numpy()
+
+    embeddings.extend(batch_emb)   
+    
+embeddings = np.stack(embeddings, axis=0) 
+
+np.save('../data/embeddings/convnextv2_image_embeddings.npy', embeddings)
+```
+
+```{python}
+print(embeddings)
+
+embeddings.shape
+```
+
+We printed the embedded results above to see what they look like, and we also displayed the shape of the grid. As you can see, it contains 62 rows representing the 62 images in the dataset, and each row has 1024 cells representing all the information extracted from each image. From now on, we will use this embedded data instead of the original image data.
+
+### 5. Analysis of Image Embeddings
+#### 5.1 Principal Component Analysis
+
+```{python}
+from sklearn.decomposition import PCA
+import seaborn as sns
+
+# We can load the embeddings from the saved file
+embeddings = np.load('../data/embeddings/convnextv2_image_embeddings.npy')
+
+# Perform PCA to reduce the dimensionality of the embeddings
+pca = PCA(n_components=3)
+pca_embeddings = pca.fit_transform(embeddings)
+
+pc_df = pd.DataFrame(
+    pca_embeddings[:, :3],
+    columns=['PC1','PC2','PC3']
+)
+
+# Generate the visualization of PCA embeddings with the era labels
+pc_df['era'] = df['era'].values
+
+g = sns.pairplot(pc_df, hue='era', vars=['PC1','PC2','PC3'])
+g.fig.set_figwidth(8)
+g.fig.set_figheight(8)
+plt.show()
+```
+
+```{python}
+pc_df['material'] = df['material'].values
+
+g = sns.pairplot(pc_df, hue='material', vars=['PC1','PC2','PC3'])
+g.fig.set_figwidth(8)
+g.fig.set_figheight(8)
+plt.show()
+```
+
+#### 5.2 TSNE Visualization
+
+```{python}
+from sklearn.manifold import TSNE
+import plotly.express as px
+
+tsne = TSNE(n_components=2, init='pca', method='exact')
+tsne_embeddings = tsne.fit_transform(embeddings)
+
+plotly_df = pd.DataFrame({
+    'TSNE_Dim1': tsne_embeddings[:, 0],
+    'TSNE_Dim2': tsne_embeddings[:, 1],
+    'Era': df['era'].tolist(), # Use the 'era' column from your original df
+    'Filename': df['filename'].tolist(), # Include the filenames
+    'Material': df['material'].tolist() # Include the material column
+})
+
+# Plot the t-SNE embeddings colored by Era
+fig = px.scatter(
+        plotly_df,
+        x='TSNE_Dim1',
+        y='TSNE_Dim2',
+        color='Era',
+        hover_data=('Filename',), # Show filename when hovering
+        title='Interactive t-SNE of Image Embeddings Colored by Era',
+        width=700, height=500
+    )
+
+fig.show()
+```
+
+```{python}
+# Plot the t-SNE embeddings colored by material
+fig = px.scatter(
+        plotly_df,
+        x='TSNE_Dim1',
+        y='TSNE_Dim2',
+        color='Material',
+        hover_data=['Filename'], # Show filename when hovering
+        title='Interactive t-SNE of Image Embeddings Colored by Material',
+        width=700, height=500
+    )
+
+fig.show()
+```
+
+### 6. Example: Classification of Kouroi Based on Image Embedding
+
+#### 6.1 Traditional Approach
+
+```{python}
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn import metrics
+
+X = embeddings
+y1 = df['era'].tolist()
+y2 = df['material'].tolist()
+
+y1 = np.array(y1)
+y2 = np.array(y2)
+```
+
+```{python}
+# Perform the classification of eras
+
+# Split the data into training and testing sets
+X_train1, X_test1, y_train1, y_test1 = train_test_split(X, y1, test_size=0.3, random_state=42, stratify=y1)
+
+# Create a logistic regression model
+clf1 = LogisticRegression(max_iter=1000, random_state=42)
+
+clf1.fit(X_train1, y_train1)
+
+y_pred1 = clf1.predict(X_test1)
+
+# Calculate classification metrics
+classification_report1 = metrics.classification_report(y_test1, y_pred1, zero_division=0)
+
+# Print the classification report 
+print("Classification Report for Eras:")
+print(classification_report1)
+```
+
+```{python}
+# Plot the confusion matrix
+from sklearn.metrics import confusion_matrix
+
+cm1 = confusion_matrix(y_test1, y_pred1, labels=np.unique(y1))
+
+plt.figure(figsize=(5, 5))
+sns.heatmap(cm1, annot=True, fmt='d', cmap='Blues', xticklabels=np.unique(y1), yticklabels=np.unique(y1))
+
+plt.title('Confusion Matrix for Eras')
+plt.xlabel('Predicted')
+plt.xticks(rotation=45)
+plt.ylabel('True')
+plt.show()
+```
+
+```{python}
+# Perform the classification of materials
+
+# Split the data into training and testing sets
+X_train2, X_test2, y_train2, y_test2 = train_test_split(X, y2, test_size=0.3, random_state=42, stratify=y2)
+
+# Create a logistic regression model
+clf2 = LogisticRegression(max_iter=1000, random_state=42)
+
+clf2.fit(X_train2, y_train2)
+
+y_pred2 = clf2.predict(X_test2)
+
+# Calculate classification metrics
+classification_report2 = metrics.classification_report(y_test2, y_pred2, zero_division=0)
+
+# Print the classification report
+print("Classification Report for Materials:")
+print(classification_report2)
+```
+
+```{python}
+# Plot the confusion matrix
+cm2 = confusion_matrix(y_test2, y_pred2, labels=np.unique(y2))
+
+plt.figure(figsize=(5, 5))
+sns.heatmap(cm2, annot=True, fmt='d', cmap='Blues', xticklabels=np.unique(y2), yticklabels=np.unique(y2))
+
+plt.title('Confusion Matrix for Materials')
+plt.xlabel('Predicted')
+plt.xticks(rotation=45)
+plt.ylabel('True')
+plt.show()
+```
+
+#### 6.2 CNN Classification of Materials
+
+```{python}
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import Dataset, DataLoader
+
+# Map the materials to integers
+
+MAT2IDX = {
+    'Marble': 0,
+    'Bronze': 1,
+    'Lead': 2,
+    'Alabaster': 3,
+    'Limestone': 4,
+    'Terracotta': 5,
+}
+```
+
+```{python}
+# Create a custom dataset class for the Kouroi dataset
+class KouroiDataset(Dataset):
+    def __init__(self, img_dir, processor, mat2idx):
+        self.df = df
+        self.img_dir = image_directory
+        self.processor = processor
+        self.mat2idx = MAT2IDX
+
+    def __len__(self):
+        return len(self.df)
+
+    def __getitem__(self, idx):
+        row = self.df.iloc[idx]
+        img = Image.open(os.path.join(self.img_dir, row.filename)).convert("RGB")
+        # turn to model inputs
+        inputs = self.processor(images=img, return_tensors="pt")
+        # remove batch dim
+        for k,v in inputs.items():
+            inputs[k] = v.squeeze(0)
+        label = self.mat2idx[row.material]
+        return inputs, label
+```
+
+```{python}
+# Initialize the dataset and dataloader
+dataset = KouroiDataset(image_directory, processor, MAT2IDX)
+loader  = DataLoader(dataset, batch_size=16, shuffle=True, num_workers=0)
+```
+
+```{python}
+# Build the model with convnextv2 as the backbone and a linear layer for classification
+class Classifier(nn.Module):
+    def __init__(self, backbone_name, num_classes):
+        super().__init__()
+        # Load the ConvNeXtV2 backbone correctly and freeze it
+        self.backbone = ConvNextV2Model.from_pretrained(
+            backbone_name,
+            output_hidden_states=False,
+            output_attentions=False
+        )
+        for p in self.backbone.parameters():
+            p.requires_grad = False
+
+        embed_dim = self.backbone.config.hidden_sizes[-1]
+
+        # Build a simple 2-layer MLP head
+        self.head = nn.Sequential(
+            nn.Linear(embed_dim, embed_dim // 2),
+            nn.ReLU(inplace=True),
+            nn.Dropout(0.2),
+            nn.Linear(embed_dim // 2, num_classes)
+        )
+
+    def forward(self, pixel_values):
+        # Forward through the frozen backbone
+        outputs = self.backbone(pixel_values=pixel_values)
+        x = outputs.pooler_output
+
+        # Classification head
+        logits = self.head(x)
+        return logits
+
+# Instantiate and move to device
+model = Classifier(
+    backbone_name="facebook/convnextv2-base-22k-224",
+    num_classes=len(MAT2IDX)
+).to(device)
+```
+
+```{python}
+# Set up the loss function and optimizer
+criterion = nn.CrossEntropyLoss()
+optimizer = optim.Adam(model.head.parameters(), lr=1e-4, weight_decay=0.01)
+epochs = 10  
+
+
+for epoch in range(1, epochs+1):
+    model.train()
+    total_loss = 0
+    for batch in tqdm(loader, desc=f"Epoch {epoch}/{epochs}"):
+        inputs, labels = batch
+        # move to device
+        inputs = {k:v.to(device) for k,v in inputs.items()}
+        labels = labels.to(device)
+
+        optimizer.zero_grad()
+        logits = model(**inputs)
+        loss   = criterion(logits, labels)
+        loss.backward()
+        optimizer.step()
+
+        total_loss += loss.item() * labels.size(0)
+
+    avg_loss = total_loss / len(dataset)
+    print(f" Epoch {epoch} avg loss: {avg_loss:.4f}")
+```
+
+```{python}
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+
+# Run one pass over your data in eval mode
+model.eval()
+all_preds, all_labels = [], []
+with torch.no_grad():
+    for inputs, labels in loader:
+        if inputs is None: continue
+        inputs = {k:v.to(device) for k,v in inputs.items()}
+        logits = model(**inputs)
+        all_preds.extend(logits.argmax(dim=1).cpu().numpy())
+        all_labels.extend(labels.numpy())
+
+# Compute & plot confusion matrix
+cm = confusion_matrix(all_labels, all_preds, labels=list(MAT2IDX.values()))
+disp = ConfusionMatrixDisplay(cm, display_labels=list(MAT2IDX.keys()))
+disp.plot(cmap="Blues", xticks_rotation=45, values_format="d")
+plt.title("Material Classification Confusion Matrix")
+plt.tight_layout()
+plt.show()
+
+# Print the classification report
+from sklearn.metrics import classification_report
+report = classification_report(all_labels, all_preds, target_names=list(MAT2IDX.keys()), zero_division=0)
+print("Classification Report for Materials:")
+print(report)
+```
+
+### 8. Conclusion
+
+### Key Takeaways
+
+### Appendix: Data Collection and Preprocessing
+
+This part provides a brief overview of how the data was collected and preprocessed for the analysis, typically how we cropped the images and prepared the metadata.
+
+We used the following python script to convert a scanned pdf of Richter (1942) to image files in `.jpg` format.
+```python
+import fitz  
+
+# Change the filename here if you want to reuse the script for your own project
+doc = fitz.open("kouroiarchaicgre0000rich_1.pdf") 
+
+import os
+out_dir = "extracted_images"
+os.makedirs(out_dir, exist_ok=True)
+
+# Iterate pages
+for page_index in range(len(doc)):
+    page = doc[page_index]
+    image_list = page.get_images(full=True)  # get all images on this page
+
+    # Skip pages without images
+    if not image_list:
+        continue
+
+    # Extract each image
+    for img_index, img_info in enumerate(image_list, start=1):
+        xref = img_info[0]                   
+        base_image = doc.extract_image(xref)  
+        image_bytes = base_image["image"]     
+        image_ext   = base_image["ext"]      
+
+        # Write to file
+        out_path = os.path.join(
+            out_dir,
+            f"page{page_index+1:03d}_img{img_index:02d}.{image_ext}"
+        )
+        with open(out_path, "wb") as f:
+            f.write(image_bytes)
+
+print(f"Saved all images to {out_dir}")
+```
+
+The following script cropped the photos by applying convolution.
+
+```python
+import cv2
+import glob
+import os
+
+# Folder containing your page images
+input_folder = "extracted_images"
+output_folder = "cropped_photos"
+os.makedirs(output_folder, exist_ok=True)
+
+def extract_photos_from_page(image_path, min_area=5000):
+    img = cv2.imread(image_path)
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    # Blur and threshold to get binary image
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+    _, thresh = cv2.threshold(blurred, 200, 255, cv2.THRESH_BINARY_INV)
+    
+    # Dilate to merge photo regions
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (15, 15))
+    dilated = cv2.dilate(thresh, kernel, iterations=2)
+    
+    # Find contours
+    contours, _ = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    crops = []
+    for cnt in contours:
+        x, y, w, h = cv2.boundingRect(cnt)
+        area = w * h
+        # Filter by area to remove small artifacts
+        if area > min_area:
+            crop = img[y:y+h, x:x+w]
+            crops.append((crop, (x, y, w, h)))
+    return crops
+
+# Process all pages
+for img_path in glob.glob(os.path.join(input_folder, "*.*")):
+    base = os.path.splitext(os.path.basename(img_path))[0]
+    photos = extract_photos_from_page(img_path)
+    for idx, (crop, (x, y, w, h)) in enumerate(photos, start=1):
+        out_file = os.path.join(output_folder, f"{base}_photo{idx}.jpg")
+        cv2.imwrite(out_file, crop)
+
+print(f"Saved all images at {output_folder}")
+```
+The following script employed `tesseract` OCR engine to detect pure text images and filter out photos of Kouros. You may want to visit the GitHub repo <https://github.com/tesseract-ocr/tesseract> to see how to install and setup appropriately.
+
+```python
+import os
+import shutil
+from PIL import Image
+import pytesseract
+# Ensure you have Tesseract installed and pytesseract configured correctly.
+# On Windows, you might need:
+# pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+
+# Folders
+input_folder = "cropped_photos"
+text_folder = "text_crops"
+photo_folder = "filtered_photos"
+os.makedirs(text_folder, exist_ok=True)
+os.makedirs(photo_folder, exist_ok=True)
+
+# Threshold for text length to consider as "text-only"
+# You can also adjust this threshold based on your specific needs.
+TEXT_CHAR_THRESHOLD = 2 # Be careful with this threshold, do remember to check the results manually
+
+
+for filename in os.listdir(input_folder):
+    path = os.path.join(input_folder, filename)
+    img = Image.open(path)
+
+    # Perform OCR to extract text
+    extracted_text = pytesseract.image_to_string(img)
+
+    # Classify based on length of extracted text
+    if len(extracted_text.strip()) >= TEXT_CHAR_THRESHOLD:
+        dest = os.path.join(text_folder, filename)
+    else:
+        dest = os.path.join(photo_folder, filename)
+
+    shutil.move(path, dest)
+    print(f"Moved {filename} -> {os.path.basename(dest)}")
+
+print("Filtering complete")
+```
+This script creates a `.csv` file for mannual labelling.
+
+```python
+import os, re
+import pandas as pd
+
+# Scan your filtered_photos folder
+records = []
+
+# Updated regex to match "page<number>_img<number>_photo<number>.<ext>"
+pattern = re.compile(r"page(\d+)_img\d+_photo(\d+)\.(?:png|jpe?g)", re.IGNORECASE)
+
+for fn in os.listdir("richter_kouroi_head_front_only"):
+    m = pattern.match(fn)
+    if not m:
+        continue
+    page = int(m.group(1))
+    photo_idx = int(m.group(2))
+    records.append({
+        "filename": fn,
+        "page": page,
+        "group": "",    # blank for manual entry
+        "era": "",  # blank for manual entry
+        "material": ""  # blank for manual entry
+    })
+
+# Build DataFrame
+df = pd.DataFrame(records)
+
+df.sort_values(["page", "filename"], inplace=True)
+
+# Save out to CSV for manual labeling
+df.to_csv("label_template.csv", index=False)
+```
+You can try out the scripts yourself by running them in a python environment
+
+### Reference
+1. Richter, G. M. A. (1970). *Kouroi: Archaic Greek youths: A study of the development of the Kouros type in Greek sculpture.* Phaidon. Accessed through Internet Archive <https://archive.org/details/kouroiarchaicgre0000rich>.
+2. Pinecone. *Embedding Methods for Image Search.* Accessed through Pinecone <https://www.pinecone.io/learn/series/image-search/>.
+3. IBM. What are convolutional neural networks? <https://www.ibm.com/think/topics/convolutional-neural-networks>
+4. Woo, S., Debnath, S., Hu, R., Chen, X., Liu, Z., Kweon, I. S., & Xie, S. (2024). ConvNeXt V2: Co-designing and Scaling ConvNets with Masked Autoencoders. arXiv preprint arXiv:2301.00808v1.
+
