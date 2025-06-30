@@ -1,0 +1,1476 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.7.31">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Identifying and mapping disinformation campaigns using Machine learning</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script><script src="soci_270_bert_files/libs/clipboard/clipboard.min.js"></script>
+<script src="soci_270_bert_files/libs/quarto-html/quarto.js" type="module"></script>
+<script src="soci_270_bert_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="soci_270_bert_files/libs/quarto-html/popper.min.js"></script>
+<script src="soci_270_bert_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="soci_270_bert_files/libs/quarto-html/anchor.min.js"></script>
+<link href="soci_270_bert_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="soci_270_bert_files/libs/quarto-html/quarto-syntax-highlighting-e1a5c8363afafaef2c763b6775fbf3ca.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="soci_270_bert_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="soci_270_bert_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="soci_270_bert_files/libs/bootstrap/bootstrap-81267100e462c21b3d6c0d5bf76a3417.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" integrity="sha512-c3Nl8+7g4LMSTdrm621y7kf9v3SDPnhxLNhcjFJbKECVnmZHTdo+IRO05sNLTH/D3vA6u1X32ehoLC7WFVdheg==" crossorigin="anonymous"></script>
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+<script src="https://unpkg.com/@jupyter-widgets/html-manager@*/dist/embed-amd.js" crossorigin="anonymous"></script>
+
+
+</head>
+
+<body class="fullcontent quarto-light">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Identifying and mapping disinformation campaigns using Machine learning</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>Disinformation is not a new phenomenon, but the rise of digital communication technologies has enabled the acceleration of the creation, spread, and amplification of disinformation. Disinformation has proliferated about highly polarizing topics, including elections, the COVID-19 Pandemic, wars and conflicts, and social movements. Currently, graphics, images, and captions rule the viral disinformation landscape which rests upon social media platforms.</p>
+<p>Definitionally, disinformation is a bit tricky to pin down. Disinformation is generally understood as incorrect information spread to intentionally cause harm. Disinformation comes in different forms, however, and the targets of disinformation are often varied, and the attribution of intention becomes somewhat murky. Inclusive of these definitional challenges, The United Nations Human Rights Council has determined that disinformation is problematic in its effects and presents unique challenges to address its spread and protect institutions from degradation. Some instances of disinformation target minority groups by manipulating statistics or making false claims. This can look like falsely attributing violent attacks to immigrants or religious minorities, when in fact the attacks were carried out by neither immigrants nor religious minorities. Such a case occurred in 2017, when a Dutch teenager who was using crutches was recorded being assaulted and the attackers were labeled as Muslim immigrants by various leaders, who were later corrected on X (then twitter) by the Dutch Embassy.</p>
+<p>Disinformation can also look like fake news websites which produce articles that are meant to cause emotional reactions or create polarization. Publications like the “Seattle Tribune” publish faulty information that is unverified or fabricated using false images and incorrect headlines. These techniques are meant to elicit an emotional response and provoke reactions, often with the goal of creating distrust, a sense of fear, or creating a certain outcome in a political, economic, or social process. Emotions play a big role in propaganda techniques and are leveraged to make targets of disinformation less concerned with the factual basis for claims. Emotional appeals are used by propagandists to create a reaction which makes targets vulnerable to information that enables the constriction of human rights and creates dangerous falsehoods. (UN HRC, 2021) An emerging technique in targeted information campaigns was demonstrated by Swiss researchers at the University of Zurich in an unpublished paper which used Large Language Models to persuade users of the subreddit r/changemyview. The researchers also used machine learning to gather information about posters to help persuade them, using different appeals based on the user’s history. Techniques driven by LLMs are a new and potentially more personalized and persuasive way to engage in disinformation.</p>
+<section id="preliminary-data-analysis" class="level1">
+<h1>0. Preliminary data analysis</h1>
+<p>In order to get started using Machine Learning to map disinformation campaigns, we need to set our machines up to be able to:</p>
+<ol type="1">
+<li>Open and interpret the dataset.</li>
+<li>Visualize key aspects of the data.</li>
+<li>Access a pre-trained machine learning model that can be used on our data.</li>
+</ol>
+<p>To do this, we are using the <code>import</code> statement which allows us to access the functions and capabilities of each module. The modules we are using allow us to complete differenet tasks. We are using a coding language called Python to do communicate which capabilities we want to use and we will continue writing in Python to use these capabilities. It is what we are using to communicate what libraries or capabilities we want to use. We will learn more about what each module is doing as we continue to use them.</p>
+<div id="292f588b" class="cell" data-execution_count="1">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> torch</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.model_selection <span class="im">import</span> train_test_split</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.metrics <span class="im">import</span> accuracy_score, precision_recall_fscore_support</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> transformers <span class="im">import</span> (</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>    AutoTokenizer,</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>    AutoModel,</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>    Trainer,</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>    TrainingArguments,</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>    DataCollatorWithPadding,</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> datasets <span class="im">import</span> Dataset</span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.metrics <span class="im">import</span> accuracy_score, precision_recall_fscore_support</span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> seaborn <span class="im">as</span> sns</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Now that we have successfully accessed all of the functions we need to carry out our disinformation investigation, we can start to look into the data we are working with. We are going to be using the <code>pandas</code> library which is a popular tool to read and handle data. The block of code below will first load in the dataset named “russian_disinformation_tweets.csv” and then, based on the information contained in the file, it will <code>print</code> the specified information. In this case we are looking at three different features of our data:</p>
+<ol type="1">
+<li>The names of the columns in our dataset</li>
+<li>The number of tweets not labeled as control i.e.&nbsp;russian disinformation</li>
+<li>The number of tweets labeled as control i.e.&nbsp;<em>not</em> russian disinformation</li>
+</ol>
+<p>The code below also does a little bit of housekeeping, by using the function <code>tweets.rename</code> to change the column names from “post text” and “is_control” to “text” and “labels” respectively.</p>
+<p>Now, take a look a the output of this block and identify the number of disinformation tweets found in the data.</p>
+<div id="b0c2403f" class="cell" data-execution_count="2">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>tweets <span class="op">=</span> pd.read_csv(<span class="st">"soci_270/russian_disinformation_tweets.csv"</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(tweets.columns)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="bu">len</span>(tweets[tweets[<span class="st">"is_control"</span>] <span class="op">==</span> <span class="va">False</span>]))</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="bu">len</span>(tweets[tweets[<span class="st">"is_control"</span>] <span class="op">==</span> <span class="va">True</span>]))</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>tweets <span class="op">=</span> tweets.rename(columns<span class="op">=</span>{<span class="st">"post_text"</span>: <span class="st">"text"</span>, <span class="st">"is_control"</span>: <span class="st">"labels"</span>})</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Index(['Unnamed: 0', 'postid', 'post_text', 'application_name',
+       'post_language', 'in_reply_to_postid', 'in_reply_to_accountid',
+       'post_time', 'accountid', 'account_profile_description',
+       'follower_count', 'following_count', 'account_creation_date',
+       'is_repost', 'reposted_accountid', 'reposted_postid', 'hashtags',
+       'urls', 'account_mentions', 'is_control'],
+      dtype='object')
+920761
+90291</code></pre>
+</div>
+</div>
+<p>To continue exploring the data, we are going to take a look at tweets that are labeled as control tweets, meaning they are not russian disinformation. Take a look at a few of the characteristics of the tweets below, looking at both the text of the tweets and the data associated with each post.</p>
+<div id="f803df3c" class="cell">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(tweets[tweets[<span class="st">"labels"</span>] <span class="op">==</span> <span class="va">True</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>         Unnamed: 0                                      postid                                                                                                                                                                 text                            application_name post_language in_reply_to_postid in_reply_to_accountid            post_time                                   accountid                                                                                                                                                 account_profile_description  follower_count  following_count account_creation_date  is_repost reposted_accountid reposted_postid                           hashtags                                                    urls                                                                               account_mentions  labels
+36               36  40e914fba1a0ff1ddb95ec7b9f341b674867e6d966                                                                                                                                     Is there any #TT's owt there ???  e2f11704f681592822c58d01c1f071fe794030bca3            en                NaN                   NaN  2011-05-29 18:48:15  e2eb3e216298be1e56dc7ae40ae6342681d0480224                                                                                                                                                                         NaN            8071             2635            2010-03-08      False                NaN             NaN                             ['TT']                                                      []                                                                                             []    True
+37               37  6c4c24c32517adff14be196530caee065ddf6bd648                     @0a70d7a84c104c202cfaab50ab10d3c518dc548e15: RT @b4b33e49d2accce12ab2ebe0707a0a1f85c734111d Why do men act like they haven't seen females before  e2f11704f681592822c58d01c1f071fe794030bca3            en                NaN                   NaN  2011-05-29 18:48:41  e2eb3e216298be1e56dc7ae40ae6342681d0480224                                                                                                                                                                         NaN            8071             2635            2010-03-08      False                NaN             NaN                                 []                                                      []  ['0a70d7a84c104c202cfaab50ab10d3c518dc548e15'\n 'b4b33e49d2accce12ab2ebe0707a0a1f85c734111d']    True
+38               38  ee1f19fcb24b60e3da91d769f77b41e42ab4a28f48                                                                                                         When does [CHEATING] get old to the Male Race? #TheShitIsOld  e2f11704f681592822c58d01c1f071fe794030bca3            en                NaN                   NaN  2011-05-29 18:49:08  e2eb3e216298be1e56dc7ae40ae6342681d0480224                                                                                                                                                                         NaN            8071             2635            2010-03-08      False                NaN             NaN                   ['TheShitIsOld']                                                      []                                                                                             []    True
+39               39  851bc955e4bdc93f53b449b69cbf30c7c74e4b7808                                                                                              I swear my next relationship will be my last relationship #ImGoingAllIn  e2f11704f681592822c58d01c1f071fe794030bca3            en                NaN                   NaN  2011-05-29 18:49:30  e2eb3e216298be1e56dc7ae40ae6342681d0480224                                                                                                                                                                         NaN            8071             2635            2010-03-08      False                NaN             NaN                   ['ImGoingAllIn']                                                      []                                                                                             []    True
+40               40  4648fca3629a67e8ad48ed51a0a199a28644dbf6dc                                                                                                                                My Love is 1 of a Kind .. #IMJUSSAYIN  e2f11704f681592822c58d01c1f071fe794030bca3            en                NaN                   NaN  2011-05-29 18:49:46  e2eb3e216298be1e56dc7ae40ae6342681d0480224                                                                                                                                                                         NaN            8071             2635            2010-03-08      False                NaN             NaN                     ['IMJUSSAYIN']                                                      []                                                                                             []    True
+...             ...                                         ...                                                                                                                                                                  ...                                         ...           ...                ...                   ...                  ...                                         ...                                                                                                                                                                         ...             ...              ...                   ...        ...                ...             ...                                ...                                                     ...                                                                                            ...     ...
+1001655     1001655  9db67572a57871d3388a9934960702d34c245589b4  #Capitalism Politics Danielle Smith: Green washing Crony Capitalism: Have you ever heard of ... https://94abba5814ae108beb90a08fe01e93d70c0554adc6 #UniteBlue #Tcot  b9052708258f305d40d00a13826c6cb32520a2d48c            en                NaN                   NaN  2016-09-20 23:59:57  0b98dddd3a835f273453e487379a183e9853e5cdf1  #Women #News Worldwide #Feminism #LikeAGirl #LGBT #Islamophobia #DomesticViolence #UniteBlue #AnimalRights #Gunsense Powered by 8ed7345229191fb4a045e4ac77b61f96f6a0d542f1            6873             7559            2015-07-02      False                NaN             NaN  ['Capitalism' 'UniteBlue' 'Tcot']  ['https://94abba5814ae108beb90a08fe01e93d70c0554adc6']                                                                                             []    True
+1001656     1001656  8c9d7dd73652693d61a93019b3d41d359cc95f06e2  #Capitalism Politics Fighting Against Capitalism: The Worker's World Party: The main concept... https://b6e0a9ec03240271d530314f369086e3394e77c0ff #UniteBlue #Tcot  b9052708258f305d40d00a13826c6cb32520a2d48c            en                NaN                   NaN  2016-09-20 23:59:57  0b98dddd3a835f273453e487379a183e9853e5cdf1  #Women #News Worldwide #Feminism #LikeAGirl #LGBT #Islamophobia #DomesticViolence #UniteBlue #AnimalRights #Gunsense Powered by 8ed7345229191fb4a045e4ac77b61f96f6a0d542f1            6873             7559            2015-07-02      False                NaN             NaN  ['Capitalism' 'UniteBlue' 'Tcot']  ['https://b6e0a9ec03240271d530314f369086e3394e77c0ff']                                                                                             []    True
+1001657     1001657  124e335840443095f27089f3bb7d90d162bae48664  #Capitalism Politics Connections Brings 21st Century Learning to Conn: As an example, one sh... https://0e15bbb9dc32bd78e6ec40c853dd1c91854f4e8196 #UniteBlue #Tcot  b9052708258f305d40d00a13826c6cb32520a2d48c            en                NaN                   NaN  2016-09-20 23:59:57  0b98dddd3a835f273453e487379a183e9853e5cdf1  #Women #News Worldwide #Feminism #LikeAGirl #LGBT #Islamophobia #DomesticViolence #UniteBlue #AnimalRights #Gunsense Powered by 8ed7345229191fb4a045e4ac77b61f96f6a0d542f1            6873             7559            2015-07-02      False                NaN             NaN  ['Capitalism' 'UniteBlue' 'Tcot']  ['https://0e15bbb9dc32bd78e6ec40c853dd1c91854f4e8196']                                                                                             []    True
+1001658     1001658  8261e81729d1870392f1d73d018e999ba127ec15c7  #Capitalism Politics Why Today's Neoliberal Global Order Is Incompatible With Democracy: In ... https://a24f8ce30ed3f43fcac0554bd9930f24e833c847e6 #UniteBlue #Tcot  b9052708258f305d40d00a13826c6cb32520a2d48c            en                NaN                   NaN  2016-09-20 23:59:58  0b98dddd3a835f273453e487379a183e9853e5cdf1  #Women #News Worldwide #Feminism #LikeAGirl #LGBT #Islamophobia #DomesticViolence #UniteBlue #AnimalRights #Gunsense Powered by 8ed7345229191fb4a045e4ac77b61f96f6a0d542f1            6873             7559            2015-07-02      False                NaN             NaN  ['Capitalism' 'UniteBlue' 'Tcot']  ['https://a24f8ce30ed3f43fcac0554bd9930f24e833c847e6']                                                                                             []    True
+1001659     1001659  2bc9e15bffbf700bbf3b40cb32b0de4a65244301b8  #Capitalism Politics Poverty, violence and globalised indifference: And it is capitalism tha... https://cf2d7a77f202eba8af6f2001922572a1b3429f0409 #UniteBlue #Tcot  b9052708258f305d40d00a13826c6cb32520a2d48c            en                NaN                   NaN  2016-09-20 23:59:58  0b98dddd3a835f273453e487379a183e9853e5cdf1  #Women #News Worldwide #Feminism #LikeAGirl #LGBT #Islamophobia #DomesticViolence #UniteBlue #AnimalRights #Gunsense Powered by 8ed7345229191fb4a045e4ac77b61f96f6a0d542f1            6873             7559            2015-07-02      False                NaN             NaN  ['Capitalism' 'UniteBlue' 'Tcot']  ['https://cf2d7a77f202eba8af6f2001922572a1b3429f0409']                                                                                             []    True
+
+[90291 rows x 20 columns]</code></pre>
+</div>
+</div>
+<p>Now that we know a little bit about the data, we are going to continue doing some housekeeping by converting the post time and date from characters to into dates that are able to be interpreted by the computer and used for an analysis. In addition we are going to create a follower/following ratio to add another dimension to our data. We can then use this information to visualize the posting activity of the disinformation bots and the control tweets. In our visualization the label “True” corresponds to tweets that are part of the control group and the label “False” corresponds to tweets containing disinformation. Examine the graph and note any trends in the posting activity.</p>
+<div id="bb75534a" class="cell">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>tweets[<span class="st">'post_time'</span>] <span class="op">=</span> pd.to_datetime(tweets[<span class="st">'post_time'</span>], errors<span class="op">=</span><span class="st">'coerce'</span>)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>tweets[<span class="st">'post_date'</span>] <span class="op">=</span> tweets[<span class="st">'post_time'</span>].dt.date</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>tweets[<span class="st">'post_hour'</span>] <span class="op">=</span> tweets[<span class="st">'post_time'</span>].dt.hour  </span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>tweets[<span class="st">'week'</span>] <span class="op">=</span> tweets[<span class="st">'post_time'</span>].dt.to_period(<span class="st">'W'</span>).<span class="bu">apply</span>(<span class="kw">lambda</span> r: r.start_time) </span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>tweets[<span class="st">'follow_ratio'</span>] <span class="op">=</span> tweets[<span class="st">'follower_count'</span>] <span class="op">/</span> (tweets[<span class="st">'following_count'</span>].replace(<span class="dv">0</span>, <span class="dv">1</span>))   <span class="co"># follower/following ratio</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div id="0fa394ac" class="cell">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>tweets[<span class="st">'account_type'</span>] <span class="op">=</span> tweets[<span class="st">'labels'</span>].<span class="bu">map</span>({<span class="va">True</span>: <span class="st">'Control'</span>, <span class="va">False</span>: <span class="st">'IO'</span>})</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div id="691f171f" class="cell">
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>weekly_counts <span class="op">=</span> tweets.groupby([<span class="st">'week'</span>, <span class="st">'labels'</span>]).size().reset_index(name<span class="op">=</span><span class="st">'count'</span>)</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>plt.figure(figsize<span class="op">=</span>(<span class="dv">12</span>, <span class="dv">5</span>))</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>sns.lineplot(data<span class="op">=</span>weekly_counts, x<span class="op">=</span><span class="st">'week'</span>, y<span class="op">=</span><span class="st">'count'</span>, hue<span class="op">=</span><span class="st">'labels'</span>)</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>plt.yscale(<span class="st">'log'</span>)</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>plt.title(<span class="st">"Weekly Posting Activity (Disinformation vs Control)"</span>)</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>plt.xlabel(<span class="st">"Week"</span>)</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>plt.ylabel(<span class="st">"Number of Posts (log scale)"</span>)</span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>plt.legend(title<span class="op">=</span><span class="st">"Label"</span>)</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="soci_270_bert_files/figure-html/cell-7-output-1.png" class="img-fluid figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Another dimmension we could look at with this data is the posting activity of Control vs.&nbsp;Disinformation tweets over the course of the day. Here we are going to define a function that will allow us to visualize the average number of posts across the course of a day, starting with hour 0 until hour 24. Take a look at the displays below and play around with the dates to see how the tweet volume changes.</p>
+<div id="14599915" class="cell">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> ipywidgets <span class="im">as</span> widgets</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> IPython.display <span class="im">import</span> display, clear_output</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>start_date_widget <span class="op">=</span> widgets.DatePicker(value<span class="op">=</span><span class="bu">min</span>(tweets[<span class="st">'post_date'</span>]), description<span class="op">=</span><span class="st">'Start Date'</span>)</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>end_date_widget <span class="op">=</span> widgets.DatePicker(value<span class="op">=</span><span class="bu">max</span>(tweets[<span class="st">'post_date'</span>]), description<span class="op">=</span><span class="st">'End Date'</span>)</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>output <span class="op">=</span> widgets.Output()</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> update_time_series(change<span class="op">=</span><span class="va">None</span>):</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> output:</span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>        clear_output(wait<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>        start <span class="op">=</span> start_date_widget.value</span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>        end <span class="op">=</span> end_date_widget.value</span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>        mask <span class="op">=</span> (tweets[<span class="st">'post_date'</span>] <span class="op">&gt;=</span> start) <span class="op">&amp;</span> (tweets[<span class="st">'post_date'</span>] <span class="op">&lt;=</span> end)</span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>        data_range <span class="op">=</span> tweets[mask].groupby([<span class="st">'post_date'</span>,<span class="st">'account_type'</span>]).size().reset_index(name<span class="op">=</span><span class="st">'post_count'</span>)</span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>        data_pivot <span class="op">=</span> data_range.pivot(index<span class="op">=</span><span class="st">'post_date'</span>, columns<span class="op">=</span><span class="st">'account_type'</span>, values<span class="op">=</span><span class="st">'post_count'</span>).fillna(<span class="dv">0</span>)</span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Plot</span></span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>        plt.figure(figsize<span class="op">=</span>(<span class="dv">8</span>,<span class="dv">4</span>))</span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> acct_type, col <span class="kw">in</span> [(<span class="st">'IO'</span>,<span class="st">'orange'</span>), (<span class="st">'Control'</span>,<span class="st">'blue'</span>)]:</span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> acct_type <span class="kw">in</span> data_pivot:</span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a>                plt.plot(data_pivot.index, data_pivot[acct_type], label<span class="op">=</span>acct_type, color<span class="op">=</span>col)</span>
+<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a>        plt.legend()<span class="op">;</span> plt.xlabel(<span class="st">'Date'</span>)<span class="op">;</span> plt.ylabel(<span class="st">'Posts'</span>)</span>
+<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a>        plt.title(<span class="ss">f'Post Volume (</span><span class="sc">{</span>start<span class="sc">}</span><span class="ss"> to </span><span class="sc">{</span>end<span class="sc">}</span><span class="ss">)'</span>)</span>
+<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a>        plt.tight_layout()</span>
+<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a>        plt.show()</span>
+<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a><span class="co"># Attach the update function to widget changes</span></span>
+<span id="cb9-29"><a href="#cb9-29" aria-hidden="true" tabindex="-1"></a>start_date_widget.observe(update_time_series, names<span class="op">=</span><span class="st">'value'</span>)</span>
+<span id="cb9-30"><a href="#cb9-30" aria-hidden="true" tabindex="-1"></a>end_date_widget.observe(update_time_series, names<span class="op">=</span><span class="st">'value'</span>)</span>
+<span id="cb9-31"><a href="#cb9-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-32"><a href="#cb9-32" aria-hidden="true" tabindex="-1"></a><span class="co"># Display widgets and initial plot</span></span>
+<span id="cb9-33"><a href="#cb9-33" aria-hidden="true" tabindex="-1"></a>display(widgets.HBox([start_date_widget, end_date_widget]))</span>
+<span id="cb9-34"><a href="#cb9-34" aria-hidden="true" tabindex="-1"></a>update_time_series()</span>
+<span id="cb9-35"><a href="#cb9-35" aria-hidden="true" tabindex="-1"></a>display(output)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<script type="application/vnd.jupyter.widget-view+json">
+{"model_id":"0813b0ea2fe9474587d7a5584b218865","version_major":2,"version_minor":0,"quarto_mimetype":"application/vnd.jupyter.widget-view+json"}
+</script>
+</div>
+<div class="cell-output cell-output-display">
+<script type="application/vnd.jupyter.widget-view+json">
+{"model_id":"77f23d493eb94f0683e60f1852e956e5","version_major":2,"version_minor":0,"quarto_mimetype":"application/vnd.jupyter.widget-view+json"}
+</script>
+</div>
+</div>
+<div id="81cf17eb" class="cell">
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>posts_by_hour <span class="op">=</span> tweets.groupby([<span class="st">'post_hour'</span>,<span class="st">'account_type'</span>]).size().reset_index(name<span class="op">=</span><span class="st">'count'</span>)</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>hour_pivot <span class="op">=</span> posts_by_hour.pivot(index<span class="op">=</span><span class="st">'post_hour'</span>, columns<span class="op">=</span><span class="st">'account_type'</span>, values<span class="op">=</span><span class="st">'count'</span>).fillna(<span class="dv">0</span>)</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>plt.figure(figsize<span class="op">=</span>(<span class="dv">8</span>,<span class="dv">4</span>))</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>sns.lineplot(x<span class="op">=</span>hour_pivot.index, y<span class="op">=</span>hour_pivot[<span class="st">'IO'</span>], label<span class="op">=</span><span class="st">'IO'</span>, color<span class="op">=</span><span class="st">'orange'</span>)</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>sns.lineplot(x<span class="op">=</span>hour_pivot.index, y<span class="op">=</span>hour_pivot[<span class="st">'Control'</span>], label<span class="op">=</span><span class="st">'Control'</span>, color<span class="op">=</span><span class="st">'blue'</span>)</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>plt.title(<span class="st">'Average Posting Activity by Hour of Day'</span>)</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>plt.xlabel(<span class="st">'Hour of Day'</span>)<span class="op">;</span> plt.ylabel(<span class="st">'Average # of Posts'</span>)</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>plt.xticks(<span class="bu">range</span>(<span class="dv">0</span>,<span class="dv">24</span>,<span class="dv">3</span>))</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>plt.legend()</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="soci_270_bert_files/figure-html/cell-9-output-1.png" class="img-fluid figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Below, we examine the breakdown of twwets by account type and language by subsetting our data. As you look over the volume of tweets by language, consider why language might be an important aspect of our data. What are the most common languages used to spread disinformation? Why might that be? Be sure to pay attention to the Control/IO ratio as well.</p>
+<div id="f71cbdc3" class="cell">
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>lang_counts <span class="op">=</span> tweets.groupby([<span class="st">'post_language'</span>,<span class="st">'account_type'</span>]).size().reset_index(name<span class="op">=</span><span class="st">'count'</span>)</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>lang_pivot <span class="op">=</span> lang_counts.pivot(index<span class="op">=</span><span class="st">'post_language'</span>, columns<span class="op">=</span><span class="st">'account_type'</span>, values<span class="op">=</span><span class="st">'count'</span>).fillna(<span class="dv">0</span>)</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>lang_pivot[<span class="st">'Total'</span>] <span class="op">=</span> lang_pivot.<span class="bu">sum</span>(axis<span class="op">=</span><span class="dv">1</span>)</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>lang_pivot <span class="op">=</span> lang_pivot.sort_values(<span class="st">'Total'</span>, ascending<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>display(lang_pivot.head(<span class="dv">10</span>)) </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th">account_type</th>
+<th data-quarto-table-cell-role="th">Control</th>
+<th data-quarto-table-cell-role="th">IO</th>
+<th data-quarto-table-cell-role="th">Total</th>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">post_language</th>
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th"></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">en</td>
+<td>51603.0</td>
+<td>741655.0</td>
+<td>793258.0</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">und</td>
+<td>4878.0</td>
+<td>149295.0</td>
+<td>154173.0</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">ru</td>
+<td>15661.0</td>
+<td>7171.0</td>
+<td>22832.0</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">fr</td>
+<td>5437.0</td>
+<td>8722.0</td>
+<td>14159.0</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">es</td>
+<td>4602.0</td>
+<td>1538.0</td>
+<td>6140.0</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">ar</td>
+<td>773.0</td>
+<td>1955.0</td>
+<td>2728.0</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">pt</td>
+<td>1695.0</td>
+<td>372.0</td>
+<td>2067.0</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">in</td>
+<td>455.0</td>
+<td>1132.0</td>
+<td>1587.0</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">tr</td>
+<td>414.0</td>
+<td>909.0</td>
+<td>1323.0</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">it</td>
+<td>744.0</td>
+<td>399.0</td>
+<td>1143.0</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<section id="hashtag-analysis" class="level2">
+<h2 class="anchored" data-anchor-id="hashtag-analysis">0.2 Hashtag analysis</h2>
+<p>The next step in our data analysis is going to explore the most frequent hashtags from each account type. The code below finds the 10 most frequent hashtags from the control accounts and the disinformation accounts and displays them with their frequency. As you look at the tables below, pay attention to the content and the language of the hashtags. Why might Russian accounts be posting in English? Compare this subset of the data to the timeline of tweets from section 0.</p>
+<div id="d48245d6" class="cell">
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>tweets_hs <span class="op">=</span> tweets.explode(<span class="st">'hashtags'</span>).rename(columns<span class="op">=</span>{<span class="st">'hashtags'</span>: <span class="st">'hashtag'</span>})</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>tweets_hs <span class="op">=</span> tweets_hs[tweets_hs[<span class="st">'hashtag'</span>].notna() <span class="op">&amp;</span> (tweets_hs[<span class="st">'hashtag'</span>] <span class="op">!=</span> <span class="st">''</span>)]</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>tweets_hs[<span class="st">'hashtag'</span>] <span class="op">=</span> tweets_hs[<span class="st">'hashtag'</span>].<span class="bu">str</span>.lower()</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>top_io <span class="op">=</span> (</span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>    tweets_hs[tweets_hs[<span class="st">'account_type'</span>] <span class="op">==</span> <span class="st">'IO'</span>]</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>    .groupby(<span class="st">'hashtag'</span>).size()</span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>    .nlargest(<span class="dv">10</span>)</span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>    .reset_index(name<span class="op">=</span><span class="st">'count'</span>)</span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>top_control <span class="op">=</span> (</span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>    tweets_hs[tweets_hs[<span class="st">'account_type'</span>] <span class="op">==</span> <span class="st">'Control'</span>]</span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>    .groupby(<span class="st">'hashtag'</span>).size()</span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>    .nlargest(<span class="dv">10</span>)</span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a>    .reset_index(name<span class="op">=</span><span class="st">'count'</span>)</span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Top 10 Hashtags - IO Accounts"</span>)</span>
+<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a>display(top_io)</span>
+<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"</span><span class="ch">\n</span><span class="st">Top 10 Hashtags - Control Accounts"</span>)</span>
+<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a>display(top_control)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Top 10 Hashtags - IO Accounts</code></pre>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">hashtag</th>
+<th data-quarto-table-cell-role="th">count</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>qanon</td>
+<td>4814</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>maga</td>
+<td>4468</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>авто</td>
+<td>2693</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>releasethememoreleasethememoreleasethememorele...</td>
+<td>2494</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">4</td>
+<td>trump</td>
+<td>1959</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">5</td>
+<td>trump2016</td>
+<td>1755</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">6</td>
+<td>tcot</td>
+<td>1635</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">7</td>
+<td>gopdebate</td>
+<td>1632</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">8</td>
+<td>americafirstmakeamericagreatagainmaga</td>
+<td>1627</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">9</td>
+<td>schumershutdownschumerselloutschumersurrenderr...</td>
+<td>1493</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Top 10 Hashtags - Control Accounts</code></pre>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">hashtag</th>
+<th data-quarto-table-cell-role="th">count</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>авто</td>
+<td>709</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>автоpeugeot</td>
+<td>442</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>ferguson</td>
+<td>428</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>tcot</td>
+<td>421</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">4</td>
+<td>audiавто</td>
+<td>405</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">5</td>
+<td>gaza</td>
+<td>367</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">6</td>
+<td>автозапчасти</td>
+<td>348</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">7</td>
+<td>автоновости</td>
+<td>320</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">8</td>
+<td>pjnet</td>
+<td>316</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">9</td>
+<td>moviemusicasslolvideo</td>
+<td>290</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</section>
+<section id="can-we-tune-models-to-detect-online-disinformation-campaigns-classifying-current-tweets-with-a-model-finetuned-on-the-russian_disinformation_tweets-dataset" class="level2">
+<h2 class="anchored" data-anchor-id="can-we-tune-models-to-detect-online-disinformation-campaigns-classifying-current-tweets-with-a-model-finetuned-on-the-russian_disinformation_tweets-dataset">1. Can we tune models to detect online disinformation campaigns? Classifying current tweets with a model finetuned on the russian_disinformation_tweets dataset</h2>
+<div id="6df33276" class="cell" data-execution_count="5">
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> inference_code.py <span class="im">import</span> classify_texts</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>texts <span class="op">=</span> [<span class="st">"#qanon #trump Hunter Biden is a ukrainian shill"</span>, <span class="st">"What great weather we have today"</span>]</span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> text <span class="kw">in</span> texts:</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>    preds, probs <span class="op">=</span> classify_texts([text])</span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>    label_map <span class="op">=</span> {<span class="dv">0</span>: <span class="st">"Control"</span>, <span class="dv">1</span>: <span class="st">"IO"</span>}  </span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>    pred_label <span class="op">=</span> label_map[preds[<span class="dv">0</span>]]</span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>    pred_prob  <span class="op">=</span> probs[<span class="dv">0</span>, preds[<span class="dv">0</span>]]</span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Text: </span><span class="sc">{</span>text<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Predicted class: </span><span class="sc">{</span>pred_label<span class="sc">}</span><span class="ss">  (confidence: </span><span class="sc">{</span>pred_prob<span class="sc">:.2f}</span><span class="ss">)"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-error">
+<div class="ansi-escaped-output">
+<pre><span class="ansi-red-fg">---------------------------------------------------------------------------</span>
+<span class="ansi-red-fg">ModuleNotFoundError</span>                       Traceback (most recent call last)
+<span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[5]</span><span class="ansi-green-fg">, line 1</span>
+<span class="ansi-green-fg">----&gt; </span><span class="ansi-green-fg">1</span> <span style="font-weight:bold;color:rgb(0,135,0)">from</span><span style="color:rgb(188,188,188)"> </span><span class="ansi-blue-fg ansi-bold">inference_code</span><span class="ansi-blue-fg ansi-bold">.</span><span class="ansi-blue-fg ansi-bold">py</span><span style="color:rgb(188,188,188)"> </span><span style="font-weight:bold;color:rgb(0,135,0)">import</span> classify_texts
+<span class="ansi-green-fg">      3</span> texts = [<span class="ansi-yellow-fg">"</span><span class="ansi-yellow-fg">#qanon #trump Hunter Biden is a ukrainian shill</span><span class="ansi-yellow-fg">"</span>, <span class="ansi-yellow-fg">"</span><span class="ansi-yellow-fg">What great weather we have today</span><span class="ansi-yellow-fg">"</span>]
+<span class="ansi-green-fg">      4</span> <span style="font-weight:bold;color:rgb(0,135,0)">for</span> text <span style="font-weight:bold;color:rgb(175,0,255)">in</span> texts:
+
+<span class="ansi-red-fg">ModuleNotFoundError</span>: No module named 'inference_code'</pre>
+</div>
+</div>
+</div>
+<p>add more stuff related to model evaluation, ipywidget for entering text students found on twitter and running it against the model</p>
+</section>
+<section id="sentiment-analysis-using-pretrained-models" class="level2">
+<h2 class="anchored" data-anchor-id="sentiment-analysis-using-pretrained-models">2. Sentiment analysis using pretrained models</h2>
+<p>Disinformation campaigns often aim to sway public opinion by influencing the emotional tone of online conversations. Sentiment analysis allows us to detect and understand these patterns by identifying whether large volumes of text express positive, negative, or neutral sentiment.</p>
+<p>Our model is pretrained, meaning it has already learnt from millions of labelled examples how to distinguish different sentiments. Specifically, because the model we’ll be using was trained on English tweets, it’s tuned to the language and syntax common on Twitter/X, and is limited to analyzing English-language text.</p>
+<div id="1859b344" class="cell" data-execution_count="10">
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> transformers <span class="im">import</span> pipeline</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>local_dir <span class="op">=</span> <span class="st">"../twitter-roberta-base-sentiment-latest"</span></span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>sentiment <span class="op">=</span> pipeline(</span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">"sentiment-analysis"</span>,</span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>    model<span class="op">=</span>local_dir,</span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>    tokenizer<span class="op">=</span>local_dir,</span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(sentiment(<span class="st">"I HATE JOE BIDEN"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Some weights of the model checkpoint at ../twitter-roberta-base-sentiment-latest were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.bias', 'roberta.pooler.dense.weight']
+- This IS expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
+- This IS NOT expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
+Device set to use cuda:0</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[{'label': 'negative', 'score': 0.9046770334243774}]</code></pre>
+</div>
+</div>
+<p>Let’s breakdown this output before we continue. There are two parts to what the model returns:</p>
+<ol type="1">
+<li><strong>Label</strong> → a classification labelling the text as either having positive, negative, or neutral sentiment</li>
+<li><strong>Score</strong> → the model’s confidence in it’s classification</li>
+</ol>
+<p>Now, try using the interactive tool below to explore how a machine learning model detects sentiment in short texts like tweets. The model classifies each input as positive, neutral, or negative, and assigns a probability score to each label. Type a sentence (like a tweet or short message) into the box below and click “Analyze” to see how the model interprets its emotional tone.</p>
+<div id="58a1af07" class="cell" data-execution_count="12">
+<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> transformers <span class="im">import</span> pipeline</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>sentiment <span class="op">=</span> pipeline(</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"sentiment-analysis"</span>,</span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>    model<span class="op">=</span><span class="st">"../twitter-roberta-base-sentiment-latest"</span>,</span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>    tokenizer<span class="op">=</span><span class="st">"../twitter-roberta-base-sentiment-latest"</span>,</span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>    return_all_scores<span class="op">=</span><span class="va">True</span>  </span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> ipywidgets <span class="im">as</span> widgets</span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> IPython.display <span class="im">import</span> display, clear_output</span>
+<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a><span class="co">#  widget components</span></span>
+<span id="cb19-14"><a href="#cb19-14" aria-hidden="true" tabindex="-1"></a>text_input <span class="op">=</span> widgets.Text(</span>
+<span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a>    value<span class="op">=</span><span class="st">"I HATE JOE BIDEN"</span>,</span>
+<span id="cb19-16"><a href="#cb19-16" aria-hidden="true" tabindex="-1"></a>    placeholder<span class="op">=</span><span class="st">"Type a sentence here"</span>,</span>
+<span id="cb19-17"><a href="#cb19-17" aria-hidden="true" tabindex="-1"></a>    description<span class="op">=</span><span class="st">"Input:"</span>,</span>
+<span id="cb19-18"><a href="#cb19-18" aria-hidden="true" tabindex="-1"></a>    layout<span class="op">=</span>widgets.Layout(width<span class="op">=</span><span class="st">"70%"</span>)</span>
+<span id="cb19-19"><a href="#cb19-19" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb19-20"><a href="#cb19-20" aria-hidden="true" tabindex="-1"></a>analyze_btn <span class="op">=</span> widgets.Button(description<span class="op">=</span><span class="st">"Analyze"</span>, button_style<span class="op">=</span><span class="st">"primary"</span>)</span>
+<span id="cb19-21"><a href="#cb19-21" aria-hidden="true" tabindex="-1"></a>output_area <span class="op">=</span> widgets.Output()</span>
+<span id="cb19-22"><a href="#cb19-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-23"><a href="#cb19-23" aria-hidden="true" tabindex="-1"></a><span class="co"># what happens on button click</span></span>
+<span id="cb19-24"><a href="#cb19-24" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> on_analyze_clicked(b):</span>
+<span id="cb19-25"><a href="#cb19-25" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> output_area:</span>
+<span id="cb19-26"><a href="#cb19-26" aria-hidden="true" tabindex="-1"></a>        clear_output(wait<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb19-27"><a href="#cb19-27" aria-hidden="true" tabindex="-1"></a>        scores <span class="op">=</span> sentiment(text_input.value)[<span class="dv">0</span>]</span>
+<span id="cb19-28"><a href="#cb19-28" aria-hidden="true" tabindex="-1"></a>        labels <span class="op">=</span> [item[<span class="st">"label"</span>] <span class="cf">for</span> item <span class="kw">in</span> scores]</span>
+<span id="cb19-29"><a href="#cb19-29" aria-hidden="true" tabindex="-1"></a>        probs  <span class="op">=</span> [item[<span class="st">"score"</span>] <span class="cf">for</span> item <span class="kw">in</span> scores]</span>
+<span id="cb19-30"><a href="#cb19-30" aria-hidden="true" tabindex="-1"></a>        fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">6</span>,<span class="dv">4</span>))</span>
+<span id="cb19-31"><a href="#cb19-31" aria-hidden="true" tabindex="-1"></a>        bars <span class="op">=</span> ax.bar(labels, probs)</span>
+<span id="cb19-32"><a href="#cb19-32" aria-hidden="true" tabindex="-1"></a>        ax.set_ylim(<span class="dv">0</span>, <span class="dv">1</span>)</span>
+<span id="cb19-33"><a href="#cb19-33" aria-hidden="true" tabindex="-1"></a>        ax.set_ylabel(<span class="st">"Probability"</span>)</span>
+<span id="cb19-34"><a href="#cb19-34" aria-hidden="true" tabindex="-1"></a>        ax.set_title(<span class="st">"Sentiment Probability Distribution"</span>)</span>
+<span id="cb19-35"><a href="#cb19-35" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> bar, prob <span class="kw">in</span> <span class="bu">zip</span>(bars, probs):</span>
+<span id="cb19-36"><a href="#cb19-36" aria-hidden="true" tabindex="-1"></a>            height <span class="op">=</span> bar.get_height()</span>
+<span id="cb19-37"><a href="#cb19-37" aria-hidden="true" tabindex="-1"></a>            ax.text(</span>
+<span id="cb19-38"><a href="#cb19-38" aria-hidden="true" tabindex="-1"></a>                bar.get_x() <span class="op">+</span> bar.get_width() <span class="op">/</span> <span class="dv">2</span>,  </span>
+<span id="cb19-39"><a href="#cb19-39" aria-hidden="true" tabindex="-1"></a>                height <span class="op">+</span> <span class="fl">0.02</span>,                    </span>
+<span id="cb19-40"><a href="#cb19-40" aria-hidden="true" tabindex="-1"></a>                <span class="ss">f"</span><span class="sc">{</span>prob<span class="sc">:.2f}</span><span class="ss">"</span>,                   </span>
+<span id="cb19-41"><a href="#cb19-41" aria-hidden="true" tabindex="-1"></a>                ha<span class="op">=</span><span class="st">"center"</span>, va<span class="op">=</span><span class="st">"bottom"</span>,</span>
+<span id="cb19-42"><a href="#cb19-42" aria-hidden="true" tabindex="-1"></a>                color<span class="op">=</span><span class="st">"red"</span>, fontsize<span class="op">=</span><span class="dv">12</span></span>
+<span id="cb19-43"><a href="#cb19-43" aria-hidden="true" tabindex="-1"></a>            )</span>
+<span id="cb19-44"><a href="#cb19-44" aria-hidden="true" tabindex="-1"></a>        plt.show()</span>
+<span id="cb19-45"><a href="#cb19-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-46"><a href="#cb19-46" aria-hidden="true" tabindex="-1"></a>analyze_btn.on_click(on_analyze_clicked)</span>
+<span id="cb19-47"><a href="#cb19-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-48"><a href="#cb19-48" aria-hidden="true" tabindex="-1"></a>display(widgets.VBox([text_input, analyze_btn, output_area]))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Some weights of the model checkpoint at ../twitter-roberta-base-sentiment-latest were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.bias', 'roberta.pooler.dense.weight']
+- This IS expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
+- This IS NOT expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
+Device set to use cuda:0</code></pre>
+</div>
+<div class="cell-output cell-output-display">
+<script type="application/vnd.jupyter.widget-view+json">
+{"model_id":"1f68c1b3188c42378f1326b804e5c99d","version_major":2,"version_minor":0,"quarto_mimetype":"application/vnd.jupyter.widget-view+json"}
+</script>
+</div>
+</div>
+<div id="6ea8e7f2" class="cell" data-execution_count="1">
+<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>tweets_small <span class="op">=</span> tweets.sample(n<span class="op">=</span><span class="dv">10000</span>, random_state<span class="op">=</span><span class="dv">42</span>).reset_index(drop<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>tweets_small[<span class="st">"sentiment"</span>] <span class="op">=</span> <span class="st">""</span> </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-error">
+<div class="ansi-escaped-output">
+<pre><span class="ansi-red-fg">---------------------------------------------------------------------------</span>
+<span class="ansi-red-fg">NameError</span>                                 Traceback (most recent call last)
+Cell <span class="ansi-green-fg">In[1], line 1</span>
+<span class="ansi-green-fg">----&gt; 1</span> tweets_small <span style="color:rgb(98,98,98)">=</span> <span class="ansi-yellow-bg">tweets</span><span style="color:rgb(98,98,98)">.</span>sample(n<span style="color:rgb(98,98,98)">=</span><span style="color:rgb(98,98,98)">10000</span>, random_state<span style="color:rgb(98,98,98)">=</span><span style="color:rgb(98,98,98)">42</span>)<span style="color:rgb(98,98,98)">.</span>reset_index(drop<span style="color:rgb(98,98,98)">=</span><span style="font-weight:bold;color:rgb(0,135,0)">True</span>)
+<span class="ansi-green-fg ansi-bold">      2</span> tweets_small[<span style="color:rgb(175,0,0)">"</span><span style="color:rgb(175,0,0)">sentiment</span><span style="color:rgb(175,0,0)">"</span>] <span style="color:rgb(98,98,98)">=</span> <span style="color:rgb(175,0,0)">"</span><span style="color:rgb(175,0,0)">"</span> 
+
+<span class="ansi-red-fg">NameError</span>: name 'tweets' is not defined</pre>
+</div>
+</div>
+</div>
+<p>Now, let’s start running sentiment analysis on our Tweets dataset. The general steps to run our analysis include:</p>
+<ol type="1">
+<li><p>Loading a pretrained model and tokenizer</p>
+<p>We load a RoBERTa model that has been fine-tuned for sentiment analysis on tweets, along with its corresponding tokenizer.</p></li>
+<li><p>Creating sentiment analysis pipeline</p>
+<p>We set up a Hugging Face pipeline that handles finer steps in our sentiment analysis, such as tokenization (breaking up text into smaller units, called <em>tokens</em>), batching (processing multiple texts at once for efficiency), and prediction (predicting the overall sentiment).</p></li>
+<li><p>Running batch sentiment analysis on the dataset</p>
+<p>To efficiently analyze large numbers of tweets, we split the dataset into batches of 1,000 tweets and process them one batch at a time. To store the predictions, we extract the predicted sentiment labels and save them in a column named <code>sentiment</code>.</p></li>
+<li><p>Previewing the results</p></li>
+</ol>
+<div id="43eb0a9b" class="cell">
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> transformers <span class="im">import</span> AutoTokenizer, AutoModelForSequenceClassification, pipeline</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Step 1</span></span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>model_path <span class="op">=</span> <span class="st">"../twitter-roberta-base-sentiment-latest"</span></span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>tokenizer <span class="op">=</span> AutoTokenizer.from_pretrained(model_path)</span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> AutoModelForSequenceClassification.from_pretrained(model_path)</span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a>tokenizer.model_max_length <span class="op">=</span> tokenizer.model_max_length <span class="cf">if</span> tokenizer.model_max_length <span class="op">&lt;=</span> <span class="dv">512</span> <span class="cf">else</span> <span class="dv">512</span></span>
+<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Step 2</span></span>
+<span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a>sentiment_pipeline <span class="op">=</span> pipeline(</span>
+<span id="cb22-12"><a href="#cb22-12" aria-hidden="true" tabindex="-1"></a>    <span class="st">"sentiment-analysis"</span>,</span>
+<span id="cb22-13"><a href="#cb22-13" aria-hidden="true" tabindex="-1"></a>    model<span class="op">=</span>model,</span>
+<span id="cb22-14"><a href="#cb22-14" aria-hidden="true" tabindex="-1"></a>    tokenizer<span class="op">=</span>tokenizer,</span>
+<span id="cb22-15"><a href="#cb22-15" aria-hidden="true" tabindex="-1"></a>    device<span class="op">=</span><span class="dv">0</span>,</span>
+<span id="cb22-16"><a href="#cb22-16" aria-hidden="true" tabindex="-1"></a>    truncation<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb22-17"><a href="#cb22-17" aria-hidden="true" tabindex="-1"></a>    padding<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb22-18"><a href="#cb22-18" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb22-19"><a href="#cb22-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-20"><a href="#cb22-20" aria-hidden="true" tabindex="-1"></a><span class="co"># Step 3</span></span>
+<span id="cb22-21"><a href="#cb22-21" aria-hidden="true" tabindex="-1"></a>batch_size <span class="op">=</span> <span class="dv">1000</span></span>
+<span id="cb22-22"><a href="#cb22-22" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> start <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">0</span>, <span class="bu">len</span>(tweets_small), batch_size):</span>
+<span id="cb22-23"><a href="#cb22-23" aria-hidden="true" tabindex="-1"></a>    end <span class="op">=</span> start <span class="op">+</span> batch_size</span>
+<span id="cb22-24"><a href="#cb22-24" aria-hidden="true" tabindex="-1"></a>    batch_texts <span class="op">=</span> tweets_small[<span class="st">"text"</span>].iloc[start:end].tolist()</span>
+<span id="cb22-25"><a href="#cb22-25" aria-hidden="true" tabindex="-1"></a>    results <span class="op">=</span> sentiment_pipeline(batch_texts)           </span>
+<span id="cb22-26"><a href="#cb22-26" aria-hidden="true" tabindex="-1"></a>    labels  <span class="op">=</span> [res[<span class="st">"label"</span>] <span class="cf">for</span> res <span class="kw">in</span> results]</span>
+<span id="cb22-27"><a href="#cb22-27" aria-hidden="true" tabindex="-1"></a>    tweets_small.loc[start:end<span class="op">-</span><span class="dv">1</span>, <span class="st">"sentiment"</span>] <span class="op">=</span> labels </span>
+<span id="cb22-28"><a href="#cb22-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-29"><a href="#cb22-29" aria-hidden="true" tabindex="-1"></a><span class="co"># Step 4</span></span>
+<span id="cb22-30"><a href="#cb22-30" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(tweets_small[[<span class="st">"text"</span>, <span class="st">"sentiment"</span>]].head())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Some weights of the model checkpoint at ../twitter-roberta-base-sentiment-latest were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.bias', 'roberta.pooler.dense.weight']
+- This IS expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
+- This IS NOT expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
+Device set to use cuda:0</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                                                text sentiment
+0  @a20407d4508cfb4cccb0602f3266ef44c9c5b8bbfc @6...   neutral
+1  Freedom of speech is 1thing but, calling for j...  negative
+2  🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨\nHey @b9cc268271ebd71a94c64e2e10e2d...   neutral
+3  https://74722d423bb59f5cdf5c135dd92ad3cd67e0f6...   neutral
+4  U.S. taxpayer money squirreled away in foreign...  negative</code></pre>
+</div>
+</div>
+<p>We can see the first 5 tweets and their predicted sentiment above.</p>
+<p>Now that we know how to run sentiment analysis to identify the overarching sentiment of a tweet, we are now in good position to ask and investigate whether emotionally charged language is more common in propaganda. Let’s explore this by forming a hypothesis and testing it statistically.</p>
+<p>Hypothesis: Propagandist tweets (<code>is_control == 1</code>) are more emotionally charged — that is, they are more likely to be classified as <strong>Positive</strong> or <strong>Negative</strong> (non-neutral) compared to non-propagandist tweets (<code>is_control == 0</code>). We will test whether the difference in sentiment category frequencies between the two groups is <strong>statistically significant</strong>.</p>
+<p>First, let’s examine the sentiment distribution for each group:</p>
+<div id="607ed239" class="cell" data-execution_count="31">
+<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>dist <span class="op">=</span> pd.crosstab(tweets_small[<span class="st">'sentiment'</span>], tweets_small[<span class="st">'labels'</span>], normalize<span class="op">=</span><span class="st">'columns'</span>)</span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>dist.columns <span class="op">=</span> [<span class="st">'Non-propagandist'</span>, <span class="st">'Propagandist'</span>]</span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(dist <span class="op">*</span> <span class="dv">100</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>           Non-propagandist  Propagandist
+sentiment                                
+negative          42.685195     18.815331
+neutral           43.823175     63.414634
+positive          13.491629     17.770035</code></pre>
+</div>
+</div>
+<p>Reading the table, we can see that the majority of non-propagandist tweets are either negative (~43%) or neutral (~44%), while the majority of propagandist tweets (~63%) express neutral sentiment.</p>
+<div id="58e81071" class="cell" data-execution_count="34">
+<div class="sourceCode cell-code" id="cb27"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(tweets_small[<span class="st">'sentiment'</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>0        neutral
+1       negative
+2        neutral
+3        neutral
+4       negative
+          ...   
+9995    negative
+9996     neutral
+9997     neutral
+9998    negative
+9999    positive
+Name: sentiment, Length: 10000, dtype: object</code></pre>
+</div>
+</div>
+<div id="0c24120c" class="cell">
+<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> scipy.stats <span class="im">import</span> chi2_contingency</span>
+<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a><span class="co"># We defome 'charged' sentiment as Positive or Negative</span></span>
+<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a>tweets_small[<span class="st">'charged'</span>] <span class="op">=</span> tweets_small[<span class="st">'sentiment'</span>].isin([<span class="st">'positive'</span>, <span class="st">'pegative'</span>]).astype(<span class="bu">int</span>)</span>
+<span id="cb29-6"><a href="#cb29-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-7"><a href="#cb29-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Constructing a  contingency table: rows = propagandist/non propagandist group, columnss = charged vs neutral</span></span>
+<span id="cb29-8"><a href="#cb29-8" aria-hidden="true" tabindex="-1"></a>contingency <span class="op">=</span> pd.crosstab(tweets_small[<span class="st">'labels'</span>], tweets_small[<span class="st">'charged'</span>])</span>
+<span id="cb29-9"><a href="#cb29-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Contingency table:</span><span class="ch">\n</span><span class="st">"</span>, contingency)</span>
+<span id="cb29-10"><a href="#cb29-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-11"><a href="#cb29-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Chi-squared test</span></span>
+<span id="cb29-12"><a href="#cb29-12" aria-hidden="true" tabindex="-1"></a>chi2, p, dof, expected <span class="op">=</span> chi2_contingency(contingency)</span>
+<span id="cb29-13"><a href="#cb29-13" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"p-value = </span><span class="sc">{</span>p<span class="sc">:.3e}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Contingency table:
+ charged     0     1
+labels             
+False    7906  1233
+True      708   153
+p-value = 6.222e-04</code></pre>
+</div>
+</div>
+<p>Very low p value which is good! Strong indication of porpagandists using more emotionally charged tweets relative to non-propagandists</p>
+<section id="how-are-non-english-tweets-being-handled-with-this-model" class="level3">
+<h3 class="anchored" data-anchor-id="how-are-non-english-tweets-being-handled-with-this-model">3.2 How are non-english tweets being handled with this model?</h3>
+<div id="8792809a" class="cell" data-execution_count="40">
+<div class="sourceCode cell-code" id="cb31"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> re</span>
+<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>tweets_lang <span class="op">=</span> tweets_small.copy()</span>
+<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a>tweets_lang[<span class="st">'language'</span>] <span class="op">=</span> tweets_lang[<span class="st">'text'</span>].<span class="bu">apply</span>(</span>
+<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a>     <span class="kw">lambda</span> txt: <span class="st">'ru'</span> <span class="cf">if</span> re.search(<span class="st">'[</span><span class="ch">\u0400</span><span class="st">-</span><span class="ch">\u04FF</span><span class="st">]'</span>, <span class="bu">str</span>(txt)) <span class="cf">else</span> <span class="st">'en'</span></span>
+<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-8"><a href="#cb31-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Filter English and Russian tweets</span></span>
+<span id="cb31-9"><a href="#cb31-9" aria-hidden="true" tabindex="-1"></a>eng_tweets <span class="op">=</span> tweets_lang[tweets_lang[<span class="st">'language'</span>] <span class="op">==</span> <span class="st">'en'</span>]</span>
+<span id="cb31-10"><a href="#cb31-10" aria-hidden="true" tabindex="-1"></a>ru_tweets  <span class="op">=</span> tweets_lang[tweets_lang[<span class="st">'language'</span>] <span class="op">==</span> <span class="st">'ru'</span>]</span>
+<span id="cb31-11"><a href="#cb31-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-12"><a href="#cb31-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Sentiment distribution within each language group</span></span>
+<span id="cb31-13"><a href="#cb31-13" aria-hidden="true" tabindex="-1"></a>eng_dist <span class="op">=</span> pd.crosstab(eng_tweets[<span class="st">'sentiment'</span>], eng_tweets[<span class="st">'labels'</span>], normalize<span class="op">=</span><span class="st">'columns'</span>) <span class="op">*</span> <span class="dv">100</span></span>
+<span id="cb31-14"><a href="#cb31-14" aria-hidden="true" tabindex="-1"></a>ru_dist  <span class="op">=</span> pd.crosstab(ru_tweets[<span class="st">'sentiment'</span>],  ru_tweets[<span class="st">'labels'</span>],  normalize<span class="op">=</span><span class="st">'columns'</span>) <span class="op">*</span> <span class="dv">100</span></span>
+<span id="cb31-15"><a href="#cb31-15" aria-hidden="true" tabindex="-1"></a>eng_dist.columns <span class="op">=</span> [<span class="st">'Non-propagandist'</span>, <span class="st">'Propagandist'</span>]</span>
+<span id="cb31-16"><a href="#cb31-16" aria-hidden="true" tabindex="-1"></a>ru_dist.columns  <span class="op">=</span> [<span class="st">'Non-propagandist'</span>, <span class="st">'Propagandist'</span>]</span>
+<span id="cb31-17"><a href="#cb31-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-18"><a href="#cb31-18" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"English Tweets Sentiment (%):</span><span class="ch">\n</span><span class="st">"</span>, eng_dist, <span class="st">"</span><span class="ch">\n</span><span class="st">"</span>)</span>
+<span id="cb31-19"><a href="#cb31-19" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Russian Tweets Sentiment (%):</span><span class="ch">\n</span><span class="st">"</span>, ru_dist)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>English Tweets Sentiment (%):
+            Non-propagandist  Propagandist
+sentiment                                
+negative          43.272324     23.044097
+neutral           43.083749     55.476529
+positive          13.643927     21.479374 
+
+Russian Tweets Sentiment (%):
+            Non-propagandist  Propagandist
+sentiment                                
+neutral           97.580645     98.734177
+positive           2.419355      1.265823</code></pre>
+</div>
+</div>
+<p>Very poorly, most russian tweets are being marked as neutral</p>
+<div id="faf9200e" class="cell" data-execution_count="12">
+<div class="sourceCode cell-code" id="cb33"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> transformers <span class="im">import</span> AutoTokenizer, AutoModelForSequenceClassification, pipeline</span>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> tweetnlp</span>
+<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a>model_path <span class="op">=</span> <span class="st">"../twitter-xlm-roberta-base-sentiment-multilingual"</span></span>
+<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a>tokenizer_multi <span class="op">=</span> AutoTokenizer.from_pretrained(model_path)</span>
+<span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a>model_multi <span class="op">=</span> AutoModelForSequenceClassification.from_pretrained(model_path)</span>
+<span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-7"><a href="#cb33-7" aria-hidden="true" tabindex="-1"></a>tokenizer_multi.model_max_length <span class="op">=</span> <span class="bu">min</span>(tokenizer_multi.model_max_length, <span class="dv">512</span>)</span>
+<span id="cb33-8"><a href="#cb33-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-9"><a href="#cb33-9" aria-hidden="true" tabindex="-1"></a>sentiment_multi_pipeline <span class="op">=</span> pipeline(</span>
+<span id="cb33-10"><a href="#cb33-10" aria-hidden="true" tabindex="-1"></a>    <span class="st">"sentiment-analysis"</span>,</span>
+<span id="cb33-11"><a href="#cb33-11" aria-hidden="true" tabindex="-1"></a>    model<span class="op">=</span>model_multi,           </span>
+<span id="cb33-12"><a href="#cb33-12" aria-hidden="true" tabindex="-1"></a>    tokenizer<span class="op">=</span>tokenizer_multi,   </span>
+<span id="cb33-13"><a href="#cb33-13" aria-hidden="true" tabindex="-1"></a>    device<span class="op">=</span><span class="dv">0</span>,</span>
+<span id="cb33-14"><a href="#cb33-14" aria-hidden="true" tabindex="-1"></a>    truncation<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb33-15"><a href="#cb33-15" aria-hidden="true" tabindex="-1"></a>    padding<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb33-16"><a href="#cb33-16" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb33-17"><a href="#cb33-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-18"><a href="#cb33-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-19"><a href="#cb33-19" aria-hidden="true" tabindex="-1"></a><span class="co">#Batch‐wise inference</span></span>
+<span id="cb33-20"><a href="#cb33-20" aria-hidden="true" tabindex="-1"></a>batch_size <span class="op">=</span> <span class="dv">1000</span></span>
+<span id="cb33-21"><a href="#cb33-21" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> start <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">0</span>, <span class="bu">len</span>(tweets_small), batch_size):</span>
+<span id="cb33-22"><a href="#cb33-22" aria-hidden="true" tabindex="-1"></a>    end <span class="op">=</span> start <span class="op">+</span> batch_size</span>
+<span id="cb33-23"><a href="#cb33-23" aria-hidden="true" tabindex="-1"></a>    batch_texts <span class="op">=</span> tweets_small[<span class="st">"text"</span>].iloc[start:end].tolist()</span>
+<span id="cb33-24"><a href="#cb33-24" aria-hidden="true" tabindex="-1"></a>    results <span class="op">=</span> sentiment_multi_pipeline(batch_texts)           </span>
+<span id="cb33-25"><a href="#cb33-25" aria-hidden="true" tabindex="-1"></a>    labels  <span class="op">=</span> [res[<span class="st">"label"</span>] <span class="cf">for</span> res <span class="kw">in</span> results]</span>
+<span id="cb33-26"><a href="#cb33-26" aria-hidden="true" tabindex="-1"></a>    tweets_small.loc[start:end<span class="op">-</span><span class="dv">1</span>, <span class="st">"sentiment"</span>] <span class="op">=</span> labels </span>
+<span id="cb33-27"><a href="#cb33-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-28"><a href="#cb33-28" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(tweets_small[[<span class="st">"text"</span>, <span class="st">"sentiment"</span>]].head())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Device set to use cuda:0</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                                                text sentiment
+0  @a20407d4508cfb4cccb0602f3266ef44c9c5b8bbfc @6...   neutral
+1  Freedom of speech is 1thing but, calling for j...  negative
+2  🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨\nHey @b9cc268271ebd71a94c64e2e10e2d...   neutral
+3  https://74722d423bb59f5cdf5c135dd92ad3cd67e0f6...   neutral
+4  U.S. taxpayer money squirreled away in foreign...  negative</code></pre>
+</div>
+</div>
+<div id="340f9845" class="cell" data-execution_count="15">
+<div class="sourceCode cell-code" id="cb36"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a>multi_dist <span class="op">=</span> pd.crosstab(tweets_small[<span class="st">'sentiment'</span>], tweets[<span class="st">'labels'</span>], normalize<span class="op">=</span><span class="st">'columns'</span>) <span class="op">*</span> <span class="dv">100</span></span>
+<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a>multi_dist.columns <span class="op">=</span> [<span class="st">'Non-propagandist'</span>, <span class="st">'Propagandist'</span>]</span>
+<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Multilingual Model Sentiment (%):</span><span class="ch">\n</span><span class="st">"</span>, multi_dist)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Multilingual Model Sentiment (%):
+            Non-propagandist  Propagandist
+sentiment                                
+negative          37.192216     37.389202
+neutral           50.198570     51.007252
+positive          12.609214     11.603546</code></pre>
+</div>
+</div>
+<div id="a7001900" class="cell" data-execution_count="17">
+<div class="sourceCode cell-code" id="cb38"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a>tweets_small[<span class="st">'charged_multi'</span>] <span class="op">=</span> tweets_small[<span class="st">'sentiment'</span>].isin([<span class="st">'positive'</span>,<span class="st">'negative'</span>]).astype(<span class="bu">int</span>)</span>
+<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a>contingency_multi <span class="op">=</span> pd.crosstab(tweets_small[<span class="st">'labels'</span>], tweets_small[<span class="st">'charged_multi'</span>])</span>
+<span id="cb38-3"><a href="#cb38-3" aria-hidden="true" tabindex="-1"></a>chi2_multi, p_multi, <span class="op">*</span>_ <span class="op">=</span> chi2_contingency(contingency_multi)</span>
+<span id="cb38-4"><a href="#cb38-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Chi-squared p-value with multilingual model: </span><span class="sc">{</span>p_multi<span class="sc">:.3e}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Chi-squared p-value with multilingual model: 3.727e-05</code></pre>
+</div>
+</div>
+</section>
+</section>
+<section id="detoxify" class="level2">
+<h2 class="anchored" data-anchor-id="detoxify">4. Detoxify</h2>
+<div id="9569ab0c" class="cell" data-execution_count="28">
+<div class="sourceCode cell-code" id="cb40"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb40-3"><a href="#cb40-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> detoxify <span class="im">import</span> Detoxify</span>
+<span id="cb40-4"><a href="#cb40-4" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> scipy.stats <span class="im">import</span> ttest_ind, chi2_contingency</span>
+<span id="cb40-5"><a href="#cb40-5" aria-hidden="true" tabindex="-1"></a></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div id="cbba5a5f" class="cell" data-execution_count="29">
+<div class="sourceCode cell-code" id="cb41"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a>detox <span class="op">=</span> Detoxify(<span class="st">"original"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Downloading: "https://github.com/unitaryai/detoxify/releases/download/v0.1-alpha/toxic_original-c1212f89.ckpt" to /scratch/st-lknelson-1/iberez01/my_jupyter/torch/hub/checkpoints/toxic_original-c1212f89.ckpt</code></pre>
+</div>
+<div class="cell-output cell-output-error">
+<div class="ansi-escaped-output">
+<pre><span class="ansi-red-fg">---------------------------------------------------------------------------</span>
+<span class="ansi-red-fg">OSError</span>                                   Traceback (most recent call last)
+<span class="ansi-cyan-fg">File </span><span class="ansi-green-fg">/arc/project/st-lknelson-1/jupyter/praxis_ai_gpu/lib/python3.11/urllib/request.py:1348</span>, in <span class="ansi-cyan-fg">AbstractHTTPHandler.do_open</span><span class="ansi-blue-fg">(self, http_class, req, **http_conn_args)</span>
+<span class="ansi-green-fg">   1347</span> <span style="font-weight:bold;color:rgb(0,135,0)">try</span>:
+<span class="ansi-green-fg">-&gt; </span><span class="ansi-green-fg">1348</span>     <span class="ansi-yellow-bg">h</span><span class="ansi-yellow-bg">.</span><span class="ansi-yellow-bg">request</span><span class="ansi-yellow-bg">(</span><span class="ansi-yellow-bg">req</span><span class="ansi-yellow-bg">.</span><span class="ansi-yellow-bg">get_method</span><span class="ansi-yellow-bg">(</span><span class="ansi-yellow-bg">)</span><span class="ansi-yellow-bg">,</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">req</span><span class="ansi-yellow-bg">.</span><span class="ansi-yellow-bg">selector</span><span class="ansi-yellow-bg">,</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">req</span><span class="ansi-yellow-bg">.</span><span class="ansi-yellow-bg">data</span><span class="ansi-yellow-bg">,</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">headers</span><span class="ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">   1349</span> <span class="ansi-yellow-bg">              </span><span class="ansi-yellow-bg">encode_chunked</span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg">req</span><span class="ansi-yellow-bg">.</span><span class="ansi-yellow-bg">has_header</span><span class="ansi-yellow-bg">(</span><span class="ansi-yellow-fg ansi-yellow-bg">'</span><span class="ansi-yellow-fg ansi-yellow-bg">Transfer-encoding</span><span class="ansi-yellow-fg ansi-yellow-bg">'</span><span class="ansi-yellow-bg">)</span><span class="ansi-yellow-bg">)</span>
+<span class="ansi-green-fg">   1350</span> <span style="font-weight:bold;color:rgb(0,135,0)">except</span> <span style="font-weight:bold;color:rgb(215,95,95)">OSError</span> <span style="font-weight:bold;color:rgb(0,135,0)">as</span> err: <span style="font-style:italic;color:rgb(95,135,135)"># timeout error</span>
+
+<span class="ansi-cyan-fg">File </span><span class="ansi-green-fg">/arc/project/st-lknelson-1/jupyter/praxis_ai_gpu/lib/python3.11/http/client.py:1303</span>, in <span class="ansi-cyan-fg">HTTPConnection.request</span><span class="ansi-blue-fg">(self, method, url, body, headers, encode_chunked)</span>
+<span class="ansi-green-fg">   1302</span> <span style="font-style:italic" class="ansi-yellow-fg">"""Send a complete request to the server."""</span>
+<span class="ansi-green-fg">-&gt; </span><span class="ansi-green-fg">1303</span> <span style="color:rgb(0,135,0)" class="ansi-yellow-bg">self</span><span class="ansi-yellow-bg">.</span><span class="ansi-yellow-bg">_send_request</span><span class="ansi-yellow-bg">(</span><span class="ansi-yellow-bg">method</span><span class="ansi-yellow-bg">,</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">url</span><span class="ansi-yellow-bg">,</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">body</span><span class="ansi-yellow-bg">,</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">headers</span><span class="ansi-yellow-bg">,</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">encode_chunked</span><span class="ansi-yellow-bg">)</span>
+
+<span class="ansi-cyan-fg">File </span><span class="ansi-green-fg">/arc/project/st-lknelson-1/jupyter/praxis_ai_gpu/lib/python3.11/http/client.py:1349</span>, in <span class="ansi-cyan-fg">HTTPConnection._send_request</span><span class="ansi-blue-fg">(self, method, url, body, headers, encode_chunked)</span>
+<span class="ansi-green-fg">   1348</span>     body = _encode(body, <span class="ansi-yellow-fg">'</span><span class="ansi-yellow-fg">body</span><span class="ansi-yellow-fg">'</span>)
+<span class="ansi-green-fg">-&gt; </span><span class="ansi-green-fg">1349</span> <span style="color:rgb(0,135,0)" class="ansi-yellow-bg">self</span><span class="ansi-yellow-bg">.</span><span class="ansi-yellow-bg">endheaders</span><span class="ansi-yellow-bg">(</span><span class="ansi-yellow-bg">body</span><span class="ansi-yellow-bg">,</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">encode_chunked</span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg">encode_chunked</span><span class="ansi-yellow-bg">)</span>
+
+<span class="ansi-cyan-fg">File </span><span class="ansi-green-fg">/arc/project/st-lknelson-1/jupyter/praxis_ai_gpu/lib/python3.11/http/client.py:1298</span>, in <span class="ansi-cyan-fg">HTTPConnection.endheaders</span><span class="ansi-blue-fg">(self, message_body, encode_chunked)</span>
+<span class="ansi-green-fg">   1297</span>     <span style="font-weight:bold;color:rgb(0,135,0)">raise</span> CannotSendHeader()
+<span class="ansi-green-fg">-&gt; </span><span class="ansi-green-fg">1298</span> <span style="color:rgb(0,135,0)" class="ansi-yellow-bg">self</span><span class="ansi-yellow-bg">.</span><span class="ansi-yellow-bg">_send_output</span><span class="ansi-yellow-bg">(</span><span class="ansi-yellow-bg">message_body</span><span class="ansi-yellow-bg">,</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">encode_chunked</span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg">encode_chunked</span><span class="ansi-yellow-bg">)</span>
+
+<span class="ansi-cyan-fg">File </span><span class="ansi-green-fg">/arc/project/st-lknelson-1/jupyter/praxis_ai_gpu/lib/python3.11/http/client.py:1058</span>, in <span class="ansi-cyan-fg">HTTPConnection._send_output</span><span class="ansi-blue-fg">(self, message_body, encode_chunked)</span>
+<span class="ansi-green-fg">   1057</span> <span style="font-weight:bold;color:rgb(0,135,0)">del</span> <span style="color:rgb(0,135,0)">self</span>._buffer[:]
+<span class="ansi-green-fg">-&gt; </span><span class="ansi-green-fg">1058</span> <span style="color:rgb(0,135,0)" class="ansi-yellow-bg">self</span><span class="ansi-yellow-bg">.</span><span class="ansi-yellow-bg">send</span><span class="ansi-yellow-bg">(</span><span class="ansi-yellow-bg">msg</span><span class="ansi-yellow-bg">)</span>
+<span class="ansi-green-fg">   1060</span> <span style="font-weight:bold;color:rgb(0,135,0)">if</span> message_body <span style="font-weight:bold;color:rgb(175,0,255)">is</span> <span style="font-weight:bold;color:rgb(175,0,255)">not</span> <span style="font-weight:bold;color:rgb(0,135,0)">None</span>:
+<span class="ansi-green-fg">   1061</span> 
+<span class="ansi-green-fg">   1062</span>     <span style="font-style:italic;color:rgb(95,135,135)"># create a consistent interface to message_body</span>
+
+<span class="ansi-cyan-fg">File </span><span class="ansi-green-fg">/arc/project/st-lknelson-1/jupyter/praxis_ai_gpu/lib/python3.11/http/client.py:996</span>, in <span class="ansi-cyan-fg">HTTPConnection.send</span><span class="ansi-blue-fg">(self, data)</span>
+<span class="ansi-green-fg">    995</span> <span style="font-weight:bold;color:rgb(0,135,0)">if</span> <span style="color:rgb(0,135,0)">self</span>.auto_open:
+<span class="ansi-green-fg">--&gt; </span><span class="ansi-green-fg">996</span>     <span style="color:rgb(0,135,0)" class="ansi-yellow-bg">self</span><span class="ansi-yellow-bg">.</span><span class="ansi-yellow-bg">connect</span><span class="ansi-yellow-bg">(</span><span class="ansi-yellow-bg">)</span>
+<span class="ansi-green-fg">    997</span> <span style="font-weight:bold;color:rgb(0,135,0)">else</span>:
+
+<span class="ansi-cyan-fg">File </span><span class="ansi-green-fg">/arc/project/st-lknelson-1/jupyter/praxis_ai_gpu/lib/python3.11/http/client.py:1468</span>, in <span class="ansi-cyan-fg">HTTPSConnection.connect</span><span class="ansi-blue-fg">(self)</span>
+<span class="ansi-green-fg">   1466</span> <span class="ansi-yellow-fg">"</span><span class="ansi-yellow-fg">Connect to a host on a given (SSL) port.</span><span class="ansi-yellow-fg">"</span>
+<span class="ansi-green-fg">-&gt; </span><span class="ansi-green-fg">1468</span> <span style="color:rgb(0,135,0)" class="ansi-yellow-bg">super</span><span class="ansi-yellow-bg">(</span><span class="ansi-yellow-bg">)</span><span class="ansi-yellow-bg">.</span><span class="ansi-yellow-bg">connect</span><span class="ansi-yellow-bg">(</span><span class="ansi-yellow-bg">)</span>
+<span class="ansi-green-fg">   1470</span> <span style="font-weight:bold;color:rgb(0,135,0)">if</span> <span style="color:rgb(0,135,0)">self</span>._tunnel_host:
+
+<span class="ansi-cyan-fg">File </span><span class="ansi-green-fg">/arc/project/st-lknelson-1/jupyter/praxis_ai_gpu/lib/python3.11/http/client.py:962</span>, in <span class="ansi-cyan-fg">HTTPConnection.connect</span><span class="ansi-blue-fg">(self)</span>
+<span class="ansi-green-fg">    961</span> sys.audit(<span class="ansi-yellow-fg">"</span><span class="ansi-yellow-fg">http.client.connect</span><span class="ansi-yellow-fg">"</span>, <span style="color:rgb(0,135,0)">self</span>, <span style="color:rgb(0,135,0)">self</span>.host, <span style="color:rgb(0,135,0)">self</span>.port)
+<span class="ansi-green-fg">--&gt; </span><span class="ansi-green-fg">962</span> <span style="color:rgb(0,135,0)">self</span>.sock = <span style="color:rgb(0,135,0)" class="ansi-yellow-bg">self</span><span class="ansi-yellow-bg">.</span><span class="ansi-yellow-bg">_create_connection</span><span class="ansi-yellow-bg">(</span>
+<span class="ansi-green-fg">    963</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">(</span><span style="color:rgb(0,135,0)" class="ansi-yellow-bg">self</span><span class="ansi-yellow-bg">.</span><span class="ansi-yellow-bg">host</span><span class="ansi-yellow-bg">,</span><span style="color:rgb(0,135,0)" class="ansi-yellow-bg">self</span><span class="ansi-yellow-bg">.</span><span class="ansi-yellow-bg">port</span><span class="ansi-yellow-bg">)</span><span class="ansi-yellow-bg">,</span><span class="ansi-yellow-bg"> </span><span style="color:rgb(0,135,0)" class="ansi-yellow-bg">self</span><span class="ansi-yellow-bg">.</span><span class="ansi-yellow-bg">timeout</span><span class="ansi-yellow-bg">,</span><span class="ansi-yellow-bg"> </span><span style="color:rgb(0,135,0)" class="ansi-yellow-bg">self</span><span class="ansi-yellow-bg">.</span><span class="ansi-yellow-bg">source_address</span><span class="ansi-yellow-bg">)</span>
+<span class="ansi-green-fg">    964</span> <span style="font-style:italic;color:rgb(95,135,135)"># Might fail in OSs that don't implement TCP_NODELAY</span>
+
+<span class="ansi-cyan-fg">File </span><span class="ansi-green-fg">/arc/project/st-lknelson-1/jupyter/praxis_ai_gpu/lib/python3.11/socket.py:863</span>, in <span class="ansi-cyan-fg">create_connection</span><span class="ansi-blue-fg">(address, timeout, source_address, all_errors)</span>
+<span class="ansi-green-fg">    862</span> <span style="font-weight:bold;color:rgb(0,135,0)">if</span> <span style="font-weight:bold;color:rgb(175,0,255)">not</span> all_errors:
+<span class="ansi-green-fg">--&gt; </span><span class="ansi-green-fg">863</span>     <span style="font-weight:bold;color:rgb(0,135,0)">raise</span> exceptions[<span class="ansi-green-fg">0</span>]
+<span class="ansi-green-fg">    864</span> <span style="font-weight:bold;color:rgb(0,135,0)">raise</span> ExceptionGroup(<span class="ansi-yellow-fg">"</span><span class="ansi-yellow-fg">create_connection failed</span><span class="ansi-yellow-fg">"</span>, exceptions)
+
+<span class="ansi-cyan-fg">File </span><span class="ansi-green-fg">/arc/project/st-lknelson-1/jupyter/praxis_ai_gpu/lib/python3.11/socket.py:848</span>, in <span class="ansi-cyan-fg">create_connection</span><span class="ansi-blue-fg">(address, timeout, source_address, all_errors)</span>
+<span class="ansi-green-fg">    847</span>     sock.bind(source_address)
+<span class="ansi-green-fg">--&gt; </span><span class="ansi-green-fg">848</span> <span class="ansi-yellow-bg">sock</span><span class="ansi-yellow-bg">.</span><span class="ansi-yellow-bg">connect</span><span class="ansi-yellow-bg">(</span><span class="ansi-yellow-bg">sa</span><span class="ansi-yellow-bg">)</span>
+<span class="ansi-green-fg">    849</span> <span style="font-style:italic;color:rgb(95,135,135)"># Break explicitly a reference cycle</span>
+
+<span class="ansi-red-fg">OSError</span>: [Errno 113] No route to host
+
+During handling of the above exception, another exception occurred:
+
+<span class="ansi-red-fg">URLError</span>                                  Traceback (most recent call last)
+<span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[29]</span><span class="ansi-green-fg">, line 1</span>
+<span class="ansi-green-fg">----&gt; </span><span class="ansi-green-fg">1</span> detox = <span class="ansi-yellow-bg">Detoxify</span><span class="ansi-yellow-bg">(</span><span class="ansi-yellow-fg ansi-yellow-bg">"</span><span class="ansi-yellow-fg ansi-yellow-bg">original</span><span class="ansi-yellow-fg ansi-yellow-bg">"</span><span class="ansi-yellow-bg">)</span>
+
+<span class="ansi-cyan-fg">File </span><span class="ansi-green-fg">/arc/project/st-lknelson-1/jupyter/praxis_ai_gpu/lib/python3.11/site-packages/detoxify/detoxify.py:104</span>, in <span class="ansi-cyan-fg">Detoxify.__init__</span><span class="ansi-blue-fg">(self, model_type, checkpoint, device, huggingface_config_path)</span>
+<span class="ansi-green-fg">    102</span> <span style="font-weight:bold;color:rgb(0,135,0)">def</span><span style="color:rgb(188,188,188)"> </span><span class="ansi-blue-fg">__init__</span>(<span style="color:rgb(0,135,0)">self</span>, model_type=<span class="ansi-yellow-fg">"</span><span class="ansi-yellow-fg">original</span><span class="ansi-yellow-fg">"</span>, checkpoint=PRETRAINED_MODEL, device=<span class="ansi-yellow-fg">"</span><span class="ansi-yellow-fg">cpu</span><span class="ansi-yellow-fg">"</span>, huggingface_config_path=<span style="font-weight:bold;color:rgb(0,135,0)">None</span>):
+<span class="ansi-green-fg">    103</span>     <span style="color:rgb(0,135,0)">super</span>().<span class="ansi-blue-fg">__init__</span>()
+<span class="ansi-green-fg">--&gt; </span><span class="ansi-green-fg">104</span>     <span style="color:rgb(0,135,0)">self</span>.model, <span style="color:rgb(0,135,0)">self</span>.tokenizer, <span style="color:rgb(0,135,0)">self</span>.class_names = <span class="ansi-yellow-bg">load_checkpoint</span><span class="ansi-yellow-bg">(</span>
+<span class="ansi-green-fg">    105</span> <span class="ansi-yellow-bg">        </span><span class="ansi-yellow-bg">model_type</span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg">model_type</span><span class="ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">    106</span> <span class="ansi-yellow-bg">        </span><span class="ansi-yellow-bg">checkpoint</span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg">checkpoint</span><span class="ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">    107</span> <span class="ansi-yellow-bg">        </span><span class="ansi-yellow-bg">device</span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg">device</span><span class="ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">    108</span> <span class="ansi-yellow-bg">        </span><span class="ansi-yellow-bg">huggingface_config_path</span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg">huggingface_config_path</span><span class="ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">    109</span> <span class="ansi-yellow-bg">    </span><span class="ansi-yellow-bg">)</span>
+<span class="ansi-green-fg">    110</span>     <span style="color:rgb(0,135,0)">self</span>.device = device
+<span class="ansi-green-fg">    111</span>     <span style="color:rgb(0,135,0)">self</span>.model.to(<span style="color:rgb(0,135,0)">self</span>.device)
+
+<span class="ansi-cyan-fg">File </span><span class="ansi-green-fg">/arc/project/st-lknelson-1/jupyter/praxis_ai_gpu/lib/python3.11/site-packages/detoxify/detoxify.py:41</span>, in <span class="ansi-cyan-fg">load_checkpoint</span><span class="ansi-blue-fg">(model_type, checkpoint, device, huggingface_config_path)</span>
+<span class="ansi-green-fg">     39</span> <span style="font-weight:bold;color:rgb(0,135,0)">if</span> checkpoint <span style="font-weight:bold;color:rgb(175,0,255)">is</span> <span style="font-weight:bold;color:rgb(0,135,0)">None</span>:
+<span class="ansi-green-fg">     40</span>     checkpoint_path = MODEL_URLS[model_type]
+<span class="ansi-green-fg">---&gt; </span><span class="ansi-green-fg">41</span>     loaded = <span class="ansi-yellow-bg">torch</span><span class="ansi-yellow-bg">.</span><span class="ansi-yellow-bg">hub</span><span class="ansi-yellow-bg">.</span><span class="ansi-yellow-bg">load_state_dict_from_url</span><span class="ansi-yellow-bg">(</span><span class="ansi-yellow-bg">checkpoint_path</span><span class="ansi-yellow-bg">,</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">map_location</span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg">device</span><span class="ansi-yellow-bg">)</span>
+<span class="ansi-green-fg">     42</span> <span style="font-weight:bold;color:rgb(0,135,0)">else</span>:
+<span class="ansi-green-fg">     43</span>     loaded = torch.load(checkpoint, map_location=device)
+
+<span class="ansi-cyan-fg">File </span><span class="ansi-green-fg">/arc/project/st-lknelson-1/jupyter/praxis_ai_gpu/lib/python3.11/site-packages/torch/hub.py:867</span>, in <span class="ansi-cyan-fg">load_state_dict_from_url</span><span class="ansi-blue-fg">(url, model_dir, map_location, progress, check_hash, file_name, weights_only)</span>
+<span class="ansi-green-fg">    865</span>         r = HASH_REGEX.search(filename)  <span style="font-style:italic;color:rgb(95,135,135)"># r is Optional[Match[str]]</span>
+<span class="ansi-green-fg">    866</span>         hash_prefix = r.group(<span class="ansi-green-fg">1</span>) <span style="font-weight:bold;color:rgb(0,135,0)">if</span> r <span style="font-weight:bold;color:rgb(0,135,0)">else</span> <span style="font-weight:bold;color:rgb(0,135,0)">None</span>
+<span class="ansi-green-fg">--&gt; </span><span class="ansi-green-fg">867</span>     <span class="ansi-yellow-bg">download_url_to_file</span><span class="ansi-yellow-bg">(</span><span class="ansi-yellow-bg">url</span><span class="ansi-yellow-bg">,</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">cached_file</span><span class="ansi-yellow-bg">,</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">hash_prefix</span><span class="ansi-yellow-bg">,</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">progress</span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-bg">progress</span><span class="ansi-yellow-bg">)</span>
+<span class="ansi-green-fg">    869</span> <span style="font-weight:bold;color:rgb(0,135,0)">if</span> _is_legacy_zip_format(cached_file):
+<span class="ansi-green-fg">    870</span>     <span style="font-weight:bold;color:rgb(0,135,0)">return</span> _legacy_zip_load(cached_file, model_dir, map_location, weights_only)
+
+<span class="ansi-cyan-fg">File </span><span class="ansi-green-fg">/arc/project/st-lknelson-1/jupyter/praxis_ai_gpu/lib/python3.11/site-packages/torch/hub.py:708</span>, in <span class="ansi-cyan-fg">download_url_to_file</span><span class="ansi-blue-fg">(url, dst, hash_prefix, progress)</span>
+<span class="ansi-green-fg">    706</span> file_size = <span style="font-weight:bold;color:rgb(0,135,0)">None</span>
+<span class="ansi-green-fg">    707</span> req = Request(url, headers={<span class="ansi-yellow-fg">"</span><span class="ansi-yellow-fg">User-Agent</span><span class="ansi-yellow-fg">"</span>: <span class="ansi-yellow-fg">"</span><span class="ansi-yellow-fg">torch.hub</span><span class="ansi-yellow-fg">"</span>})
+<span class="ansi-green-fg">--&gt; </span><span class="ansi-green-fg">708</span> u = <span class="ansi-yellow-bg">urlopen</span><span class="ansi-yellow-bg">(</span><span class="ansi-yellow-bg">req</span><span class="ansi-yellow-bg">)</span>
+<span class="ansi-green-fg">    709</span> meta = u.info()
+<span class="ansi-green-fg">    710</span> <span style="font-weight:bold;color:rgb(0,135,0)">if</span> <span style="color:rgb(0,135,0)">hasattr</span>(meta, <span class="ansi-yellow-fg">"</span><span class="ansi-yellow-fg">getheaders</span><span class="ansi-yellow-fg">"</span>):
+
+<span class="ansi-cyan-fg">File </span><span class="ansi-green-fg">/arc/project/st-lknelson-1/jupyter/praxis_ai_gpu/lib/python3.11/urllib/request.py:216</span>, in <span class="ansi-cyan-fg">urlopen</span><span class="ansi-blue-fg">(url, data, timeout, cafile, capath, cadefault, context)</span>
+<span class="ansi-green-fg">    214</span> <span style="font-weight:bold;color:rgb(0,135,0)">else</span>:
+<span class="ansi-green-fg">    215</span>     opener = _opener
+<span class="ansi-green-fg">--&gt; </span><span class="ansi-green-fg">216</span> <span style="font-weight:bold;color:rgb(0,135,0)">return</span> <span class="ansi-yellow-bg">opener</span><span class="ansi-yellow-bg">.</span><span class="ansi-yellow-bg">open</span><span class="ansi-yellow-bg">(</span><span class="ansi-yellow-bg">url</span><span class="ansi-yellow-bg">,</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">data</span><span class="ansi-yellow-bg">,</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">timeout</span><span class="ansi-yellow-bg">)</span>
+
+<span class="ansi-cyan-fg">File </span><span class="ansi-green-fg">/arc/project/st-lknelson-1/jupyter/praxis_ai_gpu/lib/python3.11/urllib/request.py:519</span>, in <span class="ansi-cyan-fg">OpenerDirector.open</span><span class="ansi-blue-fg">(self, fullurl, data, timeout)</span>
+<span class="ansi-green-fg">    516</span>     req = meth(req)
+<span class="ansi-green-fg">    518</span> sys.audit(<span class="ansi-yellow-fg">'</span><span class="ansi-yellow-fg">urllib.Request</span><span class="ansi-yellow-fg">'</span>, req.full_url, req.data, req.headers, req.get_method())
+<span class="ansi-green-fg">--&gt; </span><span class="ansi-green-fg">519</span> response = <span style="color:rgb(0,135,0)" class="ansi-yellow-bg">self</span><span class="ansi-yellow-bg">.</span><span class="ansi-yellow-bg">_open</span><span class="ansi-yellow-bg">(</span><span class="ansi-yellow-bg">req</span><span class="ansi-yellow-bg">,</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">data</span><span class="ansi-yellow-bg">)</span>
+<span class="ansi-green-fg">    521</span> <span style="font-style:italic;color:rgb(95,135,135)"># post-process response</span>
+<span class="ansi-green-fg">    522</span> meth_name = protocol+<span class="ansi-yellow-fg">"</span><span class="ansi-yellow-fg">_response</span><span class="ansi-yellow-fg">"</span>
+
+<span class="ansi-cyan-fg">File </span><span class="ansi-green-fg">/arc/project/st-lknelson-1/jupyter/praxis_ai_gpu/lib/python3.11/urllib/request.py:536</span>, in <span class="ansi-cyan-fg">OpenerDirector._open</span><span class="ansi-blue-fg">(self, req, data)</span>
+<span class="ansi-green-fg">    533</span>     <span style="font-weight:bold;color:rgb(0,135,0)">return</span> result
+<span class="ansi-green-fg">    535</span> protocol = req.type
+<span class="ansi-green-fg">--&gt; </span><span class="ansi-green-fg">536</span> result = <span style="color:rgb(0,135,0)" class="ansi-yellow-bg">self</span><span class="ansi-yellow-bg">.</span><span class="ansi-yellow-bg">_call_chain</span><span class="ansi-yellow-bg">(</span><span style="color:rgb(0,135,0)" class="ansi-yellow-bg">self</span><span class="ansi-yellow-bg">.</span><span class="ansi-yellow-bg">handle_open</span><span class="ansi-yellow-bg">,</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">protocol</span><span class="ansi-yellow-bg">,</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">protocol</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">+</span>
+<span class="ansi-green-fg">    537</span> <span class="ansi-yellow-bg">                          </span><span class="ansi-yellow-fg ansi-yellow-bg">'</span><span class="ansi-yellow-fg ansi-yellow-bg">_open</span><span class="ansi-yellow-fg ansi-yellow-bg">'</span><span class="ansi-yellow-bg">,</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">req</span><span class="ansi-yellow-bg">)</span>
+<span class="ansi-green-fg">    538</span> <span style="font-weight:bold;color:rgb(0,135,0)">if</span> result:
+<span class="ansi-green-fg">    539</span>     <span style="font-weight:bold;color:rgb(0,135,0)">return</span> result
+
+<span class="ansi-cyan-fg">File </span><span class="ansi-green-fg">/arc/project/st-lknelson-1/jupyter/praxis_ai_gpu/lib/python3.11/urllib/request.py:496</span>, in <span class="ansi-cyan-fg">OpenerDirector._call_chain</span><span class="ansi-blue-fg">(self, chain, kind, meth_name, *args)</span>
+<span class="ansi-green-fg">    494</span> <span style="font-weight:bold;color:rgb(0,135,0)">for</span> handler <span style="font-weight:bold;color:rgb(175,0,255)">in</span> handlers:
+<span class="ansi-green-fg">    495</span>     func = <span style="color:rgb(0,135,0)">getattr</span>(handler, meth_name)
+<span class="ansi-green-fg">--&gt; </span><span class="ansi-green-fg">496</span>     result = <span class="ansi-yellow-bg">func</span><span class="ansi-yellow-bg">(</span><span class="ansi-yellow-bg">*</span><span class="ansi-yellow-bg">args</span><span class="ansi-yellow-bg">)</span>
+<span class="ansi-green-fg">    497</span>     <span style="font-weight:bold;color:rgb(0,135,0)">if</span> result <span style="font-weight:bold;color:rgb(175,0,255)">is</span> <span style="font-weight:bold;color:rgb(175,0,255)">not</span> <span style="font-weight:bold;color:rgb(0,135,0)">None</span>:
+<span class="ansi-green-fg">    498</span>         <span style="font-weight:bold;color:rgb(0,135,0)">return</span> result
+
+<span class="ansi-cyan-fg">File </span><span class="ansi-green-fg">/arc/project/st-lknelson-1/jupyter/praxis_ai_gpu/lib/python3.11/urllib/request.py:1391</span>, in <span class="ansi-cyan-fg">HTTPSHandler.https_open</span><span class="ansi-blue-fg">(self, req)</span>
+<span class="ansi-green-fg">   1390</span> <span style="font-weight:bold;color:rgb(0,135,0)">def</span><span style="color:rgb(188,188,188)"> </span><span class="ansi-blue-fg">https_open</span>(<span style="color:rgb(0,135,0)">self</span>, req):
+<span class="ansi-green-fg">-&gt; </span><span class="ansi-green-fg">1391</span>     <span style="font-weight:bold;color:rgb(0,135,0)">return</span> <span style="color:rgb(0,135,0)" class="ansi-yellow-bg">self</span><span class="ansi-yellow-bg">.</span><span class="ansi-yellow-bg">do_open</span><span class="ansi-yellow-bg">(</span><span class="ansi-yellow-bg">http</span><span class="ansi-yellow-bg">.</span><span class="ansi-yellow-bg">client</span><span class="ansi-yellow-bg">.</span><span class="ansi-yellow-bg">HTTPSConnection</span><span class="ansi-yellow-bg">,</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">req</span><span class="ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">   1392</span> <span class="ansi-yellow-bg">        </span><span class="ansi-yellow-bg">context</span><span class="ansi-yellow-bg">=</span><span style="color:rgb(0,135,0)" class="ansi-yellow-bg">self</span><span class="ansi-yellow-bg">.</span><span class="ansi-yellow-bg">_context</span><span class="ansi-yellow-bg">,</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">check_hostname</span><span class="ansi-yellow-bg">=</span><span style="color:rgb(0,135,0)" class="ansi-yellow-bg">self</span><span class="ansi-yellow-bg">.</span><span class="ansi-yellow-bg">_check_hostname</span><span class="ansi-yellow-bg">)</span>
+
+<span class="ansi-cyan-fg">File </span><span class="ansi-green-fg">/arc/project/st-lknelson-1/jupyter/praxis_ai_gpu/lib/python3.11/urllib/request.py:1351</span>, in <span class="ansi-cyan-fg">AbstractHTTPHandler.do_open</span><span class="ansi-blue-fg">(self, http_class, req, **http_conn_args)</span>
+<span class="ansi-green-fg">   1348</span>         h.request(req.get_method(), req.selector, req.data, headers,
+<span class="ansi-green-fg">   1349</span>                   encode_chunked=req.has_header(<span class="ansi-yellow-fg">'</span><span class="ansi-yellow-fg">Transfer-encoding</span><span class="ansi-yellow-fg">'</span>))
+<span class="ansi-green-fg">   1350</span>     <span style="font-weight:bold;color:rgb(0,135,0)">except</span> <span style="font-weight:bold;color:rgb(215,95,95)">OSError</span> <span style="font-weight:bold;color:rgb(0,135,0)">as</span> err: <span style="font-style:italic;color:rgb(95,135,135)"># timeout error</span>
+<span class="ansi-green-fg">-&gt; </span><span class="ansi-green-fg">1351</span>         <span style="font-weight:bold;color:rgb(0,135,0)">raise</span> URLError(err)
+<span class="ansi-green-fg">   1352</span>     r = h.getresponse()
+<span class="ansi-green-fg">   1353</span> <span style="font-weight:bold;color:rgb(0,135,0)">except</span>:
+
+<span class="ansi-red-fg">URLError</span>: &lt;urlopen error [Errno 113] No route to host&gt;</pre>
+</div>
+</div>
+</div>
+</section>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+        const codeEl = trigger.previousElementSibling.cloneNode(true);
+        for (const childEl of codeEl.children) {
+          if (isCodeAnnotation(childEl)) {
+            childEl.remove();
+          }
+        }
+        return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
