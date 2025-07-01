@@ -807,28 +807,32 @@ p-value = 6.222e-04</code></pre>
 </div>
 </div>
 <p>Very low p value which is good! Strong indication of porpagandists using more emotionally charged tweets relative to non-propagandists</p>
-<section id="how-are-non-english-tweets-being-handled-with-this-model" class="level3">
-<h3 class="anchored" data-anchor-id="how-are-non-english-tweets-being-handled-with-this-model">3.2 How are non-english tweets being handled with this model?</h3>
+<section id="how-does-the-model-handle-russian-language-tweets" class="level3">
+<h3 class="anchored" data-anchor-id="how-does-the-model-handle-russian-language-tweets">3. How does the model handle Russian-language tweets?</h3>
+<p>Our dataset of tweets (<code>russian_disinformation_tweets.csv</code>) isn’t entirely in English — many of the tweets are written in Russian. In the previous section, we discussed how pretrained models can be limited by the data they learn from. The model we’re using for sentiment analysis was trained exclusively on English-language tweets.</p>
+<p>With this in mind, how do you think it is performing on Russian-language tweets? Let’s explore below:</p>
 <div id="8792809a" class="cell" data-execution_count="40">
 <div class="sourceCode cell-code" id="cb31"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> re</span>
 <span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>tweets_lang <span class="op">=</span> tweets_small.copy()</span>
-<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a>tweets_lang[<span class="st">'language'</span>] <span class="op">=</span> tweets_lang[<span class="st">'text'</span>].<span class="bu">apply</span>(</span>
-<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a>     <span class="kw">lambda</span> txt: <span class="st">'ru'</span> <span class="cf">if</span> re.search(<span class="st">'[</span><span class="ch">\u0400</span><span class="st">-</span><span class="ch">\u04FF</span><span class="st">]'</span>, <span class="bu">str</span>(txt)) <span class="cf">else</span> <span class="st">'en'</span></span>
-<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb31-8"><a href="#cb31-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Filter English and Russian tweets</span></span>
-<span id="cb31-9"><a href="#cb31-9" aria-hidden="true" tabindex="-1"></a>eng_tweets <span class="op">=</span> tweets_lang[tweets_lang[<span class="st">'language'</span>] <span class="op">==</span> <span class="st">'en'</span>]</span>
-<span id="cb31-10"><a href="#cb31-10" aria-hidden="true" tabindex="-1"></a>ru_tweets  <span class="op">=</span> tweets_lang[tweets_lang[<span class="st">'language'</span>] <span class="op">==</span> <span class="st">'ru'</span>]</span>
-<span id="cb31-11"><a href="#cb31-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb31-12"><a href="#cb31-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Sentiment distribution within each language group</span></span>
-<span id="cb31-13"><a href="#cb31-13" aria-hidden="true" tabindex="-1"></a>eng_dist <span class="op">=</span> pd.crosstab(eng_tweets[<span class="st">'sentiment'</span>], eng_tweets[<span class="st">'labels'</span>], normalize<span class="op">=</span><span class="st">'columns'</span>) <span class="op">*</span> <span class="dv">100</span></span>
-<span id="cb31-14"><a href="#cb31-14" aria-hidden="true" tabindex="-1"></a>ru_dist  <span class="op">=</span> pd.crosstab(ru_tweets[<span class="st">'sentiment'</span>],  ru_tweets[<span class="st">'labels'</span>],  normalize<span class="op">=</span><span class="st">'columns'</span>) <span class="op">*</span> <span class="dv">100</span></span>
-<span id="cb31-15"><a href="#cb31-15" aria-hidden="true" tabindex="-1"></a>eng_dist.columns <span class="op">=</span> [<span class="st">'Non-propagandist'</span>, <span class="st">'Propagandist'</span>]</span>
-<span id="cb31-16"><a href="#cb31-16" aria-hidden="true" tabindex="-1"></a>ru_dist.columns  <span class="op">=</span> [<span class="st">'Non-propagandist'</span>, <span class="st">'Propagandist'</span>]</span>
-<span id="cb31-17"><a href="#cb31-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb31-18"><a href="#cb31-18" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"English Tweets Sentiment (%):</span><span class="ch">\n</span><span class="st">"</span>, eng_dist, <span class="st">"</span><span class="ch">\n</span><span class="st">"</span>)</span>
-<span id="cb31-19"><a href="#cb31-19" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Russian Tweets Sentiment (%):</span><span class="ch">\n</span><span class="st">"</span>, ru_dist)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Identify Russian-language tweets by if they contain Cyrillic characters using Unicode</span></span>
+<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a>tweets_lang[<span class="st">'language'</span>] <span class="op">=</span> tweets_lang[<span class="st">'text'</span>].<span class="bu">apply</span>(</span>
+<span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a>     <span class="kw">lambda</span> txt: <span class="st">'ru'</span> <span class="cf">if</span> re.search(<span class="st">'[</span><span class="ch">\u0400</span><span class="st">-</span><span class="ch">\u04FF</span><span class="st">]'</span>, <span class="bu">str</span>(txt)) <span class="cf">else</span> <span class="st">'en'</span></span>
+<span id="cb31-8"><a href="#cb31-8" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb31-9"><a href="#cb31-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-10"><a href="#cb31-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Filter English and Russian tweets</span></span>
+<span id="cb31-11"><a href="#cb31-11" aria-hidden="true" tabindex="-1"></a>eng_tweets <span class="op">=</span> tweets_lang[tweets_lang[<span class="st">'language'</span>] <span class="op">==</span> <span class="st">'en'</span>]</span>
+<span id="cb31-12"><a href="#cb31-12" aria-hidden="true" tabindex="-1"></a>ru_tweets  <span class="op">=</span> tweets_lang[tweets_lang[<span class="st">'language'</span>] <span class="op">==</span> <span class="st">'ru'</span>]</span>
+<span id="cb31-13"><a href="#cb31-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-14"><a href="#cb31-14" aria-hidden="true" tabindex="-1"></a><span class="co"># Sentiment distribution within each language group</span></span>
+<span id="cb31-15"><a href="#cb31-15" aria-hidden="true" tabindex="-1"></a>eng_dist <span class="op">=</span> pd.crosstab(eng_tweets[<span class="st">'sentiment'</span>], eng_tweets[<span class="st">'labels'</span>], normalize<span class="op">=</span><span class="st">'columns'</span>) <span class="op">*</span> <span class="dv">100</span></span>
+<span id="cb31-16"><a href="#cb31-16" aria-hidden="true" tabindex="-1"></a>ru_dist  <span class="op">=</span> pd.crosstab(ru_tweets[<span class="st">'sentiment'</span>],  ru_tweets[<span class="st">'labels'</span>],  normalize<span class="op">=</span><span class="st">'columns'</span>) <span class="op">*</span> <span class="dv">100</span></span>
+<span id="cb31-17"><a href="#cb31-17" aria-hidden="true" tabindex="-1"></a>eng_dist.columns <span class="op">=</span> [<span class="st">'Non-propagandist'</span>, <span class="st">'Propagandist'</span>]</span>
+<span id="cb31-18"><a href="#cb31-18" aria-hidden="true" tabindex="-1"></a>ru_dist.columns  <span class="op">=</span> [<span class="st">'Non-propagandist'</span>, <span class="st">'Propagandist'</span>]</span>
+<span id="cb31-19"><a href="#cb31-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-20"><a href="#cb31-20" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"English Tweets Sentiment (%):</span><span class="ch">\n</span><span class="st">"</span>, eng_dist, <span class="st">"</span><span class="ch">\n</span><span class="st">"</span>)</span>
+<span id="cb31-21"><a href="#cb31-21" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Russian Tweets Sentiment (%):</span><span class="ch">\n</span><span class="st">"</span>, ru_dist)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>English Tweets Sentiment (%):
             Non-propagandist  Propagandist
@@ -844,36 +848,41 @@ neutral           97.580645     98.734177
 positive           2.419355      1.265823</code></pre>
 </div>
 </div>
-<p>Very poorly, most russian tweets are being marked as neutral</p>
+<p>From the table above, we can see that our model is performing very poorly on Russian-language tweets, as nearly all of the Russian tweets are being marked as neutral regardless of if they are propagandist or not. This means that the pretrained model we were using before is not an appropriate choice based on the characteristics of our data, namely that a significant portion of the tweets are written in Russian, a language the model was not trained to make reliable predictions on.</p>
+<p>Let’s try re-running our sentiment analysis using a different model. This time, we’ll use a model trained on 198 million tweets that were not filtered by language. As a result, the training data reflects the most commonly used languages on the platform at the time of collection, with Russian conveniently ranking as the 11th most frequent.</p>
+<p>We’ll follow the same steps for batch sentiment analysis that we did in Section 2:</p>
 <div id="faf9200e" class="cell" data-execution_count="12">
 <div class="sourceCode cell-code" id="cb33"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> transformers <span class="im">import</span> AutoTokenizer, AutoModelForSequenceClassification, pipeline</span>
 <span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> tweetnlp</span>
-<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a>model_path <span class="op">=</span> <span class="st">"../twitter-xlm-roberta-base-sentiment-multilingual"</span></span>
-<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a>tokenizer_multi <span class="op">=</span> AutoTokenizer.from_pretrained(model_path)</span>
-<span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a>model_multi <span class="op">=</span> AutoModelForSequenceClassification.from_pretrained(model_path)</span>
-<span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-7"><a href="#cb33-7" aria-hidden="true" tabindex="-1"></a>tokenizer_multi.model_max_length <span class="op">=</span> <span class="bu">min</span>(tokenizer_multi.model_max_length, <span class="dv">512</span>)</span>
+<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Step 1: Load the pretrained multilingual model and tokenizer</span></span>
+<span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a>model_path <span class="op">=</span> <span class="st">"../twitter-xlm-roberta-base-sentiment-multilingual"</span></span>
+<span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a>tokenizer_multi <span class="op">=</span> AutoTokenizer.from_pretrained(model_path)</span>
+<span id="cb33-7"><a href="#cb33-7" aria-hidden="true" tabindex="-1"></a>model_multi <span class="op">=</span> AutoModelForSequenceClassification.from_pretrained(model_path)</span>
 <span id="cb33-8"><a href="#cb33-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-9"><a href="#cb33-9" aria-hidden="true" tabindex="-1"></a>sentiment_multi_pipeline <span class="op">=</span> pipeline(</span>
-<span id="cb33-10"><a href="#cb33-10" aria-hidden="true" tabindex="-1"></a>    <span class="st">"sentiment-analysis"</span>,</span>
-<span id="cb33-11"><a href="#cb33-11" aria-hidden="true" tabindex="-1"></a>    model<span class="op">=</span>model_multi,           </span>
-<span id="cb33-12"><a href="#cb33-12" aria-hidden="true" tabindex="-1"></a>    tokenizer<span class="op">=</span>tokenizer_multi,   </span>
-<span id="cb33-13"><a href="#cb33-13" aria-hidden="true" tabindex="-1"></a>    device<span class="op">=</span><span class="dv">0</span>,</span>
-<span id="cb33-14"><a href="#cb33-14" aria-hidden="true" tabindex="-1"></a>    truncation<span class="op">=</span><span class="va">True</span>,</span>
-<span id="cb33-15"><a href="#cb33-15" aria-hidden="true" tabindex="-1"></a>    padding<span class="op">=</span><span class="va">True</span>,</span>
-<span id="cb33-16"><a href="#cb33-16" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb33-17"><a href="#cb33-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-18"><a href="#cb33-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-19"><a href="#cb33-19" aria-hidden="true" tabindex="-1"></a><span class="co">#Batch‐wise inference</span></span>
-<span id="cb33-20"><a href="#cb33-20" aria-hidden="true" tabindex="-1"></a>batch_size <span class="op">=</span> <span class="dv">1000</span></span>
-<span id="cb33-21"><a href="#cb33-21" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> start <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">0</span>, <span class="bu">len</span>(tweets_small), batch_size):</span>
-<span id="cb33-22"><a href="#cb33-22" aria-hidden="true" tabindex="-1"></a>    end <span class="op">=</span> start <span class="op">+</span> batch_size</span>
-<span id="cb33-23"><a href="#cb33-23" aria-hidden="true" tabindex="-1"></a>    batch_texts <span class="op">=</span> tweets_small[<span class="st">"text"</span>].iloc[start:end].tolist()</span>
-<span id="cb33-24"><a href="#cb33-24" aria-hidden="true" tabindex="-1"></a>    results <span class="op">=</span> sentiment_multi_pipeline(batch_texts)           </span>
-<span id="cb33-25"><a href="#cb33-25" aria-hidden="true" tabindex="-1"></a>    labels  <span class="op">=</span> [res[<span class="st">"label"</span>] <span class="cf">for</span> res <span class="kw">in</span> results]</span>
-<span id="cb33-26"><a href="#cb33-26" aria-hidden="true" tabindex="-1"></a>    tweets_small.loc[start:end<span class="op">-</span><span class="dv">1</span>, <span class="st">"sentiment"</span>] <span class="op">=</span> labels </span>
-<span id="cb33-27"><a href="#cb33-27" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-28"><a href="#cb33-28" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(tweets_small[[<span class="st">"text"</span>, <span class="st">"sentiment"</span>]].head())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb33-9"><a href="#cb33-9" aria-hidden="true" tabindex="-1"></a>tokenizer_multi.model_max_length <span class="op">=</span> <span class="bu">min</span>(tokenizer_multi.model_max_length, <span class="dv">512</span>)</span>
+<span id="cb33-10"><a href="#cb33-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-11"><a href="#cb33-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Step 2: Create the sentiment analysis pipeline</span></span>
+<span id="cb33-12"><a href="#cb33-12" aria-hidden="true" tabindex="-1"></a>sentiment_multi_pipeline <span class="op">=</span> pipeline(</span>
+<span id="cb33-13"><a href="#cb33-13" aria-hidden="true" tabindex="-1"></a>    <span class="st">"sentiment-analysis"</span>,</span>
+<span id="cb33-14"><a href="#cb33-14" aria-hidden="true" tabindex="-1"></a>    model<span class="op">=</span>model_multi,           </span>
+<span id="cb33-15"><a href="#cb33-15" aria-hidden="true" tabindex="-1"></a>    tokenizer<span class="op">=</span>tokenizer_multi,   </span>
+<span id="cb33-16"><a href="#cb33-16" aria-hidden="true" tabindex="-1"></a>    device<span class="op">=</span><span class="dv">0</span>,</span>
+<span id="cb33-17"><a href="#cb33-17" aria-hidden="true" tabindex="-1"></a>    truncation<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb33-18"><a href="#cb33-18" aria-hidden="true" tabindex="-1"></a>    padding<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb33-19"><a href="#cb33-19" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb33-20"><a href="#cb33-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-21"><a href="#cb33-21" aria-hidden="true" tabindex="-1"></a><span class="co"># Step 3: Run batch sentiment analysis</span></span>
+<span id="cb33-22"><a href="#cb33-22" aria-hidden="true" tabindex="-1"></a>batch_size <span class="op">=</span> <span class="dv">1000</span></span>
+<span id="cb33-23"><a href="#cb33-23" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> start <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">0</span>, <span class="bu">len</span>(tweets_small), batch_size):</span>
+<span id="cb33-24"><a href="#cb33-24" aria-hidden="true" tabindex="-1"></a>    end <span class="op">=</span> start <span class="op">+</span> batch_size</span>
+<span id="cb33-25"><a href="#cb33-25" aria-hidden="true" tabindex="-1"></a>    batch_texts <span class="op">=</span> tweets_small[<span class="st">"text"</span>].iloc[start:end].tolist()</span>
+<span id="cb33-26"><a href="#cb33-26" aria-hidden="true" tabindex="-1"></a>    results <span class="op">=</span> sentiment_multi_pipeline(batch_texts)           </span>
+<span id="cb33-27"><a href="#cb33-27" aria-hidden="true" tabindex="-1"></a>    labels  <span class="op">=</span> [res[<span class="st">"label"</span>] <span class="cf">for</span> res <span class="kw">in</span> results]</span>
+<span id="cb33-28"><a href="#cb33-28" aria-hidden="true" tabindex="-1"></a>    tweets_small.loc[start:end<span class="op">-</span><span class="dv">1</span>, <span class="st">"sentiment"</span>] <span class="op">=</span> labels </span>
+<span id="cb33-29"><a href="#cb33-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-30"><a href="#cb33-30" aria-hidden="true" tabindex="-1"></a><span class="co"># Step 4: Preview results</span></span>
+<span id="cb33-31"><a href="#cb33-31" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(tweets_small[[<span class="st">"text"</span>, <span class="st">"sentiment"</span>]].head())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stderr">
 <pre><code>Device set to use cuda:0</code></pre>
 </div>
@@ -886,6 +895,7 @@ positive           2.419355      1.265823</code></pre>
 4  U.S. taxpayer money squirreled away in foreign...  negative</code></pre>
 </div>
 </div>
+<p>To make the results easier to visualize, let’s create a table that shows the percentage distribution of sentiment labels (positive, neutral, negative) within propagandist and non-propagandist tweets.</p>
 <div id="340f9845" class="cell" data-execution_count="15">
 <div class="sourceCode cell-code" id="cb36"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a>multi_dist <span class="op">=</span> pd.crosstab(tweets_small[<span class="st">'sentiment'</span>], tweets[<span class="st">'labels'</span>], normalize<span class="op">=</span><span class="st">'columns'</span>) <span class="op">*</span> <span class="dv">100</span></span>
 <span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a>multi_dist.columns <span class="op">=</span> [<span class="st">'Non-propagandist'</span>, <span class="st">'Propagandist'</span>]</span>
@@ -899,6 +909,9 @@ neutral           50.198570     51.007252
 positive          12.609214     11.603546</code></pre>
 </div>
 </div>
+<p>The sentiment distribution between propagandist and non-propagandist tweets is quite similar when using the multilingual model. Both groups are predominantly neutral (around 50%), with roughly equal proportions of negative and positive sentiment.</p>
+<p>Now, let’s run a statistical test to see if there’s a meaningful difference in sentiment between propagandist and non-propagandist tweets. Specifically, we want to know: <em>Are propagandist tweets more likely to be emotionally charged (positive or negative) than neutral, compared to non-propagandist tweets?</em></p>
+<p>To answer this, we’ll use a chi-squared test, which helps us check whether the differences we see in the data are likely due to chance or if they’re statistically significant.</p>
 <div id="a7001900" class="cell" data-execution_count="17">
 <div class="sourceCode cell-code" id="cb38"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a>tweets_small[<span class="st">'charged_multi'</span>] <span class="op">=</span> tweets_small[<span class="st">'sentiment'</span>].isin([<span class="st">'positive'</span>,<span class="st">'negative'</span>]).astype(<span class="bu">int</span>)</span>
 <span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a>contingency_multi <span class="op">=</span> pd.crosstab(tweets_small[<span class="st">'labels'</span>], tweets_small[<span class="st">'charged_multi'</span>])</span>
@@ -908,10 +921,21 @@ positive          12.609214     11.603546</code></pre>
 <pre><code>Chi-squared p-value with multilingual model: 3.727e-05</code></pre>
 </div>
 </div>
+<p>Our p-value (0.00003727) is much smaller than the common significance level of 0.05, indicating that the difference in how emotionally charged tweets are distributed between propagandist and non-propagandist groups is very unlikely to be due to random chance.</p>
+<p>This means there is strong evidence that propagandist tweets are more likely to be emotionally charged compared to non-propagandist tweets, according to the multilingual model’s sentiment analysis.</p>
 </section>
 </section>
-<section id="detoxify" class="level2">
-<h2 class="anchored" data-anchor-id="detoxify">4. Detoxify</h2>
+<section id="toxicity-analysis-using-detoxify" class="level2">
+<h2 class="anchored" data-anchor-id="toxicity-analysis-using-detoxify">4. Toxicity Analysis using Detoxify</h2>
+<p>In this section, we’ll explore <strong>toxicity analysis</strong>, another type of classification task that uses machine learning models to detect whether a piece of text contains harmful, offensive, or aggressive language.</p>
+<p>The model we’ll be using is called <strong>Detoxify</strong> (you can read more about it <a href="https://github.com/unitaryai/detoxify?tab=readme-ov-file">here</a>). It was trained on large datasets of online comments across seven languages, including English and Russian. Detoxify provides an overall <strong>toxicity score</strong> for each text and can also detect five specific subtypes of toxicity: <code>identity_attack</code>, <code>insult</code>, <code>obscene</code>, <code>sexual_explicit</code>, and <code>threat</code>.</p>
+<p>In the context of our dataset, propagandist tweets often aim to provoke strong emotions, spread hate, or stir conflict. Running toxicity analysis can help us investigate questions like:</p>
+<ul>
+<li>Are propagandist tweets more toxic than non-propagandist ones?</li>
+<li>What types of toxic language are most common?</li>
+<li>Are there patterns in how toxicity is used to influence or manipulate public discourse?</li>
+</ul>
+<p>Toxicity analysis gives us another lens to understand how language and emotion are used in disinformation campaigns. Let’s begin by importing the necessary libraries and tools:</p>
 <div id="9569ab0c" class="cell" data-execution_count="28">
 <div class="sourceCode cell-code" id="cb40"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
 <span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
