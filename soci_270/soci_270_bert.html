@@ -102,12 +102,24 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
-<p>Disinformation is not a new phenomenon, but the rise of digital communication technologies has enabled the acceleration of the creation, spread, and amplification of disinformation. Disinformation has proliferated about highly polarizing topics, including elections, the COVID-19 Pandemic, wars and conflicts, and social movements. Currently, graphics, images, and captions rule the viral disinformation landscape which rests upon social media platforms.</p>
-<p>Definitionally, disinformation is a bit tricky to pin down. Disinformation is generally understood as incorrect information spread to intentionally cause harm. Disinformation comes in different forms, however, and the targets of disinformation are often varied, and the attribution of intention becomes somewhat murky. Inclusive of these definitional challenges, The United Nations Human Rights Council has determined that disinformation is problematic in its effects and presents unique challenges to address its spread and protect institutions from degradation. Some instances of disinformation target minority groups by manipulating statistics or making false claims. This can look like falsely attributing violent attacks to immigrants or religious minorities, when in fact the attacks were carried out by neither immigrants nor religious minorities. Such a case occurred in 2017, when a Dutch teenager who was using crutches was recorded being assaulted and the attackers were labeled as Muslim immigrants by various leaders, who were later corrected on X (then twitter) by the Dutch Embassy.</p>
-<p>Disinformation can also look like fake news websites which produce articles that are meant to cause emotional reactions or create polarization. Publications like the “Seattle Tribune” publish faulty information that is unverified or fabricated using false images and incorrect headlines. These techniques are meant to elicit an emotional response and provoke reactions, often with the goal of creating distrust, a sense of fear, or creating a certain outcome in a political, economic, or social process. Emotions play a big role in propaganda techniques and are leveraged to make targets of disinformation less concerned with the factual basis for claims. Emotional appeals are used by propagandists to create a reaction which makes targets vulnerable to information that enables the constriction of human rights and creates dangerous falsehoods. (UN HRC, 2021) An emerging technique in targeted information campaigns was demonstrated by Swiss researchers at the University of Zurich in an unpublished paper which used Large Language Models to persuade users of the subreddit r/changemyview. The researchers also used machine learning to gather information about posters to help persuade them, using different appeals based on the user’s history. Techniques driven by LLMs are a new and potentially more personalized and persuasive way to engage in disinformation.</p>
+<p>Disinformation is not new, but with the rise of digital platforms and generative AI, its scale, speed, and sophistication have grown exponentially. From elections and pandemics to social justice movements and international conflicts, false or misleading content is being spread online to manipulate emotions and polarize public opinion.</p>
+<p>The challenge today is not just the volume of disinformation, but how convincing and targeted it has become. Former U.S. Director of National Intelligence Avril Haines describes how state-sponsored campaigns, like Russia’s Kremlin, now operate using “a vast multimedia influence apparatus,” including bots, cyber-actors, fake news websites, and social media trolls. <strong>Large language models (LLMs)</strong> can now generate human-like tweets, comments, and articles at scale. Combined with deepfakes, doppelgänger sites, and AI-generated personas, these tools allow bad actors to craft propaganda that appears authentic, emotionally resonant, and difficult to detect.</p>
+<p>In this notebook, we’ll use machine learning — specifically, pretrained large language models — to study the language of disinformation in a real dataset of English and Russian-language tweets. These tweets include both propagandist and non-propagandist content. Our goal is to uncover hidden patterns in how these messages are framed, using tools like:</p>
+<ul>
+<li><strong>Sentiment analysis</strong> to detect emotional tone (positive, negative, neutral)</li>
+<li><strong>Toxicity analysis</strong> to identify harmful or aggressive language (e.g., insults, threats)</li>
+<li><strong>Statistical testing</strong> to compare patterns between tweet types and languages (e.g., English vs.&nbsp;Russian)</li>
+</ul>
+<p>You’ll learn how to work with pretrained LLMs, interpret model predictions, and use basic statistical methods to answer questions like:</p>
+<ul>
+<li>Are propagandist tweets more emotionally charged or toxic than others?</li>
+<li>Do they use different rhetorical strategies in different languages?</li>
+<li>Can we identify signals that indicate a tweet is part of a disinformation campaign?</li>
+</ul>
+<p>Through this analysis, we’ll explore how AI, while sometimes a tool for harm, can also help us better understand and detect the patterns of disinformation when working with large amounts of social data.</p>
 <section id="preliminary-data-analysis" class="level1">
 <h1>0. Preliminary data analysis</h1>
-<p>In order to get started using Machine Learning to map disinformation campaigns, we need to set our machines up to be able to:</p>
+<p>In order to get started using machine learning to map disinformation campaigns, we need to set our machines up to be able to:</p>
 <ol type="1">
 <li>Open and interpret the dataset.</li>
 <li>Visualize key aspects of the data.</li>
@@ -138,13 +150,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> seaborn <span class="im">as</span> sns</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p>Now that we have successfully accessed all of the functions we need to carry out our disinformation investigation, we can start to look into the data we are working with. We are going to be using the <code>pandas</code> library which is a popular tool to read and handle data. The block of code below will first load in the dataset named “russian_disinformation_tweets.csv” and then, based on the information contained in the file, it will <code>print</code> the specified information. In this case we are looking at three different features of our data:</p>
+<p>Now that we have successfully accessed all of the functions we need to carry out our disinformation investigation, we can start to look into the data we are working with. We are going to be using the <code>pandas</code> library, which is a popular tool to read and handle data. The block of code below will first load in the dataset named <code>russian_disinformation_tweets.csv</code> and then, based on the information contained in the file, it will <code>print</code> the specified information. In this case we are looking at three different features of our data:</p>
 <ol type="1">
 <li>The names of the columns in our dataset</li>
 <li>The number of tweets not labeled as control i.e.&nbsp;russian disinformation</li>
 <li>The number of tweets labeled as control i.e.&nbsp;<em>not</em> russian disinformation</li>
 </ol>
-<p>The code below also does a little bit of housekeeping, by using the function <code>tweets.rename</code> to change the column names from “post text” and “is_control” to “text” and “labels” respectively.</p>
+<p>The code below also does a little bit of housekeeping, by using the function <code>tweets.rename</code> to change the column names from <code>post text</code> and <code>is_control</code> to <code>text</code> and <code>labels</code> respectively.</p>
 <p>Now, take a look a the output of this block and identify the number of disinformation tweets found in the data.</p>
 <div id="b0c2403f" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>tweets <span class="op">=</span> pd.read_csv(<span class="st">"soci_270/russian_disinformation_tweets.csv"</span>)</span>
@@ -165,7 +177,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 90291</code></pre>
 </div>
 </div>
-<p>To continue exploring the data, we are going to take a look at tweets that are labeled as control tweets, meaning they are not russian disinformation. Take a look at a few of the characteristics of the tweets below, looking at both the text of the tweets and the data associated with each post.</p>
+<p>To continue exploring the data, we are going to take a look at tweets that are labeled as control tweets, meaning they are not Russian disinformation. Take a look at a few of the characteristics of the tweets below, looking at both the text of the tweets and the data associated with each post.</p>
 <div id="f803df3c" class="cell">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(tweets[tweets[<span class="st">"labels"</span>] <span class="op">==</span> <span class="va">True</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
@@ -185,7 +197,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 [90291 rows x 20 columns]</code></pre>
 </div>
 </div>
-<p>Now that we know a little bit about the data, we are going to continue doing some housekeeping by converting the post time and date from characters to into dates that are able to be interpreted by the computer and used for an analysis. In addition we are going to create a follower/following ratio to add another dimension to our data. We can then use this information to visualize the posting activity of the disinformation bots and the control tweets. In our visualization the label “True” corresponds to tweets that are part of the control group and the label “False” corresponds to tweets containing disinformation. Examine the graph and note any trends in the posting activity.</p>
+<p>Now that we know a little bit about the data, we are going to continue doing some housekeeping by converting the post time and date from characters to into dates that are able to be interpreted by the computer and used for analysis. Additionally, we’ll create a follower/following ratio to add another dimension to our data.</p>
+<p>We can then use this information to visualize the posting activity of the disinformation bots and the control tweets. In our visualization, the label <code>True</code> corresponds to tweets that are part of the control group and the label <code>False</code> corresponds to tweets containing disinformation. Examine the graph and note any trends in the posting activity.</p>
 <div id="bb75534a" class="cell">
 <div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>tweets[<span class="st">'post_time'</span>] <span class="op">=</span> pd.to_datetime(tweets[<span class="st">'post_time'</span>], errors<span class="op">=</span><span class="st">'coerce'</span>)</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>tweets[<span class="st">'post_date'</span>] <span class="op">=</span> tweets[<span class="st">'post_time'</span>].dt.date</span>
@@ -218,7 +231,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 </div>
-<p>Another dimmension we could look at with this data is the posting activity of Control vs.&nbsp;Disinformation tweets over the course of the day. Here we are going to define a function that will allow us to visualize the average number of posts across the course of a day, starting with hour 0 until hour 24. Take a look at the displays below and play around with the dates to see how the tweet volume changes.</p>
+<p>Another dimmension we could look at with this data is the posting activity of Control vs.&nbsp;Disinformation tweets over the course of the day. Here we are going to define a function that will allow us to visualize the average number of posts across the course of a day, starting with Hour 0 until Hour 24. Take a look at the displays below and play around with the dates to see how the tweet volume changes.</p>
 <div id="14599915" class="cell">
 <div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> ipywidgets <span class="im">as</span> widgets</span>
@@ -287,7 +300,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 </div>
-<p>Below, we examine the breakdown of twwets by account type and language by subsetting our data. As you look over the volume of tweets by language, consider why language might be an important aspect of our data. What are the most common languages used to spread disinformation? Why might that be? Be sure to pay attention to the Control/IO ratio as well.</p>
+<p>Below, we examine the breakdown of tweets by account type and language by subsetting our data. As you look over the volume of tweets by language, consider why language might be an important aspect of our data. What are the most common languages used to spread disinformation? Why might that be? Be sure to pay attention to the Control/IO ratio as well.</p>
 <div id="f71cbdc3" class="cell">
 <div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>lang_counts <span class="op">=</span> tweets.groupby([<span class="st">'post_language'</span>,<span class="st">'account_type'</span>]).size().reset_index(name<span class="op">=</span><span class="st">'count'</span>)</span>
 <span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>lang_pivot <span class="op">=</span> lang_counts.pivot(index<span class="op">=</span><span class="st">'post_language'</span>, columns<span class="op">=</span><span class="st">'account_type'</span>, values<span class="op">=</span><span class="st">'count'</span>).fillna(<span class="dv">0</span>)</span>
@@ -382,8 +395,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <section id="hashtag-analysis" class="level2">
-<h2 class="anchored" data-anchor-id="hashtag-analysis">0.2 Hashtag analysis</h2>
-<p>The next step in our data analysis is going to explore the most frequent hashtags from each account type. The code below finds the 10 most frequent hashtags from the control accounts and the disinformation accounts and displays them with their frequency. As you look at the tables below, pay attention to the content and the language of the hashtags. Why might Russian accounts be posting in English? Compare this subset of the data to the timeline of tweets from section 0.</p>
+<h2 class="anchored" data-anchor-id="hashtag-analysis">0.1 Hashtag analysis</h2>
+<p>The next step in our data analysis is going to explore the most frequent hashtags from each account type. The code below finds the 10 most frequent hashtags from the control accounts and the disinformation accounts and displays them with their frequency. As you look at the tables below, pay attention to the content and the language of the hashtags. Why might Russian accounts be posting in English? Compare this subset of the data to the timeline of tweets from Section 0.</p>
 <div id="d48245d6" class="cell">
 <div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>tweets_hs <span class="op">=</span> tweets.explode(<span class="st">'hashtags'</span>).rename(columns<span class="op">=</span>{<span class="st">'hashtags'</span>: <span class="st">'hashtag'</span>})</span>
@@ -587,7 +600,7 @@ Top 10 Hashtags - Control Accounts</code></pre>
 </section>
 <section id="sentiment-analysis-using-pretrained-models" class="level2">
 <h2 class="anchored" data-anchor-id="sentiment-analysis-using-pretrained-models">2. Sentiment analysis using pretrained models</h2>
-<p>Disinformation campaigns often aim to sway public opinion by influencing the emotional tone of online conversations. Sentiment analysis allows us to detect and understand these patterns by identifying whether large volumes of text express positive, negative, or neutral sentiment.</p>
+<p>Disinformation campaigns often aim to sway public opinion by influencing the emotional tone of online conversations. <strong>Sentiment analysis</strong> allows us to detect and understand these patterns by identifying whether large volumes of text express <strong>positive</strong>, <strong>negative</strong>, or <strong>neutral</strong> sentiment.</p>
 <p>Our model is pretrained, meaning it has already learnt from millions of labelled examples how to distinguish different sentiments. Specifically, because the model we’ll be using was trained on English tweets, it’s tuned to the language and syntax common on Twitter/X, and is limited to analyzing English-language text.</p>
 <div id="1859b344" class="cell" data-execution_count="10">
 <div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> transformers <span class="im">import</span> pipeline</span>
@@ -693,12 +706,12 @@ Cell <span class="ansi-green-fg">In[1], line 1</span>
 </div>
 </div>
 </div>
-<p>Now, let’s start running sentiment analysis on our Tweets dataset. The general steps to run our analysis include:</p>
+<p>Now, let’s start running sentiment analysis on our dataset. The general steps to run our analysis include:</p>
 <ol type="1">
 <li><p>Loading a pretrained model and tokenizer</p>
 <p>We load a RoBERTa model that has been fine-tuned for sentiment analysis on tweets, along with its corresponding tokenizer.</p></li>
 <li><p>Creating sentiment analysis pipeline</p>
-<p>We set up a Hugging Face pipeline that handles finer steps in our sentiment analysis, such as tokenization (breaking up text into smaller units, called <em>tokens</em>), batching (processing multiple texts at once for efficiency), and prediction (predicting the overall sentiment).</p></li>
+<p>We set up a Hugging Face pipeline that handles finer steps in our sentiment analysis, such as <strong>tokenization</strong> (breaking up text into smaller units, called <em>tokens</em>), <strong>batching</strong> (processing multiple texts at once for efficiency), and <strong>prediction</strong> (predicting the overall sentiment).</p></li>
 <li><p>Running batch sentiment analysis on the dataset</p>
 <p>To efficiently analyze large numbers of tweets, we split the dataset into batches of 1,000 tweets and process them one batch at a time. To store the predictions, we extract the predicted sentiment labels and save them in a column named <code>sentiment</code>.</p></li>
 <li><p>Previewing the results</p></li>
@@ -751,7 +764,7 @@ Device set to use cuda:0</code></pre>
 </div>
 <p>We can see the first 5 tweets and their predicted sentiment above.</p>
 <p>Now that we know how to run sentiment analysis to identify the overarching sentiment of a tweet, we are now in good position to ask and investigate whether emotionally charged language is more common in propaganda. Let’s explore this by forming a hypothesis and testing it statistically.</p>
-<p>Hypothesis: Propagandist tweets (<code>is_control == 1</code>) are more emotionally charged — that is, they are more likely to be classified as <strong>Positive</strong> or <strong>Negative</strong> (non-neutral) compared to non-propagandist tweets (<code>is_control == 0</code>). We will test whether the difference in sentiment category frequencies between the two groups is <strong>statistically significant</strong>.</p>
+<p>Hypothesis: Propagandist tweets (<code>is_control == 1</code>) are more emotionally charged — that is, they are more likely to be classified as <strong>Positive</strong> or <strong>Negative</strong> (non-neutral) compared to non-propagandist tweets (<code>is_control == 0</code>). We will test whether the difference in sentiment category frequencies between the two groups is statistically significant.</p>
 <p>First, let’s examine the sentiment distribution for each group:</p>
 <div id="607ed239" class="cell" data-execution_count="31">
 <div class="sourceCode cell-code" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>dist <span class="op">=</span> pd.crosstab(tweets_small[<span class="st">'sentiment'</span>], tweets_small[<span class="st">'labels'</span>], normalize<span class="op">=</span><span class="st">'columns'</span>)</span>
@@ -931,9 +944,9 @@ positive          12.609214     11.603546</code></pre>
 <p>The model we’ll be using is called <strong>Detoxify</strong> (you can read more about it <a href="https://github.com/unitaryai/detoxify?tab=readme-ov-file">here</a>). It was trained on large datasets of online comments across seven languages, including English and Russian. Detoxify provides an overall <strong>toxicity score</strong> for each text and can also detect five specific subtypes of toxicity: <code>identity_attack</code>, <code>insult</code>, <code>obscene</code>, <code>sexual_explicit</code>, and <code>threat</code>.</p>
 <p>In the context of our dataset, propagandist tweets often aim to provoke strong emotions, spread hate, or stir conflict. Running toxicity analysis can help us investigate questions like:</p>
 <ul>
-<li>Are propagandist tweets more toxic than non-propagandist ones?</li>
-<li>What types of toxic language are most common?</li>
-<li>Are there patterns in how toxicity is used to influence or manipulate public discourse?</li>
+<li><em>Are propagandist tweets more toxic than non-propagandist ones?</em></li>
+<li><em>What types of toxic language are most common?</em></li>
+<li><em>Are there patterns in how toxicity is used to influence or manipulate public discourse?</em></li>
 </ul>
 <p>Toxicity analysis gives us another lens to understand how language and emotion are used in disinformation campaigns. Let’s begin by importing the necessary libraries and tools:</p>
 <div id="9569ab0c" class="cell" data-execution_count="28">
