@@ -3,10 +3,22 @@ title: 'AMNE 376: A Study of Richter''s Kouroi Through Image Embedding'
 author: prAxIs UBC Team <br> _Kaiyan Zhang, Yash Mali, Krishaant Pathman_
 date: July 2025
 description: Using examples from Richter's classic book on Kouroi, this notebook demonstrates the basics of computer vision and image embedding, introducing students to how computers “see” art and how we can use pre-trained convolutional neural networks for data exploration and formalist analysis.
-jupyter: python3
+categories:
+  - AMNE
+  - Python
+  - Image Embeddings
+  - CNNs
+format:
+  html: default
+  ipynb:
+    jupyter:
+      kernelspec:
+        display_name: Python
+        language: python3
+        name: python3
 ---
 
-Before you start, make sure you have the required libraries installed, if not, uncomment by `ctrl` + `/` and run the following lines:
+Before you start, make sure you have the required libraries installed, if not, simply **uncomment the lines below** (use `Ctrl + /`) and run the cell to install them: 
 
 ```{python}
 # !pip install matplotlib
@@ -19,9 +31,17 @@ Before you start, make sure you have the required libraries installed, if not, u
 # !pip install transformers
 # !pip install datasets
 # !pip install grad-cam
+# !pip install tensorflow
+# !pip install keras
 ```
 
 ### 1. Introduction: How Computers See Visual Art?
+
+In this notebook, we explore a dataset of photographs collected from ***Richter's Kouroi (1942)***.
+
+Gisela Richter's 1942 book was one of the first systematic efforts to catalog and classify kouroi based on their stylistic evolution. Her work combined archaeological evidence with visual comparison, laying the foundation for how we study ancient sculpture today.
+
+In this project, we aim to apply computer vision techniques to digitally analyze and group images from this dataset. Just as Richter used her trained eye to identify patterns and typologies, we'll explore how machines can "see" these sculptures through their eyes (image embeddings, clustering, and convolutional neural networks).
 
 Have you ever wondered how images are stored in computers, how computers see them and distinguish the difference between them? 
 
@@ -61,7 +81,7 @@ plt.tight_layout()
 plt.show()
 ```
 
-We then plot the color histogram for each image representing the distribution of grayscale intensity. What do you notice by looking at the three histograms?
+Each of these images, when loaded into the computer, becomes a 2D array of numbers representing **intensity values**. We then plot the color histogram for each image representing the distribution of **grayscale intensity**. What do you notice by looking at the three histograms?
 ```{python}
 # Generate and plot greyscale histograms for the selected images
 fig, axes = plt.subplots(1, 3, figsize=(7, 4))
@@ -327,7 +347,7 @@ This provides us with a hint on how to build an automatic image-based classifier
 
 ### 2. Convolutions on Images
 
-**What are convolutions?**
+#### 2.1 What are convolutions?
 Before diving into applying a **convolutional neural network**, let's first make an intuitive introduction to the concept **convolution**.
 
 Imagine sliding a tiny image over an image as a filter to make the actual image appear the same as the filter. Convolution is the mathematical operation to achieve such an effect.
@@ -484,7 +504,84 @@ ax[2].imshow(edge, cmap='gray'); ax[2].set_title("Edges"); ax[2].axis('off')
 plt.tight_layout(); plt.show()
 ```
 
-Over the years, people have discovered these tiny images or “kernels” or “filters”. In machine learning, we discover or learn these potentially useful filters directly from the data, rather than through mathematical derivation.
+#### 2.2 What can Machine Learning do?
+
+Over the years, people have discovered these tiny images or "kernels" or "filters". In machine learning, we discover or learn these potentially useful filters directly from the data, rather than through mathematical derivation. In a word, machine learning can "learn" the filters from data what would be useful for downstream tasks like classifying images or identifying things in an image.
+
+```{python}
+from tensorflow.keras.applications import VGG16
+from tensorflow.keras.preprocessing import image
+from tensorflow.keras.applications.vgg16 import preprocess_input
+
+# 1. Load a pretrained conv model (VGG16 without top)
+model = VGG16(weights='imagenet', include_top=False)
+
+# 2. Choose three conv layers: early, middle, late
+early_layer = model.get_layer('block1_conv2')
+mid_layer   = model.get_layer('block3_conv3')
+late_layer  = model.get_layer('block5_conv3')
+
+# 3. Extract one kernel from each layer
+# Each kernel has shape (k, k, in_channels, out_channels)
+kernel_early = early_layer.get_weights()[0][:, :, 0, 0]
+kernel_mid   = mid_layer.get_weights()[0][:, :, 0, 0]
+kernel_late  = late_layer.get_weights()[0][:, :, 0, 0]
+
+# 4. Load and preprocess an image
+def load_and_gray(path, target_size=(224,224)):
+    img = image.load_img(path, target_size=target_size)
+    img_arr = image.img_to_array(img)
+    # convert to grayscale
+    gray = cv2.cvtColor(img_arr.astype('uint8'), cv2.COLOR_RGB2GRAY)
+    # normalize
+    gray = gray.astype('float32') / 255.0
+    return gray
+
+img_path = '../data/richter_kouroi_filtered_photos/page300_img01_photo8.jpg'
+
+gray = load_and_gray(img_path)
+
+# 5. Convolve the image with each kernel
+def apply_filter(img, kernel):
+    # Flip kernel for convolution
+    k = kernel.shape[0]
+    # OpenCV uses correlation; flip kernel to perform convolution
+    flipped = np.flipud(np.fliplr(kernel))
+    filtered = cv2.filter2D(img, -1, flipped)
+    return filtered
+
+out_early = apply_filter(gray, kernel_early)
+out_mid   = apply_filter(gray, kernel_mid)
+out_late  = apply_filter(gray, kernel_late)
+
+# 6. Visualize
+plt.figure(figsize=(12, 8))
+
+plt.subplot(2, 2, 1)
+plt.title('Original Gray')
+plt.imshow(gray, cmap='gray')
+plt.axis('off')
+
+plt.subplot(2, 2, 2)
+plt.title('Early Layer Kernel')
+plt.imshow(out_early, cmap='gray')
+plt.axis('off')
+
+plt.subplot(2, 2, 3)
+plt.title('Mid Layer Kernel')
+plt.imshow(out_mid, cmap='gray')
+plt.axis('off')
+
+plt.subplot(2, 2, 4)
+plt.title('Late Layer Kernel')
+plt.imshow(out_late, cmap='gray')
+plt.axis('off')
+
+plt.tight_layout()
+plt.show()  # In Colab this will display inline
+```
+
+Different parts of the model highlight different thing. The importnat thing to note is that no one wrote the filters themselves. The network learned that the features highlighted by these filters are useful.**We simply wrote the learning algorithm. The model learned from data by itself.**
 
 Typically, a model used for image classification can (on its own) learn filters to highlight things the model needs, such as edges and lines, and more importantly, in addition to these simple features, the model can learn filters to detect heads, eyes, ears, and other abstract concepts, and this is exactly how convolution makes it possible to detect, characterize, and categorize complex objects in complex images. In order to achieve these amazing features, we usually need to employ models such as **Convolutional Neural Networks**.
 
@@ -569,6 +666,9 @@ plt.show()
 
 #### 4.1 CNN and Models See Images
 
+What we'll do next is we will bring in ConvNeXt V2, it is a CNN-based AI model trained on millions of images. 
+
+I'm sure everyone has used some **Large Language Models (LLMs)** and gotten a feel for how these models mimic the way humans think. This imitation of the human way of thinking comes from **Artificial Neural Networks (ANN)**. Just as **LLMs** process and generate natural language, **CNN models** process visual images, examining the features in those images through **convolutional layers** and generating their own digital representations of the images. 
 
 ```{python}
 # Read in the pre-trained ConvNeXtV2 model
@@ -708,10 +808,14 @@ print(embeddings)
 embeddings.shape
 ```
 
-We printed the embedded results above to see what they look like, and we also displayed the shape of the grid. As you can see, it contains 62 rows representing the 62 images in the dataset, and each row has 1024 cells representing all the information extracted from each image. From now on, we will use this embedded data instead of the original image data.
+We printed the embedded results above to see what they look like, and we also displayed the shape of the grid. As you can see, it contains 62 rows representing the 62 images in the dataset, and each row has 1024 numbers representing all the information extracted from each image. From now on, we will use this embedded data instead of the original image data.
 
 ### 5. Analysis of Image Embeddings
 #### 5.1 Principal Component Analysis
+
+1024 is way too many numbers for us to examine and understand with our brains. So, we use something techniques called **dimensionality reduction** to squish the data down to just 2 or 3 dimensions, making it easy to visualize in 2D. 
+
+**Principal Component Analysis (PCA)** is one of such techniques, it is essentially finding the two or three major axes through our huge data along which the data has the most variations. By PCA we decompose our data with 1024 dimensions (number of cells in each row) to 3 dimensions and represent each image as a point on our scatterplots. We then color the data with "era" and "material" respectively. To visualize all 3 dimensions, here we employed a strategy called **scatter matrix**. What do you notice by looking at the plots below 
 
 ```{python}
 from sklearn.decomposition import PCA
@@ -747,7 +851,13 @@ g.fig.set_figheight(8)
 plt.show()
 ```
 
-#### 5.2 TSNE Visualization
+Did you see any clear patterns of distributions by looking at the visualizations above? How can you interpret the results? 
+
+#### 5.2 t-SNE Visualization
+
+**t-distributed stochastic neighbor embedding (t-SNE)** is another dimensionality reduction technique. Different from PCA, instead of finding out the principal axes from the data, it assigns a certain low-dimensional space to each point based on its high-dimensional information and preserves the relative spatial relationships. You can imagine its arrangement for image embeddings as arranging the standing positions for graduation photos by surveying the students' information, trying to satisfy each student's preference (e.g., A and B want to stand together, but B and C want to be as far apart as possible).
+
+Here, we also want to label the scatterplots based on "era" and "material", respectively, and we used `plotly` to create an interactive visualization. Interact with the points and browse the corresponding images in the folder, what pattern can you see? 
 
 ```{python}
 from sklearn.manifold import TSNE
@@ -793,9 +903,12 @@ fig = px.scatter(
 fig.show()
 ```
 
+Although t-SNE shows a clear distinction between materials (especially between bronze and marble), we should be wary of the conclusion that the t-SNE method is somewhat randomized, so its results are not necessarily deterministic. in any case, dimensionality reduction techniques give us a good understanding of the relationship between different images.
+
 ### 6. Example: Classification of Kouroi Based on Image Embedding
 
 #### 6.1 Traditional Approach
+
 
 ```{python}
 from sklearn.linear_model import LogisticRegression
@@ -1028,7 +1141,7 @@ print("Classification Report for Materials:")
 print(report)
 ```
 
-### 8. Conclusion
+### 7. Conclusion
 
 ### Key Takeaways
 
@@ -1037,6 +1150,7 @@ print(report)
 This part provides a brief overview of how the data was collected and preprocessed for the analysis, typically how we cropped the images and prepared the metadata.
 
 We used the following python script to convert a scanned pdf of Richter (1942) to image files in `.jpg` format.
+
 ```python
 import fitz  
 
@@ -1120,7 +1234,7 @@ for img_path in glob.glob(os.path.join(input_folder, "*.*")):
 
 print(f"Saved all images at {output_folder}")
 ```
-The following script employed `tesseract` OCR engine to detect pure text images and filter out photos of Kouros. You may want to visit the GitHub repo <https://github.com/tesseract-ocr/tesseract> to see how to install and setup appropriately.
+The following script employed `tesseract` OCR engine to detect pure text images and filter out photos of Kouros. You may want to visit the GitHub repository <https://github.com/tesseract-ocr/tesseract> to see how to install and setup appropriately.
 
 ```python
 import os
@@ -1195,11 +1309,12 @@ df.sort_values(["page", "filename"], inplace=True)
 # Save out to CSV for manual labeling
 df.to_csv("label_template.csv", index=False)
 ```
-You can try out the scripts yourself by running them in a python environment
+You can try out the scripts with your interested pdf files yourself by running them in a python environment.
 
 ### Reference
 1. Richter, G. M. A. (1970). *Kouroi: Archaic Greek youths: A study of the development of the Kouros type in Greek sculpture.* Phaidon. Accessed through Internet Archive <https://archive.org/details/kouroiarchaicgre0000rich>.
 2. Pinecone. *Embedding Methods for Image Search.* Accessed through Pinecone <https://www.pinecone.io/learn/series/image-search/>.
 3. IBM. What are convolutional neural networks? <https://www.ibm.com/think/topics/convolutional-neural-networks>
-4. Woo, S., Debnath, S., Hu, R., Chen, X., Liu, Z., Kweon, I. S., & Xie, S. (2024). ConvNeXt V2: Co-designing and Scaling ConvNets with Masked Autoencoders. arXiv preprint arXiv:2301.00808v1.
+4. Coleman, C., Lyon, S., & Perla, J. (2020). Introduction to Economic Modeling and Data Science. QuantEcon. Retrieved from <https://datascience.quantecon.org/> 
+5. Woo, S., Debnath, S., Hu, R., Chen, X., Liu, Z., Kweon, I. S., & Xie, S. (2024). ConvNeXt V2: Co-designing and Scaling ConvNets with Masked Autoencoders. arXiv preprint arXiv:2301.00808v1.
 
