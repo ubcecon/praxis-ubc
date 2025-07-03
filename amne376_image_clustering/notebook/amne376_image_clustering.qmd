@@ -555,7 +555,7 @@ out_mid   = apply_filter(gray, kernel_mid)
 out_late  = apply_filter(gray, kernel_late)
 
 # 6. Visualize
-plt.figure(figsize=(12, 8))
+plt.figure(figsize=(8, 8))
 
 plt.subplot(2, 2, 1)
 plt.title('Original Gray')
@@ -581,7 +581,7 @@ plt.tight_layout()
 plt.show()  # In Colab this will display inline
 ```
 
-Different parts of the model highlight different thing. The importnat thing to note is that no one wrote the filters themselves. The network learned that the features highlighted by these filters are useful.**We simply wrote the learning algorithm. The model learned from data by itself.**
+Different parts of the model highlight different thing. The importnat thing to note is that no one wrote the filters themselves. The network learned that the features highlighted by these filters are useful.**We simply wrote the learning algorithm, then the model learned from data by itself.**
 
 Typically, a model used for image classification can (on its own) learn filters to highlight things the model needs, such as edges and lines, and more importantly, in addition to these simple features, the model can learn filters to detect heads, eyes, ears, and other abstract concepts, and this is exactly how convolution makes it possible to detect, characterize, and categorize complex objects in complex images. In order to achieve these amazing features, we usually need to employ models such as **Convolutional Neural Networks**.
 
@@ -662,11 +662,64 @@ plt.suptitle("First 4 images in the dataset")
 plt.show()
 ```
 
+Here, we will create a visualization that shows the last feature layer of the 4 images after convolution, what commonality and difference did you notice from the extracted features in this layer?
+```{python}
+model = VGG16(weights='imagenet', include_top=False)
+
+# Grab kernels from the first and last conv layers
+early_layer = model.get_layer('block1_conv2')
+mid_layer = model.get_layer('block3_conv3')
+late_layer  = model.get_layer('block5_conv3')
+
+# choose the (0,0) filter for each
+kernel_early = early_layer.get_weights()[0][:, :, 0, 0]
+kernel_mid  = mid_layer.get_weights()[0][:, :, 0, 0]
+kernel_late  = late_layer.get_weights()[0][:, :, 0, 0]
+
+# Convolution helper (flip kernel for true conv)
+def apply_filter(img, kernel):
+    flipped = np.flipud(np.fliplr(kernel))
+    return cv2.filter2D(img, -1, flipped)
+
+fig, axes = plt.subplots(3, 4, figsize=(8, 8))
+
+for col, img in enumerate(images[:4]):
+    gray = (
+        cv2.cvtColor(img.astype('uint8'), cv2.COLOR_RGB2GRAY)
+          .astype('float32') / 255.0
+    )
+    out_early = apply_filter(gray, kernel_early)
+    out_early = (out_early - out_early.min()) / (out_early.max() - out_early.min())
+
+    out_mid = apply_filter(gray, kernel_mid)
+    out_mid = (out_mid - out_mid.min()) / (out_mid.max() - out_mid.min())
+    
+    out_late = apply_filter(gray, kernel_late)
+    out_late = (out_late - out_late.min()) / (out_late.max() - out_late.min())
+
+    # plot
+    axes[0, col].imshow(out_early, cmap='gray')
+    axes[0, col].set_title(f'Early Layer #{col+1}')
+    axes[0, col].axis('off')
+
+    axes[1, col].imshow(out_mid, cmap='gray')
+    axes[1, col].set_title(f'Late Layer #{col+1}')
+    axes[1, col].axis('off')
+
+    axes[2, col].imshow(out_late, cmap='gray')
+    axes[2, col].set_title(f'Late Layer #{col+1}')
+    axes[2, col].axis('off')
+
+fig.suptitle('First, Middle vs. Last Conv Layer Responses', fontsize=16)
+plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+plt.show()
+```
+
 ### 4. Image Embedding Using ConvNeXt V2
 
 #### 4.1 CNN and Models See Images
 
-What we'll do next is we will bring in ConvNeXt V2, it is a CNN-based AI model trained on millions of images. 
+What we'll do next is we will bring in ConvNeXt V2, it is a CNN model trained on millions of images based on ImageNet. 
 
 I'm sure everyone has used some **Large Language Models (LLMs)** and gotten a feel for how these models mimic the way humans think. This imitation of the human way of thinking comes from **Artificial Neural Networks (ANN)**. Just as **LLMs** process and generate natural language, **CNN models** process visual images, examining the features in those images through **convolutional layers** and generating their own digital representations of the images. 
 
@@ -815,7 +868,7 @@ We printed the embedded results above to see what they look like, and we also di
 
 1024 is way too many numbers for us to examine and understand with our brains. So, we use something techniques called **dimensionality reduction** to squish the data down to just 2 or 3 dimensions, making it easy to visualize in 2D. 
 
-**Principal Component Analysis (PCA)** is one of such techniques, it is essentially finding the two or three major axes through our huge data along which the data has the most variations. By PCA we decompose our data with 1024 dimensions (number of cells in each row) to 3 dimensions and represent each image as a point on our scatterplots. We then color the data with "era" and "material" respectively. To visualize all 3 dimensions, here we employed a strategy called **scatter matrix**. What do you notice by looking at the plots below 
+**Principal Component Analysis (PCA)** is one of such techniques, it is essentially finding the two or three major axes through our huge data along which the data has the most variations. By PCA we decompose our data with 1024 dimensions (number of cells in each row) to 3 dimensions and represent each image as a point on our scatterplots. We then color the data with "era" and "material" respectively. To visualize all 3 dimensions, here we employed a strategy called **scatter matrix**. What do you notice by looking at the plots below: 
 
 ```{python}
 from sklearn.decomposition import PCA
@@ -905,10 +958,40 @@ fig.show()
 
 Although t-SNE shows a clear distinction between materials (especially between bronze and marble), we should be wary of the conclusion that the t-SNE method is somewhat randomized, so its results are not necessarily deterministic. in any case, dimensionality reduction techniques give us a good understanding of the relationship between different images.
 
-### 6. Example: Classification of Kouroi Based on Image Embedding
+### 6. Classification of Kouroi 
 
 #### 6.1 Traditional Approach
 
+In addition to observing how the labels are clustered based on the embeddings, we can train classifiers to categorize objects into appropriate labels based on the image embeddings directly. A traditional approach is through a technique called **logistic regression**. Below is a visualization showing how it works.
+
+```{python}
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Generate data
+x = np.linspace(-5, 5, 100)
+y = 1 / (1 + np.exp(-x))
+
+# Plot sigmoid
+plt.figure()
+plt.plot(x, y)
+plt.xlabel('x')
+plt.ylabel('y')
+
+# Add decision boundary at probability 0.5
+plt.axvline(0, linestyle='--')
+plt.axhline(0.5, linestyle='--')
+
+# Annotate boundary
+plt.text(0.1, 0.05, 'Decision Boundary (x=0)', va='bottom')
+plt.text(-4.8, 0.52, 'Threshold (y=0.5)', va='bottom')
+
+plt.title('Sigmoid Function with Decision Boundary')
+plt.show()
+
+```
+
+In this example, we consider $x$ as the sole predictor on which the model makes its decisions, and the vertical dashed line as its decision boundary, i.e., envisioning a yes/no scenario, everything to the right of $x=0$ will be considered "yes", and everything to the left will be treated as "no". While classifiers in real life are likely much more complicated with more predictors and more labels than yes/no, they follow the same principle. Let's go back to our own example and see how it work for both labels.  
 
 ```{python}
 from sklearn.linear_model import LogisticRegression
@@ -922,6 +1005,8 @@ y2 = df['material'].tolist()
 y1 = np.array(y1)
 y2 = np.array(y2)
 ```
+
+Note that here we use image embeddings and labels as training data and test data respectively, this is because we want to evaluate the effectiveness of the classifier when dealing with unseen data. After training the classifier for eras, we use it to predict the labels of the test data and compare the results with the real labels. The report is printed below:
 
 ```{python}
 # Perform the classification of eras
@@ -942,7 +1027,17 @@ classification_report1 = metrics.classification_report(y_test1, y_pred1, zero_di
 # Print the classification report 
 print("Classification Report for Eras:")
 print(classification_report1)
-```
+``` 
+
+The key metrics we especially care about here is the accuracy of our classifier, it is defined by
+
+$$
+\text{Accuracy} = \frac{\text{True Predictions}}{\text{True Predictions} + \text{Flase Predictions}}
+$$
+
+It reflects the proportion of true predictions out of all predictions made using the classifier. However, as shown above in the report, the accuracy of predicting era based on image embedding is not satisfactory.
+
+We want to see what is exactly going wrong, so we display all the prediction results against true values by generating a **confusion matrix**. Note that true predictions are on the main diagonal of this matrix.
 
 ```{python}
 # Plot the confusion matrix
@@ -959,6 +1054,10 @@ plt.xticks(rotation=45)
 plt.ylabel('True')
 plt.show()
 ```
+
+Can you find any noteworthy pattern from it? Do you think the image embeddings captured enough characteristics to classify eras of the Kouroi?
+
+Similarly, we can use the same approach to classify material of Kouroi. We first perform a train-test split, then train the classifier, use the trained classifier to predict the labels of the test set, and print out the classification report for quality evaluation.
 
 ```{python}
 # Perform the classification of materials
@@ -981,6 +1080,12 @@ print("Classification Report for Materials:")
 print(classification_report2)
 ```
 
+As you can see, the accuracy is much higher now, but does that mean the classifier is good? You may have noticed that bronze and marble are classified almost perfectly, but other materials are not. This means that the classifier, while having a high accuracy, may have low precision or recall, as defined below:
+
+- **Precision**: The ratio of the number of true positives to the number of positive predictions. Precision tells us how often the model predicts correctly. 
+- **Recall**: The ratio of the number of true positives to the number of actual positives. Recall answers the question, "What percentage of positive results did we correctly predict?"
+
+Again, let's generate a confusion matrix and see how exactly does the prediction results distribute. What can you see? Would you consider it as a good result? 
 ```{python}
 # Plot the confusion matrix
 cm2 = confusion_matrix(y_test2, y_pred2, labels=np.unique(y2))
@@ -995,8 +1100,13 @@ plt.ylabel('True')
 plt.show()
 ```
 
+The above results show that the reason for the low precision is that other materials that are not marble or bronze are classified as marble or bronze. however, since the dataset itself has a small number of Kouroi samples for other materials, we cannot conclude that using logistic regression to classify materials is not a good idea.
+
 #### 6.2 CNN Classification of Materials
 
+The last classifier we're going to visit today is a neural network classifier, using a **Multi-layer Perceptron (MLP)** network architecture, which means we're going to add a classification layer to the ConvNeXt V2 model to classify the material. All the model does here is act as a **backbone** to observe and extract features of interest in the input image. The MLP process, on the other hand, can be visualized as a number of experts examining different features on an image, then discussing them with each other, and finally voting to reach a final conclusion.
+
+We begin by creating the data loader and load the Kouroi data directly from the folder:
 ```{python}
 import torch.nn as nn
 import torch.optim as optim
@@ -1012,9 +1122,7 @@ MAT2IDX = {
     'Limestone': 4,
     'Terracotta': 5,
 }
-```
 
-```{python}
 # Create a custom dataset class for the Kouroi dataset
 class KouroiDataset(Dataset):
     def __init__(self, img_dir, processor, mat2idx):
@@ -1043,6 +1151,8 @@ class KouroiDataset(Dataset):
 dataset = KouroiDataset(image_directory, processor, MAT2IDX)
 loader  = DataLoader(dataset, batch_size=16, shuffle=True, num_workers=0)
 ```
+
+As mentioned above, here we freeze the model so that training does not change the way it understands the input image.
 
 ```{python}
 # Build the model with convnextv2 as the backbone and a linear layer for classification
@@ -1084,6 +1194,8 @@ model = Classifier(
 ).to(device)
 ```
 
+Here, after setting up the new model, we will define the training loop and train the model. Please note that this process may take some time, especially when running on devices without a GPU.
+
 ```{python}
 # Set up the loss function and optimizer
 criterion = nn.CrossEntropyLoss()
@@ -1111,6 +1223,8 @@ for epoch in range(1, epochs+1):
     avg_loss = total_loss / len(dataset)
     print(f" Epoch {epoch} avg loss: {avg_loss:.4f}")
 ```
+
+After training, we set the model to evaluation mode and assessed the classification quality by printing the confusion matrix and classification report. It is clear that the accuracy does improve with the MLP architecture. However, we still lacked samples of materials other than bronze and marble, which undoubtedly harmed the quality of our training. 
 
 ```{python}
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
@@ -1141,11 +1255,113 @@ print("Classification Report for Materials:")
 print(report)
 ```
 
+#### 6.3 Risk of Underfitting and Overfitting
+
+In the context of machine learning, two common pitfalls are **underfitting** and **overfitting**. 
+
+**Underfitting** occurs when a model is too simple to capture the underlying patterns in the data, resulting in poor performance on both the training and test sets. This is often seen when using models like logistic regression on complex, non-linear datasets, as shown in the left panel above, where the decision boundary fails to separate the classes effectively. On the other hand, **overfitting** happens when a model is excessively complex, such as a deep neural network with many layers, and learns not only the true patterns but also the noise in the training data. This leads to excellent performance on the training set but poor generalization to new, unseen data, as illustrated in the right panel where the decision boundary is overly intricate. 
+
+Let's examine the two problems with a simulated two-class data:
+```{python}
+from sklearn.datasets     import make_moons
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model  import LogisticRegression
+from sklearn.neural_network import MLPClassifier
+
+# Generate a simulater two-class data
+X, y = make_moons(n_samples=500, noise=0.40, random_state=0)
+
+# Visualize the simulated data
+plt.figure(figsize=(6, 4))
+plt.scatter(X[:, 0], X[:, 1], c=y, cmap='coolwarm', edgecolor='k')
+plt.xlabel('Feature 1')
+plt.ylabel('Feature 2')
+plt.title('Simulated Two-Class Data')
+plt.show()
+```
+
+We can clearly see that the data is very non-linear, which gives us a hint that the right model should be able to account for non-linear relationships. However, for demonstration purposes, I will be using logistic regression to generate an underfitting classifier; and while MLP is suitable for use here, I will let it generate an overfitting classifier by significantly oversizing the neurons and iterations.
+
+```{python}
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.3, random_state=1
+)
+under = LogisticRegression()
+
+over  = MLPClassifier(hidden_layer_sizes=(200,200,200),
+                      max_iter=2000,
+                      random_state=1)
+
+# Train both models
+under.fit(X_train, y_train)
+over.fit(X_train, y_train)
+```
+
+Then, we get the decision boundaries of the two classifiers and visualize them with the test data, what do you find about their accuracy?
+
+```{python}
+# Build grid
+x_min, x_max = X[:,0].min() - .5, X[:,0].max() + .5
+y_min, y_max = X[:,1].min() - .5, X[:,1].max() + .5
+xx, yy = np.meshgrid(
+    np.linspace(x_min, x_max, 300),
+    np.linspace(y_min, y_max, 300)
+)
+grid = np.c_[xx.ravel(), yy.ravel()]
+
+# Get decision boundary
+Zu = under.predict_proba(grid)[:,1].reshape(xx.shape)
+Zo = over.predict_proba(grid)[:,1].reshape(xx.shape)
+
+# Plot side by side
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8,4))
+
+for ax, Z, title in [
+    (ax1, Zu, 'Extreme Underfit'),
+    (ax2, Zo, 'Extreme Overfit')
+]:
+    ax.contourf(xx, yy, Z>0.5, alpha=0.3)
+    # draw precise decision boundary P=0.5
+    ax.contour(   xx, yy, Z, levels=[0.5], colors='k', linewidths=1.5)
+
+    ax.scatter(X_test[:,0], X_test[:,1], c=y_test, edgecolor='k')
+    ax.set_title(title)
+    ax.set_xlabel('Feature 1')
+    ax.set_ylabel('Feature 2')
+
+fig.suptitle('Underfitting vs. Overfitting in Classification', fontsize=16)
+plt.tight_layout(rect=[0,0.03,1,0.95])
+plt.show()
+```
+
+We can tell easily from the above visualization that both scenarios are harmful: underfitting prevents the model from making meaningful predictions, while overfitting results in unreliable predictions on real-world data. The example above also highlights the necessity to validate classifier quality using test data.
+
+While underfitting and overfitting can seem scary, there are many tools that have been developed to address this issue. We can adjust the complexity of the model, use regularization techniques, collect more data, or employ cross-validation to find a balance that generalizes well to new examples. These are left for you to explore on your own.
+
+#### 6.4 Additional Note on Fine-tuning
+
+What we didn't include here is an advanced application called fine-tuning. **Fine-tuning** refers to the process of taking a pre-trained model (like ConvNeXt V2) and continuing its training on your specific dataset, allowing the model to adapt its learned features to better suit your task. Why we did not cover fine-tuning because it requires more computational resources, careful hyperparameter tuning, and a larger dataset to avoid overfitting. Additionally, fine-tuning can be time-consuming and is often not practical in an introductory or resource-limited setting.
+
+However, fine-tuning has the potential to significantly improve classification quality. By allowing the model to update its internal representations based on the unique characteristics of your images, it can learn more relevant features for distinguishing between subtle differences in style, era, or material. For research or production applications with sufficient data and compute, fine-tuning is a powerful next step to achieve higher accuracy and more robust results.
+
 ### 7. Conclusion
+
+Through this notebook, you've taken a journey with the example of Richter's Kouroi from the basics of how computers "see" images to advanced techniques for analyzing and classifying images. You've explored how simple pixel values can be transformed into powerful representations using convolution, image embeddings, and neural networks. Along the way, you learned to visualize, cluster, and classify artworks...... these are all skills that are at the heart of modern computer vision.
+
+Remember, the tools and concepts you've practiced here are not just limited to art history or archaeology: they are widely used in fields ranging from medicine to astronomy, and beyond. As you continue your studies, keep experimenting, stay curious, and don't be afraid to explore new datasets or try more advanced models. The intersection of technology and the humanities is full of exciting possibilities, and your creativity is the key to unlocking them.
+
+Congratulations on completing this exploration, and we hope you feel inspired to keep learning and discovering the field of Machine Learning!
 
 ### Key Takeaways
 
-### Appendix: Data Collection and Preprocessing
+- There are multiple different ways for computers to represent and understand content in images, including **intensity histograms**, **BoVW distribution** and **image embeddings**.
+- **Convolution** is a common technique to process and extract different features in input images. 
+- **Convolutional Neural Networks (CNN)** are trained models that mimic the way people view images and understand them through convolutional layers.
+- **Image embeddings** produced by a pretrained CNN map each kouros image into a high‑dimensional feature space. We can then apply **dimensionality‑reduction techniques** like **Principal Component Analysis** or **t‑distributed Stochastic Neighbor Embedding (t‑SNE)** to visualize clusters among different archaic sculptures.
+- For formal classification of kouroi, such as distinguishing groups/eras or identifying materials, both **logistic regression** and **neural-network classification** provide robust methods to assign style labels based on extracted image features, but we should always be aware of issues such as **underfitting** and **overfitting**.
+- Different models may yield different results for image embedding, and sometimes the features recognized from an image are not exactly what we want. We should always be cautious about our results.
+
+### Appendix: Image Data Collection and Preprocessing from `.pdf` Files
 
 This part provides a brief overview of how the data was collected and preprocessed for the analysis, typically how we cropped the images and prepared the metadata.
 
@@ -1315,6 +1531,7 @@ You can try out the scripts with your interested pdf files yourself by running t
 1. Richter, G. M. A. (1970). *Kouroi: Archaic Greek youths: A study of the development of the Kouros type in Greek sculpture.* Phaidon. Accessed through Internet Archive <https://archive.org/details/kouroiarchaicgre0000rich>.
 2. Pinecone. *Embedding Methods for Image Search.* Accessed through Pinecone <https://www.pinecone.io/learn/series/image-search/>.
 3. IBM. What are convolutional neural networks? <https://www.ibm.com/think/topics/convolutional-neural-networks>
-4. Coleman, C., Lyon, S., & Perla, J. (2020). Introduction to Economic Modeling and Data Science. QuantEcon. Retrieved from <https://datascience.quantecon.org/> 
-5. Woo, S., Debnath, S., Hu, R., Chen, X., Liu, Z., Kweon, I. S., & Xie, S. (2024). ConvNeXt V2: Co-designing and Scaling ConvNets with Masked Autoencoders. arXiv preprint arXiv:2301.00808v1.
+4. Hugging Face. Image Classification. <https://huggingface.co/docs/transformers/tasks/image_classification>
+5. Coleman, C., Lyon, S., & Perla, J. (2020). Introduction to Economic Modeling and Data Science. QuantEcon. Retrieved from <https://datascience.quantecon.org/> 
+6. Woo, S., Debnath, S., Hu, R., Chen, X., Liu, Z., Kweon, I. S., & Xie, S. (2024). ConvNeXt V2: Co-designing and Scaling ConvNets with Masked Autoencoders. arXiv preprint arXiv:2301.00808v1.
 
