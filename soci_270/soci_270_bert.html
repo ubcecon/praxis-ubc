@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>Identifying and mapping disinformation campaigns using Machine learning</title>
+<title>Introduction to Sentiment Analysis: Identifying and Mapping Disinformation Campaigns using NLP</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -85,7 +85,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Identifying and mapping disinformation campaigns using Machine learning</h1>
+<h1 class="title">Introduction to Sentiment Analysis: Identifying and Mapping Disinformation Campaigns using NLP</h1>
 </div>
 
 
@@ -102,30 +102,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
-<p>Disinformation is not new, but with the rise of digital platforms and generative AI, its scale, speed, and sophistication have grown exponentially. From elections and pandemics to social justice movements and international conflicts, false or misleading content is being spread online to manipulate emotions and polarize public opinion.</p>
-<p>The challenge today is not just the volume of disinformation, but how convincing and targeted it has become. Former U.S. Director of National Intelligence Avril Haines describes how state-sponsored campaigns, like Russia’s Kremlin, now operate using “a vast multimedia influence apparatus,” including bots, cyber-actors, fake news websites, and social media trolls. <strong>Large language models (LLMs)</strong> can now generate human-like tweets, comments, and articles at scale. Combined with deepfakes, doppelgänger sites, and AI-generated personas, these tools allow bad actors to craft propaganda that appears authentic, emotionally resonant, and difficult to detect.</p>
-<p>In this notebook, we’ll use machine learning — specifically, pretrained large language models — to study the language of disinformation in a real dataset of English and Russian-language tweets. These tweets include both propagandist and non-propagandist content. Our goal is to uncover hidden patterns in how these messages are framed, using tools like:</p>
-<ul>
-<li><strong>Sentiment analysis</strong> to detect emotional tone (positive, negative, neutral)</li>
-<li><strong>Toxicity analysis</strong> to identify harmful or aggressive language (e.g., insults, threats)</li>
-<li><strong>Statistical testing</strong> to compare patterns between tweet types and languages (e.g., English vs.&nbsp;Russian)</li>
-</ul>
-<p>You’ll learn how to work with pretrained LLMs, interpret model predictions, and use basic statistical methods to answer questions like:</p>
-<ul>
-<li>Are propagandist tweets more emotionally charged or toxic than others?</li>
-<li>Do they use different rhetorical strategies in different languages?</li>
-<li>Can we identify signals that indicate a tweet is part of a disinformation campaign?</li>
-</ul>
-<p>Through this analysis, we’ll explore how AI, while sometimes a tool for harm, can also help us better understand and detect the patterns of disinformation when working with large amounts of social data.</p>
-<section id="preliminary-data-analysis" class="level1">
-<h1>0. Preliminary data analysis</h1>
-<p>In order to get started using machine learning to map disinformation campaigns, we need to set our machines up to be able to:</p>
-<ol type="1">
-<li>Open and interpret the dataset.</li>
-<li>Visualize key aspects of the data.</li>
-<li>Access a pre-trained machine learning model that can be used on our data.</li>
-</ol>
-<p>To do this, we are using the <code>import</code> statement which allows us to access the functions and capabilities of each module. The modules we are using allow us to complete differenet tasks. We are using a coding language called Python to do communicate which capabilities we want to use and we will continue writing in Python to use these capabilities. It is what we are using to communicate what libraries or capabilities we want to use. We will learn more about what each module is doing as we continue to use them.</p>
+<p><em>Module adapted from UBC COMET, prepared originally by Anneke Dresselhuis and Irene Berezin, by Irene Berezin, Anna Kovtunenko, Jalen Faddick and the prAxIs UBC team.</em></p>
+<section id="loading-and-installing-packages" class="level2">
+<h2 class="anchored" data-anchor-id="loading-and-installing-packages">Loading and Installing Packages</h2>
+<p>Before continuing, run the code cell below to install the necessary packages.</p>
 <div id="292f588b" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
@@ -150,6 +130,38 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> seaborn <span class="im">as</span> sns</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
+</section>
+<section id="disinformation-in-the-information-age" class="level2">
+<h2 class="anchored" data-anchor-id="disinformation-in-the-information-age">Disinformation in the Information Age</h2>
+<p>Disinformation is not new, but with the rise of digital platforms and generative AI, its scale, speed, and sophistication have grown exponentially. From elections and pandemics to social justice movements and international conflicts, false or misleading content is being spread online to manipulate emotions and polarize public opinion.</p>
+<p>The challenge today is not just the volume of disinformation, but how convincing and targeted it has become. Former U.S. Director of National Intelligence Avril Haines describes how state-sponsored campaigns, like Russia’s Kremlin, now operate using “a vast multimedia influence apparatus,” including bots, cyber-actors, fake news websites, and social media trolls. <strong>Large language models (LLMs)</strong> can now generate human-like tweets, comments, and articles at scale. Combined with deepfakes, doppelgänger sites, and AI-generated personas, these tools allow bad actors to craft propaganda that appears authentic, emotionally resonant, and difficult to detect.</p>
+<p>In this notebook, we’ll use machine learning — specifically, pretrained large language models — to study the language of disinformation in a real dataset of English and Russian-language tweets. These tweets include both propagandist and non-propagandist content.</p>
+</section>
+<section id="learning-outcomes" class="level2">
+<h2 class="anchored" data-anchor-id="learning-outcomes">Learning Outcomes</h2>
+<p>By the end of this module, you will be able to uncover hidden patterns in the framing of disinformation using tools like:</p>
+<ul>
+<li><strong>Sentiment analysis</strong> to detect emotional tone (positive, negative, neutral)</li>
+<li><strong>Toxicity analysis</strong> to identify harmful or aggressive language (e.g., insults, threats)</li>
+<li><strong>Statistical testing</strong> to compare patterns between tweet types and languages (e.g., English vs.&nbsp;Russian)</li>
+</ul>
+<p>You’ll learn how to work with pretrained LLMs, interpret model predictions, and use basic statistical methods to answer questions like:</p>
+<ul>
+<li>Are propagandist tweets more emotionally charged or toxic than others?</li>
+<li>Do they use different rhetorical strategies in different languages?</li>
+<li>Can we identify signals that indicate a tweet is part of a disinformation campaign?</li>
+</ul>
+<p>Through this analysis, we’ll explore how AI, while sometimes a tool for harm, can also help us better understand and detect the patterns of disinformation when working with large amounts of social data.</p>
+</section>
+<section id="preliminary-data-analysis" class="level1">
+<h1>0. Preliminary data analysis</h1>
+<p>In order to get started using machine learning to map disinformation campaigns, we need to set our machines up to be able to:</p>
+<ol type="1">
+<li>Open and interpret the dataset.</li>
+<li>Visualize key aspects of the data.</li>
+<li>Access a pre-trained machine learning model that can be used on our data.</li>
+</ol>
+<p>To do this, we are using the <code>import</code> statement which allows us to access the functions and capabilities of each module. The modules we are using allow us to complete differenet tasks. We are using a coding language called Python to do communicate which capabilities we want to use and we will continue writing in Python to use these capabilities. It is what we are using to communicate what libraries or capabilities we want to use. We will learn more about what each module is doing as we continue to use them.</p>
 <p>Now that we have successfully accessed all of the functions we need to carry out our disinformation investigation, we can start to look into the data we are working with. We are going to be using the <code>pandas</code> library, which is a popular tool to read and handle data. The block of code below will first load in the dataset named <code>russian_disinformation_tweets.csv</code> and then, based on the information contained in the file, it will <code>print</code> the specified information. In this case we are looking at three different features of our data:</p>
 <ol type="1">
 <li>The names of the columns in our dataset</li>
@@ -570,6 +582,12 @@ Top 10 Hashtags - Control Accounts</code></pre>
 </section>
 <section id="can-we-tune-models-to-detect-online-disinformation-campaigns-classifying-current-tweets-with-a-model-finetuned-on-the-russian_disinformation_tweets-dataset" class="level2">
 <h2 class="anchored" data-anchor-id="can-we-tune-models-to-detect-online-disinformation-campaigns-classifying-current-tweets-with-a-model-finetuned-on-the-russian_disinformation_tweets-dataset">1. Can we tune models to detect online disinformation campaigns? Classifying current tweets with a model finetuned on the russian_disinformation_tweets dataset</h2>
+<p>Now that we have examined our data and looked at some of the key features in the Russian Disinformation Dataset, we can start thinking about ways to use machine learning to answer questions, classify features, and make predictions about our dataset. To do any of these tasks we first require a way to interpret the text data and assign numeric qualities to our tweets. The model we are using to do this is a multilingual model which maps sentences and paragraphs into multi-dimensional vector space. In other words, it takes the sentences and paragraphs of our tweets and assigns them a position associated with their meaning. This is done based on the context of the token (the unit of text, like a word or sentence). The model we are using is capable of interpreting multiple languages and is fine-tuned, or specifically trained, on the data we are examining. The code below is going to call upon a pre-built classifier which uses this fine-tuned model to predict whether a tweet is likely Russian propaganda. The two sample tweets are:</p>
+<ol type="1">
+<li><p>“#qanon #trump Hunter Biden is a Ukranian Shill”</p></li>
+<li><p>“What great weather we have today”</p></li>
+</ol>
+<p>The model is going to take these text inputs, represent them in vector space, and then report whether their respective values are similar to those of disinformation tweets.</p>
 <div id="6df33276" class="cell" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> inference_code.py <span class="im">import</span> classify_texts</span>
 <span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a></span>
@@ -598,10 +616,62 @@ Top 10 Hashtags - Control Accounts</code></pre>
 </div>
 <p>add more stuff related to model evaluation, ipywidget for entering text students found on twitter and running it against the model</p>
 </section>
-<section id="sentiment-analysis-using-pretrained-models" class="level2">
-<h2 class="anchored" data-anchor-id="sentiment-analysis-using-pretrained-models">2. Sentiment analysis using pretrained models</h2>
+<section id="what-is-sentiment-analysis" class="level2">
+<h2 class="anchored" data-anchor-id="what-is-sentiment-analysis">What is Sentiment Analysis?</h2>
+<blockquote class="blockquote">
+<p>“Sentiment analysis is the practice of applying natural language processing and text analysis techniques to identify and extract subjective information from text” (Hussein, 2018).</p>
+</blockquote>
+<p>As this definition alludes, sentiment analysis is a part of <strong>natural language processing (NLP)</strong>, a field at the intersection of human language and computation. Because humans are complex, emotional beings, the language we use is often shaped by our affective (emotional) dispositions. Sentiment analysis, sometimes referred to as “opinion mining”, is one way researchers can methodologically understand the emotional intentions, typically positive, negative, or neutral sentiments, that lie in textual datasets.</p>
+<blockquote class="blockquote">
+<h3 id="engage-critically" class="anchored">🔎 Engage Critically</h3>
+<p>At the heart of sentiment analysis is the assumption that language reveals interior, affective states, and that these states can be codified and generalized to broader populations. AI scholar Kate Crawford, in her book <a href="https://katecrawford.net/atlas">Atlas of AI</a>, explores how many assumptions found in contemporary sentiment research (i.e., that there are 7 universal emotions) are largely unsubstantiated notions that emerged from mid-20th century research funded by the US Department of Defense. Rather than maintaining that emotions can be universally categorized, her work invites researchers to think about how emotional expression is highly contextualized by social and cultural factors and the distinct subject positions of content makers.</p>
+<blockquote class="blockquote">
+<p>❓ Consider the research question for your sentiment analysis. How might the text you are working with be shaped by the distinct groups that have generated it?</p>
+</blockquote>
+<blockquote class="blockquote">
+<p>❓ Are there steps you can take to educate yourself around the unique language uses of your dataset (for example, directly speaking with someone from that group or learning from a qualified expert on the subject)?</p>
+</blockquote>
+<p>If you’re interested, you can learn more about data justice in community research in a <a href="https://orice.ubc.ca/wp-content/uploads/sites/43/2022/06/2022-Gender-Guide-1.pdf">guide</a> created by UBC’s Office for Regional and International Community Engagement.</p>
+</blockquote>
+<p>The rise of <a href="https://en.wikipedia.org/wiki/Web_2.0">web 2.0</a> has produced prolific volumes of user-generated content (UGC) on the internet, particularly as people engage in a variety of social platforms and forums to share opinions, ideas and express themselves. Maybe you are interested in understanding how people feel about a particular political candidate by examining tweets around election time, or you wonder what people think about a particular bus route on reddit. UGC is often unstructured data, meaning that it isn’t organized in a recognizable way.</p>
+<p>Structured data for opinions about a political candidate might look like this:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Pro</th>
+<th>Con</th>
+<th>Neutral</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Supports climate action policies</td>
+<td>No plan for lowering the cost of living</td>
+<td>UBC Graduate</td>
+</tr>
+<tr class="even">
+<td>Expand mental health services</td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>While unstructured data might look like this:</p>
+<blockquote class="blockquote">
+<p>love that she’s trying to increase mental health services + actually cares abt the climate 👏 but what’s up w rent n grocieries?? i dont wanna go broke out here 😭 a ubc alum too like i thought she’d understand</p>
+</blockquote>
+<p>In the structured data example above, the reviewer defines which parts of the feedback are positive, negative or neutral. In the unstructured example on the other hand, there are many typos and a given sentence might include a positive and a negative review as well as more nuanced contextual information (i.e.&nbsp;mentioning being a UBC alum when discussing cost of living). While messy, this contextual information often carries valuable insights that can be very useful for researchers.</p>
+<p>The task of sentiment analysis is to make sense of these kinds of nuanced textual data - often for the purpose of understanding people, predicting human behaviour, or even in some cases, manipulating human behaviour.</p>
 <p>Disinformation campaigns often aim to sway public opinion by influencing the emotional tone of online conversations. <strong>Sentiment analysis</strong> allows us to detect and understand these patterns by identifying whether large volumes of text express <strong>positive</strong>, <strong>negative</strong>, or <strong>neutral</strong> sentiment.</p>
 <p>Our model is pretrained, meaning it has already learnt from millions of labelled examples how to distinguish different sentiments. Specifically, because the model we’ll be using was trained on English tweets, it’s tuned to the language and syntax common on Twitter/X, and is limited to analyzing English-language text.</p>
+<p><strong>Language is complex and always changing.</strong></p>
+<p>In the English language, for example, the word “present” has multiple meanings which could have positive, negative or neutral connotations. Further, a contemporary sentiment lexicon might code the word “miss” as being associated with negative or sad emotional experiences such as longing; if such a lexicon were applied to a 19th century novel which uses the word “miss” to describe single women, then, it might incorrectly associate negative sentiment where it shouldn’t be. While sentiment analysis can be a useful tool, it demands ongoing criticality and reflexivity from a researcher (you!). Throughout your analysis, be sure to continually ask yourself whether a particular sentiment lexicon is appropriate for your project.</p>
+<p>Now, we’re ready to get back to our analysis. Below, we’ll load in our model and tokenizer and start playing around with identifying the sentiment of different phrases.</p>
 <div id="1859b344" class="cell" data-execution_count="10">
 <div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> transformers <span class="im">import</span> pipeline</span>
 <span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a></span>
@@ -624,12 +694,15 @@ Device set to use cuda:0</code></pre>
 <pre><code>[{'label': 'negative', 'score': 0.9046770334243774}]</code></pre>
 </div>
 </div>
-<p>Let’s breakdown this output before we continue. There are two parts to what the model returns:</p>
+<p>Let’s breakdown this output. There are two parts to what the model returns:</p>
 <ol type="1">
 <li><strong>Label</strong> → a classification labelling the text as either having positive, negative, or neutral sentiment</li>
 <li><strong>Score</strong> → the model’s confidence in it’s classification</li>
 </ol>
-<p>Now, try using the interactive tool below to explore how a machine learning model detects sentiment in short texts like tweets. The model classifies each input as positive, neutral, or negative, and assigns a probability score to each label. Type a sentence (like a tweet or short message) into the box below and click “Analyze” to see how the model interprets its emotional tone.</p>
+<blockquote class="blockquote">
+<h3 id="engage-critically-1" class="anchored">🔎 Engage Critically</h3>
+<p>Try using the interactive tool below to explore how a machine learning model detects sentiment in short texts like tweets. The model classifies each input as positive, neutral, or negative, and assigns a probability score to each label. Type a sentence (like a tweet or short message) into the box below and click “Analyze” to see how the model interprets its emotional tone.</p>
+</blockquote>
 <div id="58a1af07" class="cell" data-execution_count="12">
 <div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> transformers <span class="im">import</span> pipeline</span>
 <span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>sentiment <span class="op">=</span> pipeline(</span>
@@ -706,6 +779,9 @@ Cell <span class="ansi-green-fg">In[1], line 1</span>
 </div>
 </div>
 </div>
+</section>
+<section id="batch-sentiment-analysis" class="level2">
+<h2 class="anchored" data-anchor-id="batch-sentiment-analysis">Batch Sentiment Analysis</h2>
 <p>Now, let’s start running sentiment analysis on our dataset. The general steps to run our analysis include:</p>
 <ol type="1">
 <li><p>Loading a pretrained model and tokenizer</p>
@@ -764,7 +840,11 @@ Device set to use cuda:0</code></pre>
 </div>
 <p>We can see the first 5 tweets and their predicted sentiment above.</p>
 <p>Now that we know how to run sentiment analysis to identify the overarching sentiment of a tweet, we are now in good position to ask and investigate whether emotionally charged language is more common in propaganda. Let’s explore this by forming a hypothesis and testing it statistically.</p>
-<p>Hypothesis: Propagandist tweets (<code>is_control == 1</code>) are more emotionally charged — that is, they are more likely to be classified as <strong>Positive</strong> or <strong>Negative</strong> (non-neutral) compared to non-propagandist tweets (<code>is_control == 0</code>). We will test whether the difference in sentiment category frequencies between the two groups is statistically significant.</p>
+<blockquote class="blockquote">
+<h2 id="engage-critically-2" class="anchored">🔎 Engage Critically</h2>
+<p><strong>Hypothesis</strong>: Propagandist tweets (<code>is_control == 1</code>) are more emotionally charged — that is, they are more likely to be classified as <strong>Positive</strong> or <strong>Negative</strong> (non-neutral) compared to non-propagandist tweets (<code>is_control == 0</code>).</p>
+<p>We will test whether the difference in sentiment category frequencies between the two groups is statistically significant.</p>
+</blockquote>
 <p>First, let’s examine the sentiment distribution for each group:</p>
 <div id="607ed239" class="cell" data-execution_count="31">
 <div class="sourceCode cell-code" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>dist <span class="op">=</span> pd.crosstab(tweets_small[<span class="st">'sentiment'</span>], tweets_small[<span class="st">'labels'</span>], normalize<span class="op">=</span><span class="st">'columns'</span>)</span>
