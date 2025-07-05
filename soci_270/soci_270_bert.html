@@ -617,7 +617,7 @@ Top 10 Hashtags - Control Accounts</code></pre>
 <p>add more stuff related to model evaluation, ipywidget for entering text students found on twitter and running it against the model</p>
 </section>
 <section id="what-is-sentiment-analysis" class="level2">
-<h2 class="anchored" data-anchor-id="what-is-sentiment-analysis">What is Sentiment Analysis?</h2>
+<h2 class="anchored" data-anchor-id="what-is-sentiment-analysis">1. What is Sentiment Analysis?</h2>
 <blockquote class="blockquote">
 <p>“Sentiment analysis is the practice of applying natural language processing and text analysis techniques to identify and extract subjective information from text” (Hussein, 2018).</p>
 </blockquote>
@@ -779,9 +779,8 @@ Cell <span class="ansi-green-fg">In[1], line 1</span>
 </div>
 </div>
 </div>
-</section>
-<section id="batch-sentiment-analysis" class="level2">
-<h2 class="anchored" data-anchor-id="batch-sentiment-analysis">Batch Sentiment Analysis</h2>
+<section id="batch-sentiment-analysis" class="level3">
+<h3 class="anchored" data-anchor-id="batch-sentiment-analysis">Batch Sentiment Analysis</h3>
 <p>Now, let’s start running sentiment analysis on our dataset. The general steps to run our analysis include:</p>
 <ol type="1">
 <li><p>Loading a pretrained model and tokenizer</p>
@@ -841,7 +840,7 @@ Device set to use cuda:0</code></pre>
 <p>We can see the first 5 tweets and their predicted sentiment above.</p>
 <p>Now that we know how to run sentiment analysis to identify the overarching sentiment of a tweet, we are now in good position to ask and investigate whether emotionally charged language is more common in propaganda. Let’s explore this by forming a hypothesis and testing it statistically.</p>
 <blockquote class="blockquote">
-<h2 id="engage-critically-2" class="anchored">🔎 Engage Critically</h2>
+<h3 id="engage-critically-2" class="anchored">🔎 Engage Critically</h3>
 <p><strong>Hypothesis</strong>: Propagandist tweets (<code>is_control == 1</code>) are more emotionally charged — that is, they are more likely to be classified as <strong>Positive</strong> or <strong>Negative</strong> (non-neutral) compared to non-propagandist tweets (<code>is_control == 0</code>).</p>
 <p>We will test whether the difference in sentiment category frequencies between the two groups is statistically significant.</p>
 </blockquote>
@@ -880,7 +879,7 @@ Name: sentiment, Length: 10000, dtype: object</code></pre>
 <div class="sourceCode cell-code" id="cb29"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> scipy.stats <span class="im">import</span> chi2_contingency</span>
 <span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a><span class="co"># We defome 'charged' sentiment as Positive or Negative</span></span>
+<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a><span class="co"># We define 'charged' sentiment as Positive or Negative</span></span>
 <span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a>tweets_small[<span class="st">'charged'</span>] <span class="op">=</span> tweets_small[<span class="st">'sentiment'</span>].isin([<span class="st">'positive'</span>, <span class="st">'pegative'</span>]).astype(<span class="bu">int</span>)</span>
 <span id="cb29-6"><a href="#cb29-6" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb29-7"><a href="#cb29-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Constructing a  contingency table: rows = propagandist/non propagandist group, columnss = charged vs neutral</span></span>
@@ -899,17 +898,30 @@ True      708   153
 p-value = 6.222e-04</code></pre>
 </div>
 </div>
-<p>Very low p value which is good! Strong indication of porpagandists using more emotionally charged tweets relative to non-propagandists</p>
-<section id="how-does-the-model-handle-russian-language-tweets" class="level3">
-<h3 class="anchored" data-anchor-id="how-does-the-model-handle-russian-language-tweets">3. How does the model handle Russian-language tweets?</h3>
-<p>Our dataset of tweets (<code>russian_disinformation_tweets.csv</code>) isn’t entirely in English — many of the tweets are written in Russian. In the previous section, we discussed how pretrained models can be limited by the data they learn from. The model we’re using for sentiment analysis was trained exclusively on English-language tweets.</p>
-<p>With this in mind, how do you think it is performing on Russian-language tweets? Let’s explore below:</p>
+<blockquote class="blockquote">
+<h3 id="engage-critically-3" class="anchored">🔎 Engage Critically</h3>
+<p>Try interpreting the output. What are our results telling us? Based on the p-value, what can we conclude about our hypothesis?</p>
+</blockquote>
+</section>
+</section>
+<section id="multilingual-sentiment-analysis" class="level2">
+<h2 class="anchored" data-anchor-id="multilingual-sentiment-analysis">3. Multilingual Sentiment Analysis</h2>
+<p>Our dataset of tweets (<code>russian_disinformation_tweets.csv</code>) isn’t entirely in English — many of the tweets are written in Russian. Could this be skewing our results? How is our model actually handling Russian-language tweets compared to English ones?</p>
+<blockquote class="blockquote">
+<h3 id="engage-critically-4" class="anchored">🔎 Engage Critically</h3>
+<p>Recall our discussion on sentiment lexicons in Section 1:</p>
+<blockquote class="blockquote">
+<p>While sentiment analysis can be a useful tool, it demands ongoing criticality and reflexivity from a researcher (you!). Throughout your analysis, be sure to continually ask yourself whether a particular sentiment lexicon is appropriate for your project.</p>
+</blockquote>
+<p>❓ How might the use of a monolingual sentiment model introduce bias into our results? Are non-English tweets being misclassified as neutral, negative, or positive when they shouldn’t be?</p>
+</blockquote>
+<p>With this in mind, let’s explore below. We’ll use the Unicode values of Cyrillic characters to identify Russian-language tweets, and run sentiment analysis seperately on Russiand and English tweets.</p>
 <div id="8792809a" class="cell" data-execution_count="40">
 <div class="sourceCode cell-code" id="cb31"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> re</span>
 <span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>tweets_lang <span class="op">=</span> tweets_small.copy()</span>
 <span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Identify Russian-language tweets by if they contain Cyrillic characters using Unicode</span></span>
+<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Identify Russian-language tweets</span></span>
 <span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a>tweets_lang[<span class="st">'language'</span>] <span class="op">=</span> tweets_lang[<span class="st">'text'</span>].<span class="bu">apply</span>(</span>
 <span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a>     <span class="kw">lambda</span> txt: <span class="st">'ru'</span> <span class="cf">if</span> re.search(<span class="st">'[</span><span class="ch">\u0400</span><span class="st">-</span><span class="ch">\u04FF</span><span class="st">]'</span>, <span class="bu">str</span>(txt)) <span class="cf">else</span> <span class="st">'en'</span></span>
 <span id="cb31-8"><a href="#cb31-8" aria-hidden="true" tabindex="-1"></a>)</span>
@@ -941,6 +953,10 @@ neutral           97.580645     98.734177
 positive           2.419355      1.265823</code></pre>
 </div>
 </div>
+<blockquote class="blockquote">
+<h3 id="engage-critically-5" class="anchored">🔎 Engage Critically</h3>
+<p>Take a moment to interpret the results before continuing. What do they tell us about the performance of our model on Russian-language tweets? Why do you think that is?</p>
+</blockquote>
 <p>From the table above, we can see that our model is performing very poorly on Russian-language tweets, as nearly all of the Russian tweets are being marked as neutral regardless of if they are propagandist or not. This means that the pretrained model we were using before is not an appropriate choice based on the characteristics of our data, namely that a significant portion of the tweets are written in Russian, a language the model was not trained to make reliable predictions on.</p>
 <p>Let’s try re-running our sentiment analysis using a different model. This time, we’ll use a model trained on 198 million tweets that were not filtered by language. As a result, the training data reflects the most commonly used languages on the platform at the time of collection, with Russian conveniently ranking as the 11th most frequent.</p>
 <p>We’ll follow the same steps for batch sentiment analysis that we did in Section 2:</p>
@@ -1003,8 +1019,11 @@ positive          12.609214     11.603546</code></pre>
 </div>
 </div>
 <p>The sentiment distribution between propagandist and non-propagandist tweets is quite similar when using the multilingual model. Both groups are predominantly neutral (around 50%), with roughly equal proportions of negative and positive sentiment.</p>
-<p>Now, let’s run a statistical test to see if there’s a meaningful difference in sentiment between propagandist and non-propagandist tweets. Specifically, we want to know: <em>Are propagandist tweets more likely to be emotionally charged (positive or negative) than neutral, compared to non-propagandist tweets?</em></p>
-<p>To answer this, we’ll use a chi-squared test, which helps us check whether the differences we see in the data are likely due to chance or if they’re statistically significant.</p>
+<p>Now, let’s run a statistical test to see if there’s a meaningful difference in sentiment between propagandist and non-propagandist tweets. Specifically, we want to know:</p>
+<blockquote class="blockquote">
+<p><em>Are propagandist tweets more likely to be emotionally charged (positive or negative) than neutral, compared to non-propagandist tweets?</em></p>
+</blockquote>
+<p>To answer this, we’ll use a <strong>chi-squared test</strong>, which helps us check whether the differences we see in the data are likely due to chance or if they’re statistically significant.</p>
 <div id="a7001900" class="cell" data-execution_count="17">
 <div class="sourceCode cell-code" id="cb38"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a>tweets_small[<span class="st">'charged_multi'</span>] <span class="op">=</span> tweets_small[<span class="st">'sentiment'</span>].isin([<span class="st">'positive'</span>,<span class="st">'negative'</span>]).astype(<span class="bu">int</span>)</span>
 <span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a>contingency_multi <span class="op">=</span> pd.crosstab(tweets_small[<span class="st">'labels'</span>], tweets_small[<span class="st">'charged_multi'</span>])</span>
@@ -1014,13 +1033,69 @@ positive          12.609214     11.603546</code></pre>
 <pre><code>Chi-squared p-value with multilingual model: 3.727e-05</code></pre>
 </div>
 </div>
+<blockquote class="blockquote">
+<h3 id="engage-critically-6" class="anchored">🔎 Engage Critically</h3>
+<p>Take a moment to interpret the results before continuing. What does our p-value tell us about our inital research question above?</p>
+</blockquote>
 <p>Our p-value (0.00003727) is much smaller than the common significance level of 0.05, indicating that the difference in how emotionally charged tweets are distributed between propagandist and non-propagandist groups is very unlikely to be due to random chance.</p>
 <p>This means there is strong evidence that propagandist tweets are more likely to be emotionally charged compared to non-propagandist tweets, according to the multilingual model’s sentiment analysis.</p>
 </section>
+<section id="introduction-to-toxicity-analysis" class="level2">
+<h2 class="anchored" data-anchor-id="introduction-to-toxicity-analysis">4. Introduction to Toxicity Analysis</h2>
+<p><em>Warning: this section contains examples of potentially offensive or profane text</em></p>
+<p><strong>Toxicity analysis</strong> is another type of classification task that uses machine learning to detect whether a piece of text contains toxic speech. Jigsaw, a Google subsidary and leader in technological solutions for threats to civil society, uses the following definition for “toxic speech” proposed by Dixon et al.&nbsp;(2018):</p>
+<blockquote class="blockquote">
+<p>”[R]ude, disrespectful, or unreasonable language that is likely to make someone leave a discussion”</p>
+</blockquote>
+<blockquote class="blockquote">
+<h3 id="engage-critically-7" class="anchored">🔎 Engage Critically</h3>
+<p>This definition is widely considered by the NLP community to be ill-defined and vague. Why do you think? What issues could potentially arise from this definition, and how could they impact (for example) a comment flagging tool that gives warnings to social media users whose comments meet this definition of toxic speech?</p>
+</blockquote>
+<p>A core issue defined by Berezin, Farahbakhsh, and Crespi (2023) is that the definition “gives no quantitative measure of the toxicity and operates with highly subjective cultural terms”, yet still remains widely used by researchers and developers in the field. We’ll explore some of the ways this definition is influencing toxicity analysis briefly below.</p>
+<section id="positive-profanity" class="level3">
+<h3 class="anchored" data-anchor-id="positive-profanity">4.1 Positive profanity</h3>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="./soci_270_bert_files/soci_270_images/toxicity_noscore_reddit_example.png" title="Text: Fuck dude, nurses are the shit" class="img-fluid figure-img"></p>
+<figcaption>Fuck dude, nurses are the shit (Mauboussin, 2022)</figcaption>
+</figure>
+</div>
+<p>Consider the Reddit post above. Is the comment an example of toxic speech? Probably not, right?</p>
+<p>Now imagine you are Perspective API, Google’s AI toxicity moderation tool, with your scope of “toxic speech” limited solely to the definition of ”rude, disrespectful, or unreasonable language that is likely to make someone leave a discussion”. Because of your architecture, you are limited in the way you can understand a message in context. You process the comment and immediately detect two profanities that meet your requirement for being rude language, and assign it a subsequent toxicity score:</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="./soci_270_bert_files/soci_270_images/toxicity_reddit_example.png" title="Fuck dude, nurses are the shit with Toxicity Score (98.62%)" class="img-fluid figure-img"></p>
+<figcaption>Fuck dude, nurses are the shit with Toxicity Score (98.62%) (Mauboussin, 2022)</figcaption>
+</figure>
+</div>
+<p>This is where, in the NLP community, there has been a growing discussion to ensure toxicity analysis tools, especially detectors used in online discussion and social media platforms, are more robust than simply being ‘profanity detectors’. They must be able to interpret a word in context.</p>
 </section>
-<section id="toxicity-analysis-using-detoxify" class="level2">
-<h2 class="anchored" data-anchor-id="toxicity-analysis-using-detoxify">4. Toxicity Analysis using Detoxify</h2>
-<p>In this section, we’ll explore <strong>toxicity analysis</strong>, another type of classification task that uses machine learning models to detect whether a piece of text contains harmful, offensive, or aggressive language.</p>
+<section id="in-group-language" class="level3">
+<h3 class="anchored" data-anchor-id="in-group-language">4.2 In-group language</h3>
+<p>Consider in-group words used by distinct communities. Many of these words, once used as derogatory slurs against a group of people (such as Black or LGBTQ+ folk), have now largely been reclaimed and are prevalent in the lexicons of individuals identifying within these communities, no longer considered offensive when used by the in-group. However, if human annotators label textual data that ML models then are trained on, biases can permeate the models and lead to the classification of non-toxic, in-group language as harmful or offensive. Notably, African-American Vernacular English (AAVE) has been found to be flagged as toxic due to linguistic bias. XX frames how the challenge impacts toxicity detectors well:</p>
+<blockquote class="blockquote">
+<h3 id="engage-critically-8" class="anchored">🔎 Engage Critically</h3>
+<p>How do you think this challenge can impact toxicity detectors? Resende et al.&nbsp;(2024) underscore this tension, noting that:</p>
+<blockquote class="blockquote">
+<p>…[S]uch a fine line between causal speaking and offensive discourse is problematic from a human and computational perspective. In that case, these interpretations are confounding to automatic content moderation tools. In other words, toxicity/sentiment analysis tools are usually developed using manual rules or supervised ML techniques that employ human-labeled data to extract patterns. The disparate treatment embodied by machine learning models usually replicates discrimination patterns historically practiced by humans when interacting with processes in the real world. Due to biases in this process, a lack of context leads both rule-based and machine learning-based models to a concerning scenario where minorities do not receive equal treatment. <br> <em>Resende et al., 2024, p.&nbsp;2</em></p>
+</blockquote>
+</blockquote>
+<p>Resende et al.&nbsp;(2024) also conducted a comparison analysis of toxicity models, including Google’s Perspective API and Detoxify (the model we’ll be using for our own analysis soon).</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="./soci_270_bert_files/soci_270_images/toxicity_aave_score_table.png" title="Comparing the Toxicity Scoring Models" class="img-fluid figure-img"></p>
+<figcaption>Comparing the Toxicity Scoring Models (Resende et al., 2024)</figcaption>
+</figure>
+</div>
+<p>This bias shown in this model’s performance can come from many factors in its structure, from data provenance and annotation to model architecture and processing, to a combination of many.</p>
+<blockquote class="blockquote">
+<h3 id="engage-critically-9" class="anchored">🔎 Engage Critically</h3>
+<p>If you could, what questions would you want to ask the people who build these models?</p>
+</blockquote>
+<p>–</p>
+</section>
+<section id="toxicity-analysis-using-detoxify" class="level3">
+<h3 class="anchored" data-anchor-id="toxicity-analysis-using-detoxify">Toxicity analysis using Detoxify</h3>
 <p>The model we’ll be using is called <strong>Detoxify</strong> (you can read more about it <a href="https://github.com/unitaryai/detoxify?tab=readme-ov-file">here</a>). It was trained on large datasets of online comments across seven languages, including English and Russian. Detoxify provides an overall <strong>toxicity score</strong> for each text and can also detect five specific subtypes of toxicity: <code>identity_attack</code>, <code>insult</code>, <code>obscene</code>, <code>sexual_explicit</code>, and <code>threat</code>.</p>
 <p>In the context of our dataset, propagandist tweets often aim to provoke strong emotions, spread hate, or stir conflict. Running toxicity analysis can help us investigate questions like:</p>
 <ul>
@@ -1181,6 +1256,7 @@ During handling of the above exception, another exception occurred:
 </div>
 </div>
 </div>
+</section>
 </section>
 </section>
 
