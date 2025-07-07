@@ -139,7 +139,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="learning-outcomes" class="level2">
 <h2 class="anchored" data-anchor-id="learning-outcomes">Learning Outcomes</h2>
-<p>By the end of this module, you will be able to uncover hidden patterns in the framing of disinformation using tools like:</p>
+<p>By the end of this module, you will be able to better understand disinformation and propaganda techniques using the following computational tools:</p>
 <ul>
 <li><strong>Sentiment analysis</strong> to detect emotional tone (positive, negative, neutral)</li>
 <li><strong>Toxicity analysis</strong> to identify harmful or aggressive language (e.g., insults, threats)</li>
@@ -151,7 +151,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li>Do they use different rhetorical strategies in different languages?</li>
 <li>Can we identify signals that indicate a tweet is part of a disinformation campaign?</li>
 </ul>
-<p>Through this analysis, we’ll explore how AI, while sometimes a tool for harm, can also help us better understand and detect the patterns of disinformation when working with large amounts of social data.</p>
+<p>Through this analysis, we’ll explore various dimmensions of AI applications, critically examining how it can be used to better understand and detect the patterns of disinformation when working with large amounts of social data.</p>
+</section>
+<section id="key-terms-and-concepts" class="level2">
+<h2 class="anchored" data-anchor-id="key-terms-and-concepts">Key Terms and Concepts</h2>
+<p><strong>Disinformation:</strong> Disinformation is generally understood as the <em>intentional</em> spreading of false, misleading, or incorrect information, in order to influence the public or create an outcome, usually political.</p>
+<p><strong>Propaganda:</strong> Propaganda is similar to disinformation in it’s intent to spread a cause or doctrine, but can differ in how systematically or overtly it is speread. The two concepts are both forms of misinformation, with propaganda generally being employed to promote a cause.</p>
+<p><strong>Large Language Model (LLM):</strong> A Large Language Model is a langauge model trained on a very large set of text data, accessing the features of the text by converting units of text into quanitative representations that can be used for various tasks, such as chatbotting, or in the case of this notebook, Natural Language Processing.</p>
+<p><strong>Natural Language Processing (NLP):</strong> Natural Langauge Processing encompasses a wide variety of techniques and practices wtih the goal of enabling computers to understand, interpret, and produce human language. The key NLP techniques in this notebook are <em>sentiment analysis</em>, a technique that analayzes the relative positivity or negativity of langauge, and <em>toxitcity analyis</em> which analyzes the relative aggressiveness of language.</p>
+<p><strong>BERT:</strong> to enable these analyses we will be using two BERT models. BERT is an open-source framework for machine learning, whcih is used for NLP. BERT is well-suited to understanding langauge, rather than generating it, which is what this notebook is concerned with. The specific BERT models we are using are a multi-lingual <a href="https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2">model</a>, which can analyze tweets in different languages, and a <a href="https://huggingface.co/cardiffnlp/twitter-roberta-base-sentiment">model</a> trained for analyzing tweet sentiments.</p>
+<p><strong>Fine Tuning:</strong> The multi-lingual model is fine-tuned, or trained specifically on the Russian Disinformation tweet dataset. This is done by inputting a training subset of the data, where the tweets are labeled as Disinformation, into the BERT model to create a model familiar with our data, and well-suited to producing analyses.</p>
 </section>
 <section id="preliminary-data-analysis" class="level1">
 <h1>0. Preliminary data analysis</h1>
@@ -169,7 +178,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li>The number of tweets labeled as control i.e.&nbsp;<em>not</em> russian disinformation</li>
 </ol>
 <p>The code below also does a little bit of housekeeping, by using the function <code>tweets.rename</code> to change the column names from <code>post text</code> and <code>is_control</code> to <code>text</code> and <code>labels</code> respectively.</p>
-<p>Now, take a look a the output of this block and identify the number of disinformation tweets found in the data.</p>
+<p>Now, take a look a the output of this block and identify the number of disinformation tweets found in the data. How many non-disinformation tweets are in the data?</p>
+<p>💡 <strong>Hint:</strong> Python outputs the results of the code in the order it is written!</p>
 <div id="b0c2403f" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>tweets <span class="op">=</span> pd.read_csv(<span class="st">"soci_270/russian_disinformation_tweets.csv"</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
@@ -189,7 +199,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 90291</code></pre>
 </div>
 </div>
-<p>To continue exploring the data, we are going to take a look at tweets that are labeled as control tweets, meaning they are not Russian disinformation. Take a look at a few of the characteristics of the tweets below, looking at both the text of the tweets and the data associated with each post.</p>
+<p>To continue exploring the data, we are going to take a look at tweets that are labeled as control tweets, meaning they are not Russian disinformation. These tweets just come from regular users posts. These posts are not necessarily apolitical, or without an attempt to persuade, however, they do not meet the dataset criteria of disinformation.</p>
+<p>Take a look at a few of the characteristics of the tweets below, looking at both the text of the tweets and the data associated with each post. Some of the tweets look very similar to each other. Look through the tweet metadata and examine if any of the other characteristics of the posts are similar.</p>
+<p>Think about what you might be able to infer from each user based on their posts, and the metadata avaialable to us in this dataset. Consider what is missing from this picture as well. What data might be unavailable to us, and how does it limit our picture of these users. While you are building a picture of the twitter user (their beliefs, intent, history, posting time, etc…) come up with a few reasons why these users were not labeled as disinformation.</p>
 <div id="f803df3c" class="cell">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(tweets[tweets[<span class="st">"labels"</span>] <span class="op">==</span> <span class="va">True</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
@@ -209,8 +221,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 [90291 rows x 20 columns]</code></pre>
 </div>
 </div>
-<p>Now that we know a little bit about the data, we are going to continue doing some housekeeping by converting the post time and date from characters to into dates that are able to be interpreted by the computer and used for analysis. Additionally, we’ll create a follower/following ratio to add another dimension to our data.</p>
-<p>We can then use this information to visualize the posting activity of the disinformation bots and the control tweets. In our visualization, the label <code>True</code> corresponds to tweets that are part of the control group and the label <code>False</code> corresponds to tweets containing disinformation. Examine the graph and note any trends in the posting activity.</p>
+<p>Now that we know a little bit about the data and our users, we are going to continue doing some housekeeping by converting the post time and date from characters to into dates that are able to be interpreted by the computer and used for analysis. Additionally, we’ll create a follower/following ratio to add another dimension to our data.</p>
+<p>We can then use this information to visualize the posting activity of the disinformation bots and the control tweets. In our visualization, the label <code>True</code> corresponds to tweets that are part of the control group and the label <code>False</code> corresponds to tweets containing disinformation.</p>
+<p>There are meany ways the posting activity could be represented visually. In this graph we are representing the posting activity by the week over the course of a decade. It is important to select a scale which is appropriate for the amount of data we are working with, especially if that data spans a wide range. Here we are using a log scale on the y-axis (the number of posts)</p>
+<blockquote class="blockquote">
+<p>A Log (or logarithmic) scale is a way to represent data which spans large numerical ranges, and makes it easier to visualize and interpret data that changes dramatically.</p>
+</blockquote>
+<p>As you look at the graph pay close attention to the following:</p>
+<ol type="1">
+<li><p>General trends in activity. Does either type of tweet increase over time? Is there any stagnation? Which years had the most weekly overall activity?</p></li>
+<li><p>Which years stick out as being exceptionally different. Consider some key events from those years. If nothing comes to mind immediately, do a quick search for top news topics of those years in your browser.</p></li>
+</ol>
 <div id="bb75534a" class="cell">
 <div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>tweets[<span class="st">'post_time'</span>] <span class="op">=</span> pd.to_datetime(tweets[<span class="st">'post_time'</span>], errors<span class="op">=</span><span class="st">'coerce'</span>)</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>tweets[<span class="st">'post_date'</span>] <span class="op">=</span> tweets[<span class="st">'post_time'</span>].dt.date</span>
@@ -238,12 +259,19 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="soci_270_bert_files/figure-html/cell-7-output-1.png" class="img-fluid figure-img"></p>
+<p><img src="soci_270_bert_files/figure-html/cell-8-output-1.png" class="img-fluid figure-img"></p>
 </figure>
 </div>
 </div>
 </div>
-<p>Another dimmension we could look at with this data is the posting activity of Control vs.&nbsp;Disinformation tweets over the course of the day. Here we are going to define a function that will allow us to visualize the average number of posts across the course of a day, starting with Hour 0 until Hour 24. Take a look at the displays below and play around with the dates to see how the tweet volume changes.</p>
+<p>Another dimmension we could look at with this data is the posting activity of Control vs.&nbsp;Disinformation tweets over the course of the day. Here we are going to define a function that will allow us to visualize the average number of posts across the course of a day, starting with Hour 0 until Hour 24. Take a look at the widgets below and play around with the dates to see how the tweet volume changes.</p>
+<p>🧠 <strong>Key Questions:</strong></p>
+<ul>
+<li>Consider why each account is posting at different times.</li>
+<li>Is there a meaningingful difference in who posts when? Why might that be?</li>
+<li>Is there anything surprising to you about the tweet volume at each hour?</li>
+</ul>
+<p>Think about some possible explanations for the trends in the data and consider whether it confirms or challenges your assumptions about how and when disinformation is produced.</p>
 <div id="14599915" class="cell">
 <div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> ipywidgets <span class="im">as</span> widgets</span>
@@ -291,6 +319,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </script>
 </div>
 </div>
+<p>The following graph represents the average posting activity over the course of a day by each type of account (Regular and Disinformation).</p>
+<blockquote class="blockquote">
+<p>⏪ <strong>Callback</strong></p>
+<p>Remember when we first examined the features of our data, the total number of disinformation posts was significantly higher than the number of control posts. That difference in volume is represented graphically below with the greater average number of posts from disinformation accounts. It is important to recognize that this is just a feature of our dataset, and is not necessarily representative of all the posts on Twitter at that time. Nevertheless, there are some important features of this visualization that we need to consider.</p>
+</blockquote>
+<p>As you look over the graph, try to answer the following questions:</p>
+<ol type="1">
+<li>Why are disinformation accounts posting early in the morning and late at night? What might they be trying to acheive with such an aggressive posting schedule.</li>
+<li>Think about your own social media posting. When do you usually post? Is this reflected by the Control curve?</li>
+<li>Additionally, think about when you are on social media. What hours are you most frequently looking at content?</li>
+</ol>
+<blockquote class="blockquote">
+<p>📱 <strong>Activity</strong></p>
+<p>If you freuqently use social media, take a look at you screen activity in your devices settings and look at the hours you frequently use social media applications. If you don’t have social media, find a partner who’s comfortable sharing their data with you and compare the hours of usage to the posting activity of the Disinformation accounts and the Control accounts.</p>
+</blockquote>
+<p>Does your usage align or differ from the activity of the accounts in our dataset?</p>
 <div id="81cf17eb" class="cell">
 <div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>posts_by_hour <span class="op">=</span> tweets.groupby([<span class="st">'post_hour'</span>,<span class="st">'account_type'</span>]).size().reset_index(name<span class="op">=</span><span class="st">'count'</span>)</span>
@@ -307,12 +351,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="soci_270_bert_files/figure-html/cell-9-output-1.png" class="img-fluid figure-img"></p>
+<p><img src="soci_270_bert_files/figure-html/cell-10-output-1.png" class="img-fluid figure-img"></p>
 </figure>
 </div>
 </div>
 </div>
-<p>Below, we examine the breakdown of tweets by account type and language by subsetting our data. As you look over the volume of tweets by language, consider why language might be an important aspect of our data. What are the most common languages used to spread disinformation? Why might that be? Be sure to pay attention to the Control/IO ratio as well.</p>
+<p>Below, we examine the breakdown of tweets by account type and language by subsetting our data. We are going to view the top 10 languages in our dataset with the following code which groups the data into the two catagories language and account type.</p>
 <div id="f71cbdc3" class="cell">
 <div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>lang_counts <span class="op">=</span> tweets.groupby([<span class="st">'post_language'</span>,<span class="st">'account_type'</span>]).size().reset_index(name<span class="op">=</span><span class="st">'count'</span>)</span>
 <span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>lang_pivot <span class="op">=</span> lang_counts.pivot(index<span class="op">=</span><span class="st">'post_language'</span>, columns<span class="op">=</span><span class="st">'account_type'</span>, values<span class="op">=</span><span class="st">'count'</span>).fillna(<span class="dv">0</span>)</span>
@@ -406,9 +450,46 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 </div>
+<p><strong>First,</strong> Lets identify the top 10 langauges in our data</p>
+<p>English, Undetermined, Russian, French, Spanish, Arabic, Portugese, UNKNOWN, Turksih, Italian</p>
+<p><strong>Second,</strong> for each langauge, we’ll determine which account is posting more frequently.</p>
+<blockquote class="blockquote">
+<p><strong>English:</strong> Disinforamtion</p>
+<p><strong>Undetermined:</strong> Disinformation</p>
+<p><strong>Russian:</strong> Control</p>
+<p><strong>Frech:</strong> Disinformation</p>
+<p><strong>Spanish:</strong> Control</p>
+<p><strong>Arabic:</strong> Disinformation</p>
+<p><strong>Portugese:</strong> Control</p>
+<p><strong>(UNKNOWN):</strong> Disinformation</p>
+<p><strong>Turkish:</strong> Disinformation</p>
+<p><strong>Italian:</strong> Control</p>
+</blockquote>
+<p>From this list we can see there are only four langauges which have more Control posts than disinformation posts. As we know, there are more disinformation posts in the dataset, so this is not necessarily surprising. One thing we can do to make this data more meaningul is to examine the ratio of control to disinformation tweets. This will help us determine where disinformation efforts are being focused linguistically.</p>
+<blockquote class="blockquote">
+<p><strong>English:</strong> .07</p>
+<p><strong>Undetermined:</strong> .03</p>
+<p><strong>Russian:</strong> 2.18</p>
+<p><strong>Frech:</strong> .62</p>
+<p><strong>Spanish:</strong> 2.99</p>
+<p><strong>Arabic:</strong> .40</p>
+<p><strong>Portugese:</strong> 4.55</p>
+<p><strong>(UNKNOWN):</strong> .40</p>
+<p><strong>Turkish:</strong> .45</p>
+<p><strong>Italian:</strong> 1.86</p>
+</blockquote>
+<p>From here we can see that excluding unknown languges the language with the lowest ratio (most disinformation) is very clearly English. As it appears rusian propagandists and disinformation agents are least concerned with Russia and Spain, and most aggressively target English information markets.</p>
 <section id="hashtag-analysis" class="level2">
 <h2 class="anchored" data-anchor-id="hashtag-analysis">0.1 Hashtag analysis</h2>
-<p>The next step in our data analysis is going to explore the most frequent hashtags from each account type. The code below finds the 10 most frequent hashtags from the control accounts and the disinformation accounts and displays them with their frequency. As you look at the tables below, pay attention to the content and the language of the hashtags. Why might Russian accounts be posting in English? Compare this subset of the data to the timeline of tweets from Section 0.</p>
+<p>The next step in our data analysis is going to explore the most frequent hashtags from each account type. The code below finds the 10 most frequent hashtags from the control accounts and the disinformation accounts and displays them with their frequency. As you look at the tables below, pay attention to the content and the language of the hashtags.</p>
+<p>From our langauge analysis we can reasonable predict disinformation is likely to be in the English language, but the components of langauge that are frequently being used can be found by looking at the hashtags coming from these accounts.</p>
+<p>🧠 <strong>Key Questions</strong></p>
+<ol type="1">
+<li>With reference to the timeline of tweets, and the hashtags below, describe some of the main targets of Russian disinformation.</li>
+<li>Given what you know about disinformation, what are the <em>intentions</em> of these accounts, and what <em>outcomes</em> are they attempting to create?</li>
+<li>What do the hashtags <em>not</em> tell us about the disinformation accounts? Where might our ability to conclude the intentions and outcomes of these accounts be limited by the data we have examined?</li>
+<li>What additional data could we collect to better understand this type of disinformation.</li>
+</ol>
 <div id="d48245d6" class="cell">
 <div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>tweets_hs <span class="op">=</span> tweets.explode(<span class="st">'hashtags'</span>).rename(columns<span class="op">=</span>{<span class="st">'hashtags'</span>: <span class="st">'hashtag'</span>})</span>
@@ -579,15 +660,38 @@ Top 10 Hashtags - Control Accounts</code></pre>
 </div>
 </div>
 </div>
+<section id="stop-and-reflect" class="level3">
+<h3 class="anchored" data-anchor-id="stop-and-reflect">🛑 Stop and Reflect</h3>
+<p>Now that we have gone through the dataset and examined a variety of its features, take a few minutes and disucss the following questions with a partner or small group.</p>
+<ol type="1">
+<li>What are the conclusions we have come to regarding disinformation? How are they influenced or limited by the dataset?</li>
+<li>So far we have only looked at statistical aspects of the data without using machine learning techniques. Make some predictions on how the machine learning techniques we will use next might change our understanding of online disinformation. How might machine learning, specifically NLP be used to enrich our understanding of disinformation?</li>
+<li>Has your understanding of online disinformation changed after looking at this data? Write down a few questions you have about online disinformation, the dataset, or the computational methods we have been using.</li>
+</ol>
+</section>
 </section>
 <section id="can-we-tune-models-to-detect-online-disinformation-campaigns-classifying-current-tweets-with-a-model-finetuned-on-the-russian_disinformation_tweets-dataset" class="level2">
 <h2 class="anchored" data-anchor-id="can-we-tune-models-to-detect-online-disinformation-campaigns-classifying-current-tweets-with-a-model-finetuned-on-the-russian_disinformation_tweets-dataset">1. Can we tune models to detect online disinformation campaigns? Classifying current tweets with a model finetuned on the russian_disinformation_tweets dataset</h2>
-<p>Now that we have examined our data and looked at some of the key features in the Russian Disinformation Dataset, we can start thinking about ways to use machine learning to answer questions, classify features, and make predictions about our dataset. To do any of these tasks we first require a way to interpret the text data and assign numeric qualities to our tweets. The model we are using to do this is a multilingual model which maps sentences and paragraphs into multi-dimensional vector space. In other words, it takes the sentences and paragraphs of our tweets and assigns them a position associated with their meaning. This is done based on the context of the token (the unit of text, like a word or sentence). The model we are using is capable of interpreting multiple languages and is fine-tuned, or specifically trained, on the data we are examining. The code below is going to call upon a pre-built classifier which uses this fine-tuned model to predict whether a tweet is likely Russian propaganda. The two sample tweets are:</p>
+<section id="exploring-our-model" class="level3">
+<h3 class="anchored" data-anchor-id="exploring-our-model">Exploring Our Model</h3>
+<p>Now that we have examined our data and looked at some of the key features in the Russian Disinformation Dataset, we can start thinking about ways to use machine learning to answer questions, classify features, and make predictions about our dataset. To do any of these tasks we first require a way to interpret the text data and assign numeric qualities to our tweets.</p>
+<p>The model we are using to do this is a multilingual model which maps sentences and paragraphs into multi-dimensional vector space. In other words, it takes the sentences and paragraphs of our tweets and assigns them a position associated with their meaning. This is done based on the context of the token (the unit of text, like a word or sentence). The model we are using is capable of interpreting multiple languages and is fine-tuned, or specifically trained, on the data we are examining. The code below is going to call upon a pre-built classifier which uses this fine-tuned model to predict whether a tweet is likely Russian propaganda. The two sample tweets are:</p>
 <ol type="1">
 <li><p>“#qanon #trump Hunter Biden is a Ukranian Shill”</p></li>
 <li><p>“What great weather we have today”</p></li>
 </ol>
 <p>The model is going to take these text inputs, represent them in vector space, and then report whether their respective values are similar to those of disinformation tweets.</p>
+</section>
+<section id="classification-and-its-discontents" class="level3">
+<h3 class="anchored" data-anchor-id="classification-and-its-discontents">Classification and It’s Discontents</h3>
+<p>Before we explore the possibilities of our model to classify, we should first consider some of the main concerns and limitations regarding classification. Classification is an essential element of how machine learning operates. At its core it is the method of finding features that are central to a class and assigning units to that class based on those features. As you may already see, this “in-or-out” framework necessarily flattens some of the richness of human life, in order to effectively create these incredibly useful classes.</p>
+<blockquote class="blockquote">
+<p><strong>Example:</strong></p>
+<p>You might say a cat and a dog are really easy to classify. Most people know what a dog looks like and that it looks different than a cat. But if all I tell you is that there are two animals that commonly live with humans, that have a tail and paws, and make noise you might have a hard time classifying them, because they share common features.</p>
+<p>It is important to think deeply about how we are classifying, especially as many datasets are labeled by people, who carry their own understandings of what belongs to each class.</p>
+<p>Any class or classifier will be informed by the balance of abstraction to specificity, and we should always keep this in mind when we are classifying. It is important to be specific enough to ascertain the qualities we are interested in, but not so specific we end up with thousands of classes.</p>
+</blockquote>
+<p>Now that we have explored some of the trickiness of classification as a concept, we can look at how machine learning can help us work through some of these challenges. By using data that is labeled as disinformation our model can be trained to associated certain numerical feautres with disinformation, and when we give it text data that is similar to what it knows to be disinformation, it will classify it as such.</p>
 <div id="6df33276" class="cell" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> inference_code.py <span class="im">import</span> classify_texts</span>
 <span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a></span>
@@ -615,6 +719,7 @@ Top 10 Hashtags - Control Accounts</code></pre>
 </div>
 </div>
 <p>add more stuff related to model evaluation, ipywidget for entering text students found on twitter and running it against the model</p>
+</section>
 </section>
 <section id="what-is-sentiment-analysis" class="level2">
 <h2 class="anchored" data-anchor-id="what-is-sentiment-analysis">1. What is Sentiment Analysis?</h2>
@@ -1056,7 +1161,7 @@ positive          12.609214     11.603546</code></pre>
 <h3 class="anchored" data-anchor-id="positive-profanity">4.1 Positive profanity</h3>
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="./soci_270_bert_files/soci_270_images/toxicity_noscore_reddit_example.png" title="Text: Fuck dude, nurses are the shit" class="img-fluid figure-img"></p>
+<p><img src="./soci_270_images/toxicity_noscore_reddit_example.png" title="Text: Fuck dude, nurses are the shit" class="img-fluid figure-img"></p>
 <figcaption>Fuck dude, nurses are the shit (Mauboussin, 2022)</figcaption>
 </figure>
 </div>
@@ -1064,7 +1169,7 @@ positive          12.609214     11.603546</code></pre>
 <p>Now imagine you are Perspective API, Google’s AI toxicity moderation tool, with your scope of “toxic speech” limited solely to the definition of ”rude, disrespectful, or unreasonable language that is likely to make someone leave a discussion”. Because of your architecture, you are limited in the way you can understand a message in context. You process the comment and immediately detect two profanities that meet your requirement for being rude language, and assign it a subsequent toxicity score:</p>
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="./soci_270_bert_files/soci_270_images/toxicity_reddit_example.png" title="Fuck dude, nurses are the shit with Toxicity Score (98.62%)" class="img-fluid figure-img"></p>
+<p><img src="./soci_270_images/toxicity_reddit_example.png" title="Fuck dude, nurses are the shit with Toxicity Score (98.62%)" class="img-fluid figure-img"></p>
 <figcaption>Fuck dude, nurses are the shit with Toxicity Score (98.62%) (Mauboussin, 2022)</figcaption>
 </figure>
 </div>
@@ -1083,7 +1188,7 @@ positive          12.609214     11.603546</code></pre>
 <p>Resende et al.&nbsp;(2024) also conducted a comparison analysis of toxicity models, including Google’s Perspective API and Detoxify (the model we’ll be using for our own analysis soon).</p>
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="./soci_270_bert_files/soci_270_images/toxicity_aave_score_table.png" title="Comparing the Toxicity Scoring Models" class="img-fluid figure-img"></p>
+<p><img src="./soci_270_images/toxicity_aave_score_table.png" title="Comparing the Toxicity Scoring Models" class="img-fluid figure-img"></p>
 <figcaption>Comparing the Toxicity Scoring Models (Resende et al., 2024)</figcaption>
 </figure>
 </div>
@@ -1092,7 +1197,6 @@ positive          12.609214     11.603546</code></pre>
 <h3 id="engage-critically-9" class="anchored">🔎 Engage Critically</h3>
 <p>If you could, what questions would you want to ask the people who build these models?</p>
 </blockquote>
-<p>–</p>
 </section>
 <section id="toxicity-analysis-using-detoxify" class="level3">
 <h3 class="anchored" data-anchor-id="toxicity-analysis-using-detoxify">Toxicity analysis using Detoxify</h3>
