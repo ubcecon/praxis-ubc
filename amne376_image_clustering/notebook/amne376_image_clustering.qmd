@@ -9,13 +9,19 @@ categories:
   - Image Embeddings
   - CNNs
 format:
-  html: default
+  html:
+    code-fold: true
+    code-summary: "Show the code"
+    widget: true
+    allow-html: true
   ipynb:
     jupyter:
       kernelspec:
         display_name: Python
         language: python3
         name: python3
+execute:
+  output: true
 ---
 
 Before you start, make sure you have the required libraries installed, if not, simply **uncomment the lines below** (use `Ctrl + /`) and run the cell to install them: 
@@ -62,7 +68,7 @@ import matplotlib.pyplot as plt
 # Define the folder path where the images are stored
 image_path = '../data/richter_kouroi_filtered_photos' 
 
-fig, axes = plt.subplots(1, 3, figsize=(7, 4))
+fig, axes = plt.subplots(1, 3, figsize=(8, 5))
 
 # List of specific image filenames
 image_names = {'page188_img01_photo12.jpg': "Left", 'page188_img01_photo13.jpg': "Front", 'page189_img01_photo3.jpg': "Back"}
@@ -106,134 +112,107 @@ They look very similar! This result is not surprising given that the three image
 
 However, one can quickly realize the drawbacks of this approach. First, it relies on the correct representation of color, so two identical images with color differences may not be recognized as similar. Second, since it focuses only on color, it ignores the fundamental information for object recognition such as spatial, shape and texture in the image. Last but not least, there may exist two completely different images with exactly the same color distribution. Therefore, we need better methods to consider the similarity between images.
 
-**Bag of Visual Words (BoVW)** is a more practical method for recognizing similarity. The rationale behind this is very complicated, but to put it simply, it treats a “feature” in an image as a “word” (a set of numbers containing information about the feature) and calculates how often each word appears in the image. Here, we created a visual vocabulary containing 20 “words” using three-view photos of the New York Kouros, and visualized the frequency distribution using histograms.
+**Bag of Visual Words (BoVW)** is a more practical method for recognizing similarity. The rationale behind this is very complicated, but to put it simply, it treats a “feature” in an image as a “word” (a set of numbers containing information about the feature) and calculates how often each word appears in the image. Here, we created a visual vocabulary containing 20 “words” using three-view photos of the New York Kouros, and visualized what a visual word represents on the left-view image. Here, we pick the visual word with ID 6: 
 ```{python}
 import cv2
 import numpy as np
 from sklearn.cluster import KMeans
+from collections import defaultdict
 
 # Define the number of clusters for KMeans
-n_clusters = 20
+n_clusters   = 20
+word_to_show = 6
+max_patches  = 30
 
 # Initialize ORB detector
 orb = cv2.ORB_create(nfeatures=500)
-all_descriptors = []
-image_data = []
+all_descriptors = []      # for stacking
+image_data      = []      # (img_name, kps, descs)
 
+# Detect and describe all images
 for img_name in image_names:
     img_path = os.path.join(image_path, img_name)
-    img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+    img      = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
     keypoints, descriptors = orb.detectAndCompute(img, None)
 
+    if descriptors is None:
+        descriptors = np.zeros((0, orb.descriptorSize()), dtype=np.uint8)
+
     all_descriptors.append(descriptors)
-    
-    image_data.append((img_name, descriptors))
+    image_data.append((img_name, keypoints, descriptors))
 
-# Stack descriptors for clustering
+# Build the visual vocabulary
 all_descriptors_stacked = np.vstack(all_descriptors)
-
-# Build the visual vocabulary using KMeans
 kmeans = KMeans(n_clusters=n_clusters, random_state=42)
 kmeans.fit(all_descriptors_stacked)
 
-# Compute histogram for each image
+# Compute BoVW histograms
 histograms = []
-for img_name, descriptors in image_data:
+for img_name, _, descriptors in image_data:
     if descriptors.shape[0] > 0:
         words = kmeans.predict(descriptors)
-        hist, _ = np.histogram(words, bins=np.arange(n_clusters+1))
+        hist, _ = np.histogram(words, bins=np.arange(n_clusters + 1))
     else:
         hist = np.zeros(n_clusters, dtype=int)
-        
     histograms.append((img_name, hist))
-    
-fig, axes = plt.subplots(1, len(histograms), figsize=(2.5 * len(histograms), 4), sharey=True)
-if len(histograms) == 1:
-    axes = [axes]
 
-x = np.arange(n_clusters)
-for ax, (img_name, hist) in zip(axes, histograms):
-    ax.bar(x, hist)
-    ax.set_title(f"{image_names[img_name]}")
-    ax.set_xlabel("Visual Word ID")
-    ax.set_xlim([-0.5, n_clusters - 0.5])
-    if ax is axes[0]:
-        ax.set_ylabel("Frequency")
-
-plt.suptitle("Bag of Visual Words Histograms")
-plt.tight_layout()
-plt.show()
-```
-
-We can also visualize a single visual word on the original image to see what it might represent. Here, we visualize the visual word with ID 6 on the left view photo. We note that the word 6 could represent the beads in the beadwork worn by the Kouros.
-```{python}
-from collections import defaultdict
-
-# Define the parameters
-n_clusters, patch_size, word_to_show, max_patches = 20, 32, 6, 30
-image_files = list(image_names.keys())
-
-orb = cv2.ORB_create(nfeatures=500)
-all_descs, descs_stack = [], []
-
-for idx, fname in enumerate(image_files):
-    img = cv2.imread(os.path.join(image_path, fname), cv2.IMREAD_GRAYSCALE)
-    kp, desc = orb.detectAndCompute(img, None)
-    if desc is None: 
-        continue
-    for k, d in zip(kp, desc):
-        all_descs.append((idx, k, d))
-        descs_stack.append(d)
-
-descs_stack = np.vstack(descs_stack)
-
-kmeans = KMeans(n_clusters=n_clusters, random_state=42).fit(descs_stack)
-assignments = kmeans.labels_
-
-# Collect locations of words
+# Find the locations matching visual word ID = 6
 locations = []
-for (idx, kp, _), w in zip(all_descs, assignments):
-    if w == word_to_show:
-        x, y = map(int, kp.pt)
-        locations.append((idx, x, y))
-        if len(locations) >= max_patches:
-            break
+for img_idx, (_, keypoints, descriptors) in enumerate(image_data):
+    if descriptors.shape[0] == 0:
+        continue
+    assignments = kmeans.predict(descriptors)
+    for kp, w in zip(keypoints, assignments):
+        if w == word_to_show:
+            x, y = map(int, kp.pt)
+            locations.append((img_idx, x, y))
+            if len(locations) >= max_patches:
+                break
+    if len(locations) >= max_patches:
+        break
 
-# Group by image
+# Group by image and visualize
 imgs = defaultdict(list)
 for idx, x, y in locations:
     imgs[idx].append((x, y))
 
-# Pick the first image that has it
-img_idx, pts = next(iter(imgs.items()))
-fname = image_files[img_idx]
+if imgs:
+    img_idx, pts = next(iter(imgs.items()))
+    fname = image_data[img_idx][0]
+    img   = cv2.imread(os.path.join(image_path, fname), cv2.IMREAD_GRAYSCALE)
+    img_rgb = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+    for x, y in pts:
+        cv2.circle(img_rgb, (x, y), radius=25, color=(0,255,0), thickness=2)
 
-# display image with key points labeled
-img = cv2.imread(os.path.join(image_path, fname), cv2.IMREAD_GRAYSCALE)
-img_rgb = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
-for x, y in pts:
-    cv2.circle(img_rgb, (x, y), radius=25, color=(0,255,0), thickness=2)
-
-plt.figure(figsize=(6,6))
-plt.imshow(img_rgb)
-plt.title(f"Word {word_to_show} Keypoints on Left")
-plt.axis('off')
-plt.tight_layout()
-plt.show()
+    plt.figure(figsize=(6,6))
+    plt.imshow(img_rgb)
+    plt.title(f"Word {word_to_show} Keypoints on the Left-View Photo")
+    plt.axis('off')
+    plt.tight_layout()
+    plt.show()
 ```
+
+We note that the word 6 could represent the beads in the beadwork worn by the Kouros. Based on your knowledge of the various Kouros, do you think this visual word can be the key to differentiating between different Kouros, or even different sculptural subjects?
+
 
 #### 1.2 Measurement of Similarity
 
 As you may have realized, the visual word frequency distributions of different images are not exactly the same, so how can we determine if these images are similar? More importantly, what can we use as a criterion to categorize different images based on visual words? Here, we will use something called **cosine similarity** to make a measurement.
 
+
+<!-- ```{=html}
+<iframe src="../data/cosine_demo.html" width="600" height="600" style="border:none;"></iframe>
+``` -->
+
 You can think of the visual word frequency histogram for each image as an arrow in space, and cosine similarity is a measure of how much those arrows are pointing in the same direction. The criterion is very intuitive: the closer the cosine similarity of two images is to 1, the more similar the two images are; the closer the cosine similarity is to 0, the less similar the two images are.
 
 Here, we perform pairwise cosine similarity measurements on left-view, front-view, and back-view photographs of New York Kouros, and show the results.
+
 ```{python}
 from sklearn.metrics.pairwise import cosine_similarity
 
 hist_list = []
-for img_name, descriptors in image_data:
+for img_name, _, descriptors in image_data:
     if descriptors.shape[0] > 0:
         words = kmeans.predict(descriptors)
         hist, _ = np.histogram(words, bins=np.arange(n_clusters + 1))
@@ -620,12 +599,12 @@ def bar_plot(df, column1, column2):
     fig, axes = plt.subplots(1, 2, figsize=(6, 3))
     
     # Plot the bar chart
-    label_counts1.plot(kind='bar', ax=axes[0], color='skyblue')
+    label_counts1.plot(kind='bar', ax=axes[0], color='steelblue')
     axes[0].set_title(f'Distribution of {column1.capitalize()}')
     axes[0].set_xlabel(column1.capitalize())
     axes[0].set_ylabel('Count')
     axes[0].tick_params(axis='x', rotation=45)
-    label_counts2.plot(kind='bar', ax=axes[1], color='lightgreen')
+    label_counts2.plot(kind='bar', ax=axes[1], color='darkorange')
     axes[1].set_title(f'Distribution of {column2.capitalize()}')
     axes[1].set_xlabel(column2.capitalize())
     axes[1].set_ylabel('Count')
@@ -659,10 +638,20 @@ for ax, img in zip(axes, images[:4]):
     ax.imshow(img)
     ax.axis("off")
 plt.suptitle("First 4 images in the dataset")
+plt.tight_layout()
 plt.show()
 ```
 
+### 4. Image Embedding Using ConvNeXt V2
+
+#### 4.1 CNN and Models See Images
+
+What we'll do next is we will bring in ConvNeXt V2, it is a CNN model trained on millions of images based on ImageNet. 
+
+I'm sure everyone has used some **Large Language Models (LLMs)** and gotten a feel for how these models mimic the way humans think. This imitation of the human way of thinking comes from **Artificial Neural Networks (ANN)**. Just as **LLMs** process and generate natural language, **CNN models** process visual images, examining the features in those images through **convolutional layers** and generating their own digital representations of the images. 
+
 Here, we will create a visualization that shows the early, middle, and late feature layers of the 4 images after convolution, what commonality and difference did you notice from the extracted features in these layers?
+
 ```{python}
 model = VGG16(weights='imagenet', include_top=False)
 
@@ -711,17 +700,18 @@ for col, img in enumerate(images[:4]):
     axes[2, col].axis('off')
 
 fig.suptitle('First, Middle vs. Last Conv Layer Responses', fontsize=16)
-plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+plt.tight_layout()
 plt.show()
 ```
 
-### 4. Image Embedding Using ConvNeXt V2
+#### 4.2 Creating Image Embeddings
 
-#### 4.1 CNN and Models See Images
+**Image embedding** is a process where images are transformed into numerical representations, specifically, lists of numbers that carry informations about the images. While this sounds somewhat similar to the idea of visual words, they are not the same. Think of BoVW as counting how many times specific words appear in a book without caring about grammar or sentence structure, this can identify simple patterns, but cannot summarize the big picture of the book. Image embeddings, on the other hand, are like reading the entire book and summarizing its meaning in a well crafted passage, they capture the bigger picture, context, and nuance.
 
-What we'll do next is we will bring in ConvNeXt V2, it is a CNN model trained on millions of images based on ImageNet. 
+We can build a vocabulary of visual words quite easily, but creating image embeddings usually require using deep neural networks pretrained on millions of images. These networks process the entire image and learn hierarchical, abstract features that are more semantically meaningful.  
 
-I'm sure everyone has used some **Large Language Models (LLMs)** and gotten a feel for how these models mimic the way humans think. This imitation of the human way of thinking comes from **Artificial Neural Networks (ANN)**. Just as **LLMs** process and generate natural language, **CNN models** process visual images, examining the features in those images through **convolutional layers** and generating their own digital representations of the images. 
+Here, we will load the pre-trained ConvNeXt V2 model, pass the image folder to generate embeddings, and save the embeddings in a grid of numbers.
+
 
 ```{python}
 # Read in the pre-trained ConvNeXtV2 model
@@ -733,75 +723,10 @@ from tqdm.notebook import tqdm
 
 # Load the pre-trained ConvNeXtV2 model and image processor
 processor = AutoImageProcessor.from_pretrained("facebook/convnextv2-base-22k-224") 
-attention_model = convnext_base(weights=ConvNeXt_Base_Weights.IMAGENET1K_V1)
 
 # Move the model to the appropriate device (GPU or CPU)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-```
 
-Below is a heatmap that highlights the important regions of the first four images using the target gradient of the final convolutional layer. More generally, it visualizes where the CNN model looks on the image before making a final decision. While this approach does not fully reflect the decision-making process of a CNN, it helps us recognize how a CNN sees an object.
-
-```{python}
-# Load the Grad-CAM library for attention visualization
-import torchvision.transforms as T
-from pytorch_grad_cam import GradCAM
-from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
-from pytorch_grad_cam.utils.image import show_cam_on_image
-
-transform = T.Compose([
-    T.Resize((224, 224)),
-    T.ToTensor(),
-    T.Normalize(mean=[0.485, 0.456, 0.406],
-                std=[0.229, 0.224, 0.225]),
-])
-
-# Hook into the last feature layer of the network
-target_layers = [attention_model.features[-1]]
-cam = GradCAM(model=attention_model, target_layers=target_layers)
-
-n_cols = 4
-fig, axes = plt.subplots(1, n_cols, figsize=(1.5 * n_cols, 4))
-for i, rgb_orig in enumerate(images[:n_cols]):
-    # rgb_orig: float array H×W×3 in [0,1]
-    rgb_orig = rgb_orig.astype(np.float32) / 255.0
-    h, w, _ = rgb_orig.shape
-    
-    # Convert to PIL for resizing + normalization
-    img_pil = Image.fromarray((rgb_orig * 255).astype(np.uint8))
-    input_tensor = transform(img_pil).unsqueeze(0)
-    
-    # Compute CAM 
-    grayscale_cam = cam(input_tensor=input_tensor,
-                        targets=[ClassifierOutputTarget(0)])[0]
-    
-    # Upsample back to original size
-    grayscale_cam_orig = cv2.resize(grayscale_cam, (w, h),
-                                    interpolation=cv2.INTER_LINEAR)
-    
-    # Overlay heatmap on the original image
-    visualization = show_cam_on_image(rgb_orig, grayscale_cam_orig, use_rgb=True)
-    
-    # Display
-    ax = axes[i]
-    ax.imshow(visualization)
-    ax.axis("off")
-
-plt.suptitle("Visualization with Grad-CAM on ConvNeXtV2")
-plt.tight_layout()
-plt.show()
-```
-
-The highlighted area is the area with the highest density of target gradients. What did you notice? Do you think the model focuses on key regions of interest? If we were to apply the ConvNeXt V2 model directly on Kouroi photos, do you think this would cause some problems?
-
-#### 4.2 Creating Image Embeddings
-
-**Image embedding** is a process where images are transformed into numerical representations, specifically, lists of numbers that carry informations about the images. While this sounds somewhat similar to the idea of visual words, they are not the same. Think of BoVW as counting how many times specific words appear in a book without caring about grammar or sentence structure, this can identify simple patterns, but cannot summarize the big picture of the book. Image embeddings, on the other hand, are like reading the entire book and summarizing its meaning in a well crafted passage, they capture the bigger picture, context, and nuance.
-
-We can build a vocabulary of visual words quite easily, but creating image embeddings usually require using deep neural networks pretrained on millions of images. These networks process the entire image and learn hierarchical, abstract features that are more semantically meaningful.  
-
-Here, we will load the pre-trained ConvNeXt V2 model, pass the image folder to generate embeddings, and save the embeddings in a grid of numbers.
-
-```{python}
 model = ConvNextV2Model.from_pretrained("facebook/convnextv2-base-22k-224")
 
 # Move the model to the appropriate device (GPU or CPU)
@@ -868,130 +793,64 @@ We printed the embedded results above to see what they look like, and we also di
 
 1024 is way too many numbers for us to examine and understand with our brains. So, we use something techniques called **dimensionality reduction** to squish the data down to just 2 or 3 dimensions, making it easy to visualize in 2D. 
 
-**Principal Component Analysis (PCA)** is one of such techniques, it is essentially finding the two or three major axes through our huge data along which the data has the most variations. By PCA we decompose our data with 1024 dimensions (number of cells in each row) to 3 dimensions and represent each image as a point on our scatterplots. We then color the data with "era" and "material" respectively. To visualize all 3 dimensions, here we employed a strategy called **scatter matrix**. What do you notice by looking at the plots below: 
+**Principal Component Analysis (PCA)** is one of such techniques, it is essentially finding the two or three major axes through our huge data along which the data has the most variations. By PCA we decompose our data with 1024 dimensions (number of cells in each row) to 2 dimensions and represent each image as a point on our scatterplots. We then color the data with "era" and "material" respectively. Here, we will use plotly to create interactive visualizations, feel free to play with it and discuss what pattern did you notice?
 
 ```{python}
 from sklearn.decomposition import PCA
-import seaborn as sns
+import plotly.express as px
 
-# We can load the embeddings from the saved file
+# load embeddings and metadata
 embeddings = np.load('../data/embeddings/convnextv2_image_embeddings.npy')
+df = pd.read_csv('../data/complete_sculpture_dataset_labeled.csv')   # make sure this has at least an 'era' column
 
-# Perform PCA to reduce the dimensionality of the embeddings
-pca = PCA(n_components=3)
-pca_embeddings = pca.fit_transform(embeddings)
+# PCA to 2 components
+pca = PCA(n_components=2)
+pc2 = pca.fit_transform(embeddings)
 
-pc_df = pd.DataFrame(
-    pca_embeddings[:, :3],
-    columns=['PC1','PC2','PC3']
-)
-
-# Generate the visualization of PCA embeddings with the era labels
+# build DataFrame
+pc_df = pd.DataFrame(pc2, columns=['PC1','PC2'])
+pc_df['filename'] = df['filename'].values
 pc_df['era'] = df['era'].values
 
-g = sns.pairplot(pc_df, hue='era', vars=['PC1','PC2','PC3'])
-g.fig.set_figwidth(8)
-g.fig.set_figheight(8)
-plt.show()
+# interactive scatter
+fig = px.scatter(
+        pc_df,
+        x='PC1',
+        y='PC2',
+        color='era',
+        hover_data=('filename',), # Show filename when hovering
+        title='Interactive PCA of Image Embeddings Colored by Era',
+        width=700, height=500
+    )
+
+fig.show()
 ```
 
 ```{python}
 pc_df['material'] = df['material'].values
 
-g = sns.pairplot(pc_df, hue='material', vars=['PC1','PC2','PC3'])
-g.fig.set_figwidth(8)
-g.fig.set_figheight(8)
-plt.show()
+fig = px.scatter(
+        pc_df,
+        x='PC1',
+        y='PC2',
+        color='material',
+        hover_data=('filename',), # Show filename when hovering
+        title='Interactive PCA of Image Embeddings Colored by Material',
+        width=700, height=500
+    )
+
+fig.show()
 ```
 
 Did you see any clear patterns of distributions by looking at the visualizations above? How can you interpret the results? 
 
-#### 5.2 t-SNE Visualization
-
-**t-distributed stochastic neighbor embedding (t-SNE)** is another dimensionality reduction technique. Different from PCA, instead of finding out the principal axes from the data, it assigns a certain low-dimensional space to each point based on its high-dimensional information and preserves the relative spatial relationships. You can imagine its arrangement for image embeddings as arranging the standing positions for graduation photos by surveying the students' information, trying to satisfy each student's preference (e.g., A and B want to stand together, but B and C want to be as far apart as possible).
-
-Here, we also want to label the scatterplots based on "era" and "material", respectively, and we used `plotly` to create an interactive visualization. Interact with the points and browse the corresponding images in the folder, what pattern can you see? 
-
-```{python}
-from sklearn.manifold import TSNE
-import plotly.express as px
-
-tsne = TSNE(n_components=2, init='pca', method='exact')
-tsne_embeddings = tsne.fit_transform(embeddings)
-
-plotly_df = pd.DataFrame({
-    'TSNE_Dim1': tsne_embeddings[:, 0],
-    'TSNE_Dim2': tsne_embeddings[:, 1],
-    'Era': df['era'].tolist(), # Use the 'era' column from your original df
-    'Filename': df['filename'].tolist(), # Include the filenames
-    'Material': df['material'].tolist() # Include the material column
-})
-
-# Plot the t-SNE embeddings colored by Era
-fig = px.scatter(
-        plotly_df,
-        x='TSNE_Dim1',
-        y='TSNE_Dim2',
-        color='Era',
-        hover_data=('Filename',), # Show filename when hovering
-        title='Interactive t-SNE of Image Embeddings Colored by Era',
-        width=700, height=500
-    )
-
-fig.show()
-```
-
-```{python}
-# Plot the t-SNE embeddings colored by material
-fig = px.scatter(
-        plotly_df,
-        x='TSNE_Dim1',
-        y='TSNE_Dim2',
-        color='Material',
-        hover_data=['Filename'], # Show filename when hovering
-        title='Interactive t-SNE of Image Embeddings Colored by Material',
-        width=700, height=500
-    )
-
-fig.show()
-```
-
-Although t-SNE shows a clear distinction between materials (especially between bronze and marble), we should be wary of the conclusion that the t-SNE method is somewhat randomized, so its results are not necessarily deterministic. in any case, dimensionality reduction techniques give us a good understanding of the relationship between different images.
-
 ### 6. Classification of Kouroi 
+
+**Archaeological classification** has always been an important issue in archaeology and artifact research. This problem is especially challenging when faced with a large amount of artifact data, or when faced with new artifacts with insufficient information. With the development of machine learning and image recognition technology, the use of computer technology to assist classification has become a trend in the new era of information archaeology. In this section, we would like to provide an example of classifying Kouroi by visual element for your reference.
 
 #### 6.1 Traditional Approach
 
-In addition to observing how the labels are clustered based on the embeddings, we can train classifiers to categorize objects into appropriate labels based on the image embeddings directly. A traditional approach is through a technique called **logistic regression**. Below is a visualization showing how it works.
-
-```{python}
-import numpy as np
-import matplotlib.pyplot as plt
-
-# Generate data
-x = np.linspace(-5, 5, 100)
-y = 1 / (1 + np.exp(-x))
-
-# Plot sigmoid
-plt.figure()
-plt.plot(x, y)
-plt.xlabel('x')
-plt.ylabel('y')
-
-# Add decision boundary at probability 0.5
-plt.axvline(0, linestyle='--')
-plt.axhline(0.5, linestyle='--')
-
-# Annotate boundary
-plt.text(0.1, 0.05, 'Decision Boundary (x=0)', va='bottom')
-plt.text(-4.8, 0.52, 'Threshold (y=0.5)', va='bottom')
-
-plt.title('Sigmoid Function with Decision Boundary')
-plt.show()
-
-```
-
-In this example, we consider $x$ as the sole predictor on which the model makes its decisions, and the vertical dashed line as its decision boundary, i.e., envisioning a yes/no scenario, everything to the right of $x=0$ will be considered "yes", and everything to the left will be treated as "no". While classifiers in real life are likely much more complicated with more predictors and more labels than yes/no, they follow the same principle. Let's go back to our own example and see how it work for both labels.  
+In addition to observing how the labels are clustered based on the embeddings, we can train classifiers to categorize objects into appropriate labels based on the image embeddings directly. A traditional approach is through a technique called **logistic regression**. 
 
 ```{python}
 from sklearn.linear_model import LogisticRegression
@@ -1010,7 +869,6 @@ Note that here we use image embeddings and labels as training data and test data
 
 ```{python}
 # Perform the classification of eras
-
 # Split the data into training and testing sets
 X_train1, X_test1, y_train1, y_test1 = train_test_split(X, y1, test_size=0.3, random_state=42, stratify=y1)
 
@@ -1035,33 +893,72 @@ $$
 \text{Accuracy} = \frac{\text{True Predictions}}{\text{True Predictions} + \text{Flase Predictions}}
 $$
 
-It reflects the proportion of true predictions out of all predictions made using the classifier. However, as shown above in the report, the accuracy of predicting era based on image embedding is not satisfactory.
-
-We want to see what is exactly going wrong, so we display all the prediction results against true values by generating a **confusion matrix**. Note that true predictions are on the main diagonal of this matrix.
+It reflects the proportion of true predictions out of all predictions made using the classifier. However, as shown above in the report, the accuracy of predicting era based on image embedding is not satisfactory. Still, we can visualize the decision boundary of this classifier on our 2D PCA of image embeddings to see what went wrong:
 
 ```{python}
-# Plot the confusion matrix
-from sklearn.metrics import confusion_matrix
+from matplotlib.colors import ListedColormap
+from sklearn.preprocessing import LabelEncoder
 
-cm1 = confusion_matrix(y_test1, y_pred1, labels=np.unique(y1))
+# Prepare your 2D data + labels
+X_pca = pc_df[['PC1','PC2']].values
+y_era = pc_df['era'].values
 
-plt.figure(figsize=(5, 5))
-sns.heatmap(cm1, annot=True, fmt='d', cmap='Blues', xticklabels=np.unique(y1), yticklabels=np.unique(y1))
+# Encode eras as integers
+le = LabelEncoder()
+y_enc = le.fit_transform(y_era)
 
-plt.title('Confusion Matrix for Eras')
-plt.xlabel('Predicted')
-plt.xticks(rotation=45)
-plt.ylabel('True')
+# Train the logistic on the encoded labels
+clf_2d = LogisticRegression(max_iter=1000, random_state=42)
+clf_2d.fit(X_pca, y_enc)
+
+# Build a mesh grid over the plotting area
+x_min, x_max = X_pca[:,0].min() - 1, X_pca[:,0].max() + 1
+y_min, y_max = X_pca[:,1].min() - 1, X_pca[:,1].max() + 1
+xx, yy = np.meshgrid(
+    np.linspace(x_min, x_max, 300),
+    np.linspace(y_min, y_max, 300)
+)
+
+# Predict integer labels on the mesh
+Z = clf_2d.predict(np.c_[xx.ravel(), yy.ravel()]).reshape(xx.shape)
+
+# Plot
+plt.figure(figsize=(7,7))
+
+# light colors for regions
+cmap_light = ListedColormap(['#FFCCCC','#CCFFCC','#CCCCFF','#FFE5CC','#E5CCFF'][:len(le.classes_)])
+# bold colors for points
+cmap_bold  = ListedColormap(['#FF0000','#00AA00','#0000FF','#FF8000','#8000FF'][:len(le.classes_)])
+
+# contourf needs numeric Z
+plt.contourf(xx, yy, Z, alpha=0.3, cmap=cmap_light)
+
+# scatter original points, mapping back to string labels in the legend
+for class_int, era_label in enumerate(le.classes_):
+    mask = (y_enc == class_int)
+    plt.scatter(
+        X_pca[mask,0], X_pca[mask,1],
+        color=cmap_bold(class_int),
+        label=era_label,
+        edgecolor='k', s=40
+    )
+
+plt.xlabel('PC1')
+plt.ylabel('PC2')
+plt.title('Logistic Decision Boundary on 2D PCA Embedding\n(colored by era)')
+plt.legend(title='Era')
+plt.xlim(x_min, x_max)
+plt.ylim(y_min, y_max)
+plt.grid(True)
 plt.show()
 ```
 
-Can you find any noteworthy pattern from it? Do you think the image embeddings captured enough characteristics to classify eras of the Kouroi?
+What can you say about this decision boundary?
 
 Similarly, we can use the same approach to classify material of Kouroi. We first perform a train-test split, then train the classifier, use the trained classifier to predict the labels of the test set, and print out the classification report for quality evaluation.
 
 ```{python}
 # Perform the classification of materials
-
 # Split the data into training and testing sets
 X_train2, X_test2, y_train2, y_test2 = train_test_split(X, y2, test_size=0.3, random_state=42, stratify=y2)
 
@@ -1085,22 +982,63 @@ As you can see, the accuracy is much higher now, but does that mean the classifi
 - **Precision**: The ratio of the number of true positives to the number of positive predictions. Precision tells us how often the model predicts correctly. 
 - **Recall**: The ratio of the number of true positives to the number of actual positives. Recall answers the question, "What percentage of positive results did we correctly predict?"
 
-Again, let's generate a confusion matrix and see how exactly does the prediction results distribute. What can you see? Would you consider it as a good result? 
+We can also visualize the decision boundary on the 2D PCA of materials
 ```{python}
-# Plot the confusion matrix
-cm2 = confusion_matrix(y_test2, y_pred2, labels=np.unique(y2))
+# Prepare 2D data + labels
+X_pca = pc_df[['PC1','PC2']].values
+y_era = pc_df['material'].values
 
-plt.figure(figsize=(5, 5))
-sns.heatmap(cm2, annot=True, fmt='d', cmap='Blues', xticklabels=np.unique(y2), yticklabels=np.unique(y2))
+# Encode eras as integers
+le = LabelEncoder()
+y_enc = le.fit_transform(y_era)
 
-plt.title('Confusion Matrix for Materials')
-plt.xlabel('Predicted')
-plt.xticks(rotation=45)
-plt.ylabel('True')
+# Train the logistic on the encoded labels
+clf_2d = LogisticRegression(max_iter=1000, random_state=42)
+clf_2d.fit(X_pca, y_enc)
+
+# Build a mesh grid over the plotting area
+x_min, x_max = X_pca[:,0].min() - 1, X_pca[:,0].max() + 1
+y_min, y_max = X_pca[:,1].min() - 1, X_pca[:,1].max() + 1
+xx, yy = np.meshgrid(
+    np.linspace(x_min, x_max, 300),
+    np.linspace(y_min, y_max, 300)
+)
+
+# Predict integer labels on the mesh
+Z = clf_2d.predict(np.c_[xx.ravel(), yy.ravel()]).reshape(xx.shape)
+
+# Plot
+plt.figure(figsize=(7,7))
+
+# light colors for regions
+cmap_light = ListedColormap(['#FFCCCC','#CCFFCC','#CCCCFF','#FFE5CC','#E5CCFF'][:len(le.classes_)])
+# bold colors for points
+cmap_bold  = ListedColormap(['#FF0000','#00AA00','#0000FF','#FF8000','#8000FF'][:len(le.classes_)])
+
+# contourf needs numeric Z
+plt.contourf(xx, yy, Z, alpha=0.3, cmap=cmap_light)
+
+# scatter original points, mapping back to string labels in the legend
+for class_int, era_label in enumerate(le.classes_):
+    mask = (y_enc == class_int)
+    plt.scatter(
+        X_pca[mask,0], X_pca[mask,1],
+        color=cmap_bold(class_int),
+        label=era_label,
+        edgecolor='k', s=40
+    )
+
+plt.xlabel('PC1')
+plt.ylabel('PC2')
+plt.title('Logistic Decision Boundary on 2D PCA Embedding\n(colored by material)')
+plt.legend(title='Era')
+plt.xlim(x_min, x_max)
+plt.ylim(y_min, y_max)
+plt.grid(True)
 plt.show()
 ```
 
-The above results show that the reason for the low precision is that other materials that are not marble or bronze are classified as marble or bronze. however, since the dataset itself has a small number of Kouroi samples for other materials, we cannot conclude that using logistic regression to classify materials is not a good idea.
+Now, going back to the classification reports shown above, do you think the classifier trained on era is a good chronological classifier? What about materials? 
 
 #### 6.2 CNN Classification of Materials
 
@@ -1117,10 +1055,7 @@ from torch.utils.data import Dataset, DataLoader
 MAT2IDX = {
     'Marble': 0,
     'Bronze': 1,
-    'Lead': 2,
-    'Alabaster': 3,
-    'Limestone': 4,
-    'Terracotta': 5,
+    'Other': 2
 }
 
 # Create a custom dataset class for the Kouroi dataset
@@ -1202,7 +1137,6 @@ criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.head.parameters(), lr=1e-4, weight_decay=0.01)
 epochs = 10  
 
-
 for epoch in range(1, epochs+1):
     model.train()
     total_loss = 0
@@ -1227,8 +1161,6 @@ for epoch in range(1, epochs+1):
 After training, we set the model to evaluation mode and assessed the classification quality by printing the confusion matrix and classification report. It is clear that the accuracy does improve with the MLP architecture. However, we still lacked samples of materials other than bronze and marble, which undoubtedly harmed the quality of our training. 
 
 ```{python}
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
-
 # Run one pass over your data in eval mode
 model.eval()
 all_preds, all_labels = [], []
@@ -1240,14 +1172,6 @@ with torch.no_grad():
         all_preds.extend(logits.argmax(dim=1).cpu().numpy())
         all_labels.extend(labels.numpy())
 
-# Compute & plot confusion matrix
-cm = confusion_matrix(all_labels, all_preds, labels=list(MAT2IDX.values()))
-disp = ConfusionMatrixDisplay(cm, display_labels=list(MAT2IDX.keys()))
-disp.plot(cmap="Blues", xticks_rotation=45, values_format="d")
-plt.title("Material Classification Confusion Matrix")
-plt.tight_layout()
-plt.show()
-
 # Print the classification report
 from sklearn.metrics import classification_report
 report = classification_report(all_labels, all_preds, target_names=list(MAT2IDX.keys()), zero_division=0)
@@ -1255,88 +1179,67 @@ print("Classification Report for Materials:")
 print(report)
 ```
 
-#### 6.3 Risk of Underfitting and Overfitting
+Did you notice anything different in the result?
 
-In the context of machine learning, two common pitfalls are **underfitting** and **overfitting**. 
+#### 6.3 Example: Predicting the Material of Unseen Kouroi Photos
 
-**Underfitting** occurs when a model is too simple to capture the underlying patterns in the data, resulting in poor performance on both the training and test sets. This is often seen when using models like logistic regression on complex, non-linear datasets, as shown in the left panel above, where the decision boundary fails to separate the classes effectively. On the other hand, **overfitting** happens when a model is excessively complex, such as a deep neural network with many layers, and learns not only the true patterns but also the noise in the training data. This leads to excellent performance on the training set but poor generalization to new, unseen data, as illustrated in the right panel where the decision boundary is overly intricate. 
+Now, let's imagine a scenario where we find a new Kouros, but we are not sure what it is made of, and we want to use our trained classifier to classify it based on its image features.
 
-Let's examine the two problems with a simulated two-class data:
 ```{python}
-from sklearn.datasets     import make_moons
-from sklearn.model_selection import train_test_split
-from sklearn.linear_model  import LogisticRegression
-from sklearn.neural_network import MLPClassifier
+# Define a new image to compare with the existing ones
+new_artifact_path = '../data/NAMA_3938_Aristodikos_Kouros.jpeg'
+new_artifact_label = 'A Kouros from Athens' # Suppose this is a new artifact we just discovered
 
-# Generate a simulater two-class data
-X, y = make_moons(n_samples=500, noise=0.40, random_state=0)
+art_new = cv2.imread(new_artifact_path, cv2.IMREAD_GRAYSCALE)
 
-# Visualize the simulated data
-plt.figure(figsize=(6, 4))
-plt.scatter(X[:, 0], X[:, 1], c=y, cmap='coolwarm', edgecolor='k')
-plt.xlabel('Feature 1')
-plt.ylabel('Feature 2')
-plt.title('Simulated Two-Class Data')
+# Show the new image
+plt.figure(figsize=(6, 6))
+plt.imshow(art_new, cmap='gray')
+plt.title(f"{new_artifact_label}")
+plt.axis('off')
 plt.show()
 ```
 
-We can clearly see that the data is very non-linear, which gives us a hint that the right model should be able to account for non-linear relationships. However, for demonstration purposes, I will be using logistic regression to generate an underfitting classifier; and while MLP is suitable for use here, I will let it generate an overfitting classifier by significantly oversizing the neurons and iterations.
-
+We pass it into our trained CNN classifier and see how it would be classified:
 ```{python}
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.3, random_state=1
-)
-under = LogisticRegression()
+from PIL import Image
+import torch
+from torchvision import transforms
+# Resize the model to an appropriate size
+preprocess = transforms.Compose([
+    transforms.Resize(256),                
+    transforms.CenterCrop(224),            
+    transforms.ToTensor(),
+    transforms.Normalize(                   
+        mean=[0.485, 0.456, 0.406],
+        std= [0.229, 0.224, 0.225]
+    ),
+])
 
-over  = MLPClassifier(hidden_layer_sizes=(200,200,200),
-                      max_iter=2000,
-                      random_state=1)
+idx2mat = {idx: mat for mat, idx in MAT2IDX.items()}
 
-# Train both models
-under.fit(X_train, y_train)
-over.fit(X_train, y_train)
+def predict_image(image_path, model, device):
+    # Load
+    img = Image.open(image_path).convert("RGB")
+    # Preprocess
+    x = preprocess(img)
+    x = x.unsqueeze(0).to(device)
+    # Inference
+    model.eval()
+    with torch.no_grad():
+        logits = model(**{"pixel_values": x}      
+                       if isinstance(x, torch.Tensor) else x)
+        pred_idx = logits.argmax(dim=1).item()
+
+    return idx2mat[pred_idx]
+
+model.to(device)
+
+predicted_material = predict_image(new_artifact_path, model, device)
+print("Predicted Material:", predicted_material)
 ```
 
-Then, we get the decision boundaries of the two classifiers and visualize them with the test data, what do you find about their accuracy?
-
-```{python}
-# Build grid
-x_min, x_max = X[:,0].min() - .5, X[:,0].max() + .5
-y_min, y_max = X[:,1].min() - .5, X[:,1].max() + .5
-xx, yy = np.meshgrid(
-    np.linspace(x_min, x_max, 300),
-    np.linspace(y_min, y_max, 300)
-)
-grid = np.c_[xx.ravel(), yy.ravel()]
-
-# Get decision boundary
-Zu = under.predict_proba(grid)[:,1].reshape(xx.shape)
-Zo = over.predict_proba(grid)[:,1].reshape(xx.shape)
-
-# Plot side by side
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8,4))
-
-for ax, Z, title in [
-    (ax1, Zu, 'Extreme Underfit'),
-    (ax2, Zo, 'Extreme Overfit')
-]:
-    ax.contourf(xx, yy, Z>0.5, alpha=0.3)
-    # draw precise decision boundary P=0.5
-    ax.contour(   xx, yy, Z, levels=[0.5], colors='k', linewidths=1.5)
-
-    ax.scatter(X_test[:,0], X_test[:,1], c=y_test, edgecolor='k')
-    ax.set_title(title)
-    ax.set_xlabel('Feature 1')
-    ax.set_ylabel('Feature 2')
-
-fig.suptitle('Underfitting vs. Overfitting in Classification', fontsize=16)
-plt.tight_layout(rect=[0,0.03,1,0.95])
-plt.show()
-```
-
-We can tell easily from the above visualization that both scenarios are harmful: underfitting prevents the model from making meaningful predictions, while overfitting results in unreliable predictions on real-world data. The example above also highlights the necessity to validate classifier quality using test data.
-
-While underfitting and overfitting can seem scary, there are many tools that have been developed to address this issue. We can adjust the complexity of the model, use regularization techniques, collect more data, or employ cross-validation to find a balance that generalizes well to new examples. These are left for you to explore on your own.
+Do you think the prediction is correct? 
 
 #### 6.4 Additional Note on Fine-tuning
 
@@ -1357,7 +1260,7 @@ Congratulations on completing this exploration, and we hope you feel inspired to
 - There are multiple different ways for computers to represent and understand content in images, including **intensity histograms**, **BoVW distribution** and **image embeddings**.
 - **Convolution** is a common technique to process and extract different features in input images. 
 - **Convolutional Neural Networks (CNN)** are trained models that mimic the way people view images and understand them through convolutional layers.
-- **Image embeddings** produced by a pretrained CNN map each kouros image into a high‑dimensional feature space. We can then apply **dimensionality‑reduction techniques** like **Principal Component Analysis** or **t‑distributed Stochastic Neighbor Embedding (t‑SNE)** to visualize clusters among different archaic sculptures.
+- **Image embeddings** produced by a pretrained CNN map each kouros image into a high‑dimensional feature space. We can then apply **dimensionality‑reduction techniques** such as **Principal Component Analysis** to visualize clusters among different archaic sculptures.
 - For formal classification of kouroi, such as distinguishing groups/eras or identifying materials, both **logistic regression** and **neural-network classification** provide robust methods to assign style labels based on extracted image features, but we should always be aware of issues such as **underfitting** and **overfitting**.
 - Different models may yield different results for image embedding, and sometimes the features recognized from an image are not exactly what we want. We should always be cautious about our results.
 
@@ -1368,12 +1271,13 @@ Congratulations on completing this exploration, and we hope you feel inspired to
 - **Convolutional Neural Network (CNN)**: Convolutional Neural Network is a type of feedforward neural network that learns features via filter (or kernel) optimization. It is distinguished from other neural networks by its superior performance with image, speech or audio signal inputs.
 - **Image Embedding**: Image Embedding is a process where images are transformed into numerical representations, called vectors, that capture the semantic meaning of the image. 
 - **Principal Component Analysis (PCA)**: Principal Component Analysis is a statistical technique that simplifies complex data sets by reducing the number of variables while retaining key information. It does so by finding the major axes where the data sets vary the most.
-- **t-distributed Stochastic Neighbor Embedding (t-SNE)**: t-SNE is a powerful technique for visualizing high-dimensional data in lower dimensions, typically two or three, while preserving the local structure of the data. It does this by converting similarities between data points in the high-dimensional space into probabilities and then minimizing the difference between these probabilities and those of the low-dimensional representation. 
+- **Logistic Regression**: Logistic Regression is a statistical model used for binary or multiclass classification tasks. It estimates the probability that an input belongs to a particular class by applying the logistic (sigmoid) function to a weighted sum of the input features, making it well-suited for problems where outputs are discrete categories.
+- **Multilayer Perceptron (MLP)**: A Multilayer Perceptron is a class of feedforward artificial neural network composed of an input layer, one or more hidden layers of nonlinear activation units, and an output layer. It learns complex patterns by adjusting the weights of connections through backpropagation and is versatile for both classification and regression tasks.
 - **Underfitting**: Underfitting in machine learning occurs when a model is too simple to capture the underlying patterns in the training data.
 - **Overfitting**: Overfitting in machine learning occurs when a model learns the training data too well, including its noise and random fluctuations, leading to poor performance on new, unseen data.
 
 
-### Appendix: Image Data Collection and Preprocessing from `.pdf` Files
+### Appendix A: Image Data Collection and Preprocessing from `.pdf` Files
 
 This part provides a brief overview of how the data was collected and preprocessed for the analysis, typically how we cropped the images and prepared the metadata.
 
@@ -1538,6 +1442,89 @@ df.sort_values(["page", "filename"], inplace=True)
 df.to_csv("label_template.csv", index=False)
 ```
 You can try out the scripts with your interested pdf files yourself by running them in a python environment.
+
+### Appendix B: The Risk of Underfitting and Overfitting
+
+In the context of machine learning, two common pitfalls are **underfitting** and **overfitting**. 
+
+**Underfitting** occurs when a model is too simple to capture the underlying patterns in the data, resulting in poor performance on both the training and test sets. This is often seen when using models like logistic regression on complex, non-linear datasets, as shown in the left panel above, where the decision boundary fails to separate the classes effectively. On the other hand, **overfitting** happens when a model is excessively complex, such as a deep neural network with many layers, and learns not only the true patterns but also the noise in the training data. This leads to excellent performance on the training set but poor generalization to new, unseen data, as illustrated in the right panel where the decision boundary is overly intricate. 
+
+Let's examine the two problems with a simulated two-class data:
+```{python}
+from sklearn.datasets     import make_moons
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model  import LogisticRegression
+from sklearn.neural_network import MLPClassifier
+
+# Generate a simulater two-class data
+X, y = make_moons(n_samples=500, noise=0.40, random_state=0)
+
+# Visualize the simulated data
+plt.figure(figsize=(6, 4))
+plt.scatter(X[:, 0], X[:, 1], c=y, cmap='coolwarm', edgecolor='k')
+plt.xlabel('Feature 1')
+plt.ylabel('Feature 2')
+plt.title('Simulated Two-Class Data')
+plt.show()
+```
+
+We can clearly see that the data is very non-linear, which gives us a hint that the right model should be able to account for non-linear relationships. However, for demonstration purposes, I will be using logistic regression to generate an underfitting classifier; and while MLP is suitable for use here, I will let it generate an overfitting classifier by significantly oversizing the neurons and iterations.
+
+```{python}
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.3, random_state=1
+)
+under = LogisticRegression()
+
+over  = MLPClassifier(hidden_layer_sizes=(200,200,200),
+                      max_iter=2000,
+                      random_state=1)
+
+# Train both models
+under.fit(X_train, y_train)
+over.fit(X_train, y_train)
+```
+
+Then, we get the decision boundaries of the two classifiers and visualize them with the test data, what do you find about their accuracy?
+
+```{python}
+# Build grid
+x_min, x_max = X[:,0].min() - .5, X[:,0].max() + .5
+y_min, y_max = X[:,1].min() - .5, X[:,1].max() + .5
+xx, yy = np.meshgrid(
+    np.linspace(x_min, x_max, 300),
+    np.linspace(y_min, y_max, 300)
+)
+grid = np.c_[xx.ravel(), yy.ravel()]
+
+# Get decision boundary
+Zu = under.predict_proba(grid)[:,1].reshape(xx.shape)
+Zo = over.predict_proba(grid)[:,1].reshape(xx.shape)
+
+# Plot side by side
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8,4))
+
+for ax, Z, title in [
+    (ax1, Zu, 'Extreme Underfit'),
+    (ax2, Zo, 'Extreme Overfit')
+]:
+    ax.contourf(xx, yy, Z>0.5, alpha=0.3)
+    # draw precise decision boundary P=0.5
+    ax.contour(   xx, yy, Z, levels=[0.5], colors='k', linewidths=1.5)
+
+    ax.scatter(X_test[:,0], X_test[:,1], c=y_test, edgecolor='k')
+    ax.set_title(title)
+    ax.set_xlabel('Feature 1')
+    ax.set_ylabel('Feature 2')
+
+fig.suptitle('Underfitting vs. Overfitting in Classification', fontsize=16)
+plt.tight_layout(rect=[0,0.03,1,0.95])
+plt.show()
+```
+
+We can tell easily from the above visualization that both scenarios are harmful: underfitting prevents the model from making meaningful predictions, while overfitting results in unreliable predictions on real-world data. The example above also highlights the necessity to validate classifier quality using test data.
+
+While underfitting and overfitting can seem scary, there are many tools that have been developed to address this issue. We can adjust the complexity of the model, use regularization techniques, collect more data, or employ cross-validation to find a balance that generalizes well to new examples. These are left for you to explore on your own.
 
 ### Reference
 1. Richter, G. M. A. (1970). *Kouroi: Archaic Greek youths: A study of the development of the Kouros type in Greek sculpture.* Phaidon. Accessed through Internet Archive <https://archive.org/details/kouroiarchaicgre0000rich>.
