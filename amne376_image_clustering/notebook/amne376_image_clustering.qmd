@@ -12,7 +12,6 @@ format:
   html:
     code-fold: true
     code-summary: "Show the code"
-    widget: true
     allow-html: true
   ipynb:
     jupyter:
@@ -20,8 +19,6 @@ format:
         display_name: Python
         language: python3
         name: python3
-execute:
-  output: true
 ---
 
 Before you start, make sure you have the required libraries installed, if not, simply **uncomment the lines below** (use `Ctrl + /`) and run the cell to install them: 
@@ -198,11 +195,105 @@ We note that the word 6 could represent the beads in the beadwork worn by the Ko
 #### 1.2 Measurement of Similarity
 
 As you may have realized, the visual word frequency distributions of different images are not exactly the same, so how can we determine if these images are similar? More importantly, what can we use as a criterion to categorize different images based on visual words? Here, we will use something called **cosine similarity** to make a measurement.
-
-
 <!-- ```{=html}
 <iframe src="../data/cosine_demo.html" width="600" height="600" style="border:none;"></iframe>
 ``` -->
+```{python}
+#| echo: false
+import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+
+# Academic style settings
+plt.rc('font', family='serif', size=12)
+plt.rc('axes', titlesize=14, labelsize=12)
+plt.rc('legend', fontsize=10)
+plt.rc('figure', titlesize=16)
+
+# Define vectors for each scenario
+# (a) general example
+v1_a = np.array([1, 0])
+v2_a = np.array([0.5, 0.8])
+# (b) same direction, different norms
+v1_b = np.array([1, 1])
+v2_b = np.array([2, 2])
+# (c) orthogonal vectors
+v1_c = np.array([1, 0])
+v2_c = np.array([0, 1])
+# (d) 3D example
+v1_d = np.array([-1, 1, 1])
+v2_d = np.array([1, -1, 1])
+
+# Function to compute cosine similarity
+def cosine_similarity(u, v):
+    return np.dot(u, v) / (np.linalg.norm(u) * np.linalg.norm(v))
+
+# Set up figure and subplots
+grid = plt.figure(constrained_layout=True, figsize=(8, 8))
+sub_a = grid.add_subplot(2, 2, 1)
+sub_b = grid.add_subplot(2, 2, 2)
+sub_c = grid.add_subplot(2, 2, 3)
+sub_d = grid.add_subplot(2, 2, 4, projection='3d')
+
+# Plot helper for 2D vectors
+def plot_2d(ax, u, v, title, color_u='C0', color_v='C1'):
+    # Plot vectors
+    ax.quiver(0, 0, u[0], u[1], angles='xy', scale_units='xy', scale=1,
+              color=color_u, label=r'$\mathbf{{u}}={} $'.format(u))
+    ax.quiver(0, 0, v[0], v[1], angles='xy', scale_units='xy', scale=1,
+              color=color_v, label=r'$\mathbf{{v}}={} $'.format(v))
+    # Compute cosine similarity
+    cos_sim = cosine_similarity(u, v)
+    # Title and labels
+    ax.set_title(f"{title}\nCosine similarity = {cos_sim:.2f}")
+    ax.set_xlabel('$x$')
+    ax.set_ylabel('$y$')
+    ax.grid(True)
+    ax.legend(loc='lower left')
+    # Set axis limits to keep vectors in view
+    max_val = max(np.linalg.norm(u), np.linalg.norm(v)) * 1.2
+    ax.set_xlim(-max_val + 0.5*max_val, max_val)
+    ax.set_ylim(-max_val + 0.5*max_val, max_val)
+    ax.set_aspect('equal')
+
+# (a) General example
+plot_2d(sub_a, v1_a, v2_a, '(a) General example')
+# (b) Same direction, different norms
+plot_2d(sub_b, v1_b, v2_b, '(b) Same direction, different norms')
+# (c) Orthogonal vectors
+plot_2d(sub_c, v1_c, v2_c, '(c) Orthogonal vectors')
+
+# (d) 3D static visualization
+ux, uy, uz = v1_d
+vx, vy, vz = v2_d
+sub_d.quiver(0, 0, 0, ux, uy, uz, length=1.0, normalize=True, color='C0',
+             label=r'$\mathbf{{u}}={} $'.format(v1_d))
+sub_d.quiver(0, 0, 0, vx, vy, vz, length=1.0, normalize=True, color='C1',
+             label=r'$\mathbf{{v}}={} $'.format(v2_d))
+cos_sim_d = cosine_similarity(v1_d, v2_d)
+sub_d.set_title(f"(d) 3D example\nCosine similarity = {cos_sim_d:.2f}")
+sub_d.set_xlabel('$x$')
+sub_d.set_ylabel('$y$')
+sub_d.set_zlabel('$z$')
+sub_d.legend(loc='best')
+
+# Adjust 3D axis limits symmetrically around origin
+def set_symmetric_limits(ax, vectors, margin=1.2):
+    norms = [np.linalg.norm(vec) for vec in vectors]
+    max_norm = max(norms) * margin
+    ax.set_xlim(-0.02, 1.5)
+    ax.set_ylim(-0.02, 1.5)
+    ax.set_zlim(-0.02, 1.5)
+
+set_symmetric_limits(sub_d, [v1_d, v2_d])
+
+# Modify viewing angle so origin appears at back
+sub_d.view_init(elev=30, azim=45)
+
+# Show all plots
+plt.suptitle("Examples of Cosine Similarity")
+plt.show()
+```
 
 You can think of the visual word frequency histogram for each image as an arrow in space, and cosine similarity is a measure of how much those arrows are pointing in the same direction. The criterion is very intuitive: the closer the cosine similarity of two images is to 1, the more similar the two images are; the closer the cosine similarity is to 0, the less similar the two images are.
 
