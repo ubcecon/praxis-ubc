@@ -12,7 +12,7 @@ format:
   html:
     code-fold: true
     code-summary: "Show the code"
-    allow-html: true
+    allow-html: false
   ipynb:
     jupyter:
       kernelspec:
@@ -84,7 +84,9 @@ plt.tight_layout()
 plt.show()
 ```
 
-Each of these images, when loaded into the computer, becomes a 2D array of numbers representing **intensity values**. We then plot the color histogram for each image representing the distribution of **grayscale intensity**. What do you notice by looking at the three histograms?
+Each of these images, when loaded into the computer, becomes a 2D array of numbers representing **intensity values**. We then plot the color histogram for each image representing the distribution of **grayscale intensity**. 
+
+> **Discussion:** What do you notice by looking at the three histograms?
 ```{python}
 # Generate and plot greyscale histograms for the selected images
 fig, axes = plt.subplots(1, 3, figsize=(7, 4))
@@ -189,7 +191,9 @@ if imgs:
     plt.show()
 ```
 
-We note that the word 6 could represent the beads in the beadwork worn by the Kouros. Based on your knowledge of the various Kouros, do you think this visual word can be the key to differentiating between different Kouros, or even different sculptural subjects?
+We note that the word 6 could represent the beads in the beadwork worn by the Kouros. 
+
+> **Discussion:** Based on your knowledge of the various Kouros, do you think this visual word can be the key to differentiating between different Kouros, or even different sculptural subjects?
 
 
 #### 1.2 Measurement of Similarity
@@ -783,7 +787,7 @@ for col, img in enumerate(images[:4]):
     axes[0, col].axis('off')
 
     axes[1, col].imshow(out_mid, cmap='gray')
-    axes[1, col].set_title(f'Late Layer #{col+1}')
+    axes[1, col].set_title(f'Mid Layer #{col+1}')
     axes[1, col].axis('off')
 
     axes[2, col].imshow(out_late, cmap='gray')
@@ -890,6 +894,9 @@ Here, we will use plotly to create interactive visualizations, feel free to play
 ```{python}
 from sklearn.decomposition import PCA
 import plotly.express as px
+import plotly.io as pio
+
+pio.renderers.default = "plotly_mimetype+notebook_connected"
 
 # load embeddings and metadata
 embeddings = np.load('../data/embeddings/convnextv2_image_embeddings.npy')
@@ -910,7 +917,7 @@ fig = px.scatter(
         x='PC1',
         y='PC2',
         color='era',
-        hover_data=('filename',), 
+        hover_data=['filename'], 
         title='Interactive PCA of Image Embeddings Colored by Era',
         width=700, height=500
     )
@@ -919,6 +926,8 @@ fig.show()
 ```
 
 ```{python}
+pio.renderers.default = "plotly_mimetype+notebook_connected"
+
 pc_df['material'] = df['material'].values
 
 fig = px.scatter(
@@ -926,7 +935,7 @@ fig = px.scatter(
         x='PC1',
         y='PC2',
         color='material',
-        hover_data=('filename',), 
+        hover_data=['filename'], 
         title='Interactive PCA of Image Embeddings Colored by Material',
         width=700, height=500
     )
@@ -934,7 +943,7 @@ fig = px.scatter(
 fig.show()
 ```
 
-Did you see any clear patterns of distributions by looking at the visualizations above? How can you interpret the results? What primary "features" do you think the PCA embedding captured in the first two dimensions?
+> **Discussion:** Did you see any clear patterns of distributions by looking at the visualizations above? How can you interpret the results? What primary "features" do you think the PCA embedding captured in the first two dimensions?
 
 ### 6. Classification of Kouroi 
 
@@ -962,7 +971,7 @@ Note that here we use image embeddings and labels as training data and test data
 ```{python}
 # Perform the classification of eras
 # Split the data into training and testing sets
-X_train1, X_test1, y_train1, y_test1 = train_test_split(X, y1, test_size=0.3, random_state=42, stratify=y1)
+X_train1, X_test1, y_train1, y_test1 = train_test_split(X, y1, test_size=0.25, random_state=42, stratify=y1)
 
 # Create a logistic regression model
 clf1 = LogisticRegression(max_iter=1000, random_state=42)
@@ -1014,15 +1023,18 @@ xx, yy = np.meshgrid(
 # Predict integer labels on the mesh
 Z = clf_2d.predict(np.c_[xx.ravel(), yy.ravel()]).reshape(xx.shape)
 
-# Plot
+# Plot the decision boundary
 plt.figure(figsize=(7,7))
 
 # light colors for regions
-cmap_light = ListedColormap(['#FFCCCC','#CCFFCC','#CCCCFF','#FFE5CC','#E5CCFF'][:len(le.classes_)])
+cmap_light = ListedColormap([
+    '#FFCCCC', '#CCFFCC', '#CCCCFF', '#FFE5CC', '#E5CCFF', '#FFFFCC', '#CCFFFF'
+][:len(le.classes_)])
 # bold colors for points
-cmap_bold  = ListedColormap(['#FF0000','#00AA00','#0000FF','#FF8000','#8000FF'][:len(le.classes_)])
+cmap_bold  = ListedColormap([
+    '#FF0000', '#00AA00', '#0000FF', '#FF8000', '#8000FF', '#FFFF00', '#00FFFF'
+][:len(le.classes_)])
 
-# contourf needs numeric Z
 plt.contourf(xx, yy, Z, alpha=0.3, cmap=cmap_light)
 
 # scatter original points, mapping back to string labels in the legend
@@ -1045,14 +1057,14 @@ plt.grid(True)
 plt.show()
 ```
 
-What can you say about this decision boundary?
+> **Discussion:** What can you say about this decision boundary?
 
 Similarly, we can use the same approach to classify material of Kouroi. We first perform a train-test split, then train the classifier, use the trained classifier to predict the labels of the test set, and print out the classification report for quality evaluation.
 
 ```{python}
 # Perform the classification of materials
 # Split the data into training and testing sets
-X_train2, X_test2, y_train2, y_test2 = train_test_split(X, y2, test_size=0.3, random_state=42, stratify=y2)
+X_train2, X_test2, y_train2, y_test2 = train_test_split(X, y2, test_size=0.25, random_state=42, stratify=y2)
 
 # Create a logistic regression model
 clf2 = LogisticRegression(max_iter=1000, random_state=42)
@@ -1076,7 +1088,7 @@ As you can see, the accuracy is much higher now, but does that mean the classifi
 
 We can also visualize the decision boundary on the 2D PCA of materials
 ```{python}
-# Prepare 2D data + labels
+# Prepare 2D data and labels
 X_pca = pc_df[['PC1','PC2']].values
 y_era = pc_df['material'].values
 
@@ -1099,7 +1111,7 @@ xx, yy = np.meshgrid(
 # Predict integer labels on the mesh
 Z = clf_2d.predict(np.c_[xx.ravel(), yy.ravel()]).reshape(xx.shape)
 
-# Plot
+# Plot the decision boundary
 plt.figure(figsize=(7,7))
 
 # light colors for regions
@@ -1107,7 +1119,6 @@ cmap_light = ListedColormap(['#FFCCCC','#CCFFCC','#CCCCFF','#FFE5CC','#E5CCFF'][
 # bold colors for points
 cmap_bold  = ListedColormap(['#FF0000','#00AA00','#0000FF','#FF8000','#8000FF'][:len(le.classes_)])
 
-# contourf needs numeric Z
 plt.contourf(xx, yy, Z, alpha=0.3, cmap=cmap_light)
 
 # scatter original points, mapping back to string labels in the legend
@@ -1130,7 +1141,7 @@ plt.grid(True)
 plt.show()
 ```
 
-Now, going back to the classification reports shown above, do you think the classifier trained on era is a good chronological classifier? What about materials? 
+> **Discussion:** Now, going back to the classification reports shown above, do you think the classifier trained on era is a good chronological classifier? What about materials? 
 
 #### 6.2 CNN Classification of Materials
 
@@ -1143,7 +1154,6 @@ import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 
 # Map the materials to integers
-
 MAT2IDX = {
     'Marble': 0,
     'Bronze': 1,
@@ -1152,7 +1162,7 @@ MAT2IDX = {
 
 # Create a custom dataset class for the Kouroi dataset
 class KouroiDataset(Dataset):
-    def __init__(self, img_dir, processor, mat2idx):
+    def __init__(self, df, img_dir, processor, mat2idx):
         self.df = df
         self.img_dir = image_directory
         self.processor = processor
@@ -1164,9 +1174,9 @@ class KouroiDataset(Dataset):
     def __getitem__(self, idx):
         row = self.df.iloc[idx]
         img = Image.open(os.path.join(self.img_dir, row.filename)).convert("RGB")
-        # turn to model inputs
+
         inputs = self.processor(images=img, return_tensors="pt")
-        # remove batch dim
+
         for k,v in inputs.items():
             inputs[k] = v.squeeze(0)
         label = self.mat2idx[row.material]
@@ -1174,9 +1184,32 @@ class KouroiDataset(Dataset):
 ```
 
 ```{python}
+# Tain-test split
+from torch.utils.data import random_split
+
+train_df, test_df = train_test_split(
+    df,
+    test_size=0.25,                 # 20% held out for testing
+    stratify=df["material"],       # preserve class proportions
+    random_state=42
+)
+
 # Initialize the dataset and dataloader
-dataset = KouroiDataset(image_directory, processor, MAT2IDX)
-loader  = DataLoader(dataset, batch_size=16, shuffle=True, num_workers=0)
+train_ds = KouroiDataset(
+    df=train_df,
+    img_dir=image_directory,
+    processor=processor,
+    mat2idx=MAT2IDX
+)
+test_ds  = KouroiDataset(
+    df=test_df,
+    img_dir=image_directory,
+    processor=processor,
+    mat2idx=MAT2IDX
+)
+
+train_loader = DataLoader(train_ds, batch_size=32, shuffle=True)
+test_loader  = DataLoader(test_ds,  batch_size=32, shuffle=False)
 ```
 
 As mentioned above, here we freeze the model so that training does not change the way it understands the input image.
@@ -1227,12 +1260,12 @@ Here, after setting up the new model, we will define the training loop and train
 # Set up the loss function and optimizer
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.head.parameters(), lr=1e-4, weight_decay=0.01)
-epochs = 10  
+epochs = 20  
 
 for epoch in range(1, epochs+1):
     model.train()
     total_loss = 0
-    for batch in tqdm(loader, desc=f"Epoch {epoch}/{epochs}"):
+    for batch in tqdm(train_loader, desc=f"Epoch {epoch}/{epochs}"):
         inputs, labels = batch
         # move to device
         inputs = {k:v.to(device) for k,v in inputs.items()}
@@ -1246,7 +1279,7 @@ for epoch in range(1, epochs+1):
 
         total_loss += loss.item() * labels.size(0)
 
-    avg_loss = total_loss / len(dataset)
+    avg_loss = total_loss / len(train_ds)
     print(f" Epoch {epoch} avg loss: {avg_loss:.4f}")
 ```
 
@@ -1257,7 +1290,7 @@ After training, we set the model to evaluation mode and assessed the classificat
 model.eval()
 all_preds, all_labels = [], []
 with torch.no_grad():
-    for inputs, labels in loader:
+    for inputs, labels in test_loader:
         if inputs is None: continue
         inputs = {k:v.to(device) for k,v in inputs.items()}
         logits = model(**inputs)
@@ -1271,7 +1304,9 @@ print("Classification Report for Materials:")
 print(report)
 ```
 
-Did you notice anything different in the result? 
+> **Discussion:** What difference did you notice in the result? Does this mean that MLP is not applicable to classifying materials?
+
+While the MLP classifier via CNN has advantages in dealing with more complex data structures (especially high-dimension nonlinear data), we note that it has two serious drawbacks: 1. it is more susceptible to the randomness of the training-testing split, with greater model variability; and 2. it is more susceptible to **overfitting**, whereas logistic regression is more susceptible to **underfitting** (for more detailed information on these concepts discussion can be found in Appendix B). This tells us that no one model is perfect for all situations. We must remain cautious in our choice of models.
 
 #### 6.3 Example: Predicting the Material of Unseen Kouroi Photos
 
@@ -1291,6 +1326,8 @@ plt.title(f"{new_artifact_label}")
 plt.axis('off')
 plt.show()
 ```
+
+> **Discussion:** Looking at this photo, how would you classify the era and material of this Kouros? 
 
 We pass it into our trained CNN classifier and see how it would be classified:
 ```{python}
@@ -1331,7 +1368,7 @@ predicted_material = predict_image(new_artifact_path, model, device)
 print("Predicted Material:", predicted_material)
 ```
 
-Do you think the prediction is correct? 
+> **Discussion:** Do you think the prediction is correct? 
 
 #### 6.4 Additional Note on Fine-tuning
 
@@ -1564,7 +1601,7 @@ We can clearly see that the data is very non-linear, which gives us a hint that 
 
 ```{python}
 X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.3, random_state=1
+    X, y, test_size=0.25, random_state=1
 )
 under = LogisticRegression()
 
