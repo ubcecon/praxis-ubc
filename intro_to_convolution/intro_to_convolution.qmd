@@ -1,15 +1,17 @@
 ---
 title: Introduction to Convolutions
-jupyter: python3
 author: prAxIs UBC Team <br>_Kaiyan Zhang_
-date: July 2025
+date: 2025-07-16
 description: This notebook provides an intuitive explanation of convolution and its application in multiple fields with some simple examples.
 categories:
   - Python
   - Convolution
   - Computer Vision
 format:
-  html: default
+  html: 
+    code-fold: true
+    code-summary: "Show the code"
+
   ipynb:
     jupyter:
       kernelspec:
@@ -19,7 +21,7 @@ format:
 
 ---
 
-Before you start, make sure you have the required libraries installed, if not, simply **uncomment the lines below** (use `Ctrl + /`) and run the cell to install them: 
+Before you start, make sure you have the required libraries installed, if not, simply **uncomment the lines below** and run the cell to install them: 
 
 ```{python}
 # !pip install opencv-python
@@ -29,7 +31,7 @@ Before you start, make sure you have the required libraries installed, if not, s
 # !pip install scikit-learn
 ```
 
-![A visualization of convolution operation](images/convolution-operation-diagram.png)
+![*Figure 1.* A visualization of convolution operation (Wikipedia contributors, 2025)](images/convolution-operation-diagram.png)
 
 ### Why Convolutions? 
 
@@ -47,8 +49,10 @@ import matplotlib.pyplot as plt
 
 
 # Read the image in BGR format
+# Note this is the default input format of Python OpenCV
 doge_bgr = cv2.imread('images/Original_Doge_meme.jpg')
 
+# Therefore we need to convert the color mapping to RGB
 doge_rgb = cv2.cvtColor(doge_bgr, cv2.COLOR_BGR2RGB)
 
 # Display the image using matplotlib
@@ -61,7 +65,9 @@ plt.show()
 
 The image doesn't look like numbers, does it? In fact, if we zoom in close enough, we can clearly see that the image is made up of pixels. But we still don't see the numbers, this is because the numerical information is decoded by the computer and displayed as a colored pixel. However, we can easily convert the image into a numerical representation.
 
-For demonstration purpose, I rescale the image to a 10 $\times$ 10 grid, where within each cell, the tuple represents the RGB values (0-255) of each pixel. Note that compressing images to a smaller size is always easier comparing to enhancing images to a larger size, as compression can be done by going through the image pixel by pixel and averaging the color values in each cell, while enhancement usually requires more complex operations. This gives us a hint on why convolution is important. 
+For demonstration purpose, the image is rescaled to a 10 $\times$ 10 grid, where within each cell, the numbers represents the R, G, B values (0-255) of each pixel. 
+
+Note that compressing images to a smaller size is always easier comparing to enhancing images to a larger size, as compression can be done by going through the image pixel by pixel and averaging the color values in each cell, while enhancement usually requires more complex operations. This gives us a hint on why convolution is important. 
 
 ```{python}
 img_rgb = cv2.resize(doge_rgb, (10, 10), interpolation=cv2.INTER_NEAREST)
@@ -97,9 +103,9 @@ plt.show()
 
 The image has become a little abstract. Can you still identify the original image out of it? 
 
-While the resized image looked significantly different, it still contains the necessary information, and same ideas also transits to larger images. That is, all images can be represented as a grid of numbers, where the 3 numbers in each cell corresponds to the color of a pixel. Computers can't see colors like we do, the way they see colors is as if they were mixing colors using a palette that only has red, green and blue (**RGB**), where each color has an "amount" of intensity between 0 and 255. With the 3 values for red, green and blue, computers can create any color we see in the world.
+While the resized image looked significantly different, it still contains the necessary information, and same ideas also applies to larger images. That is, all images can be represented as a grid of numbers, where the 3 numbers in each cell corresponds to the color of a pixel. Computers can't see colors like we do, the way they see colors is as if they were mixing colors using a palette that only has red, green and blue (**RGB**), where each color has an "amount" of intensity between 0 and 255. With the 3 values for red, green and blue, computers can create any color we see in the world.
 
-Back to the dog picture, it is easy to see that resizing the image to a smaller grid loses a lot of details, especially the rich color that makes the image vibrant. If we want to keep the complete color information alternatively, we can plot out the distribution of the RGB values and frequencies in the image using a histogram. While this gives us a good idea of the color distribution, it does not tell us much about the spatial relationships between the pixels.
+Back to the dog picture, it is easy to see that resizing the image to a smaller grid loses a lot of details, especially the rich color that makes the image vibrant. If we want to keep the complete color information, alternatively, we can plot out the distribution of the RGB values and frequencies in the image using a histogram. While this gives us a good idea of the color distribution, it does not tell us much about the spatial relationships between the pixels.
 
 ```{python}
 # Compute and plot the color histogram
@@ -134,22 +140,25 @@ The example above shows us what images are like in the eyes of a computer. Compu
 
 Before we dive into the application of it, let's first understand how convolution operate on an image in a more intuitive way:
 
-Imagine you are copying a painting, you first made a draft of the same size against the original painting and now you want to color it. Other than making your painting a 100% identical copy, you want to add some personal touch to it, so you decide to use a brush with a specific pattern to color the draft. Wherever you apply the brush, it will color the region it touches with a brighter color than the original painting, and your color your draft from left to right, top to bottom, until the whole draft is colored with the brush. You end up with a new painting that is similar to the original one, but with a different style.
+Think of copying a painting by first sketching its outline at the same size. To add your own flair, you use a patterned brush: wherever the brush touches, it brightens the paint. You move this brush methodically across your sketch, from left to right, top to bottom so every spot is stamped with the pattern, tweaking the original image into something familiar yet distinctly styled.
 
 Here, the brush you used is called a **kernel** in the context of convolution, and the process of applying the brush is what we call **convolution operation**. We would define the kernel as a small matrix of numbers that represents the pattern of the brush, and the convolution operation as the process of transforming the original image by applying the kernel to it.
 
 Here is a gif illustrating how our filter (the kernel) will work on the image mathematically. You can see it as the small brush that slides over the image, operating on a small region of the image at a time, and eventually producing a new image that was completely transformed by the filter.
 
-![Convolution Example](images/sharpener_kernel.gif)
+![*Figure 2.* Visual explanation of sharpening filter (Wikipedia contributors, 2025)](images/sharpener_kernel.gif)
 
 Now, let's return to the example of the cute dog picture. What we are going to apply is a brush called **sharpening filter**, it is a 3 $\times$ 3 matrix that looks like this:
 
-$$\text{Sharpening Filter} = \begin{bmatrix}
+$$
+\text{Sharpening Filter} = \begin{bmatrix}
  0 &-1 & 0 \\
 -1 & 5 & -1 \\
  0 & -1 & 0 
-\end{bmatrix}$$
-**Don't panic** as we are not going to do any math here, we will just let computer do the math for us. The only thing you need to know is that this kernel will enhance the edges of the image, making it look sharper and more defined. In fact, if you take a closer look at the kernel, you will see that it has a positive value in the center and negative values around it, and it has 0 values on the corners. This exactly looks like a brush that enhances the center of a region while reducing the intensity of the surrounding pixels, which is exactly what we want to achieve with the filter.
+\end{bmatrix}
+$$
+
+Don't panic as we are not going to do any math here, we will just let computer do the math for us. The only thing you need to know is that this kernel will enhance the edges of the image, making it look sharper and more defined. In fact, if you take a closer look at the kernel, you will see that it has a positive value in the center and negative values around it, and it has 0 values on the corners. This exactly looks like a brush that enhances the center of a region while reducing the intensity of the surrounding pixels, which is exactly what we want to achieve with the filter.
 
 ```{python}
 # Define the sharpening filter
@@ -226,7 +235,7 @@ It worked as we expected, now the dog image becomes more blurry.
 
 However, convolution on image is not limited to filtering, it can also be used to **extract features** from the image. For example, we can use a kernel to detect edges, lines and texts in images, we can even use specific kernels to detect specific shapes or patterns in images, such as a kernel that detects anything that looks like a dog. As you can imagine, this is a very powerful tool in many applications, in fact, you most likely have already used it in your daily life. For example, when you use a photo editing app to apply a filter to your picture, the app is using convolution. When you use a search engine to search do image searches, the search engine is using convolution to extract features from the images and match them with your search query. Let's say, the thing you are trying to find is eyes, the gif below shows how a convolution kernel detects "eyes" in an image:
 
-<img src="images/eye_detection_kernel.gif" alt="A visualization of convolution operation that detects a feature" width="600"/>
+![*Figure 3.* Eye detection kernel (Neuromatch Academy, 2025)](images/eye_detection_kernel.gif)
 
 This is a very simple example, and it is implemented exactly the same way as we did with the sharpening filter. The only difference is that to extract a specific features, we need to use a "brush" designed to detect that feature, which usually requires some knowledge of the feature we want to extract. For example, if we want to detect eyes in the painting, we would need our "brush" to understand what eyes look like and what typical colors they have. This could be way too complicated for a single "brush", so we often use multiple brushes to detect different features when it comes to the task of feature extraction. 
 
@@ -245,7 +254,7 @@ $$\text{Horizontal Sobel} = \begin{bmatrix}
 \end{bmatrix} 
 $$
 
-Still, **don't panic**, we won't do any math in this notebook. All you need to know is these two kernels together are called **Sobel filter**, and what they do is highlighting the edges in the image, making them more visible. If you take a closer look at the kernels, you will see that the first one has positive values on the left and negative values on the right, while the second one has positive values on the top and negative values on the bottom. This pattern intuitively tells us that the first "pen" will scan through the image horizontally and extract the horizontal edges, while the second "pen" will scan through the image vertically and extract the vertical edges. 
+Still, don't panic, we won't do any math in this notebook. All you need to know is these two kernels together are called **Sobel filter**, and what they do is highlighting the edges in the image, making them more visible. If you take a closer look at the kernels, you will see that the first one has positive values on the left and negative values on the right, while the second one has positive values on the top and negative values on the bottom. This pattern intuitively tells us that the first "pen" will scan through the image horizontally and extract the horizontal edges, while the second "pen" will scan through the image vertically and extract the vertical edges. 
 
 Let's now look at a different example and see what happens when we apply the Sobel filter.
 
@@ -371,7 +380,7 @@ Here, we have generated three other visualizations based on the extracted edge d
 
 The examples above demonstrated the power of convolution in both image processing and image analysis, and more importantly, convolution is very efficient, as it is easy for computers to understand and process, and can be applied to images of any size without losing any information. This is why convolution has become a fundamental operation in computer vision and image processing. 
 
-But as you have probably aware, implementing convolution from scratch can be quite tedious, especially when we need to perform more specific tasks such as detecting texts or some specific shapes. To protect the brains of computer scientists, a more advanced, adaptable and efficient way of applying convolution has been developed, which is called **Convolutional Neural Networks (CNNs)**, and we will discuss it in the next notebook, hopefully in a way that also protects your brain.
+But as you have probably aware, implementing convolution from scratch can be quite tedious, especially when we need to perform more specific tasks such as detecting texts or some specific shapes. To protect the brains of computer scientists, a more advanced, adaptable and efficient way of applying convolution has been developed, which is called **Convolutional Neural Network (CNN)**, and we will discuss it in the next notebook, hopefully in a way that also protects your brain.
 
 ### Key takeaways:
 
@@ -381,17 +390,23 @@ But as you have probably aware, implementing convolution from scratch can be qui
 4. Convolution is a powerful tool that can be used in many applications, such as photo editing, image search and feature extraction. It is efficient and can be applied to images of any size without losing information.
 
 ### Glossary
+
 - **Computer Vision**: Computer vision is a field of artificial intelligence that enables computers to "see" and interpret images and videos in a way that is similar to human vision.
 - **Convolution**: Convolution is an operation that applies a filter (kernel) to an image, transforming it in a way that enhances certain features or extracts useful information. It is like using a brush to color a painting or a pen to sketch a line art.
 - **Kernel/Filter/Mask**: A convolution kernel, also known as a filter or mask, is a small matrix (array of numbers) used in image processing and computer vision to perform operations like blurring, sharpening, edge detection, and more.
 
 ### Additional Resources
 
-- [3Blue1Brown: But what is a convolution?](https://www.youtube.com/watch?v=KuXjwB4LzSA) A mathematical introductory video to convolution with rich visualized explanations. This may be particularly helpful to those who want to dig deeper in the mathematical perspective and were not panic when they saw the matrices show up in this notebook (I'm really sorry if that made you nervous).
+* **3Blue1Brown.** (2018, August 15). *But what is a convolution?* \[Video]. YouTube. [https://www.youtube.com/watch?v=KuXjwB4LzSA](https://www.youtube.com/watch?v=KuXjwB4LzSA) This video graphically explains the mathematical operation of convolution.
+
+---
 
 ### References
 
-- Wikipedia. Convolution. Retrieved June 18, 2025, from <https://en.wikipedia.org/wiki/Convolution>
-- Neuromatch Academy. Computational Neuroscience. Tutorial 2: Convolutional Neural Networks. Retrieved June 18, 2025, from <https://compneuro.neuromatch.io/tutorials/intro.html>
-- GeeksForGeeks. Types of Convolution Kernels <https://www.geeksforgeeks.org/deep-learning/types-of-convolution-kernels>
-- OpenCV. Image Processing in OpenCV <https://docs.opencv.org/4.x/d2/d96/tutorial_py_table_of_contents_imgproc.html>
+* Wikipedia contributors. (2025, June 18). *Convolution*. In *Wikipedia, The Free Encyclopedia*. Retrieved June 18, 2025, from [https://en.wikipedia.org/wiki/Convolution](https://en.wikipedia.org/wiki/Convolution)
+
+* Neuromatch Academy. (2025). *Computational Neuroscience: Tutorial 2—Convolutional Neural Networks*. Retrieved June 18, 2025, from [https://compneuro.neuromatch.io/tutorials/intro.html](https://compneuro.neuromatch.io/tutorials/intro.html)
+
+* GeeksforGeeks. (n.d.). *Types of Convolution Kernels*. Retrieved July 16, 2025, from [https://www.geeksforgeeks.org/deep-learning/types-of-convolution-kernels](https://www.geeksforgeeks.org/deep-learning/types-of-convolution-kernels)
+
+* OpenCV.org. (n.d.). *Image Processing in OpenCV*. Retrieved July 16, 2025, from [https://docs.opencv.org/4.x/d2/d96/tutorial\_py\_table\_of\_contents\_imgproc.html](https://docs.opencv.org/4.x/d2/d96/tutorial_py_table_of_contents_imgproc.html)
