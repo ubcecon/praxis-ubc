@@ -1,7 +1,7 @@
 ---
 title: Introduction to Convolutions
 author: prAxIs UBC Team <br>_Kaiyan Zhang_
-date: 2025-07-16
+date: 2025-07-22
 description: This notebook provides an intuitive explanation of convolution and its application in multiple fields with some simple examples.
 categories:
   - Python
@@ -145,7 +145,7 @@ Here, the brush you used is called a **kernel** in the context of convolution, a
 
 Here is a gif illustrating how our filter (the kernel) will work on the image mathematically. You can see it as the small brush that slides over the image, operating on a small region of the image at a time, and eventually producing a new image that was completely transformed by the filter.
 
-![*Figure 2.* Visual explanation of sharpening filter (Michael Plotke, 2013)](images/sharpener_kernel.gif)
+![*Figure 2.* Visual explanation of sharpening filter (Michael Plotke, Wikipedia, 2013)](images/sharpener_kernel.gif)
 
 Now, let's return to the example of the cute dog picture. What we are going to apply is a brush called **sharpening filter**, it is a 3 $\times$ 3 matrix that looks like this:
 
@@ -157,7 +157,28 @@ $$
 \end{bmatrix}
 $$
 
-Don't panic as we are not going to do any math here, we will just let computer do the math for us. The only thing you need to know is that this kernel will enhance the edges of the image, making it look sharper and more defined. In fact, if you take a closer look at the kernel, you will see that it has a positive value in the center and negative values around it, and it has 0 values on the corners. This exactly looks like a brush that enhances the center of a region while reducing the intensity of the surrounding pixels, which is exactly what we want to achieve with the filter.
+Don't panic as we are not going to do any math here, we will just let computer do the math for us. The only thing you need to know is that this kernel will enhance the edges of the image, making it look sharper and more defined. For better understanding, let's visualize it to see what this kernel look like in grey-scale:
+
+```{python}
+sharp_kernel = np.array([
+    [ 0, -1,  0],
+    [-1,  5, -1],
+    [ 0, -1,  0]
+], dtype=np.float32)
+
+fig, ax = plt.subplots(figsize=(4, 4))
+
+# Display with true gray-scale between kernel's min and max
+im = ax.imshow(sharp_kernel, cmap='gray_r',
+               vmin=sharp_kernel.min(), vmax=sharp_kernel.max())
+ax.set_title('Sharpening Kernel')
+ax.axis('off')
+
+plt.tight_layout()
+plt.show()
+```
+
+If you take a closer look at the kernel, you will see that it has a positive value in the center and negative values around it, and it has 0 values on the corners. This exactly looks like a brush that enhances the center of a region while reducing the intensity of the surrounding pixels, which is exactly what we want to achieve with the filter.
 
 ```{python}
 # Define the sharpening filter
@@ -198,8 +219,40 @@ $$\text{Box Blur Filter} = \begin{bmatrix}
 \end{bmatrix}
 $$
 
-Let's see what it will make.
+Visually, this kernel is a filter that looks like: 
 
+```{python}
+id_kernel = np.array([
+  [ 1, 1, 1],
+  [ 1, 1, 1],
+  [ 1, 1, 1]
+])
+
+blur_kernel = np.array([
+    [1/9, 1/9, 1/9],
+    [1/9, 1/9, 1/9],
+    [1/9, 1/9, 1/9]
+], dtype=np.float32)
+
+fig, axes = plt.subplots(1, 2, figsize=(8, 4))
+
+for ax, kernel, title in zip(axes, [id_kernel, blur_kernel],
+                             ['Input Image', 'Box Blur Kernel']):
+    # Show actual values in gray-scale
+    im = ax.imshow(kernel, cmap='gray_r', vmin=0, vmax=1)
+    ax.set_title(title)
+    ax.axis('off')
+
+    # Draw horizontal and vertical boundary lines at half‐integer positions
+    for i in range(1, kernel.shape[0]):
+        ax.axhline(i - .5, color='white', linewidth=1.5, zorder=1)
+        ax.axvline(i - .5, color='white', linewidth=1.5, zorder=1)
+
+plt.tight_layout()
+plt.show()
+```
+
+Let's see what it will make on our input image.
 ```{python}
 # Define the box blur filter
 kernel = np.array([
@@ -253,7 +306,36 @@ $$\text{Horizontal Sobel} = \begin{bmatrix}
 \end{bmatrix} 
 $$
 
-Still, don't panic, we won't do any math in this notebook. All you need to know is these two kernels together are called **Sobel filter**, and what they do is highlighting the edges in the image, making them more visible. If you take a closer look at the kernels, you will see that the first one has positive values on the left and negative values on the right, while the second one has positive values on the top and negative values on the bottom. This pattern intuitively tells us that the first "pen" will scan through the image horizontally and extract the horizontal edges, while the second "pen" will scan through the image vertically and extract the vertical edges. 
+Still, don't panic, we won't do any math in this notebook. All you need to know is these two kernels together are called **Sobel filter**, and what they do is highlighting the edges in the image, making them more visible. We can also visualize them as follows:
+```{python}
+
+h_kernel = np.array([
+    [ 1, 0, -1],
+    [ 2, 0, -2],
+    [ 1, 0, -1]
+])
+
+v_kernel = np.array([
+    [ 1, 2, 1],
+    [ 0, 0, 0],
+    [ -1, -2, -1]
+])
+
+# Plot the kernels
+fig, axes = plt.subplots(1, 2, figsize=(8, 4))
+
+for ax, kernel, title in zip(axes, [np.abs(h_kernel), np.abs(v_kernel)],
+                             ['Horizontal Kernel', 'Vertical Kernel']):
+    # Show actual values in gray-scale
+    im = ax.imshow(kernel, cmap='gray_r', vmin=0, vmax=2)
+    ax.set_title(title)
+    ax.axis('off')
+
+plt.tight_layout()
+plt.show()
+```
+
+If you take a closer look at the kernels, you will see that the first one has positive values on the left and negative values on the right, while the second one has positive values on the top and negative values on the bottom. This pattern intuitively tells us that the first "pen" will scan through the image horizontally and extract the horizontal edges, while the second "pen" will scan through the image vertically and extract the vertical edges. 
 
 Let's now look at a different example and see what happens when we apply the Sobel filter.
 
@@ -289,7 +371,7 @@ fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 5))
 
 # Input
 ax1.imshow(hill_rgb)
-ax1.set_title("Input Image")
+ax1.set_title('Input Image \n xiquinhosilva (2018). "Elephant Trunk Hill"')
 ax1.axis("off")
 
 # Output
@@ -371,15 +453,15 @@ plt.tight_layout()
 plt.show()
 ```
 
-Here, we have generated three other visualizations based on the extracted edge data. 
+Here, we have generated three visualizations based on the extracted edge data. 
 
 - The first visualization is a **Contour Map** on the original image. It circles contours from the image that are distinguishable from others. In many cases, this implies the circled regions have different visual patterns or belong to different objects, which is very useful in tasks such as image recognition. 
 - The second visualization is the **Edge Density Heatmap** that assigns corresponding heat values to regions on the image based on the density distribution of the edges. The lighter the color, the higher the edge density of the region. This helps us to understand which area of the image carries the most information that may be of interest to us.
 - The third visualization is a histogram showing the distribution of **edge orientations**. edge orientation is the direction of the edge in the graph, expressed as the angle between the edge and the x-axis (horizontal line). Understanding the distribution of edge orientation can help us better recognize the graphical features of objects in an image for tasks such as classification. For example, based on this image featuring a hill and a water surface, we now know that the edges of these two objects typically have either a horizontal or vertical orientation.
 
-The examples above demonstrated the power of convolution in both image processing and image analysis, and more importantly, convolution is very efficient, as it is easy for computers to understand and process, and can be applied to images of any size without losing any information. This is why convolution has become a fundamental operation in computer vision and image processing. 
+The examples above demonstrated the power of convolution in both image processing and image analysis, and more importantly, convolution is very efficient, as it is easy for computers to understand and process, and can be applied to images of any size without losing information. This is why convolution has become a fundamental operation in computer vision and image processing. 
 
-But as you have probably aware, implementing convolution from scratch can be quite tedious, especially when we need to perform more specific tasks such as detecting texts or some specific shapes. To protect the brains of computer scientists, a more advanced, adaptable and efficient way of applying convolution has been developed, which is called **Convolutional Neural Network (CNN)**, and we will discuss it in the next notebook, hopefully in a way that also protects your brain.
+But as you have probably aware, implementing convolution from scratch can be quite tedious, especially when we need to perform more specific tasks such as detecting texts or some specific shapes. A more advanced, adaptable and efficient way of applying convolution has been developed, which is called **Convolutional Neural Network (CNN)**, and we will discuss it in the next notebook.
 
 ### Key takeaways:
 
@@ -405,6 +487,8 @@ But as you have probably aware, implementing convolution from scratch can be qui
 - Wikipedia contributors. (2025, June 18). *Convolution*. In *Wikipedia, The Free Encyclopedia*. Retrieved June 18, 2025, from [https://en.wikipedia.org/wiki/Convolution](https://en.wikipedia.org/wiki/Convolution)
 
 - Sato, A. (2010, September 13). Kabosu the Shiba Inu (“Doge”) [Photograph]. Flickr. This photo is cited and used under   [https://creativecommons.org/licenses/by-sa/2.0/](https://creativecommons.org/licenses/by-sa/2.0/)
+
+- xiquinhosilva. (2018, June 14), Elephant Trunk Hill [Photograph]. Flickr. This photo is cited and used under   [https://creativecommons.org/licenses/by-sa/2.0/](https://creativecommons.org/licenses/by-sa/2.0/)
 
 - GeeksforGeeks. (n.d.). *Types of Convolution Kernels*. Retrieved July 16, 2025, from [https://www.geeksforgeeks.org/deep-learning/types-of-convolution-kernels](https://www.geeksforgeeks.org/deep-learning/types-of-convolution-kernels)
 
