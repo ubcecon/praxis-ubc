@@ -179,8 +179,8 @@ With the rise of digital platforms and generative AI, the scale, speed, and soph
 <li>Access a pre-trained machine learning model that can be used on our data.</li>
 </ol>
 <p>To do this, we are using the <code>import</code> statement which allows us to access the functions and capabilities of each module. The modules we are using allow us to complete differenet tasks. We will use Python to do communicate which capabilities we want to use and we will continue writing in Python to use these capabilities. It is what we are using to communicate what libraries or capabilities we want to use. We will learn more about what each module is doing as we continue to use them.</p>
-<div id="8ebef046" class="cell" data-execution_count="1">
-<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<div id="8ebef046" class="cell">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd <span class="co">#</span></span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> torch</span>
 <span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.model_selection <span class="im">import</span> train_test_split</span>
@@ -214,16 +214,19 @@ With the rise of digital platforms and generative AI, the scale, speed, and soph
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> data_pulling <span class="im">import</span> authenticate_kaggle, download_kaggle_datasets</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> data_pulling <span class="im">import</span> create_disinformation_dataset</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p>Now that we have successfully accessed all of the functions we need to carry out our disinformation investigation, we can start to look into the data we are working with. We are going to be using the <code>pandas</code> library, which is a popular tool to read and handle data. The block of code below will first load in the dataset named <code>russian_disinformation_tweets.csv</code> and then, based on the information contained in the file, it will <code>print</code> the specified information. In this case we are looking at three different features of our data:</p>
+<p>Now that we have successfully accessed all of the functions we need to carry out our disinformation investigation, we can start to look into the data we are working with. We are going to be using the <code>pandas</code> library, which is a popular tool to read and handle data. We begin by opening a <code>.csv</code> file that contains a collection of tweets from different sources, including verified Russian troll accounts, control groups, and other relevant tweet collections. The dataset has been pre-processed and saved as <code>combined_disinformation_dataset.csv</code>.We are focussed on looking at three different features of our data:</p>
 <ol type="1">
 <li>The names of the columns in our dataset</li>
 <li>The number of tweets not labeled as control i.e.&nbsp;russian disinformation</li>
 <li>The number of tweets labeled as control i.e.&nbsp;<em>not</em> russian disinformation</li>
 </ol>
-<p>The code below also does a little bit of housekeeping, by using the function <code>tweets.rename</code> to change the column names from <code>post_text</code> and <code>is_control</code> to <code>text</code> and <code>labels</code> respectively.</p>
 <p>Now, take a look a the output of this block and identify the number of disinformation tweets found in the data. How many non-disinformation tweets are in the data?</p>
 <p>💡 <strong>Hint:</strong> Python outputs the results of the code in the order it is written!</p>
-<p>⚠️ <strong>To remember:</strong> <code>labels == 1</code> indicates that a tweet originates from a</p>
+<p>⚠️ <strong>To remember:</strong> <code>labels == 1</code> indicates that tweet originates from a disinformation source, while label == 0 indicates a control (non-disinformation) tweet.</p>
+<p>We also create a dropdown menu so that you can filter the dataset interactively by source. For example, to see only tweets from the Internet Research Agency (IRA) or Ukraine War.</p>
+<blockquote class="blockquote">
+<p>💡 <em>Try selecting different sources from the dropdown to see how the tone and language of tweets might vary.</em></p>
+</blockquote>
 <div id="f0c492f0" class="cell">
 <div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>create_disinformation_dataset()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
@@ -235,7 +238,7 @@ With the rise of digital platforms and generative AI, the scale, speed, and soph
 <pre><code>Index(['date', 'time', 'text', 'source', 'language', 'label'], dtype='object')</code></pre>
 </div>
 </div>
-<div id="714c21aa" class="cell" data-execution_count="3">
+<div id="714c21aa" class="cell">
 <div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>unique_categories <span class="op">=</span> [<span class="st">'All'</span>] <span class="op">+</span> <span class="bu">sorted</span>([<span class="bu">str</span>(cat) <span class="cf">for</span> cat <span class="kw">in</span> tweets[<span class="st">'source'</span>].unique().tolist()])</span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -272,9 +275,20 @@ With the rise of digital platforms and generative AI, the scale, speed, and soph
 </script>
 </div>
 </div>
-<p>To continue exploring the data, we are going to take a look at tweets that are labeled as control tweets, meaning they are not Russian disinformation. These tweets just come from regular users posts. These posts are not necessarily apolitical, or without an attempt to persuade, however, they do not meet the dataset criteria of disinformation.</p>
+<p>The dropdown menu below allows us to filter and view tweets based on whether they were labeled as disinformation or not.</p>
+<p>This dropdown gives us two options: - <code>1</code> → Tweets labeled as disinformation - <code>0</code> → Tweets labeled as control (non-disinformation)</p>
+<blockquote class="blockquote">
+<ul>
+<li>Take some time to explore both categories.</li>
+<li>Do you notice any patterns in tone, topic, or style?</li>
+<li>What kinds of clues might suggest whether a tweet was created as part of a disinformation campaign? &lt;!– To continue exploring the data, we are going to take a look at tweets that are labeled as control tweets, meaning they are not Russian disinformation. These tweets just come from regular users posts. These posts are not necessarily apolitical, or without an attempt to persuade, however, they do not meet the dataset criteria of disinformation.</li>
+</ul>
+</blockquote>
 <p>Take a look at a few of the characteristics of the tweets below, looking at both the text of the tweets and the data associated with each post. Some of the tweets look very similar to each other. Look through the tweet metadata and examine if any of the other characteristics of the posts are similar.</p>
-<p>Think about what you might be able to infer from each user based on their posts, and the metadata avaialable to us in this dataset. Consider what is missing from this picture as well. What data might be unavailable to us, and how does it limit our picture of these users. While you are building a picture of the twitter user (their beliefs, intent, history, posting time, etc…) come up with a few reasons why these users were not labeled as disinformation.</p>
+<blockquote class="blockquote">
+<p>Think about : - What you might be able to infer from each user based on their posts, and the metadata avaialable to us in this dataset ? - What is missing from this picture ? - What data might be unavailable to us ? - How does it limit our picture of these users ?</p>
+<p>While you are building a picture of the twitter user (their beliefs, intent, history, posting time, etc…) come up with a few reasons why these users were not labeled as disinformation. –&gt;</p>
+</blockquote>
 <div id="d08c68f9" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>category_dropdown <span class="op">=</span> widgets.Dropdown(options<span class="op">=</span>[<span class="dv">0</span>, <span class="dv">1</span>], value<span class="op">=</span><span class="dv">1</span>,  description<span class="op">=</span><span class="st">'Filter by Label:'</span>,style<span class="op">=</span>{<span class="st">'description_width'</span>: <span class="st">'initial'</span>}, layout<span class="op">=</span>{<span class="st">'width'</span>: <span class="st">'400px'</span>})</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>pd.options.display.max_colwidth <span class="op">=</span> <span class="va">None</span></span>
@@ -302,18 +316,25 @@ With the rise of digital platforms and generative AI, the scale, speed, and soph
 </script>
 </div>
 </div>
-<p>For now, let’s focus soley on the propagandist dataset: Recall that the tweets here originate from two seperate datasets– one from known propagandist accounts active around and before the 2016 US presidential election, and one from known propagandist accounts discovered during the start of the Russia-Ukraine war in 2022.</p>
-<p>Now that we know a little bit about the data and our users, we are going to continue doing some housekeeping by converting the post time and date from characters to into dates that are able to be interpreted by the computer and used for analysis. Additionally, we’ll create a follower/following ratio to add another dimension to our data.</p>
-<p>We can then use this information to visualize the posting activity of the disinformation bots and the control tweets. In our visualization, the label <code>True</code> corresponds to tweets that are part of the control group and the label <code>False</code> corresponds to tweets containing disinformation.</p>
-<p>There are meany ways the posting activity could be represented visually. In this graph we are representing the posting activity by the week over the course of a decade. It is important to select a scale which is appropriate for the amount of data we are working with, especially if that data spans a wide range. Here we are using a log scale on the y-axis (the number of posts)</p>
-<blockquote class="blockquote">
-<p>A Log (or logarithmic) scale is a way to represent data which spans large numerical ranges, and makes it easier to visualize and interpret data that changes dramatically.</p>
-</blockquote>
-<p>As you look at the graph pay close attention to the following:</p>
-<ol type="1">
-<li><p>General trends in activity. Does either type of tweet increase over time? Is there any stagnation? Which years had the most weekly overall activity?</p></li>
-<li><p>Which years stick out as being exceptionally different. Consider some key events from those years. If nothing comes to mind immediately, do a quick search for top news topics of those years in your browser.</p></li>
-</ol>
+<p>⚠️ For now, let’s focus soley on the propagandist dataset: Recall that the tweets here originate from two seperate datasets– one from known propagandist accounts active around and before the 2016 US presidential election, and one from known propagandist accounts discovered during the start of the Russia-Ukraine war in 2022.</p>
+<p>Now that we’ve isolated tweets labeled as disinformation, let’s take a closer look at some of their features.</p>
+<section id="tweet-length-comparison" class="level4">
+<h4 class="anchored" data-anchor-id="tweet-length-comparison">1. <strong>Tweet Length Comparison</strong></h4>
+<p>First, we examine the <strong>length of tweets</strong> (measured in number of characters) for each source of disinformation: - <strong>IRA</strong>: Tweets from the Internet Research Agency (a known Russian troll farm). - <strong>War Propaganda</strong>: Tweets from more recent Russian disinformation campaigns around the Ukraine war.</p>
+<p>The chart below shows how long the tweets tend to be, and whether one source tends to use longer or shorter messages. The <strong>density</strong> is like a picture that shows how many tweets are short, medium, or long. Instead of counting them one by one, it draws a smooth hill. The taller the hill, the more tweets there are at that length. It’s a simple way to see what tweet lengths are most common.</p>
+<!-- Now that we know a little bit about the data and our users, we are going to continue doing some housekeeping by converting the post time and date from characters to into dates that are able to be interpreted by the computer and used for analysis. Additionally, we'll create a follower/following ratio to add another dimension to our data. 
+
+We can then use this information to visualize the posting activity of the disinformation bots and the control tweets. In our visualization, the label `True` corresponds to tweets that are part of the control group and the label `False` corresponds to tweets containing disinformation. 
+
+There are meany ways the posting activity could be represented visually. In this graph we are representing the posting activity by the week over the course of a decade. It is important to select a scale which is appropriate for the amount of data we are working with, especially if that data spans a wide range. Here we are using a log scale on the y-axis (the number of posts) 
+
+> A Log (or logarithmic) scale is a way to represent data which spans large numerical ranges, and makes it easier to visualize and interpret data that changes dramatically. 
+
+As you look at the graph pay close attention to the following:
+
+1. General trends in activity. Does either type of tweet increase over time? Is there any stagnation? Which years had the most weekly overall activity?
+
+2. Which years stick out as being exceptionally different. Consider some key events from those years. If nothing comes to mind immediately, do a quick search for top news topics of those years in your browser. -->
 <div id="fd74ea22" class="cell" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>propaganda_df <span class="op">=</span> tweets[(tweets[<span class="st">'label'</span>] <span class="op">==</span> <span class="dv">1</span>) <span class="op">&amp;</span> (tweets[<span class="st">'text'</span>].notna())].copy()</span>
 <span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>propaganda_df[<span class="st">'tweet_length'</span>] <span class="op">=</span> propaganda_df[<span class="st">'text'</span>].<span class="bu">str</span>.<span class="bu">len</span>()</span>
@@ -338,6 +359,22 @@ With the rise of digital platforms and generative AI, the scale, speed, and soph
 </div>
 </div>
 </div>
+<p>This chart shows that IRA tweets tend to longer, while 2022 war propaganda tweets are shorter.</p>
+</section>
+<section id="posting-frequency-over-time" class="level4">
+<h4 class="anchored" data-anchor-id="posting-frequency-over-time">2. <strong>Posting Frequency Over Time</strong></h4>
+<p>Next, we look at <strong>how often each source posted tweets</strong>, broken down by week. There are meany ways the posting activity could be represented visually. In this graph we are representing the posting activity by the week over the course of a decade. It is important to select a scale which is appropriate for the amount of data we are working with, especially if that data spans a wide range. Here we are using a log scale on the y-axis (the number of posts)</p>
+<blockquote class="blockquote">
+<p>A Log (or logarithmic) scale is a way to represent data which spans large numerical ranges, and makes it easier to visualize and interpret data that changes dramatically.</p>
+</blockquote>
+<p>As you look at the graph pay close attention to the following:</p>
+<ol type="1">
+<li><p>General trends in activity. Does either type of tweet increase over time? Is there any stagnation? Which years had the most weekly overall activity?</p></li>
+<li><p>Which years stick out as being exceptionally different. Consider some key events from those years. If nothing comes to mind immediately, do a quick search for top news topics of those years in your browser. –&gt;</p></li>
+</ol>
+<blockquote class="blockquote">
+<p>💡 <em>This helps us understand when each campaign was most active and whether any patterns emerge across time.</em></p>
+</blockquote>
 <div id="2221e9ae" class="cell" data-execution_count="6">
 <div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>propaganda_df <span class="op">=</span> tweets[tweets[<span class="st">'label'</span>] <span class="op">==</span> <span class="dv">1</span>].copy()</span>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>propaganda_df[<span class="st">'date'</span>] <span class="op">=</span> pd.to_datetime(propaganda_df[<span class="st">'date'</span>], errors<span class="op">=</span><span class="st">'coerce'</span>)</span>
@@ -365,6 +402,16 @@ With the rise of digital platforms and generative AI, the scale, speed, and soph
 </div>
 </div>
 </div>
+<p>This chart shows that IRA disinformation was active from around 2012 to 2018, while war propaganda posts appeared suddenly in 2022 with shorter but intense bursts of activity.</p>
+</section>
+<section id="most-common-words-in-propaganda-tweets" class="level4">
+<h4 class="anchored" data-anchor-id="most-common-words-in-propaganda-tweets">3. <strong>Most Common Words in Propaganda Tweets</strong></h4>
+<p>Finally, we explore the <strong>top words used</strong> in disinformation tweets from each source.</p>
+<p>We clean the tweet text by: - Converting everything to lowercase. - Removing links, usernames, hashtags, and punctuation. - Filtering out common “stop words” (e.g., <em>the</em>, <em>and</em>, <em>is</em>).</p>
+<p>We then display the <strong>15 most frequent words</strong> used by: - IRA tweets (left panel, in blue) - War propaganda tweets (right panel, in red)</p>
+<blockquote class="blockquote">
+<p><em>This can help us see what each campaign was trying to talk about most—common topics, targets, or tactics in their messaging.</em></p>
+</blockquote>
 <div id="5941a180" class="cell" data-execution_count="7">
 <div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>stop_words <span class="op">=</span> <span class="bu">set</span>(stopwords.words(<span class="st">'english'</span>))</span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a></span>
@@ -402,14 +449,25 @@ With the rise of digital platforms and generative AI, the scale, speed, and soph
 </div>
 </div>
 </div>
-<p>Another dimmension we could look at with this data is the posting activity of Control vs.&nbsp;Disinformation tweets over the course of the day. Here we are going to define a function that will allow us to visualize the average number of posts across the course of a day, starting with Hour 0 until Hour 24. Take a look at the widgets below and play around with the dates to see how the tweet volume changes.</p>
-<p>🧠 <strong>Key Questions:</strong></p>
-<ul>
-<li>Consider why each account is posting at different times.</li>
-<li>Is there a meaningingful difference in who posts when? Why might that be?</li>
-<li>Is there anything surprising to you about the tweet volume at each hour?</li>
-</ul>
-<p>Think about some possible explanations for the trends in the data and consider whether it confirms or challenges your assumptions about how and when disinformation is produced.</p>
+<!-- The most common words used in disinformation tweets **(IRA tweets) focus on U.S. topi cs like “news” and “Trump,”** while **war propaganda tweets center on the Russia–Ukraine conflict with words like “ukraine,” “russian,” and “war.”**
+
+Another dimmension we could look at with this data is the posting activity of Control vs. Disinformation tweets over the course of the day. Here we are going to define a function that will allow us to visualize the average number of posts across the course of a day, starting with Hour 0 until Hour 24. Take a look at the widgets below and play around with the dates to see how the tweet volume changes. 
+
+
+🧠 **Key Questions:** 
+
+- Consider why each account is posting at different times.
+- Is there a meaningingful difference in who posts when? Why might that be?
+- Is there anything surprising to you about the tweet volume at each hour? 
+
+Think about some possible explanations for the trends in the data and consider whether it confirms or challenges your assumptions about how  and when disinformation is produced. -->
+</section>
+<section id="total-tweet-volume-by-hour-of-day-pst" class="level3">
+<h3 class="anchored" data-anchor-id="total-tweet-volume-by-hour-of-day-pst">Total Tweet Volume by Hour of Day (PST)</h3>
+<p>This visualization shows how active different disinformation sources are at different hours of the day, using Pacific Standard Time (PST).</p>
+<p>To create this chart: - Time was standardized - Tweets were grouped by hour and source to count the total number of tweets posted in each hour.</p>
+<p>The y-axis uses a <strong>logarithmic scale</strong> to make it easier to compare tweet volumes across different times of day, even when the numbers vary significantly.</p>
+<p>This helps identify <strong>patterns of posting behavior</strong>—such as whether certain disinformation sources tend to post more during specific times of the day.</p>
 <div id="6daa495c" class="cell">
 <div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(tweets)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
@@ -457,36 +515,60 @@ With the rise of digital platforms and generative AI, the scale, speed, and soph
 <p>If you freuqently use social media, take a look at you screen activity in your devices settings and look at the hours you frequently use social media applications. If you don’t have social media, find a partner who’s comfortable sharing their data with you and compare the hours of usage to the posting activity of the Disinformation accounts and the Control accounts.</p>
 </blockquote>
 <p>Does your usage align or differ from the activity of the accounts in our dataset?</p>
-<p>Below, we examine the breakdown of tweets by account type and language by subsetting our data. We are going to view the top 10 languages in our dataset with the following code which groups the data into the two catagories language and account type.</p>
-<p><strong>First,</strong> Lets identify the top 10 langauges in our data</p>
-<p>English, Undetermined, Russian, French, Spanish, Arabic, Portugese, UNKNOWN, Turksih, Italian</p>
-<p><strong>Second,</strong> for each langauge, we’ll determine which account is posting more frequently.</p>
-<blockquote class="blockquote">
-<p><strong>English:</strong> Disinforamtion</p>
-<p><strong>Undetermined:</strong> Disinformation</p>
-<p><strong>Russian:</strong> Control</p>
-<p><strong>Frech:</strong> Disinformation</p>
-<p><strong>Spanish:</strong> Control</p>
-<p><strong>Arabic:</strong> Disinformation</p>
-<p><strong>Portugese:</strong> Control</p>
-<p><strong>(UNKNOWN):</strong> Disinformation</p>
-<p><strong>Turkish:</strong> Disinformation</p>
-<p><strong>Italian:</strong> Control</p>
-</blockquote>
-<p>From this list we can see there are only four langauges which have more Control posts than disinformation posts. As we know, there are more disinformation posts in the dataset, so this is not necessarily surprising. One thing we can do to make this data more meaningul is to examine the ratio of control to disinformation tweets. This will help us determine where disinformation efforts are being focused linguistically.</p>
-<blockquote class="blockquote">
-<p><strong>English:</strong> .07</p>
-<p><strong>Undetermined:</strong> .03</p>
-<p><strong>Russian:</strong> 2.18</p>
-<p><strong>Frech:</strong> .62</p>
-<p><strong>Spanish:</strong> 2.99</p>
-<p><strong>Arabic:</strong> .40</p>
-<p><strong>Portugese:</strong> 4.55</p>
-<p><strong>(UNKNOWN):</strong> .40</p>
-<p><strong>Turkish:</strong> .45</p>
-<p><strong>Italian:</strong> 1.86</p>
-</blockquote>
-<p>From here we can see that excluding unknown languges the language with the lowest ratio (most disinformation) is very clearly English. As it appears rusian propagandists and disinformation agents are least concerned with Russia and Spain, and most aggressively target English information markets.</p>
+<!-- Below, we examine the breakdown of tweets by account type and language by subsetting our data. We are going to view the top 10 languages in our dataset with the following code which groups the data into the two catagories language and account type.
+
+**First,** Lets identify the top 10 langauges in our data
+
+English, Undetermined, Russian, French, Spanish, Arabic, Portugese, UNKNOWN, Turksih, Italian
+
+
+**Second,** for each langauge, we'll determine which account is posting more frequently.
+
+
+>**English:** Disinforamtion
+>
+>**Undetermined:** Disinformation
+>
+>**Russian:** Control
+>
+>**Frech:** Disinformation
+>
+>**Spanish:** Control
+>
+>**Arabic:** Disinformation
+>
+>**Portugese:** Control
+>
+>**(UNKNOWN):** Disinformation
+>
+>**Turkish:** Disinformation
+>
+>**Italian:** Control
+
+From this list we can see there are only four langauges which have more Control posts than disinformation posts. As we know, there are more disinformation posts in the dataset, so this is not necessarily surprising. One thing we can do to make this data more meaningul is to examine the ratio of control to disinformation tweets. This will help us determine where disinformation efforts are being focused linguistically.
+
+>**English:** .07
+>
+>**Undetermined:** .03
+>
+>**Russian:** 2.18
+>
+>**Frech:** .62
+>
+>**Spanish:** 2.99
+>
+>**Arabic:** .40
+>
+>**Portugese:** 4.55
+>
+>**(UNKNOWN):** .40
+>
+>**Turkish:** .45
+>
+>**Italian:** 1.86
+
+From here we can see that excluding unknown languges the language with the lowest ratio (most disinformation) is very clearly English. As it appears rusian propagandists and disinformation agents are least concerned with Russia and Spain, and most aggressively target English information markets. -->
+</section>
 <section id="hashtag-analysis" class="level2">
 <h2 class="anchored" data-anchor-id="hashtag-analysis">0.1 Hashtag analysis</h2>
 <p>The next step in our data analysis is going to explore the most frequent hashtags from each account type. The code below finds the 10 most frequent hashtags from the control accounts and the disinformation accounts and displays them with their frequency. As you look at the tables below, pay attention to the content and the language of the hashtags.</p>
@@ -959,7 +1041,7 @@ With the rise of digital platforms and generative AI, the scale, speed, and soph
 <span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <div id="cbba5a5f" class="cell">
-<div class="sourceCode cell-code" id="cb30"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>detox <span class="op">=</span> Detoxify(<span class="st">"original"</span>)D</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb30"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>detox <span class="op">=</span> Detoxify(<span class="st">"original"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 </section>
