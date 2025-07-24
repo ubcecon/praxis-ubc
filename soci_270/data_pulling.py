@@ -116,7 +116,7 @@ def align_schemas(dfs_list, master_columns):
         aligned_dfs.append(aligned_df)
     return aligned_dfs
 
-def create_advanced_disinformation_dataset():
+def create_disinformation_dataset():
     os.makedirs('data', exist_ok=True)
 
     kaggle.api.authenticate()
@@ -137,8 +137,6 @@ def create_advanced_disinformation_dataset():
     aligned_dfs = align_schemas(all_dfs, master_columns)
     df_combined = pd.concat(aligned_dfs, ignore_index=True)
     df_combined = df_combined.sample(frac=1, random_state=42).reset_index(drop=True)
-    output_filename = 'soci_270\data\combined_disinformation_dataset_final.csv'
+    output_filename = 'data\\combined_disinformation_dataset_final.csv'
     df_combined.to_csv(output_filename, index=False, encoding='utf-8-sig')
     print('done')
-
-create_advanced_disinformation_dataset()
