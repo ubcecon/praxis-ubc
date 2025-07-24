@@ -5,6 +5,8 @@ import glob
 import subprocess
 import shutil
 import ast
+from dateutil.parser import parse
+from dateutil.tz import gettz
 
 
 DATASETS_KAGGLE = {'disinfo_ira': {'id': 'fivethirtyeight/russian-troll-tweets', 'path': 'data/russian_troll_tweets'},
@@ -27,22 +29,41 @@ def download_github_repo(repo_url, clone_path):
     else:
         print('skipping, data there already')
 
+
 def standardize_dataframe(df, source_name):
-    """Standardizes df"""
-    datetime_col_map = {'ira': 'publish_date', 'war_propaganda': 'created_at', 'sentiment140': 'date'}
-    timestamp_col = datetime_col_map.get(source_name)
-    if timestamp_col and timestamp_col in df.columns:
-        with pd.option_context('mode.chained_assignment', None):
-            dt_series = pd.to_datetime(df[timestamp_col], errors='coerce')
-            df['date'] = dt_series.dt.date
-            df['time'] = dt_series.dt.time
+    """Standardizes df by parsing times/dates and converting to UTC"""
+    dt_series = pd.Series(pd.NaT, index=df.index, dtype='datetime64[ns, UTC]')
+
+    if source_name == 'war_propaganda':
+        naive_dt = pd.to_datetime(df['date'] + ' ' + df['time'], errors='coerce')
+        offset = pd.to_timedelta(df['timezone'], unit='m', errors='coerce')
+        dt_series = (naive_dt - offset).dt.tz_localize('UTC')
+    else:
+        datetime_col_map = {'ira': 'publish_date', 'sentiment140': 'date'}
+        timestamp_col = datetime_col_map.get(source_name)
+
+        if timestamp_col and timestamp_col in df.columns:
+            if source_name == 'sentiment140':
+                date_str_series = df[timestamp_col].str.replace(' PDT ', ' -0700 ', regex=False)
+                aware_dt = pd.to_datetime(date_str_series, 
+                    format='%a %b %d %H:%M:%S %z %Y', 
+                    errors='coerce')
+                dt_series = aware_dt.dt.tz_convert('UTC')
+
+            else: 
+                naive_dt = pd.to_datetime(df[timestamp_col], errors='coerce')
+                dt_series = naive_dt.dt.tz_localize('UTC')
+
+    df['date'] = dt_series.dt.date
+    df['time'] = dt_series.dt.time
 
     username_col_map = {'ira': 'author', 'war_propaganda': 'username', 'sentiment140': 'user'}
     author_col = username_col_map.get(source_name)
     if author_col and author_col in df.columns:
         df['username'] = df[author_col]
-
+    print('fixed dates')
     return df
+
 
 def load_ira_data(path):
     """Loads and processes the IRA disinformation dataset"""
@@ -75,6 +96,7 @@ def load_control_en_data(path):
     df = standardize_dataframe(df, 'sentiment140')
     df['source'] = 'Sentiment140'
     df['is_propaganda'] = 0
+    df['language'] = 'english'
     return df
 
 def load_control_ru_data(path):
@@ -84,6 +106,7 @@ def load_control_ru_data(path):
     df = standardize_dataframe(df, 'rusentitweet')
     df['source'] = 'RuSentitweet'
     df['is_propaganda'] = 0
+    df['language'] = 'russian'
     return df
 
 def align_schemas(dfs_list, master_columns):
@@ -114,7 +137,7 @@ def create_advanced_disinformation_dataset():
     aligned_dfs = align_schemas(all_dfs, master_columns)
     df_combined = pd.concat(aligned_dfs, ignore_index=True)
     df_combined = df_combined.sample(frac=1, random_state=42).reset_index(drop=True)
-    output_filename = os.path.join('data', 'combined_disinformation_dataset_final.csv')
+    output_filename = 'soci_270\data\combined_disinformation_dataset_final.csv'
     df_combined.to_csv(output_filename, index=False, encoding='utf-8-sig')
     print('done')
 
