@@ -1,0 +1,181 @@
+name: Build and Deploy
+on:
+  workflow_dispatch:
+
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+     
+      - name: Lint Quarto Notebooks
+        run: |
+          find ./project/docs/ -name "*.qmd" -type f -exec python meta/testing/linter.py {} \; > lint_output.txt
+          if [ -s lint_output.txt ]; then
+            echo "linting_failed=true" >> $GITHUB_OUTPUT
+            cat lint_output.txt
+          fi
+
+
+      - name: Build Docker image
+        run: |
+          docker build -t my-app-image:latest -f ./meta/building/.dockerfile .
+
+
+      - name: Extract web content
+        run: |
+          mkdir -p ./web-content
+          docker create --name temp-container my-app-image:latest
+          docker cp temp-container:/usr/share/nginx/html/. ./web-content
+          docker rm temp-container
+         
+          echo "Web content directory contents:"
+          ls -la ./web-content
+
+
+      - name: Upload files as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: site
+          path: ./web-content
+          if-no-files-found: error
+
+
+  prepare-notebooks:
+    runs-on: ubuntu-latest
+    needs: build
+    outputs:
+      prepped-notebooks: ${{ steps.prep.outputs.dir }}
+    steps:
+      - name: Checkout source notebooks
+        uses: actions/checkout@v3
+        with:
+          path: source-notebooks
+
+
+      - name: Remove rendered files
+        run: |
+          find source-notebooks/project/docs -type f \( -name "*.html" -o -name "*.md" \) -delete
+
+
+      - name: Checkout datasets
+        uses: actions/checkout@v3
+        with:
+          repository: ubcecon/comet-open
+          ref: test_build_deploy
+          path: datasets
+
+
+      - name: Organize structure
+        id: prep
+        run: |
+          mkdir -p final-notebooks/docs
+           
+          rsync -a --include '*/' \
+            --include '*.ipynb' \
+            --include '*.qmd' \
+            --include '*.png' \
+            --include '*.PNG' \
+            --include '*.pdf' \
+            --include '*.jpg' \
+            --include '*.gif' \
+            --include '*.svg' \
+            --exclude '*' \
+            source-notebooks/project/docs/ final-notebooks/docs/
+ 
+          for dir in 1_Getting_Started 2_Beginner 3_Intermediate 4_Advanced 5_Research 6_Projects; do
+            section=$(echo "$dir" | cut -d'_' -f2- | tr '[:upper:]' '[:lower:]')
+            dataset_dir="datasets/project/docs/$dir/datasets_${section}"
+           
+            mkdir -p "final-notebooks/docs/$dir"
+            if [ -d "$dataset_dir" ]; then
+              cp -r "$dataset_dir" "final-notebooks/docs/$dir/"
+            else
+              echo "Warning: Dataset directory not found: $dataset_dir"
+            fi
+          done
+
+
+          echo "dir=$(pwd)/final-notebooks" >> $GITHUB_OUTPUT
+
+
+      - name: Create master ZIP of all notebooks
+        run: |
+          cd final-notebooks
+          zip -r ../all-notebooks.zip docs
+          echo "Created all-notebooks.zip with all notebook categories"
+
+
+      - name: Upload notebooks artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: notebooks
+          path: ${{ steps.prep.outputs.dir }}
+
+
+      - name: Upload ZIP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: all-notebooks-zip
+          path: all-notebooks.zip
+          if-no-files-found: error
+
+
+      - name: Print directory structure
+        run: |
+          echo "Contents of final-notebooks directory:"
+          tree final-notebooks
+
+  sync-notebooks:
+    runs-on: ubuntu-latest
+    needs: prepare-notebooks
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Download prepared notebooks
+      uses: actions/download-artifact@v4
+      with:
+        name: notebooks
+        path: final-notebooks
+
+    - name: Run Notebook Sync
+      uses: BetaHuhn/repo-file-sync-action@v1
+      with:
+        GH_PAT: ${{ secrets.NOTEBOOKS_SYNC_TOKEN }}
+        CONFIG_PATH: .github/sync.yml
+        COMMIT_PREFIX: "🔁 Sync notebooks:"
+        PR_LABELS: |
+          notebook-sync
+          automated        
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: site
+          path: site-content
+
+
+      - name: Print directory structure
+        run: |
+          echo "Contents of site-content directory:"
+          ls -la site-content
+
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: site-content
+          publish_branch: gh-pages
