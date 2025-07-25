@@ -1,7 +1,7 @@
 ---
 title: 'AMNE 376: A Study of Richter''s Kouroi Through Image Embedding'
 author: prAxIs UBC Team <br> _Kaiyan Zhang, Yash Mali, Krishaant Pathman_
-date: July 2025
+date: 2025-07-25
 description: Using examples from Richter's classic book on Kouroi, this notebook demonstrates the basics of computer vision and image embedding, introducing students to how computers “see” art and how we can use pre-trained convolutional neural networks for data exploration and formalist analysis.
 categories:
   - AMNE
@@ -10,7 +10,7 @@ categories:
   - CNNs
 format:
   html:
-    code-fold: true
+    code-fold: false
     code-summary: "Show the code"
     allow-html: false
   ipynb:
@@ -20,8 +20,18 @@ format:
         language: python3
         name: python3
 ---
+### Learning Outcomes
 
-Before you start, make sure you have the required libraries installed, if not, simply **uncomment the lines below** (use `Ctrl + /`) and run the cell to install them: 
+In the notebook you will
+
+1. Familiarize yourself with concepts such as computer vision, convolution, convolutional neural network (CNN) and image embeddings.
+2. Understand how computers "see" and distinguish between different images by identifying unique visual elements and quantifying their similarity.
+3. Explore photographs of Kouroi from Richter's book *Kouroi: Archaic Greek Youths: a Study of the Development of the Kouros Type in Greek Sculpture (1942)* and create image embeddings for these photographs using pre-trained models.
+4. Learn how to cluster and classify Kouroi based solely on photographs, and critically analyze the advantages and limitations of these techniques and their potential applications.
+
+### Prerequisites
+
+Before you start, make sure you have the required libraries installed, if not, **uncomment the lines below and run the cell to install them**: 
 
 ```{python}
 # !pip install matplotlib
@@ -326,7 +336,7 @@ image_keys = list(image_names.keys())
 image_labels = list(image_names.values())
 
 # Display the similarity matrix
-fig, ax = plt.subplots(figsize=(5, 5))
+fig, ax = plt.subplots(figsize=(8, 5))
 cax = ax.imshow(sim_matrix, interpolation='nearest', cmap='viridis')
 ax.set_title('BoVW Cosine Similarity between Images')
 ax.set_xticks(np.arange(len(image_labels)))
@@ -826,14 +836,15 @@ model = ConvNextV2Model.from_pretrained("facebook/convnextv2-base-22k-224")
 
 # Move the model to the appropriate device (GPU or CPU)
 _ = model.to(device)
+
+# Define the image directory for later use
+image_directory = "../data/richter_kouroi_complete_front_only"
 ```
 
-```{python}
+```python
 batch_size = 16
 embeddings = []
 valid_filenames = []
-
-image_directory = "../data/richter_kouroi_complete_front_only"
 
 filenames = df['filename'].tolist()
 
@@ -876,6 +887,9 @@ np.save('../data/embeddings/convnextv2_image_embeddings.npy', embeddings)
 ```
 
 ```{python}
+# Load embeddings from the saved file
+embeddings = np.load('../data/embeddings/convnextv2_image_embeddings.npy')
+
 print(embeddings)
 
 embeddings.shape
@@ -898,8 +912,7 @@ import plotly.io as pio
 
 pio.renderers.default = "plotly_mimetype+notebook_connected"
 
-# load embeddings and metadata
-embeddings = np.load('../data/embeddings/convnextv2_image_embeddings.npy')
+# load metadata
 df = pd.read_csv('../data/complete_sculpture_dataset_labeled.csv')   
 
 # PCA to 2 components
@@ -959,8 +972,8 @@ from sklearn.model_selection import train_test_split
 from sklearn import metrics
 
 X = embeddings
-y1 = df['era'].tolist()
-y2 = df['material'].tolist()
+y1 = pc_df['era'].tolist()
+y2 = pc_df['material'].tolist()
 
 y1 = np.array(y1)
 y2 = np.array(y2)
@@ -1026,14 +1039,20 @@ Z = clf_2d.predict(np.c_[xx.ravel(), yy.ravel()]).reshape(xx.shape)
 # Plot the decision boundary
 plt.figure(figsize=(7,7))
 
-# light colors for regions
-cmap_light = ListedColormap([
-    '#FFCCCC', '#CCFFCC', '#CCCCFF', '#FFE5CC', '#E5CCFF', '#FFFFCC', '#CCFFFF'
-][:len(le.classes_)])
-# bold colors for points
-cmap_bold  = ListedColormap([
-    '#FF0000', '#00AA00', '#0000FF', '#FF8000', '#8000FF', '#FFFF00', '#00FFFF'
-][:len(le.classes_)])
+# Number of classes
+n_classes = len(le.classes_)
+
+# Pick a sequential colormap name:
+base_cmap_red = plt.cm.Reds
+base_cmap_blue = plt.cm.Blues
+
+# Sample 7 colors evenly from the light part of the cmap for regions
+# and the dark part for points.
+region_colors = base_cmap_red(np.linspace(0.1, 0.6, n_classes))
+point_colors  = base_cmap_blue(np.linspace(0.1, 1.0, n_classes))
+
+cmap_light = ListedColormap(region_colors)
+cmap_bold  = ListedColormap(point_colors)
 
 plt.contourf(xx, yy, Z, alpha=0.3, cmap=cmap_light)
 
@@ -1256,7 +1275,7 @@ model = Classifier(
 
 Here, after setting up the new model, we will define the training loop and train the model. Please note that this process may take some time, especially when running on devices without a GPU. This also suggests that the high computational power requirement is a drawback when using CNNs for classification.
 
-```{python}
+```python
 # Set up the loss function and optimizer
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.head.parameters(), lr=1e-4, weight_decay=0.01)
@@ -1281,13 +1300,20 @@ for epoch in range(1, epochs+1):
 
     avg_loss = total_loss / len(train_ds)
     print(f" Epoch {epoch} avg loss: {avg_loss:.4f}")
+
+torch.save(model.state_dict(), "../data/models/mlp_model.pth")
 ```
 
 After training, we set the model to evaluation mode and assessed the classification quality by printing the confusion matrix and classification report. It is clear that the accuracy does improve with the MLP architecture. However, we still lacked samples of materials other than bronze and marble, which undoubtedly harmed the quality of our training. 
 
 ```{python}
+# load the trained model
+model.load_state_dict(torch.load("../data/models/mlp_model.pth"))
+model.to(device)  # move to the right device 
+
 # Run one pass over your data in eval mode
 model.eval()
+
 all_preds, all_labels = [], []
 with torch.no_grad():
     for inputs, labels in test_loader:
@@ -1372,9 +1398,9 @@ print("Predicted Material:", predicted_material)
 
 #### 6.4 Additional Note on Fine-tuning
 
-What we didn't include here is an advanced application called fine-tuning. **Fine-tuning** refers to the process of taking a pre-trained model (like ConvNeXt V2) and continuing its training on your specific dataset, allowing the model to adapt its learned features to better suit your task. Why we did not cover fine-tuning because it requires more computational resources, careful hyperparameter tuning, and a larger dataset to avoid overfitting. Additionally, fine-tuning can be time-consuming and is often not practical in an introductory or resource-limited setting.
+What we didn't really include here are the more advanced applications of fine-tuning. **Fine-tuning** refers to the process of taking a pre-trained model (like ConvNeXt V2) and continuing its training on your specific dataset, allowing the model to adapt its learned features to better suit your task. Why we did not cover fine-tuning because it requires more computational resources, careful hyperparameter tuning, and a larger dataset to avoid overfitting. Additionally, fine-tuning can be time-consuming and is often not practical in an introductory or resource-limited setting.
 
-However, fine-tuning has the potential to significantly improve classification quality. By allowing the model to update its internal representations based on the unique characteristics of your images, it can learn more relevant features for distinguishing between subtle differences in style, era, or material. For research or production applications with sufficient data and compute, fine-tuning is a powerful next step to achieve higher accuracy and more robust results.
+However, fine-tuning has the potential to significantly improve classification quality, especially for irregular data. By allowing the model to update its internal representations based on the unique characteristics of your images, it can learn more relevant features for distinguishing between subtle differences in style, era, or material. For research or production applications with sufficient data and compute, fine-tuning is a powerful next step to achieve higher accuracy and more robust results.
 
 ### 7. Conclusion
 
