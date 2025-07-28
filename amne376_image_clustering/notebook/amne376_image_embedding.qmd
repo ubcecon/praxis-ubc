@@ -708,12 +708,12 @@ def bar_plot(df, column1, column2):
     axes[0].set_title(f'Distribution of {column1.capitalize()}')
     axes[0].set_xlabel(column1.capitalize())
     axes[0].set_ylabel('Count')
-    axes[0].tick_params(axis='x', rotation=45)
+    axes[0].tick_params(axis='x', rotation=90)
     label_counts2.plot(kind='bar', ax=axes[1], color='darkorange')
     axes[1].set_title(f'Distribution of {column2.capitalize()}')
     axes[1].set_xlabel(column2.capitalize())
     axes[1].set_ylabel('Count')
-    axes[1].tick_params(axis='x', rotation=45)
+    axes[1].tick_params(axis='x', rotation=90)
     
     plt.tight_layout()
     plt.show()
@@ -893,7 +893,7 @@ embeddings = np.load('../data/embeddings/convnextv2_image_embeddings.npy')
 
 print(embeddings)
 
-embeddings.shape
+print(f"The embedding has {embeddings.shape[0]} rows and {embeddings.shape[1]} numbers each row.")
 ```
 
 We printed the embedded results above to see what they look like, and we also displayed the shape of the grid. As you can see, it contains 62 rows representing the 62 images in the dataset, and each row has 1024 numbers representing all the information extracted from each image. From now on, we will use this embedded data instead of the original image data.
@@ -1357,11 +1357,53 @@ plt.show()
 
 > **Discussion:** Looking at this photo, how would you classify the era and material of this Kouros? 
 
-We pass it into our trained CNN classifier and see how it would be classified:
+We pass it into our trained logistic regression classifier and see how would its era be classified:
+
+```{python}
+# reload the processor and the model
+processor = AutoImageProcessor.from_pretrained("facebook/convnextv2-base-22k-224") 
+
+model = ConvNextV2Model.from_pretrained("facebook/convnextv2-base-22k-224")
+
+# Open as new img
+img_new = Image.open(new_artifact_path).convert("RGB")
+
+inputs = processor(images=img_new, return_tensors="pt")
+pixel_values = inputs["pixel_values"].to(device)
+
+# Forward through feature extractor
+with torch.no_grad():
+    outputs = model(pixel_values) 
+
+# Global average pool
+if isinstance(outputs, torch.Tensor):
+    hidden = outputs           
+else:
+    hidden = outputs.last_hidden_state 
+
+emb_new = hidden.mean(dim=(2, 3)).cpu().numpy()
+
+
+pred_era = clf1.predict(emb_new)[0]
+
+print("Predicted Era:", pred_era)
+```
+
+We then pass it into our trained CNN classifier and see how its material would be classified:
+
 ```{python}
 from PIL import Image
 import torch
 from torchvision import transforms
+
+# reload the model
+model = Classifier(
+    backbone_name="facebook/convnextv2-base-22k-224",
+    num_classes=len(MAT2IDX)
+).to(device)
+model.load_state_dict(torch.load("../data/models/mlp_model.pth"))
+model.to(device) 
+
 # Resize the model to an appropriate size
 preprocess = transforms.Compose([
     transforms.Resize(256),                
@@ -1396,7 +1438,7 @@ predicted_material = predict_image(new_artifact_path, model, device)
 print("Predicted Material:", predicted_material)
 ```
 
-> **Discussion:** Do you think the prediction is correct? 
+> **Discussion:** Do you think the predictions made above are correct? What is your evidence?
 
 #### 6.4 Additional Note on Fine-tuning
 
