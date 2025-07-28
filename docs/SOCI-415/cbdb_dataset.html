@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-GB" xml:lang="en-GB"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.3.450">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="dcterms.date" content="2025-06-12">
+<meta name="description" content="This notebook is an introduction to basic network analysis in Python.">
+
+<title>Praxis - SOCI 415 Network Analysis - CBDB Dataset</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<link href="../../media/praxis-badge.png" rel="icon" type="image/png">
+<script src="../../site_libs/quarto-html/quarto.js"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 20,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<meta name="keywords" content="economics, econometrics, R, data, machine learning, UBC, COMET, geog 374, econ 325, econ 326, learning, teaching, learn r, r help, help, tutorial, r tutorial for beginners,learning statistics with r, learn r programming, learn statistics, linear regression, r machine learning, learn machine learning, university of british columbia, british columbia, r programming for beginners, r language tutorial, r tutorial for beginners, economic data, econometrics tutoring, economics help for students, economics homework help, oer resources for teachers, open educational resources for teachers, educational resource, oer project, oer materials, oer resources, learn economics online, learn econometrics, teach yourself economics, teach yourself econometrics, econometrics basics for beginners">
+
+
+<link rel="stylesheet" href="../../styles.css">
+</head>
+
+<body class="nav-fixed">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg navbar-dark ">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container">
+    <a href="../../index.html" class="navbar-brand navbar-brand-logo">
+    <img src="../../media/praxis-badge-white.png" alt="" class="navbar-logo">
+    </a>
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">Praxis</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-get-startedplaceholder_1" role="button" data-bs-toggle="dropdown" aria-expanded="false" rel="" target="">
+ <span class="menu-text">Get Started/Placeholder_1</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-get-startedplaceholder_1">    
+        <li>
+    <a class="dropdown-item" href="../../pages/quickstart.html" rel="" target="">
+ <span class="dropdown-text">Quickstart Guide</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-courses" role="button" data-bs-toggle="dropdown" aria-expanded="false" rel="" target="">
+ <span class="menu-text">Courses</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-courses">    
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_HIST-414.html" rel="" target="">
+ <span class="dropdown-text">HIST-414</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_AMNE-376.html" rel="" target="">
+ <span class="dropdown-text">AMNE-376</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_AMNE-170.html" rel="" target="">
+ <span class="dropdown-text">AMNE-170</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_SOCI415.html" rel="" target="">
+ <span class="dropdown-text">SOCI-415</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_SOCI217.html" rel="" target="">
+ <span class="dropdown-text">SOCI-217</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_SOCI280.html" rel="" target="">
+ <span class="dropdown-text">SOCI-280</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_ECON227.html" rel="" target="">
+ <span class="dropdown-text">ECON-227</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="../../pages/index/all.html" rel="" target="">
+ <span class="dropdown-text">Browse All</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-topics" role="button" data-bs-toggle="dropdown" aria-expanded="false" rel="" target="">
+ <span class="menu-text">Topics</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-topics">    
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_CNN.html" rel="" target="">
+ <span class="dropdown-text">CNN</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_convolution.html" rel="" target="">
+ <span class="dropdown-text">Convolution</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-teach-with-praxis" role="button" data-bs-toggle="dropdown" aria-expanded="false" rel="" target="">
+ <span class="menu-text">Teach With prAxIs</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-teach-with-praxis">    
+        <li>
+    <a class="dropdown-item" href="../../pages/teaching_with_comet.html" rel="" target="">
+ <span class="dropdown-text">Learn how to teach with prAxIs</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/using_comet.html" rel="" target="">
+ <span class="dropdown-text">Using prAxIs in the Classroom</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-launch-praxis" role="button" data-bs-toggle="dropdown" aria-expanded="false" rel="" target="">
+      <i class="bi bi-play" role="img">
+</i> 
+ <span class="menu-text">Launch prAxIs</span>
+    </a>
+    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="nav-menu-launch-praxis">    
+        <li>
+    <a class="dropdown-item" href="https://open.jupyter.ubc.ca/jupyter/hub/user-redirect/git-pull?repo=https%3A%2F%2Fgithub.com%2Fubcecon%2Fcomet-notebooks&amp;urlpath=lab%2Ftree%2Fcomet-notebooks%2F&amp;branch=main" rel="" target=""><i class="bi bi-cloud-check" role="img">
+</i> 
+ <span class="dropdown-text">Launch on JupyterOpen (with Data)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://open.jupyter.ubc.ca/jupyter/hub/user-redirect/git-pull?repo=https%3A%2F%2Fgithub.com%2Fubcecon%2Fcomet-project&amp;urlpath=lab%2Ftree%2Fcomet-project%2F&amp;branch=main" rel="" target=""><i class="bi bi-cloud-check" role="img">
+</i> 
+ <span class="dropdown-text">Launch on JupyterOpen (lite)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ubc.syzygy.ca/jupyter/hub/user-redirect/git-pull?repo=https%3A%2F%2Fgithub.com%2Fubcecon%2Fcomet-project&amp;urlpath=lab%2Ftree%2Fcomet-project%2F&amp;branch=main" rel="" target=""><i class="bi bi-gear" role="img">
+</i> 
+ <span class="dropdown-text">Launch on Syzygy</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://colab.research.google.com/github/ubcecon/comet-notebooks/blob/main/" rel="" target=""><i class="bi bi-google" role="img">
+</i> 
+ <span class="dropdown-text">Launch on Colab</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://github.com/ubcecon/comet-notebooks/archive/refs/heads/main.zip" rel="" target=""><i class="bi bi-cloud-download" role="img">
+</i> 
+ <span class="dropdown-text">Launch Locally</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="https://github.com/ubcecon/comet-open/archive/refs/heads/datasets.zip" rel="" target=""><i class="bi bi-clipboard-data" role="img">
+</i> 
+ <span class="dropdown-text">Project Datasets</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://github.com/ubcecon/comet-open" rel="" target="">
+ <span class="dropdown-text">Github Repository</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="../../#" rel="" target="">
+ <span class="menu-text">|</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-about" role="button" data-bs-toggle="dropdown" aria-expanded="false" rel="" target="">
+ <span class="menu-text">About</span>
+    </a>
+    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="nav-menu-about">    
+        <li>
+    <a class="dropdown-item" href="../../pages/team.html" rel="" target="">
+ <span class="dropdown-text">prAxIs Team</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/copyright.html" rel="" target="">
+ <span class="dropdown-text">Copyright Information</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+            <div class="quarto-navbar-tools">
+</div>
+          </div> <!-- /navcollapse -->
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-full page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#posibilities-of-what-we-can-do" id="toc-posibilities-of-what-we-can-do" class="nav-link active" data-scroll-target="#posibilities-of-what-we-can-do">Posibilities of what we can do</a></li>
+  </ul>
+<div class="toc-actions"><div><i class="bi bi-github"></i></div><div class="action-links"><p><a href="https://github.com/ubcecon/praxis-ubc/issues/new" class="toc-action">Report an issue</a></p></div></div><div class="quarto-alternate-formats"><h2>Other Formats</h2><ul><li><a href="cbdb_dataset.out.ipynb" download="cbdb_dataset.out.ipynb"><i class="bi bi-journal-code"></i>Jupyter</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content column-page-left" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">SOCI 415 Network Analysis - CBDB Dataset</h1>
+  <div class="quarto-categories">
+    <div class="quarto-category">Python</div>
+    <div class="quarto-category">network analysis</div>
+  </div>
+  </div>
+
+<div>
+  <div class="description">
+    This notebook is an introduction to basic network analysis in Python.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">12 June 2025</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+</header>
+
+<p>The China Biographical Database Abstract: The China Biographical Database is a freely accessible relational database with biographical information about approximately 641,568 individuals as of August 2024, currently mainly from the 7th through 19th centuries. With both online and offline versions, the data is meant to be useful for statistical, social network, and spatial analysis as well as serving as a kind of biographical reference. The image below shows the spatial distribution of a cross dynastic subset of 190,000 people in CBDB by basic affiliations</p>
+<p>Display values within the dataset</p>
+<div class="cell" data-execution_count="1">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> sqlite3</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>db_path <span class="op">=</span> <span class="vs">r'/arc/project/st-lknelson-1/alexr951/git/data/latest.db'</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>conn <span class="op">=</span> sqlite3.<span class="ex">connect</span>(db_path)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>cursor <span class="op">=</span> conn.cursor()</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="co"># List all tables</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>cursor.execute(<span class="st">"SELECT name FROM sqlite_master WHERE type='table';"</span>)</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>tables <span class="op">=</span> cursor.fetchall()</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Tables in database:"</span>, tables)</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>conn.close()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Tables in database: [('ADDR_BELONGS_DATA',), ('ADDR_CODES',), ('ADDR_PLACE_DATA',), ('ADDR_XY',), ('ADDRESSES',), ('ALTNAME_CODES',), ('ALTNAME_DATA',), ('APPOINTMENT_CODE_TYPE_REL',), ('APPOINTMENT_CODES',), ('APPOINTMENT_TYPES',), ('ASSOC_CODE_TYPE_REL',), ('ASSOC_CODES',), ('ASSOC_DATA',), ('ASSOC_TYPES',), ('ASSUME_OFFICE_CODES',), ('BIOG_ADDR_CODES',), ('BIOG_ADDR_DATA',), ('BIOG_INST_CODES',), ('BIOG_INST_DATA',), ('BIOG_MAIN',), ('BIOG_SOURCE_DATA',), ('BIOG_TEXT_DATA',), ('CHORONYM_CODES',), ('Copy Of CopyTables',), ('CopyMissingTables',), ('CopyTables',), ('CopyTablesDefault',), ('COUNTRY_CODES',), ('DATABASE_LINK_CODES',), ('DATABASE_LINK_DATA',), ('DYNASTIES',), ('ENTRY_CODE_TYPE_REL',), ('ENTRY_CODES',), ('ENTRY_DATA',), ('ENTRY_TYPES',), ('ETHNICITY_TRIBE_CODES',), ('EVENT_CODES',), ('EVENTS_ADDR',), ('EVENTS_DATA',), ('EXTANT_CODES',), ('ForeignKeys',), ('FormLabels',), ('GANZHI_CODES',), ('HOUSEHOLD_STATUS_CODES',), ('INDEXYEAR_TYPE_CODES',), ('KIN_DATA',), ('KIN_Mourning',), ('KIN_MOURNING_STEPS',), ('KINSHIP_CODES',), ('LITERARYGENRE_CODES',), ('MEASURE_CODES',), ('NIAN_HAO',), ('OCCASION_CODES',), ('OFFICE_CATEGORIES',), ('OFFICE_CODE_TYPE_REL',), ('OFFICE_CODES',), ('OFFICE_CODES_CONVERSION',), ('OFFICE_TYPE_TREE',), ('OFFICE_TYPE_TREE_backup',), ('PARENTAL_STATUS_CODES',), ('PLACE_CODES',), ('POSSESSION_ACT_CODES',), ('POSSESSION_ADDR',), ('POSSESSION_DATA',), ('POSTED_TO_ADDR_DATA',), ('POSTED_TO_OFFICE_DATA',), ('POSTING_DATA',), ('SCHOLARLYTOPIC_CODES',), ('SOCIAL_INSTITUTION_ADDR',), ('SOCIAL_INSTITUTION_ADDR_TYPES',), ('SOCIAL_INSTITUTION_ALTNAME_CODES',), ('SOCIAL_INSTITUTION_ALTNAME_DATA',), ('SOCIAL_INSTITUTION_CODES',), ('SOCIAL_INSTITUTION_CODES_CONVERSION',), ('SOCIAL_INSTITUTION_NAME_CODES',), ('SOCIAL_INSTITUTION_TYPES',), ('STATUS_CODE_TYPE_REL',), ('STATUS_CODES',), ('STATUS_DATA',), ('STATUS_TYPES',), ('TablesFields',), ('TablesFieldsChanges',), ('TEXT_BIBLCAT_CODE_TYPE_REL',), ('TEXT_BIBLCAT_CODES',), ('TEXT_BIBLCAT_TYPES',), ('TEXT_CODES',), ('TEXT_INSTANCE_DATA',), ('TEXT_ROLE_CODES',), ('TEXT_TYPE',), ('TMP_INDEX_YEAR',), ('YEAR_RANGE_CODES',)]</code></pre>
+</div>
+</div>
+<p>Load the one we want</p>
+<div class="cell" data-execution_count="2">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>db_path <span class="op">=</span> <span class="vs">r'/arc/project/st-lknelson-1/alexr951/git/data/latest.db'</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Connect to the database</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>conn <span class="op">=</span> sqlite3.<span class="ex">connect</span>(db_path)</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Replace 'person' with the actual table name you want to load</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> pd.read_sql_query(<span class="st">"SELECT * FROM KIN_DATA"</span>, conn)</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Show the first few rows</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(df.head())</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>conn.close()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>   c_personid  c_kin_id  c_kin_code  c_source        c_pages  \
+0           0    689344         337   64847.0  088  周真夫人黃氏墓誌   
+1           1         2         180       0.0           None   
+2           1     13310         210    7596.0           3047   
+3           1     13311         180       0.0           None   
+4           1    119997         182    2229.0           None   
+
+                  c_notes c_autogen_notes c_created_by c_created_date  \
+0                    None            None   Qi Xinghai       20250329   
+1  [待考。《宋史·安惇傳》云，惇二子郊、邦。]            None          TTS       20070312   
+2                    None            None          TTS       20070312   
+3                    None            None          TTS       20070312   
+4      據宋史列傳CBDB宋史分傳#2159            None         load       20121116   
+
+  c_modified_by c_modified_date  
+0    Qi Xinghai        20250329  
+1          None            None  
+2          None            None  
+3          None            None  
+4          None            None  </code></pre>
+</div>
+</div>
+<p>Build the NetworkX Graph</p>
+<div class="cell" data-execution_count="3">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> networkx <span class="im">as</span> nx</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Create an empty graph</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>G <span class="op">=</span> nx.Graph()</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Add edges with kinship type as edge attribute</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> _, row <span class="kw">in</span> df.iterrows():</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>    person <span class="op">=</span> row[<span class="st">'c_personid'</span>]</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>    kin <span class="op">=</span> row[<span class="st">'c_kin_id'</span>]</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>    kin_type <span class="op">=</span> row[<span class="st">'c_kin_code'</span>]</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>    G.add_edge(person, kin, kinship<span class="op">=</span>kin_type)</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Number of nodes: </span><span class="sc">{</span>G<span class="sc">.</span>number_of_nodes()<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Number of edges: </span><span class="sc">{</span>G<span class="sc">.</span>number_of_edges()<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Number of nodes: 278262
+Number of edges: 272717</code></pre>
+</div>
+</div>
+<p>Visualize the network</p>
+<div class="cell" data-execution_count="5">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> sqlite3</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="co"># -------- Update this only once for all cells ------- #</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>DB_PATH <span class="op">=</span> <span class="vs">r'/arc/project/st-lknelson-1/alexr951/git/data/latest.db'</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="co"># --------------------------------------------------- #</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> load_kin_data(db_path<span class="op">=</span>DB_PATH):</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Return a DataFrame with all rows from KIN_DATA."""</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> sqlite3.<span class="ex">connect</span>(db_path) <span class="im">as</span> conn:</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>        df <span class="op">=</span> pd.read_sql_query(<span class="st">"SELECT * FROM KIN_DATA"</span>, conn)</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Drop obvious self-loops</span></span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>    df <span class="op">=</span> df[df[<span class="st">"c_personid"</span>] <span class="op">!=</span> df[<span class="st">"c_kin_id"</span>]]</span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> df</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>kin_df <span class="op">=</span> load_kin_data()</span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Rows:"</span>, <span class="bu">len</span>(kin_df))</span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>kin_df.head()</span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> basic_overview(df):</span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"=== BASIC COLUMN SUMMARY ==="</span>)</span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(df.dtypes)                 <span class="co"># data types</span></span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"</span><span class="ch">\n</span><span class="st">Null counts:"</span>)</span>
+<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(df.isna().<span class="bu">sum</span>())</span>
+<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"</span><span class="ch">\n</span><span class="st">Unique counts:"</span>)</span>
+<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> col <span class="kw">in</span> df.columns:</span>
+<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"  </span><span class="sc">{</span>col<span class="sc">}</span><span class="ss">: </span><span class="sc">{</span>df[col]<span class="sc">.</span>nunique()<span class="sc">:,}</span><span class="ss">"</span>)</span>
+<span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-30"><a href="#cb7-30" aria-hidden="true" tabindex="-1"></a>basic_overview(kin_df)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Rows: 543809
+=== BASIC COLUMN SUMMARY ===
+c_personid           int64
+c_kin_id             int64
+c_kin_code           int64
+c_source           float64
+c_pages             object
+c_notes             object
+c_autogen_notes     object
+c_created_by        object
+c_created_date      object
+c_modified_by       object
+c_modified_date     object
+dtype: object
+
+Null counts:
+c_personid              0
+c_kin_id                0
+c_kin_code              0
+c_source               14
+c_pages            139587
+c_notes            417131
+c_autogen_notes    510431
+c_created_by            1
+c_created_date          2
+c_modified_by      517420
+c_modified_date    517420
+dtype: int64
+
+Unique counts:
+  c_personid: 277,411
+  c_kin_id: 277,976
+  c_kin_code: 426
+  c_source: 454
+  c_pages: 24,017
+  c_notes: 37,534
+  c_autogen_notes: 13,960
+  c_created_by: 168
+  c_created_date: 1,990
+  c_modified_by: 150
+  c_modified_date: 1,154</code></pre>
+</div>
+</div>
+<div class="cell" data-execution_count="6">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> collections <span class="im">import</span> Counter</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> relationship_and_people_stats(df):</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    total_rels <span class="op">=</span> <span class="bu">len</span>(df)</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    unique_people <span class="op">=</span> <span class="bu">set</span>(df[<span class="st">"c_personid"</span>]) <span class="op">|</span> <span class="bu">set</span>(df[<span class="st">"c_kin_id"</span>])</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>    kin_type_counts <span class="op">=</span> Counter(df[<span class="st">"c_kin_code"</span>])</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"=== RELATIONSHIP &amp; PEOPLE STATS ==="</span>)</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Total relationships  : </span><span class="sc">{</span>total_rels<span class="sc">:,}</span><span class="ss">"</span>)</span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Unique individuals   : </span><span class="sc">{</span><span class="bu">len</span>(unique_people)<span class="sc">:,}</span><span class="ss">"</span>)</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"</span><span class="ch">\n</span><span class="st">Top 10 kinship codes:"</span>)</span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> kin, cnt <span class="kw">in</span> kin_type_counts.most_common(<span class="dv">10</span>):</span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>        share <span class="op">=</span> cnt <span class="op">/</span> total_rels <span class="op">*</span> <span class="dv">100</span></span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"  </span><span class="sc">{</span>kin<span class="sc">:&lt;10}</span><span class="ss"> </span><span class="sc">{</span>cnt<span class="sc">:</span><span class="op">&gt;</span><span class="dv">8</span><span class="sc">,}</span><span class="ss">  (</span><span class="sc">{</span>share<span class="sc">:5.1f}</span><span class="ss">%)"</span>)</span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>relationship_and_people_stats(kin_df)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>=== RELATIONSHIP &amp; PEOPLE STATS ===
+Total relationships  : 543,809
+Unique individuals   : 278,257
+
+Top 10 kinship codes:
+  180          88,917  ( 16.4%)
+  75           88,636  ( 16.3%)
+  126          56,512  ( 10.4%)
+  125          56,487  ( 10.4%)
+  134          28,301  (  5.2%)
+  62           28,101  (  5.2%)
+  243          27,533  (  5.1%)
+  135          24,464  (  4.5%)
+  48           19,910  (  3.7%)
+  255          19,468  (  3.6%)</code></pre>
+</div>
+</div>
+<div class="cell" data-execution_count="8">
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> networkx <span class="im">as</span> nx</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> quick_network_snapshot(df):</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>    G <span class="op">=</span> nx.from_pandas_edgelist(</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>        df,</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>        source<span class="op">=</span><span class="st">"c_personid"</span>,</span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>        target<span class="op">=</span><span class="st">"c_kin_id"</span>,</span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>        edge_attr<span class="op">=</span><span class="st">"c_kin_code"</span>,</span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a>        create_using<span class="op">=</span>nx.Graph(),</span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a>    degrees <span class="op">=</span> [d <span class="cf">for</span> _, d <span class="kw">in</span> G.degree()]</span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>    comps   <span class="op">=</span> [<span class="bu">len</span>(c) <span class="cf">for</span> c <span class="kw">in</span> nx.connected_components(G)]</span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"=== NETWORK SNAPSHOT ==="</span>)</span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Nodes                 : </span><span class="sc">{</span>G<span class="sc">.</span>number_of_nodes()<span class="sc">:,}</span><span class="ss">"</span>)</span>
+<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Edges                 : </span><span class="sc">{</span>G<span class="sc">.</span>number_of_edges()<span class="sc">:,}</span><span class="ss">"</span>)</span>
+<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Density               : </span><span class="sc">{</span>nx<span class="sc">.</span>density(G)<span class="sc">:.8f}</span><span class="ss">"</span>)</span>
+<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Connected components  : </span><span class="sc">{</span><span class="bu">len</span>(comps)<span class="sc">:,}</span><span class="ss">"</span>)</span>
+<span id="cb11-21"><a href="#cb11-21" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Largest component     : </span><span class="sc">{</span><span class="bu">max</span>(comps)<span class="sc">:,}</span><span class="ss"> nodes"</span>)</span>
+<span id="cb11-22"><a href="#cb11-22" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"</span><span class="ch">\n</span><span class="st">Degree distribution:"</span>)</span>
+<span id="cb11-23"><a href="#cb11-23" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  mean   </span><span class="sc">{</span>np<span class="sc">.</span>mean(degrees)<span class="sc">:.2f}</span><span class="ss">"</span>)</span>
+<span id="cb11-24"><a href="#cb11-24" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  median </span><span class="sc">{</span>np<span class="sc">.</span>median(degrees)<span class="sc">:.2f}</span><span class="ss">"</span>)</span>
+<span id="cb11-25"><a href="#cb11-25" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  max    </span><span class="sc">{</span>np<span class="sc">.</span><span class="bu">max</span>(degrees)<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb11-26"><a href="#cb11-26" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  std    </span><span class="sc">{</span>np<span class="sc">.</span>std(degrees)<span class="sc">:.2f}</span><span class="ss">"</span>)</span>
+<span id="cb11-27"><a href="#cb11-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-28"><a href="#cb11-28" aria-hidden="true" tabindex="-1"></a>quick_network_snapshot(kin_df)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>=== NETWORK SNAPSHOT ===
+Nodes                 : 278,257
+Edges                 : 272,691
+Density               : 0.00000704
+Connected components  : 30,357
+Largest component     : 52,992 nodes
+
+Degree distribution:
+  mean   1.96
+  median 1.00
+  max    147
+  std    2.57</code></pre>
+</div>
+</div>
+<div class="cell" data-execution_count="9">
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> sqlite3</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="co">#DB_PATH = r'/arc/project/st-lknelson-1/alexr951/git/data/latest.db'</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> decode_kinship_relationships():</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Get the actual meaning of your kinship codes"""</span></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> sqlite3.<span class="ex">connect</span>(DB_PATH) <span class="im">as</span> conn:</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Load kinship codes lookup table</span></span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>        kinship_lookup <span class="op">=</span> pd.read_sql_query(<span class="st">"SELECT * FROM KINSHIP_CODES"</span>, conn)</span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>        </span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Load your KIN_DATA</span></span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a>        kin_data <span class="op">=</span> pd.read_sql_query(<span class="st">"SELECT * FROM KIN_DATA"</span>, conn)</span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>        kin_data <span class="op">=</span> kin_data[kin_data[<span class="st">'c_personid'</span>] <span class="op">!=</span> kin_data[<span class="st">'c_kin_id'</span>]]</span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a>        </span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"=== RELATIONSHIP TYPES IN YOUR DATA ==="</span>)</span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Total kinship records: </span><span class="sc">{</span><span class="bu">len</span>(kin_data)<span class="sc">:,}</span><span class="ss">"</span>)</span>
+<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Get the actual relationship meanings</span></span>
+<span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a>    relationships <span class="op">=</span> kin_data[<span class="st">'c_kin_code'</span>].value_counts().head(<span class="dv">15</span>)</span>
+<span id="cb13-21"><a href="#cb13-21" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Top 15 relationship types (by frequency):"</span>)</span>
+<span id="cb13-22"><a href="#cb13-22" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> code, count <span class="kw">in</span> relationships.items():</span>
+<span id="cb13-23"><a href="#cb13-23" aria-hidden="true" tabindex="-1"></a>        pct <span class="op">=</span> count<span class="op">/</span><span class="bu">len</span>(kin_data)<span class="op">*</span><span class="dv">100</span></span>
+<span id="cb13-24"><a href="#cb13-24" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"  Code </span><span class="sc">{</span>code<span class="sc">}</span><span class="ss">: </span><span class="sc">{</span>count<span class="sc">:,}</span><span class="ss"> (</span><span class="sc">{</span>pct<span class="sc">:.1f}</span><span class="ss">%)"</span>)</span>
+<span id="cb13-25"><a href="#cb13-25" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb13-26"><a href="#cb13-26" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Kinship lookup table structure:"</span>)</span>
+<span id="cb13-27"><a href="#cb13-27" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(kinship_lookup.columns.tolist())</span>
+<span id="cb13-28"><a href="#cb13-28" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Lookup table has </span><span class="sc">{</span><span class="bu">len</span>(kinship_lookup)<span class="sc">}</span><span class="ss"> relationship definitions"</span>)</span>
+<span id="cb13-29"><a href="#cb13-29" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb13-30"><a href="#cb13-30" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> kin_data, kinship_lookup</span>
+<span id="cb13-31"><a href="#cb13-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-32"><a href="#cb13-32" aria-hidden="true" tabindex="-1"></a>kin_df, lookup_df <span class="op">=</span> decode_kinship_relationships()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>=== RELATIONSHIP TYPES IN YOUR DATA ===
+Total kinship records: 543,809
+
+Top 15 relationship types (by frequency):
+  Code 180: 88,917 (16.4%)
+  Code 75: 88,636 (16.3%)
+  Code 126: 56,512 (10.4%)
+  Code 125: 56,487 (10.4%)
+  Code 134: 28,301 (5.2%)
+  Code 62: 28,101 (5.2%)
+  Code 243: 27,533 (5.1%)
+  Code 135: 24,464 (4.5%)
+  Code 48: 19,910 (3.7%)
+  Code 255: 19,468 (3.6%)
+  Code 111: 18,410 (3.4%)
+  Code 76: 7,826 (1.4%)
+  Code 181: 7,076 (1.3%)
+  Code 176: 4,986 (0.9%)
+  Code 182: 4,638 (0.9%)
+
+Kinship lookup table structure:
+['c_kincode', 'c_kin_pair1', 'c_kin_pair2', 'c_kin_pair_notes', 'c_kinrel_chn', 'c_kinrel', 'c_kinrel_alt', 'c_pick_sorting', 'c_upstep', 'c_dwnstep', 'c_marstep', 'c_colstep', 'c_kinrel_simplified']
+Lookup table has 479 relationship definitions</code></pre>
+</div>
+</div>
+<div class="cell" data-execution_count="10">
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> networkx <span class="im">as</span> nx</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> analyze_family_network_structure(df):</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Understand the shape and clustering of your kinship network"""</span></span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"=== NETWORK STRUCTURE &amp; FAMILY PATTERNS ==="</span>)</span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Build the network</span></span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>    G <span class="op">=</span> nx.from_pandas_edgelist(df, source<span class="op">=</span><span class="st">'c_personid'</span>, target<span class="op">=</span><span class="st">'c_kin_id'</span>, </span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a>                               create_using<span class="op">=</span>nx.Graph())</span>
+<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Network size: </span><span class="sc">{</span>G<span class="sc">.</span>number_of_nodes()<span class="sc">:,}</span><span class="ss"> people, </span><span class="sc">{</span>G<span class="sc">.</span>number_of_edges()<span class="sc">:,}</span><span class="ss"> relationships"</span>)</span>
+<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Network density: </span><span class="sc">{</span>nx<span class="sc">.</span>density(G)<span class="sc">:.8f}</span><span class="ss">"</span>)</span>
+<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Family cluster analysis (connected components = family groups)</span></span>
+<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a>    components <span class="op">=</span> <span class="bu">list</span>(nx.connected_components(G))</span>
+<span id="cb15-18"><a href="#cb15-18" aria-hidden="true" tabindex="-1"></a>    family_sizes <span class="op">=</span> <span class="bu">sorted</span>([<span class="bu">len</span>(comp) <span class="cf">for</span> comp <span class="kw">in</span> components], reverse<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb15-19"><a href="#cb15-19" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb15-20"><a href="#cb15-20" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">=== FAMILY CLUSTER ANALYSIS ==="</span>)</span>
+<span id="cb15-21"><a href="#cb15-21" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Total family groups: </span><span class="sc">{</span><span class="bu">len</span>(components)<span class="sc">:,}</span><span class="ss">"</span>)</span>
+<span id="cb15-22"><a href="#cb15-22" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Largest family: </span><span class="sc">{</span>family_sizes[<span class="dv">0</span>]<span class="sc">:,}</span><span class="ss"> people"</span>)</span>
+<span id="cb15-23"><a href="#cb15-23" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Top 10 family sizes: </span><span class="sc">{</span>family_sizes[:<span class="dv">10</span>]<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb15-24"><a href="#cb15-24" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Families with 100+ people: </span><span class="sc">{</span><span class="bu">sum</span>(<span class="dv">1</span> <span class="cf">for</span> size <span class="kw">in</span> family_sizes <span class="cf">if</span> size <span class="op">&gt;=</span> <span class="dv">100</span>)<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb15-25"><a href="#cb15-25" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Single-person 'families': </span><span class="sc">{</span><span class="bu">sum</span>(<span class="dv">1</span> <span class="cf">for</span> size <span class="kw">in</span> family_sizes <span class="cf">if</span> size <span class="op">==</span> <span class="dv">1</span>)<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb15-26"><a href="#cb15-26" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb15-27"><a href="#cb15-27" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Individual connectivity patterns  </span></span>
+<span id="cb15-28"><a href="#cb15-28" aria-hidden="true" tabindex="-1"></a>    degrees <span class="op">=</span> <span class="bu">dict</span>(G.degree())</span>
+<span id="cb15-29"><a href="#cb15-29" aria-hidden="true" tabindex="-1"></a>    degree_values <span class="op">=</span> <span class="bu">list</span>(degrees.values())</span>
+<span id="cb15-30"><a href="#cb15-30" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb15-31"><a href="#cb15-31" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">=== INDIVIDUAL CONNECTIVITY ==="</span>)</span>
+<span id="cb15-32"><a href="#cb15-32" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Average relationships per person: </span><span class="sc">{</span>np<span class="sc">.</span>mean(degree_values)<span class="sc">:.2f}</span><span class="ss">"</span>)</span>
+<span id="cb15-33"><a href="#cb15-33" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Most connected person has: </span><span class="sc">{</span><span class="bu">max</span>(degree_values)<span class="sc">}</span><span class="ss"> relationships"</span>)</span>
+<span id="cb15-34"><a href="#cb15-34" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"People with only 1 relationship: </span><span class="sc">{</span><span class="bu">sum</span>(<span class="dv">1</span> <span class="cf">for</span> d <span class="kw">in</span> degree_values <span class="cf">if</span> d <span class="op">==</span> <span class="dv">1</span>)<span class="sc">:,}</span><span class="ss">"</span>)</span>
+<span id="cb15-35"><a href="#cb15-35" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"People with 10+ relationships: </span><span class="sc">{</span><span class="bu">sum</span>(<span class="dv">1</span> <span class="cf">for</span> d <span class="kw">in</span> degree_values <span class="cf">if</span> d <span class="op">&gt;=</span> <span class="dv">10</span>)<span class="sc">:,}</span><span class="ss">"</span>)</span>
+<span id="cb15-36"><a href="#cb15-36" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb15-37"><a href="#cb15-37" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> G, components, degrees</span>
+<span id="cb15-38"><a href="#cb15-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-39"><a href="#cb15-39" aria-hidden="true" tabindex="-1"></a>G, families, connectivity <span class="op">=</span> analyze_family_network_structure(kin_df)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>=== NETWORK STRUCTURE &amp; FAMILY PATTERNS ===
+Network size: 278,257 people, 272,691 relationships
+Network density: 0.00000704
+
+=== FAMILY CLUSTER ANALYSIS ===
+Total family groups: 30,357
+Largest family: 52,992 people
+Top 10 family sizes: [52992, 357, 331, 294, 267, 236, 188, 160, 152, 130]
+Families with 100+ people: 16
+Single-person 'families': 0
+
+=== INDIVIDUAL CONNECTIVITY ===
+Average relationships per person: 1.96
+Most connected person has: 147 relationships
+People with only 1 relationship: 205,427
+People with 10+ relationships: 7,755</code></pre>
+</div>
+</div>
+<section id="posibilities-of-what-we-can-do" class="level2">
+<h2 class="anchored" data-anchor-id="posibilities-of-what-we-can-do">Posibilities of what we can do</h2>
+<p>Louvain (ML) - Can be applied to sub divide the 30,357 connected components (families) Family Tree Hierarchical Structure: - Look at how over time families evolved Degree centrality for important family members (Some have 147 edges from them) Betweenness Centrality for Bridges/Connectors between large families (Maybe a women who was married off etc)<br>
+- Look at how networks change across generations and time periods Spatial Network Analysis - Look at how people and networks change over time Cross-Dynasty Comparisons - compare family structures across different Chinese dynasties (depending on how far back the data goes)</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+          // target, if specified
+          link.setAttribute("target", "_blank");
+      }
+    }
+});
+</script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+ <a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc-sa/4.0/80x15.png"></a>.  <a rel="license" href="https://comet.arts.ubc.ca/pages/copyright.html">See details.</a>
+  </li>  
+</ul>
+    </div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    </div>
+    <div class="nav-footer-right">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+ The prAxIs Project and UBC are located on the traditional, ancestral and unceded territory of the xʷməθkʷəy̓əm (Musqueam) and Sḵwx̱wú7mesh (Squamish) peoples.
+  </li>  
+</ul>
+    </div>
+  </div>
+</footer>
+
+
+
+</body></html>
