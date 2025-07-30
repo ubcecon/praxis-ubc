@@ -67,7 +67,7 @@ jobs:
           ref: website-build 
           path: datasets
 
-
+        #update here
       - name: Organize structure
         id: prep
         run: |
@@ -84,7 +84,7 @@ jobs:
             --include '*.svg' \
             --exclude '*' \
             source-notebooks/project/docs/ final-notebooks/docs/
- 
+
           for dir in 1_Getting_Started 2_Beginner 3_Intermediate 4_Advanced 5_Research 6_Projects; do
             section=$(echo "$dir" | cut -d'_' -f2- | tr '[:upper:]' '[:lower:]')
             dataset_dir="datasets/project/docs/$dir/datasets_${section}"
@@ -129,33 +129,30 @@ jobs:
           tree final-notebooks
 
   sync-notebooks:
-    name: 🔁 Sync notebooks
+    name: 🔁 Sync notebooks to praxis-notebooks branch
     runs-on: ubuntu-latest
     needs: prepare-notebooks
-    if: github.ref == 'refs/heads/website-build' || github.event_name == 'workflow_dispatch' #update branch here if we move to main
-
+    if: github.ref == 'refs/heads/website-build' || github.event_name == 'workflow_dispatch'
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v4
-      with:
-        ref: website-build
-        fetch-depth: 0
+      - name: Checkout website-build branch
+        uses: actions/checkout@v4
+        with:
+          ref: website-build
 
-    - name: Download prepared notebooks
-      uses: actions/download-artifact@v4
-      with:
-        name: notebooks
-        path: final-notebooks
+      - name: Download prepared notebooks
+        uses: actions/download-artifact@v4
+        with:
+          name: notebooks
+          path: final-notebooks
 
-    - name: Run notebook sync
-      uses: BetaHuhn/repo-file-sync-action@v1
-      with:
-        GH_PAT: ${{ secrets.NOTEBOOKS_SYNC_TOKEN }}   
-        CONFIG_PATH: .github/sync.yml                 
-        COMMIT_PREFIX: "🔁 Sync notebooks:"
-        PR_LABELS: |
-          notebook-sync
-          automated
+      - name: Push to praxis-notebooks branch
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: final-notebooks/docs
+          publish_branch: praxis-notebooks
+          force_orphan: true
+
 
   deploy:
     needs: build
