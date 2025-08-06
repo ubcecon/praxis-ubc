@@ -31,7 +31,12 @@ In the notebook you will
 
 ### Prerequisites
 
-Before you start, make sure you have the required libraries installed, if not, **uncomment the lines below (i.e. remove the #) and run the cell to install them**: 
+Before you start, make sure you
+
+1. Have at least 200 MB storage available on your device.
+2. Download the 2 folders from [SharePoint](https://ubcca.sharepoint.com/teams/ubcARTS-gr-TLEFAIProjectUnpacking/Shared%20Documents/Forms/AllItems.aspx?FolderCTID=0x01200067B1FBA1C035534CB304E0FCB3E18409&id=%2Fteams%2FubcARTS%2Dgr%2DTLEFAIProjectUnpacking%2FShared%20Documents%2FData%2FAMNE%5F376) (You will only have access if you are an enrolled UBC student with an activated student email. If you are a UBC student but don't have a student email, please follow this [link](https://it.ubc.ca/services/email-voice-internet/ubc-student-email-service) to activate it). They will be saved locally as `.zip` files.
+3. Find the downloaded zipped files in your device and upload them to Jupyter in the same directory as this notebook.
+4. Have the required libraries installed, if not, **uncomment the lines below (i.e. remove the #) and run the cell to install them**: 
 
 ```{python}
 # !pip install matplotlib
@@ -46,6 +51,20 @@ Before you start, make sure you have the required libraries installed, if not, *
 # !pip install grad-cam
 # !pip install tensorflow
 # !pip install keras
+```
+
+**Important:** Please run the following cell before continuing, as it sets up the image folders required for this notebook.
+
+```{python}
+# Don't change this cell
+from zip_extractor import ZipExtractor
+
+# Define the source path and the destination
+sources = ["example_images.zip", "richter_kouroi_complete_front_only.zip"]
+dest = "../data/"
+for src in sources:
+    extractor = ZipExtractor(src, dest)
+    extractor.extract_all()
 ```
 
 ### 1. Introduction: How Do Computers "See" Visual Art?
@@ -73,7 +92,7 @@ from PIL import Image
 import matplotlib.pyplot as plt
 
 # Define the folder path where the images are stored
-image_path = '../data/richter_kouroi_filtered_photos' 
+image_path = '../data/example_images' 
 
 fig, axes = plt.subplots(1, 3, figsize=(8, 5))
 
@@ -358,7 +377,7 @@ As you can see, the pairwise cosine similarities are all very high, even though 
 However, would this also work for photos of different objects? Let's find out by calculating the cosine similarity between existing images and another Kouros currently exhibited in the Piraeus Archaeological Museum.
 ```{python}
 # Define a new image to compare with the existing ones
-new_image_path = '../data/richter_kouroi_filtered_photos/page312_img01_photo4.jpg'
+new_image_path = '../data/richter_kouroi_complete_front_only/page312_img01_photo4.jpg'
 new_image_label = 'A Kouros from Athens' # Suppose this is a new artifact we just discovered
 
 img_new = cv2.imread(new_image_path, cv2.IMREAD_GRAYSCALE)
@@ -469,7 +488,7 @@ from scipy.ndimage import convolve
 from PIL import Image
 
 # Load the image as grayscale
-img_path = "../data/richter_kouroi_filtered_photos/page300_img01_photo8.jpg"
+img_path = "../data/example_images/page300_img01_photo8.jpg"
 image = Image.open(img_path).convert('L')
 img_array = np.array(image)
 
@@ -497,7 +516,6 @@ plt.show()
 The above is just one example of a convolutional kernel that extracts horizontal edges in an image. In fact, there are many different kernels with different effects. For example, here is a filter that blurs all images:
 
 ```{python}
-img_path = "../data/richter_kouroi_filtered_photos/page300_img01_photo8.jpg"
 img = np.array(Image.open(img_path).convert('L'))
 
 def gaussian_kernel(size=21, sigma=5):
@@ -518,7 +536,6 @@ plt.tight_layout(); plt.show()
 Below is a kernel that preserves the input image as it is; it is also known as the identity kernel:
 
 ```{python}
-img_path = "../data/richter_kouroi_filtered_photos/page300_img01_photo8.jpg"
 img = np.array(Image.open(img_path).convert('L'))
 
 # Identity kernel (3x3)
@@ -536,7 +553,6 @@ plt.tight_layout(); plt.show()
 There is also a kernel that sharpens the images, known as the sharpening filter:
 
 ```{python}
-img_path = "../data/richter_kouroi_filtered_photos/page300_img01_photo8.jpg"
 img = np.array(Image.open(img_path).convert('L'))
 
 # Sharpen kernel
@@ -555,7 +571,6 @@ plt.tight_layout(); plt.show()
 Other than sharpening, there is even a filter to emboss the image:
 
 ```{python}
-img_path = "../data/richter_kouroi_filtered_photos/page300_img01_photo8.jpg"
 img = np.array(Image.open(img_path).convert('L'))
 
 # Emboss kernel
@@ -574,7 +589,6 @@ plt.tight_layout(); plt.show()
 Other than only detecting vertical or horizontal edges, a filter named after Laplace was discovered to detect all edges:
 
 ```{python}
-img_path = "../data/richter_kouroi_filtered_photos/page300_img01_photo8.jpg"
 img = np.array(Image.open(img_path).convert('L'))
 
 laplacian = np.array([[0,-1,0],[-1,8,-1],[0,-1,0]])
@@ -620,8 +634,6 @@ def load_and_gray(path, target_size=(224,224)):
     # normalize
     gray = gray.astype('float32') / 255.0
     return gray
-
-img_path = '../data/richter_kouroi_filtered_photos/page300_img01_photo8.jpg'
 
 gray = load_and_gray(img_path)
 
@@ -1342,7 +1354,7 @@ Now, let's imagine a scenario where we find a new Kouros, but we are not sure wh
 
 ```{python}
 # Define a new image to compare with the existing ones
-new_artifact_path = '../data/NAMA_3938_Aristodikos_Kouros.jpeg'
+new_artifact_path = '../data/example_images/NAMA_3938_Aristodikos_Kouros.jpeg'
 new_artifact_label = 'A Kouros from Athens' # Suppose this is a new artifact we just discovered
 
 art_new = cv2.imread(new_artifact_path, cv2.IMREAD_GRAYSCALE)
