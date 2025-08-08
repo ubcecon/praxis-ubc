@@ -1,27 +1,29 @@
 ---
-title: ECON 227 - How Does Large Language Models Work?
+title: ECON 227 - How Do Large Language Models Predict?
 date: '2025-08-04'
-author: _prAxIs UBC Team <br>Krishaant Pathman, Yash Mali, Kaiyan Zhang_
+author: prAxIs UBC Team <br> _Krishaant Pathman, Yash Mali, Kaiyan Zhang_
 description: This notebook aims to explain how large language models (LLMs) work and make predictions through an example of stock price prediction based on historical price data and news sentiment.
 categories:
   - Python
   - LLM
   - Sentiment Analysis
 format:
-  html: 
+  html:
     code-fold: true
-    code-summary: "Show the code"
+    code-summary: Show the code
   ipynb:
     jupyter:
       kernelspec:
         display_name: Python
         language: python3
         name: python3
+jupyter: python3
 ---
 
-## Prerequisite
+### Prerequisite
 
 Before you start, make sure you have the required libraries installed, if not, **uncomment the lines below (i.e. remove the #) and run the cell to install them**:
+
 ```{python}
 # !pip install yfinance finvizfinance transformers pandas numpy statsmodels holidays plotly ipywidgets 
 ```
@@ -48,9 +50,12 @@ import warnings
 import os
 import glob
 import matplotlib.pyplot as plt
+from datetime import datetime, timedelta
+from math import sqrt
+from sklearn.metrics import mean_squared_error, mean_absolute_error
 ```
 
-## Introduction: Distribution of LLM Predictions
+### Introduction: Distribution of LLM Predictions
 
 Large language models like ChatGPT do something that seems very simple: **Next word prediction**.
 
@@ -232,7 +237,7 @@ Typically, when building a model to predict stock prices, you would use more inf
 
 In the examples below, that's exactly what we're going to try! We'll see how adding these extra features can help the model make better predictions about what happens next.
 
-# Predicting Stock Prices from News Headlines with AI
+### Predicting Stock Prices from News Headlines with AI
 
 Just like LLMs predict the next word based on the context of prior words:
 
@@ -266,7 +271,7 @@ You will:
 - Visualize your results interactively
 
 
-## Preview the News Data
+### Preview the News Data
 
 Here we use the `finvizfinance` packages to retrive real-time news headlines for companies like Starbucks (SBUX).
 
@@ -315,7 +320,7 @@ for i in range(5):
     print(titles[i])
 ```
 
-## Classifying Headline Sentiment with LLM
+### Classifying Headline Sentiment with LLM
 
 Earlier, we explored how **large language models (LLMs)** predict the *next word* by learning the probability distribution of possible outcomes based on context.
 
@@ -345,7 +350,6 @@ It returns:
 We skip `NEUTRAL` news to focus on strong market signals.
 
 In this case, we apply a pre-trained LLM called **Twitter-RoBERTa**, specifically trained on tweets and social media text. It's well-suited to handling short, informal writing like news headlines.
-
 
 ```{python}
 warnings.filterwarnings("ignore")
@@ -405,7 +409,7 @@ sentiment_df = process_sentiment(news_df)       # Summarize daily sentiment stat
 sentiment_df.head()                             # Display the first 5 rows of the dataframe
 ```
 
-###  What this table shows?
+####  What this table shows?
 This table is the output of a function that summarizes news sentiment over time.
 
 Each row corresponds to a specific date and gives us a snapshot of how positive or negative the news headlines were for that day and the surrounding week.
@@ -413,13 +417,13 @@ Each row corresponds to a specific date and gives us a snapshot of how positive 
 Markets move not just based on today's headlines, but on **short-term trends** in public sentiment.  
 This table lets us track how optimism or pessimism is **building up over time**, which we can later use to help predict stock price movements.
 
-###  Why is this useful?
+####  Why is this useful?
 - We know that in the last 100 news stories about NVDIA 24 have been positive and 5 have been negative. 
 - If the `7day_pct_positive` is rising, the overall tone of news is getting more optimistic.
 - If it's dropping, it could mean public or investor concern is growing.
 - We can later plot this and compare it against stock price to see if sentiment influences market behavior.
 
-## Getting Stock Price Data 
+### Getting Stock Price Data 
 
 We are using the `yfinance` package to get real stock price data directly from Yahoo Finance. The function below helps us download historical stock prices and compute the daily percentage change in the stock's closing price. To make sure our results are replicaable, this data has been saved as a `.csv` file "data/NVDA_snapshot.csv"
 
@@ -478,12 +482,17 @@ combined_df = combine_data(sentiment_df, stock_df)
 combined_df
 ```
 
-
-### Forecasting Future Stock Changes with Sentiment
+#### Forecasting Future Stock Changes with Sentiment
 
 In this notebook, we will try to predict future stock price changes using the **SARIMAX model**, a powerful forecasting model that allows us to include external information, in our case, **public sentiment**. For those who are interested in learning more about the SARIMAX model and its implementation in Python, see this [comprehensive guide](https://www.geeksforgeeks.org/python/complete-guide-to-sarimax-in-python/) on GeeksforGeeks.
 
-Basically this function is asking "Based on recent sentiment, what does the model think will happen to this stock's price over the next few days?"
+Below, we define three key functions for our forecasting workflow:
+
+- `get_future_dates()`: Returns the next business days for which we want to make predictions.
+- `fit_and_forecast()`: Uses both historical stock prices and recent news sentiment to predict how Starbucks' (SBUX) stock price might change over the next few days. This function fits a SARIMAX model, which incorporates both past price data and the influence of news sentiment, and then generates forecasts along with confidence intervals.
+- `create_plot()`: Produces an interactive line chart that visualizes trends in both stock price percentage changes and sentiment, allowing us to explore their relationship over time.
+
+By combining these functions, we can see how shifts in news sentiment may impact SBUX's future stock movements. The forecasting approach essentially answers the question: "Given recent sentiment, what does the model predict for this stock's price in the coming days?"
 
 ```{python}
 # business days we should forecast for 
@@ -518,29 +527,42 @@ def fit_and_forecast(combined_df, forecast_steps=3):
     forecast = fit.get_forecast(steps=forecast_steps, exog=future_exog)
     return forecast.predicted_mean, forecast.conf_int(), future_dates
 
-def create_plot(combined_df, forecast_mean, forecast_ci, forecast_index):
+# Create a plot with the forecasted data, historical sentiment, and stock price changes
+def create_plot(combined_df, forecast_mean, forecast_ci, forecast_index, actuals_df=None):
     combined_df = combined_df.copy()
-    sentiment_std = (combined_df['lagged_sentiment'] - combined_df['lagged_sentiment'].mean()) \
-                    / combined_df['lagged_sentiment'].std()
+    
+    # Aggregate data by date to show one clear point per day
+    daily_agg = combined_df.groupby(combined_df.index).agg({
+        'lagged_sentiment': 'mean',
+        'Pct_Change': 'mean'
+    }).reset_index()
+    daily_agg.set_index('DateOnly', inplace=True)
+    
+    sentiment_std = (daily_agg['lagged_sentiment'] - daily_agg['lagged_sentiment'].mean()) \
+                    / daily_agg['lagged_sentiment'].std()
 
     fig = go.Figure()
 
     # Historical sentiment
     fig.add_trace(go.Scatter(
-        x=combined_df.index,
+        x=daily_agg.index,
         y=sentiment_std,
         name='Standardized Sentiment',
+        mode='lines+markers',
         line=dict(color='royalblue', width=2),
+        marker=dict(color='royalblue', size=4),
         hovertemplate='Date: %{x}<br>Sentiment: %{y:.2f}<extra></extra>'
     ))
 
     # Historical % change
     fig.add_trace(go.Scatter(
-        x=combined_df.index,
-        y=combined_df['Pct_Change'],
+        x=daily_agg.index,
+        y=daily_agg['Pct_Change'],
         name='Stock % Change',
         yaxis='y2',
+        mode='lines+markers',
         line=dict(color='limegreen', width=2),
+        marker=dict(color='limegreen', size=4),
         hovertemplate='Date: %{x}<br>% Change: %{y:.2f}%<extra></extra>'
     ))
 
@@ -567,12 +589,100 @@ def create_plot(combined_df, forecast_mean, forecast_ci, forecast_index):
         showlegend=True
     ))
 
+    # Add actual data if provided
+    if actuals_df is not None and not actuals_df.empty:
+        # If actuals_df has multiple tickers, aggregate by date (take mean)
+        if 'Ticker' in actuals_df.columns and len(actuals_df['Ticker'].unique()) > 1:
+            actual_agg = actuals_df.groupby('DateOnly')['Actual_Pct_Change'].mean().reset_index()
+            actual_dates = actual_agg['DateOnly']
+            actual_values = actual_agg['Actual_Pct_Change']
+        else:
+            actual_dates = actuals_df['DateOnly']
+            actual_values = actuals_df['Actual_Pct_Change']
+        
+        # Actual data points
+        fig.add_trace(go.Scatter(
+            x=actual_dates,
+            y=actual_values,
+            name='Actual % Change',
+            yaxis='y2',
+            mode='markers',
+            marker=dict(color='gold', size=8, symbol='circle'),
+            hovertemplate='Date: %{x}<br>Actual: %{y:.2f}%<extra></extra>'
+        ))
+        
+        # Calculate and display gaps (forecast vs actual) where dates overlap
+        forecast_df = pd.DataFrame({
+            'DateOnly': pd.to_datetime(forecast_index).normalize(),
+            'Forecast': forecast_mean
+        })
+        
+        # Prepare actual data for merging
+        if 'Ticker' in actuals_df.columns and len(actuals_df['Ticker'].unique()) > 1:
+            actual_for_gap = actual_agg.copy()
+            actual_for_gap.rename(columns={'Actual_Pct_Change': 'Actual'}, inplace=True)
+        else:
+            actual_for_gap = actuals_df[['DateOnly', 'Actual_Pct_Change']].copy()
+            actual_for_gap.rename(columns={'Actual_Pct_Change': 'Actual'}, inplace=True)
+        
+        # Merge to find overlapping dates
+        gap_df = pd.merge(forecast_df, actual_for_gap, on='DateOnly', how='inner')
+        
+        if not gap_df.empty:
+            gap_df['Gap'] = gap_df['Forecast'] - gap_df['Actual']
+            
+            # Add gap visualization (error bars or connecting lines)
+            for _, row in gap_df.iterrows():
+                fig.add_trace(go.Scatter(
+                    x=[row['DateOnly'], row['DateOnly']],
+                    y=[row['Forecast'], row['Actual']],
+                    name='Forecast Gap',
+                    yaxis='y2',
+                    mode='lines',
+                    line=dict(color='orange', width=2, dash='dot'),
+                    showlegend=False,
+                    hoverinfo="none"
+                ))
+            
+            # Add invisible points at gap midpoints for targeted hover
+            for _, row in gap_df.iterrows():
+                midpoint = (row['Forecast'] + row['Actual']) / 2
+                fig.add_trace(go.Scatter(
+                    x=[row['DateOnly']],
+                    y=[midpoint],
+                    name='Gap Info',
+                    yaxis='y2',
+                    mode='markers',
+                    marker=dict(color='orange', size=8, opacity=0),
+                    showlegend=False,
+                    hovertemplate=f'Date: %{{x}}<br>Gap: {row["Gap"]:.2f}%<extra></extra>'
+                ))
+            
+            # Add a single legend entry for gaps
+            if len(gap_df) > 0:
+                fig.add_trace(go.Scatter(
+                    x=[gap_df.iloc[0]['DateOnly']],
+                    y=[gap_df.iloc[0]['Forecast']],
+                    name='Forecast Gap',
+                    yaxis='y2',
+                    mode='lines',
+                    line=dict(color='orange', width=2, dash='dot'),
+                    showlegend=True,
+                    hoverinfo="skip"
+                ))
+
     fig.update_layout(
-        title='Sentiment vs Stock Change Forecast',
-        title_font=dict(size=20),
+        title=dict(
+            text='Sentiment vs Stock Change Forecast',
+            font=dict(size=20),
+            y=0.95,
+            x=0.5,
+            xanchor='center',
+            yanchor='top'
+        ),
         hovermode='x unified',
         legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
-        margin=dict(l=60, r=60, t=80, b=60),
+        margin=dict(l=60, r=60, t=140, b=60),
         template='plotly_dark',
         xaxis=dict(
             title='Date',
@@ -596,10 +706,9 @@ def create_plot(combined_df, forecast_mean, forecast_ci, forecast_index):
     )
 
     fig.show()
-
 ```
 
-### Plot: Sentiment vs Stock % Change Forecast
+#### Plot: Sentiment vs Stock % Change Forecast
 
 This chart shows how news sentiment about a company relates to its stock price changes over time, and how we can use this relationship to make simple predictions.
 
@@ -609,7 +718,7 @@ This chart shows how news sentiment about a company relates to its stock price c
 
 We want to see whether the emotions in the news (blue) can help us predict price changes (green and red). If they move together, it suggests that public mood might influence investor behavior.
 
-> Thisplot helps us visualize correlations and test basic forecasting using real-world data like stock prices and media sentiment.
+> This plot helps us visualize correlations and test basic forecasting using real-world data like stock prices and media sentiment.
 
 ```{python}
 combined_df['DateOnly'] = pd.to_datetime(combined_df['DateOnly'])  # convert to datetime
@@ -624,7 +733,7 @@ create_plot(combined_df, forecast_mean, forecast_ci, forecast_index)
 
 > *Think about what you would include in a model other than news to help us predict how a stock price might change ?*
 
-## How Do AIs Feel About AI?
+### How Do AIs Feel About AI?
 
 In this section of the notebook, we explore how our AI Sentiment Analysis model** feels about AI-related stocks. That's a mouthful! 
 
@@ -733,7 +842,7 @@ AI_sentiment_df = AI_process_sentiment(AI_sentiment_news_df)
 AI_sentiment_df.head()
 ```
 
-### Like we did with the `SBUX` stock above lets get stock prices for all of our AI stokcs now.  
+#### Like we did with the `SBUX` stock above lets get stock prices for all of our AI stocks now.  
 
 ```{python}
 # Match date range to your sentiment dataset
@@ -790,12 +899,7 @@ final_df = pd.merge(
 final_df.head()
 ```
 
-This function predicts how Starbucks' (SBUX) stock price might change over the next few days by combining past price data and recent news sentiment.  
-
-It fits a SARIMAX model, which lets us include both price history and the impact of news sentiment in the prediction.  
-The function then forecasts SBUX price changes for the coming week, providing both the predicted changes and a confidence interval for each day.  
-
-This approach helps us see how positive or negative news might affect SBUX's future stock movements.
+Similar to our approach with the `SBUX` stock price, we can fit a SARIMAX model to this combined dataset and forecast the percentage change in AI stock prices for the next 7 business days, using both historical price trends and recent news sentiment as inputs.
 
 ```{python}
 def fit_and_forecast(final_df, forecast_steps=7):
@@ -851,9 +955,171 @@ forecast_mean, forecast_ci, forecast_index = fit_and_forecast(final_df)
 create_plot(final_df, forecast_mean, forecast_ci, forecast_index)
 ```
 
-## References
+#### How well does the model predict?
+
+We can fetch the actual data to see how well our model predicts the AI stocks.
+
+```{python}
+# Create function to generate the compare window
+def get_compare_window(compare_start, compare_target_end):
+
+    # Define today to avoid fetching beyond range
+    today = pd.Timestamp(datetime.utcnow().date())  # use UTC date
+
+    compare_end = min(today, compare_target_end)
+    return compare_start, compare_end
+
+# Create function to fetch the actual percentage change
+def fetch_actual_pct_changes(ticker_list, start_date, end_date, buffer_days=7):
+    # This function fetches the pct change of the given list of tickers and return as a DataFrame
+    rows = []
+    # fetch one ticker at a time to avoid group_by complexity
+    start_fetch = (start_date - pd.Timedelta(days=buffer_days)).strftime('%Y-%m-%d')
+    end_fetch = (end_date + pd.Timedelta(days=1)).strftime('%Y-%m-%d')
+
+    for t in ticker_list:
+        try:
+            df = yf.download(t, start=start_fetch, end=end_fetch, progress=False, interval='1d', auto_adjust=False)
+            if df.empty:
+                # no data for ticker in window
+                continue
+            df.index = pd.to_datetime(df.index).normalize()
+            # compute percent change on Close
+            if 'Adj Close' in df.columns:
+                price_col = 'Adj Close'
+            else:
+                price_col = 'Close'
+            df['pct_change'] = df[price_col].pct_change() * 100.0
+            # select only rows in [start_date, end_date]
+            sel = df.loc[(df.index >= start_date) & (df.index <= end_date)]
+            # Fix: Properly select the pct_change column
+            sel = sel[['pct_change']].dropna()
+            for idx, r in sel.iterrows():
+                rows.append({'DateOnly': idx, 'Ticker': t, 'Actual_Pct_Change': r['pct_change']})
+        except Exception as e:
+            print(f"yfinance fetch failed for {t}: {e}")
+
+    actuals_df = pd.DataFrame(rows)
+    if not actuals_df.empty:
+        actuals_df['DateOnly'] = pd.to_datetime(actuals_df['DateOnly']).dt.normalize()
+    return actuals_df
+
+# Function to compare predictions with actuals
+def compare_predictions(pred_mean, pred_index, actuals_df, ticker=None):
+
+    pred_df = pd.DataFrame({
+        'DateOnly': pd.to_datetime(pred_index).normalize(),
+        'Predicted_Pct_Change': np.asarray(pred_mean).astype(float)
+    })
+    if ticker is not None:
+        actuals_df = actuals_df[actuals_df['Ticker'] == ticker].copy()
+    # If actuals contain multiple tickers and ticker=None, will compare using all actual rows
+    merged = pd.merge(pred_df, actuals_df, on='DateOnly', how='inner')
+
+    if merged.empty:
+        print("No overlapping observed days to compare (maybe market closed or today < start).")
+        return merged, {}
+
+    # If actuals has multiple tickers for same DateOnly (if ticker=None), aggregated handling:
+    if 'Ticker' in merged.columns and ticker is None:
+        # average actuals across tickers for that day
+        aggregated = merged.groupby('DateOnly').agg({
+            'Predicted_Pct_Change': 'first',  
+            'Actual_Pct_Change': 'mean'
+        }).reset_index()
+        mdf = aggregated
+    else:
+        mdf = merged[['DateOnly', 'Predicted_Pct_Change', 'Actual_Pct_Change']].copy()
+
+    # metrics
+    mae = mean_absolute_error(mdf['Actual_Pct_Change'], mdf['Predicted_Pct_Change'])
+    rmse = sqrt(mean_squared_error(mdf['Actual_Pct_Change'], mdf['Predicted_Pct_Change']))
+    metrics = {'count': len(mdf), 'MAE': mae, 'RMSE': rmse}
+
+    return mdf, metrics
+```
+
+The evaluation metrics we use are the **Mean Absolute Error (MAE)** and **Root Mean Squared Error (RMSE)**, which measure how far off our predictions are from the actual stock price changes. 
+
+The MAE is the average of the absolute differences between predicted and actual values, while the RMSE is the square root of the average of squared differences. Usually, lower values of these metrics indicate better model performance.
+
+The MAE is calculated as follows:
+$$
+\text{MAE} = \frac{1}{n} \sum_{i=1}^{n} |y_i - \hat{y}_i|
+$$
+And the RMSE is calculated as follows:
+$$
+\text{RMSE} = \sqrt{\frac{1}{n} \sum_{i=1}^{n} (y_i - \hat{y}_i)^2}
+$$
+
+However, we must note that these metrics are not unitless, meaning they depend on the scale of the data. In our case, since we are predicting percentage changes in stock prices, the MAE and RMSE will be in percentage points.
+
+```{python}
+# Fit the previous example for comparison
+compare_start = forecast_index[0]
+compare_target_end = forecast_index[-1]
+
+compare_start, compare_end = get_compare_window(compare_start, compare_target_end)
+
+# Create the actual comparison DataFrame
+actuals_df = fetch_actual_pct_changes(ai_tickers, compare_start, compare_end, buffer_days=7)
+
+# Calculate the metrics
+pred_mean_values = forecast_mean.values  # array-like
+mdf, metrics = compare_predictions(pred_mean_values, forecast_index, actuals_df)
+
+print("Comparison metrics:")
+print(f"Count: {metrics['count']}\nMAE: {metrics['MAE']:.2f}\nRMSE: {metrics['RMSE']:.2f}\n")
+
+if not mdf.empty:
+    print(mdf.head())
+```
+
+Now, with the actual stock price data, let's visualize it in the plot alongside our predictions to see if our confidence intervals capture the actual movements well.
+
+```{python}
+# Visualize the comparison and evaluate the confidence intervals
+create_plot(final_df, forecast_mean, forecast_ci, forecast_index, actuals_df)
+```
+
+>
+> - *Do you think the model's predictions are accurate enough for practical use?*  
+> - *What strategies could you use to:*  
+>   1. *Reduce the width of the confidence intervals?*  
+>   2. *Improve the accuracy of the predictions?*  
+>   3. *Increase the model's robustness to outliers?*  
+>
+>   *Share your ideas with your classmates!*
+
+### Conclusion
+
+This notebook provides an overview of how large language models (LLMs) make predictions, typically with an example showing the distribution of a LLM's prediction and an example of stock price forecasting based on historical data and news sentiment. It demonstrates how LLMs work and how they can be applied to real-world problems like stock price prediction. The use of LLM and sentiment analysis allows us to incorporate additional qualitative information into our predictions, potentially allowing for better inference and forecasting of economic variables like stock prices.
+
+However, it is important to note that the model's predictions are not perfect and should be used with caution. The notebook also highlights the importance of evaluating the model's performance using metrics like MAE and RMSE, and encourages users to think critically about how to improve the model's accuracy and robustness.
+
+### Key Takeaways
+
+- **Large language models (LLMs)** predict the next word in a sequence by learning the probability distribution of possible outcomes based on context.
+- LLMs can also be used to predict future values in a time series, such as stock prices, by incorporating additional features like public sentiment.
+- **The SARIMAX model** is a powerful forecasting model that allows us to include external information, such as news sentiment, in our predictions.
+- We must evaluate the model's performance using metrics like **MAE** and **RMSE** to ensure its predictions are reliable.
+
+### Glossary
+
+- **Large Language Model (LLM)**: A type of AI model that predicts the next word in a sequence based on the context of previous words.
+- **Next Word Prediction**: The task of predicting the next word in a sequence given the previous words.
+- **Sentiment Analysis**: The process of determining the emotional tone behind a series of words, used to understand the sentiment expressed in text.
+- **SARIMAX Model**: A statistical model used for forecasting time series data that can incorporate external variables.
+- **Mean Absolute Error (MAE)**: A measure of prediction accuracy that calculates the average absolute difference between predicted and actual values.
+- **Root Mean Squared Error (RMSE)**: A measure of prediction accuracy that calculates the square root of the average of squared differences between predicted and actual values.
+
+### References
 
 - Kirsch, N. (2024, April 29). 10 Best AI Stocks Of August 2024. Forbes Advisor. [https://www.forbes.com/advisor/investing/best-ai-stocks/](https://www.forbes.com/advisor/investing/best-ai-stocks/)
 - Chen, J. (2023, October 6). *Efficient Market Hypothesis (EMH): Forms and criticisms*. Investopedia. [https://www.investopedia.com/terms/e/efficientmarkethypothesis.asp](https://www.investopedia.com/terms/e/efficientmarkethypothesis.asp)
+- Yahoo Finance. (n.d.). Yahoo Finance — Stocks, financial news, quotes, and market data. Retrieved August 1, 2025, from [https://ca.finance.yahoo.com/](https://ca.finance.yahoo.com/)
+- Aroussi, R. (n.d.). yfinance [Python package]. GitHub. Retrieved August 1, 2025, from [https://github.com/ranaroussi/yfinance](https://github.com/ranaroussi/yfinance)
+- Li, T. (2025). finvizfinance (Version 1.1.1) [Python package]. PyPI. Retrieved August 1, 2025, from [https://pypi.org/project/finvizfinance/](https://pypi.org/project/finvizfinance/)
 - GeeksforGeeks. (2023, September 27). Complete guide to SARIMAX in Python. [https://www.geeksforgeeks.org/python/complete-guide-to-sarimax-in-python/](https://www.geeksforgeeks.org/python/complete-guide-to-sarimax-in-python/)
 - Sprenger, T. O., Tumasjan, A., Sandner, P. G., & Welpe, I. M. (2014, February 5). *Twitter sentiment and stock market movements: The predictive power of social media*. VoxEU. [https://cepr.org/voxeu/columns/twitter-sentiment-and-stock-market-movements-predictive-power-social-media](https://cepr.org/voxeu/columns/twitter-sentiment-and-stock-market-movements-predictive-power-social-media)
+
