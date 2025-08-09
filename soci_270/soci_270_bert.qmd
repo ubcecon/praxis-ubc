@@ -111,6 +111,12 @@ In order to get started using machine learning to map disinformation campaigns, 
 
 To do this, we are using the `import` statement which allows us to access the functions and capabilities of each module. The modules we are using allow us to complete differenet tasks. We will use Python to do communicate which capabilities we want to use and we will continue writing in Python to use these capabilities. It is what we are using to communicate what libraries or capabilities we want to use. We will learn more about what each module is doing as we continue to use them.
 
+**Important**: If you don't have the required packages installed, you can install them by uncommenting (i.e. removing the "#") and running the following command in a code cell:
+
+```{python}
+# !pip install pandas numpy torch scikit-learn matplotlib seaborn datar datasets transformers nltk ipywidgets ipython scipy kaggle detoxify
+```
+
 ```{python}
 import pandas as pd
 import numpy as np
@@ -163,7 +169,7 @@ create_disinformation_dataset() #creates our dataset
 ```
 
 ```{python}
-tweets = pd.read_csv('C:/Users/Irene/testrepo/praxis-ubc/soci_270/data/combined_disinformation_dataset_final.csv') #loads in the dataset for us to use
+tweets = pd.read_csv('data/combined_disinformation_dataset_final.csv') #loads in the dataset for us to use
 tweets = tweets[['language', 'date', 'time', 'source', 'is_propaganda', 'content']]
 print(tweets.columns) # the columns we chose to keep for our analysis
 ```
@@ -754,8 +760,12 @@ en_tweets = tweets_lang[tweets_lang['language'] == 'en']
 ru_tweets  = tweets_lang[tweets_lang['language'] == 'ru']
 eng_dist = pd.crosstab(en_tweets['sentiment'], en_tweets['is_propaganda'], normalize='columns') * 100
 ru_dist  = pd.crosstab(ru_tweets['sentiment'],  ru_tweets['is_propaganda'],  normalize='columns') * 100
-eng_dist.columns = ['Non-propagandist', 'Propagandist']
-ru_dist.columns  = ['Non-propagandist', 'Propagandist']
+
+# Renaming columns for clarity
+col_map = {0: 'Non-propagandist', 1: 'Propagandist'}
+
+eng_dist = eng_dist.rename(columns=lambda c: col_map.get(c, str(c)))
+ru_dist  = ru_dist.rename(columns=lambda c: col_map.get(c, str(c)))
 
 print("English Tweets Sentiment (%):\n", eng_dist, "\n")
 print("Russian Tweets Sentiment (%):\n", ru_dist)
@@ -776,12 +786,12 @@ sentiment_multi = pipeline("sentiment-analysis", model="cardiffnlp/twitter-xlm-r
 batch_size = 1000
 for start in range(0, len(tweets_small), batch_size):
     end = start + batch_size
-    batch_texts = tweets_small["text"].iloc[start:end].tolist()
+    batch_texts = tweets_small["content"].iloc[start:end].tolist()
     results = sentiment_multi(batch_texts)           
     labels  = [res["label"] for res in results]
     tweets_small.loc[start:end-1, "sentiment"] = labels 
 
-print(tweets_small[["text", "sentiment"]].head())
+print(tweets_small[["content", "sentiment"]].head())
 ```
 
 To make the results easier to visualize, let's create a table that shows the percentage distribution of sentiment labels (positive, neutral, negative) within propagandist and non-propagandist tweets.
@@ -872,6 +882,8 @@ In the context of our dataset, propagandist tweets often aim to provoke strong e
 Toxicity analysis gives us another lens to understand how language and emotion are used in disinformation campaigns. Let’s begin by importing the necessary libraries and tools:
 
 ```{python}
+from detoxify import Detoxify
+
 model = Detoxify('original', device='cpu')
 ```
 
