@@ -1,27 +1,181 @@
 ---
 title: "HIST 414"
-author: "Nathan Zhang, Irene Berezin, Alex "
+subtitle: "**Text Embedding-Driven Analysis of Crease's Stances Towards Chinese Immigrants with Evidence from Legal Cases**"
+author: "Kaiyan Zhang, Irene Berezin, Alex Ronczewski"
 format: revealjs
+scrollable: true
+smaller: true
 ---
 
-## Overview of historical background 
 
-[insert here]
+## Overview of Historical Background 
 
-## Overview of our data
+**The 1884 Chinese Regulation Act** is widely regarded as one of the most notorious discriminatory provincial laws targeting Chinese immigration. This legislation was challenged and ultimately declared unconstitutional in the 1885 case of **R v. Wing Chong** by Justice Henry Pering Pellew Crease. 
 
-[insert here]
+However, whether this decision stemmed from genuine sympathy toward Chinese immigrants or was primarily motivated by economic concerns has remained a subject of ongoing debate among scholars of Canadian constitutional history. Crease originated from a wealthy english military family, and posessed a highly prestegious law background. His identity was above-all english, and this was made clear in his politics; he viewed Canada not as a new society to be built, but as an extension of the british empire. He displated mistrust towards Canadians, referring to them as “North American Chinamen”, afraid that they would “rule the country and job its offices" ().
+
+## Two Judges
+
+Parallel to Judge Crease stood Judge Matthew Baillie Begbie, another Judge who testified alongside Crease in the 1884 Royal Commission on Chinese Immigration. Unlike Crease, historical accounts describe Begbie as a man who was protective of marginalized peoples, particularly indigenous communities, having learned some of their languages and fought for their fishing rights (Williams, 1977), with evidence of this extending to Chinese immigrants: In the 1884 Commission, for instance, Begbie wrote that the "four prominent qualities" of Chinese-Canadian immigrants were "industry, economy, sobriety and law abidingness," arguing this was the primary reason for their unpopularity amongst White Canadians. 
+
+- Begbie is famous for his striking down of discriminatory municipal bylaws in Victoria that targeted Chinese-owned businesses, writing that such laws were an "infringement at once of personal liberty, and of the equality of all men before the law."
+
+## What is the point of this presentation? 
+
+In previous years, students expressed interest Crease's opinion on the 1884 Chinese regulation act, given that the regulation act was strongly condoned and ultimately struck down by Crease. A question of interest is, **did Judge Crease strike down the act because of genuine anti-racism concerns, or because he saw the Chinese Immigrant labor force as a valuable asset for growing the Canadian Economy?**
+
+We want to demonstrate how historians can use various computational tools to *assist* them in answering such a complicated research question, through each step in the research process. 
+
+## Overview of Our Study
+
+In this study, we employ machine learning techniques, specifically text embeddings, to offer a novel perspective on this historical issue. Our methodology encompasses the following steps:
+
+- Compiling a corpus of legal cases and commission reports authored by contemporary judges concerning Chinese immigrants.
+- Applying Optical Character Recognition (OCR) to the reports in order to convert them to a machine-readable format. 
+- Creating keyword-focused text embeddings and comparing the positions of Justice Crease, Justice Begbie, and the 1884 Chinese Regulation Act to elucidate differences in judicial stance.
+- Conducting Topic Alignment Analysis to assess the relative emphasis on economic versus social justice concerns.
+- Utilizing zero-shot classification to evaluate whether the discourse within these documents reflects pro-discrimination, neutral, or anti-discrimination positions.
+
+## Step 1: Collecting data
+
+Our dataset consists of 10 digitized and cleaned text documents, including 5 legal cases, 4 commission reports, and the original text of the 1884 Chinese Regulation Act of BC.
+
+- We focus primarily on R v. Wing Chong, Wong Hoy Woon v. Duncan, R v. Mee Wah, R v. Victoria, and the Regulation Act itself, as these documents directly address Chinese immigration in BC during the period. 
+- Reports authored by Crease and Begbie for the Royal Commission on Chinese Immigration are also included to provide insight into the judges’ perspectives. 
+- The remaining documents serve to enrich our corpus for word embedding analysis and supplement our study.
+
+----
+
+Below is a summary of our dataset. Note that direct quotations from the Regulation Act were removed from R v. Wing Chong to prevent duplication and confounding in our analysis.
+
+| Filename                         | Author      | Type   | Act Quotes Removed |
+|-----------------------------------|------------|--------|----------------------------|
+| regina_v_wing_chong.txt           | Crease     | case   | 12                         |
+| wong_hoy_woon_v_duncan.txt        | Crease     | case   | 0                          |
+| regina_v_mee_wah.txt              | Begbie     | case   | 0                          |
+| regina_v_victoria.txt             | Begbie     | case   | 0                          |
+| quong_wing_v_the_king.txt         | Fitzpatrick| case   | 0                          |
+| commission_on_chinese_imigration.txt | Powell  | report | 0                          |
+| chapleau_report_resume.txt        | Chapleau   | report | 0                          |
+| crease_commission.txt             | Crease     | report | 0                          |
+| begbie_commission.txt             | Begbie     | report | 0                          |
+| chinese_regulation_act_1884.txt   | Others     | act    | 0                          |
+
+*Table: Summary of documents in our dataset*
+
+## Step 2: Optical Character recognition
+
+A big issue with working with historical texts is the format they're stored in- usually scans of varying quality from physical books, articles, etc. The challenge is then converting these texts into a machine-readable format such as a text file. This isn't just useful for research, but is useful for broadening access to historical materials in general (would you rather read a cropped scan of a book, or a pdf?). The process of converting images into machine-readable text is called Optical Character recognition (OCR). Many tools have been invented for this, ranging in cost, ease of access, and effectiveness. In fact, most of the historical cases found on Canlii and other legal case repositories are OCR'd to some extent. 
+
+## OCR, continued
+
+ In the previous decade, OCR primarily relied on **pattern matching**: analyzing an image and comparing each character of the image to a stored library of fonts and characters. Today, intelligent character recognition software technology OCRs text by reading it the same way humans do, looking for various image attributes at different levels and piecing together a final result. This works significantly better than older pattern matching methods. After testing out various options,  we employed a variation of method #2 on the collection of texts above. 
+
+ ![](media/original_text.png)
+
+ OCR becomes even more challening when our text is hand-written or contains unequally structured data as abovve. What do we do with the annotations on the sides? Or the title? Or the header? Or, worst case scenario, something like this:
+
+ ![](media/bad_example.png)
+ 
+This is a page from a letter sent to Judge Begbie. It's truely quite complicated!
+
+## Step 3: Now, which texts do we even need to use?
+
+Our aim here is to built a character profile for Justice Crease, which requires reading his rulings. But which rulings are particularly relevant? For instance, many of Crease's rulings are related to BC railroad construction and aren't related to his stance on Chinese Immigration to Canada. Sure, they might highlight some additional details about his opinions on Canadian culture and independence, but they likely aren't highly relevant. This is something for the researcher to decide. 
+
+So how do figure out which cases to look at? Remember- many of these historical cases aren't on Canlii or other search tools. 
+
+Perhaps one thing we could try doing is counting the number of times each word shows up in the text, and once we get rid of filler words like "the" and "and", we should get a rough understanding of what each topic is about. 
+
+## Counting...
+
+![](media/sample_top_words.png)
+
+Here are the top words in three of our texts of interest, after removing common english stopwords. Unforuntately, just counting the top words isn't going to tell us much, as the results are still flooded with common english words. What we need instead is a **relative** measure of the frequency of each word in the texts. 
+
 
 ## A purely numerical interpretation of the texts
 
-Imagine we wanted to analyze a vast archive of historical texts from a given time period. Specifically, say we wanted to understand which terms are used most frequently in each document-- perhaps this could give us an indication as to what themes appear most frequently within the texts, or help narrow down our search for specific texts on specific topics. If we just looked at which words were most popular in each text, that wouldn't really tell us anything; our most popular terms would just be "and"s and "the"s. What we can instead do is look at which words, in a given document, are most popular **relative to the words in the other documents**. For example, if we suspect that Judge Henry Crease spoke primarily sbout migrant workers through an economic lens rather than a social one, we'd expect him to use more economic language than social language when discussing foreign worker rights, relative to other judges such as Judge Matthew Baillie Begbie. 
+Imagine we wanted to analyze a vast archive of historical texts from a given time period. Specifically, say we wanted to understand which terms are used most frequently in each document-- perhaps this could give us an indication as to what themes appear most frequently within the texts, or help narrow down our search for specific texts on specific topics. If we just looked at which words were most popular in each text, that wouldn't really tell us anything; our most popular terms would just be "and"s and "the"s. What we can instead do is look at which words, in a given document, are most popular **relative to the words in the other documents**. For example, if we suspect that Judge Henry Crease spoke primarily sbout migrant workers through an economic lens rather than a social one, we'd expect him to use more economic language than social language when discussing foreign worker rights, relative to other judges such as Judge Matthew Baillie Begbie. (Note that this method generally works better with more documents: in fact, the more cases we incude, the better this method works at identifying words of relative importance.)
 
-![](tf_idf_results.png)
+![](media/tf_idf_results.png)
 
-Okay, we're picking up on some of the specific themes surrounding each author's corpus (begbie's pawnbroker case, for instance), but this isn't telling us much of anything. We need a less general approach.
+Okay, we're picking up on some of the specific themes surrounding each author's corpus (begbie's pawnbroker case, for instance). We now have a good idea of which texts are worth prioritizing for close readings, and which texts might not be as important. Ultimately, it's a decision for the researcher to make. 
 
 ## Word embeddings
 
 What if, instead of just calculating how many times each word appears in a text and penalizing the word if it appears in other texts, we could create a multi-dimensional "map", that contains every single word from the historical texts we're studying. Instead of latitude and longitude, each word is given a set of coordinates that represents its meaning in the collection of texts. These coordinates are generated via a computer by reading all of the sentences, and learning each word's meaning through it's surrounding in-text context. 
 
-Going back to the tf-idf example, words that are used in similar ways, like "china," "alien," and "chinese", are placed very close together in the same "neighborhood" on the map. In contrast, words like "statute" and "legistlature" are placed close together, but are much further away from "china," "alien," and "chinese". The key here for historians is that the neighbors of a given word reveal the implicit associations of a given word within the text it's from. For instance, if we were to map a collection of 
+Going back to the tf-idf example, words that are used in similar ways, like "china," "alien," and "chinese", are placed very close together in the same "neighborhood" on the map. In contrast, words like "statute" and "legistlature" are placed close together, but are much further away from "china," "alien," and "chinese". The key here for historians is that the neighbors of a given word reveal the implicit associations of a given word within the text it's from. For instance, if we suspect that a given judge subconsiously favors wealthier litigants, we would expect that words like "remorseful" and "cooperative" are statistically closer to defendants from affluent neighborhoods in their rulings, while words like "defiant" and "aggresive" would cluster closer to defendants from poorer economic backgrounds. 
+
+## ...continued
+
+What if we could apply that same logic to our given textual corpus? We want to determine if Crease ruled the way he did because he truely cared about the rights of Chinese immigrants in Canada, or because he viewed them as a vital economic asset to the progress of the nation. If it's the former, we would suspect Judge Crease would use language closely tied with individual rights and social justice when discussing Chinese people. If it's the latter, we would expect the words used to describe Chinese people to be clustered closer to economic terms. 
+
+We can hence create two "economics" and "social" axes by taking the average of the locations of a bunch of economic/social terms, and plotting the locations of each sentence on the resulting plane. 
+
+```
+axes_map = {'social_issues': ['justice', 'equality', 'rights', 'fairness', 'discrimination', 'prejudice', 'persecution', 'humanity', 'dignity', 'compassion', 'liberty', 'protection', 'civil rights', 'human rights', 'alien', 'person', 'power', 'unconstitutional'],
+            'economics': ['economy', 'economic', 'labor', 'commerce', 'trade', 'industry', 'railway', 'development', 'profit', 'wages', 'capital', 'prosperity', 'cheap labor', 'economic necessity', 'business', 'license', 'tax', 'fee', 'revenue', 'labour', 'employment', 'wage', 'miner', 'mining', 'land', 'goods', 'property', 'economic', 'industry', 'regulate', 'forfeit', 'penalty', 'pay']}
+```
+
+## Results -- Social Score
+
+Following this approach, let's take a look at the top 5 sentences with the highest social scores:
+
+1) So far, I have dealt with the Act on its own merits; but if we consider it in juxtaposition to the Dominion Act recently passed restricting the Chinese throughout all Canada, its illegality becomes transparent; for in passing that Act against the Chinese the Dominion has spoken by the highest authority which it possesses—its own Parliament.   
+2) The grounds alleged by the Health Officer for this arbitrary treatment is “that China is an infected locality,” and all persons coming from China and especially in this instance Hongkong, and especially also the natives of China, come from an infected locality, and that he has that authority under the Health By-Law, 1893, which was passed at the time of the small pox panic in Victoria, and, in all he did, was simply doing his duty.   
+3) There, an Act of the California Legislature passed an Act imposing a capitation tax “on ‘each person, male and female, of the Mongolian race of the age of 18 years and upwards residing in the State,’ accompanying a license almost a *fac simile* of our own, and enforced in much the same way as in the case before us, that, after long and elaborate argument in which the Attorney-General appeared for the State, was determined to be unconstitutional, as it was an interference with trade and commerce, which could be regulated alone by the general government.   
+4) The Act is found associated with another Act now disallowed, the express object of which is to prevent the Chinese altogether from coming to this country, and the principle "noscitur a sociis" is kept up by the preamble of the present Act, which describes the Chinese in terms which, I venture to think, have never before in any other country found a place in an Act of Parliament.   
+5) It is very difficult, almost an impossibility, to fix any definite limit or even approximate of the proportion which Chinese immigration should bear to white immigration, if the best interests of the colony and the comfort of the people are to be regarded ; and if only for this reason that no matter how many white people come to British Columbiah, they all come expecting certain rates, rates which British Columbians have not got the money to pay.   
+
+## Results -- Economic Score
+
+Likewise, looking at the top economic scores:
+
+1) It is very difficult, almost an impossibility, to fix any definite limit or even approximate of the proportion which Chinese immigration should bear to white immigration, if the best interests of the colony and the comfort of the people are to be regarded ; and if only for this reason that no matter how many white people come to British Columbiah, they all come expecting certain rates, rates which British Columbians have not got the money to pay.   
+2) Statutes were by their title and preamble expressly aimed at Chinamen by name; that this distinction also renders inapplicable all the United States' cases cited; that this enactment is quite general extending to all laundries without exception and we must not look beyond the words of the enactment to enquire what its object was; that there is in fact one laundry in Victoria not conducted by Chinamen on which the tax will fall with equal force so that it is impossible to say that Chinamen are hereby exclusively selected for taxation; the circumstance that they are chiefly affected being a mere coincidence; that the bylaw only imposes $100.00 per annum, keeping far within the limit of $150.00 permitted by the Statute; that the tax clearly is calculated to procuring additional Municipal revenue and that no other object is hinted at.   
+3) All the evils arising from opium in British Columbia in a year do not, probably, equal the damage, trouble and expense occasioned to individuals and to the state by whiskey in a single month, or perhaps in some single night, As already observed, I do not remember ever to have seen a drunken Chinaman; and the argument against Chinamen founded on opium appears to be analogous to the comparison of the mote and the beam.   
+4) It is, perhaps, worth while to refer to the condition of labor in the Californian vineyards and hop-grounds as mentioned quite incidentally in the San Francisco Weekly Bulletin, 10th September, 1884, and consider what would be the effect on the development of our infant agricultural country if half its laborers, and of its powers of supply of laborers, were suddenly cut off.   
+5) The grounds alleged by the Health Officer for this arbitrary treatment is “that China is an infected locality,” and all persons coming from China and especially in this instance Hongkong, and especially also the natives of China, come from an infected locality, and that he has that authority under the Health By-Law, 1893, which was passed at the time of the small pox panic in Victoria, and, in all he did, was simply doing his duty.
+
+We see that 5 (social) is the same sentence as 1 (economic). Likewise, 2 (social) is the same as 5 (economic). In fact, many of the sentences classified as having a high social score likewise have a high economic score. 
+
+## Comparing Judges
+
+We see that the numerical results are exactly as expected! Crease's language used in his cases and testimony is more closely associated to economic terms than social terms; Likewise, Begbie's texts align closer to the social axis than to the economic axis. 
+
+![](media/results_word_embeddings.png)
+
+
+## Sentiment analysis
+
+Another interesting topic is the **sentiment** of each of the sentences in the cases. We can repeat our word embeddings approach, but this time add an additional two axes: a "positive" axis, created from a set of positive words, and a "negative" axis, created from a set of negative words. A sentiment axis can thus be calculated by subtracting the negative value from the positive value for each of the sentences:
+
+- A sentence with a greater positive score than a negative score would have a overall positive value, meaning that the sentence has positive sentiment to it.
+- Likewise, if a sentence has a greater negative value than positive value, the overall sentiment is negative. 
+
+Issue: Legal cases tend to not be overtly emotional- how will this affect the results?
+
+## Results -- positive sentiment
+
+Let's start by looking at the top five most "positive" sentences in the collection of texts:
+
+![](media/positive_sentiment.png)
+
+Would you agree that the sentences here express positive emotion? 
+
+## Results -- negative sentiment
+
+![](media/negative_sentiment.png)
+
+Interesting- the sentences with the highest negative sentiment are all very short. Recall that a sentences' embedding, AKA it's position on the map, is a mixture of all it's words. If a sentence is long, it's emotional aspects get dilluted by all the neutral context. Hence, negative sentences end up being direct declarations of something. Additionally, note the difference in the magnitudes between the sentiment scores and the social/economic scores.
+
+The small variation in sentiment score makes sense, as we are working with legal case-- not exactly text known for it's sentimental prose. Regardless, the given sentences being labelled positive/negative make sense. 
+
+## Comparing across Judges
+
+![](media/sentiment_graph.png)
+
+Looking at all the sentences across Creases texts, Begbie's texts, and the 1884 Act, we can see that Across all authors and dimensions, positively charged sentences take on higher alignment scores. 
+
