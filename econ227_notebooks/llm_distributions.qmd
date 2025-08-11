@@ -32,27 +32,26 @@ Before you start, make sure you have the required libraries installed, if not, *
 
 ```{python}
 # load libraries we need to run this notebook
+import os
+import glob
+import warnings
+from datetime import datetime, timedelta
+from math import sqrt
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
 import yfinance as yf
 from finvizfinance.quote import finvizfinance
 from transformers import pipeline
-import pandas as pd
-import numpy as np
 from statsmodels.tsa.statespace.sarimax import SARIMAX
-import pandas as pd
 import holidays
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import numpy as np
 import ipywidgets as widgets
 from IPython.display import display, clear_output
-import seaborn as sns 
-import warnings
-import os
-import glob
-import matplotlib.pyplot as plt
-from datetime import datetime, timedelta
-from math import sqrt
 from sklearn.metrics import mean_squared_error, mean_absolute_error
+from forecast_plot import create_plot
 ```
 
 ### Introduction: Distribution of LLM Predictions
@@ -69,29 +68,29 @@ For example: "bob went to the store" to buy some milk.
 
 ![](media/sequence_words.png)
 
-What the model is doing is learning the probability distribution of the next word given the previous words.
+Here, let's say we will output a total of $T$ words to form a sentence, $w_1, w_2, \ldots, w_{t-1}, w_t$ are the words in the sentence and the subscript $t$ means the word is at the position $t$. 
 
-The probability of predicting the next word $w_{t}$ given the previous words $w_1, w_2, \ldots, w_{t-1}$ is:
+What the model does is learning the **probability distribution** of the next word given the previous words. It is to create a list of non-negative numbers, one for each possible next word, that add up to 1. 
+
+Given the previous words $w_1, w_2, \ldots, w_{t-1}$, the probability of predicting the next word $w_{t}$ is called **conditional probability**: it essentially measures for all words in the vocabulary, "the probability of the next word being this word, based on what was already said".
+
+Mathematically, this is defined as below:
 
 $$
 P(w_t \mid w_1, w_2, \ldots, w_{t-1}) = \frac{P(w_1, w_2, \ldots, w_{t-1}, w_t)}{P(w_1, w_2, \ldots, w_{t-1})}
 $$
 
-LLMs approximate this probability:
+LLMs can approximate this probability by learning from training datasets. Then, when they make predictions, they will select the word at position $t$ as the word with the maximum $P(w_t \mid w_1, w_2, \ldots, w_{t-1})$.
+
+With **chain rule**, the model can also use the conditionals for every position to calculate the probability of a whole sentence:
 
 $$
-P(w_t \mid w_1, w_2, \ldots, w_{t-1})
-$$
-
-The model predicts the next word by choosing the word that, based on everything so far, seems the most likely to come next. The word $w_t$ that maximizes this conditional probability:
-
-$$
-\hat{w}_t = \arg\max_{w} P(w \mid w_1, w_2, \ldots, w_{t-1})
+P(w_1, w_2, \ldots, w_T) = \prod_{t=1}^T P(w_t\mid w_1, \ldots w_{t-1})
 $$
 
 These models give a probability distribution over the entire vocabulary (all the words the model was trained on). We can then pick the word with the highest probability as the next word or we can sample from this distribution to get more varied (creative) outputs.
 
-Lets look at an example of how this works in practice:
+Let's look at an example of how this works in practice:
 
 ```{python}
 warnings.filterwarnings("ignore")
@@ -133,6 +132,8 @@ for i, ax in enumerate(axes):
 plt.tight_layout()
 plt.show()
 ```
+
+The example above shows us the process of generating $T=3$: at each step, the model calculates the conditional probability of the next word and then selects the word with the highest probability to insert into the sentence. The final output we obtain is "buy some milk".
 
 To get more creative responses you change the distribution at the output where you pick the next word. Very simply this involves making the distribution sharper or flatter.
 If you make the distribution sharper, you are more likely to pick the word with the highest probability. If you make it flatter, you are more likely to pick a word that is not the most probable one.
@@ -334,9 +335,14 @@ Now, we apply a similar idea to **entire sentences**: in this case, financial ne
 - We keep only **positive** or **negative** headlines, since those are more likely to affect stock prices.
   
 This is like asking:
+
 > *Given the words in this sentence, what is the most likely emotion behind it?*
 
-We use Hugging Face's `pipeline()` function to load a **DistilBERT** model: a lighter version of the BERT model trained to understand the tone of text. Although it was originally trained on movie reviews, it generalizes well and works surprisingly well on financial headlines too!
+We will rely on some AI tools to figure out.
+
+BERT (short for *Bidirectional Encoder Representations from Transformers*) is a pretrained language model that learns a word's meaning by looking at the words *before and after* it, so it understands context and tone well. And Hugging Face is an open-source platform and Python library that hosts many pretrained models (like BERT) and provides easy tools.
+
+In this notebook, we are going to use Hugging Face's `pipeline()` function to load a **RoBERTa** model: an optimized version of the BERT model trained to understand the tone of text. Although it is specifically trained on tweets and social media text. It's well-suited to handling short, informal writing like news headlines.
 
 This builds directly on our earlier discussion of LLMs predicting **probability distributions**, but here, the prediction is over **sentiment classes** rather than words.
 
@@ -349,9 +355,7 @@ It returns:
 
 > *Can you think of a positive and negative news headline?*
 
-We skip `NEUTRAL` news to focus on strong market signals.
-
-In this case, we apply a pre-trained LLM called **Twitter-RoBERTa**, specifically trained on tweets and social media text. It's well-suited to handling short, informal writing like news headlines.
+Note that we will skip `NEUTRAL` news to focus on strong market signals.
 
 ```{python}
 warnings.filterwarnings("ignore")
@@ -381,7 +385,7 @@ def process_sentiment(news_df):
     return grouped.reset_index()
 ```
 
-Lets use our model to see wether the sentence "I hate bananas" is negative or positive 
+Let's use our model to see wether the sentence "I hate bananas" is negative or positive 
 
 >*Try changing the words inside classify sentiment to see wether its is classified positive or negative*
 
@@ -404,7 +408,7 @@ for i, row in news_df.iterrows():
         print(f"Title: {row['Title']}\nSentiment: {row['Sentiment']}\n")
 ```
 
-Lets summarize the sentiment results by date. For each day we count the number of positive and negative headlines, then calculate 7-day moving averages and the daily percentage of positive news. This gives us a quick overview of news sentiment trends over time.
+Let's summarize the sentiment results by date. For each day we count the number of positive and negative headlines, then calculate 7-day moving averages and the daily percentage of positive news. This gives us a quick overview of news sentiment trends over time.
 
 ```{python}
 sentiment_df = process_sentiment(news_df)       # Summarize daily sentiment statistics
@@ -490,11 +494,12 @@ combined_df
 
 In this notebook, we will try to predict future stock price changes using the **SARIMAX model**, a powerful forecasting model that allows us to include external information, in our case, **public sentiment**. For those who are interested in learning more about the SARIMAX model and its implementation in Python, see this [comprehensive guide](https://www.geeksforgeeks.org/python/complete-guide-to-sarimax-in-python/) on GeeksforGeeks.
 
-Below, we define three key functions for our forecasting workflow:
+Below, we define two key functions for our forecasting workflow:
 
 - `get_future_dates()`: Returns the next business days for which we want to make predictions.
 - `fit_and_forecast()`: Uses both historical stock prices and recent news sentiment to predict how Starbucks' (SBUX) stock price might change over the next few days. This function fits a SARIMAX model, which incorporates both past price data and the influence of news sentiment, and then generates forecasts along with confidence intervals.
-- `create_plot()`: Produces an interactive line chart that visualizes trends in both stock price percentage changes and sentiment, allowing us to explore their relationship over time.
+
+Next, we will use a pre-defined `create_plot()` function to generate an interactive line chart that visualizes both stock price percentage changes and sentiment trends over time. This allows us to explore the relationship between market sentiment and stock performance in a clear, interactive way.
 
 By combining these functions, we can see how shifts in news sentiment may impact SBUX's future stock movements. The forecasting approach essentially answers the question: "Given recent sentiment, what does the model predict for this stock's price in the coming days?"
 
@@ -531,185 +536,6 @@ def fit_and_forecast(combined_df, forecast_steps=3):
     forecast = fit.get_forecast(steps=forecast_steps, exog=future_exog)
     return forecast.predicted_mean, forecast.conf_int(), future_dates
 
-# Create a plot with the forecasted data, historical sentiment, and stock price changes
-def create_plot(combined_df, forecast_mean, forecast_ci, forecast_index, actuals_df=None):
-    combined_df = combined_df.copy()
-    
-    # Aggregate data by date to show one clear point per day
-    daily_agg = combined_df.groupby(combined_df.index).agg({
-        'lagged_sentiment': 'mean',
-        'Pct_Change': 'mean'
-    }).reset_index()
-    daily_agg.set_index('DateOnly', inplace=True)
-    
-    sentiment_std = (daily_agg['lagged_sentiment'] - daily_agg['lagged_sentiment'].mean()) \
-                    / daily_agg['lagged_sentiment'].std()
-
-    fig = go.Figure()
-
-    # Historical sentiment
-    fig.add_trace(go.Scatter(
-        x=daily_agg.index,
-        y=sentiment_std,
-        name='Standardized Sentiment',
-        mode='lines+markers',
-        line=dict(color='royalblue', width=2),
-        marker=dict(color='royalblue', size=4),
-        hovertemplate='Date: %{x}<br>Sentiment: %{y:.2f}<extra></extra>'
-    ))
-
-    # Historical % change
-    fig.add_trace(go.Scatter(
-        x=daily_agg.index,
-        y=daily_agg['Pct_Change'],
-        name='Stock % Change',
-        yaxis='y2',
-        mode='lines+markers',
-        line=dict(color='limegreen', width=2),
-        marker=dict(color='limegreen', size=4),
-        hovertemplate='Date: %{x}<br>% Change: %{y:.2f}%<extra></extra>'
-    ))
-
-    # Forecast mean (NOW on y2)
-    fig.add_trace(go.Scatter(
-        x=forecast_index,
-        y=forecast_mean,
-        name='Forecasted % Change',
-        yaxis='y2',
-        line=dict(color='tomato', width=2, dash='dash'),
-        hovertemplate='Date: %{x}<br>Forecast: %{y:.2f}%<extra></extra>'
-    ))
-
-    # Forecast confidence interval (NOW on y2)
-    fig.add_trace(go.Scatter(
-        x=np.concatenate([forecast_index, forecast_index[::-1]]),
-        y=np.concatenate([forecast_ci.iloc[:, 0], forecast_ci.iloc[:, 1][::-1]]),
-        name='95% CI',
-        yaxis='y2',
-        fill='toself',
-        fillcolor='rgba(255,99,71,0.2)',  # softened tomato
-        line=dict(color='rgba(255,255,255,0)'),
-        hoverinfo="skip",
-        showlegend=True
-    ))
-
-    # Add actual data if provided
-    if actuals_df is not None and not actuals_df.empty:
-        # If actuals_df has multiple tickers, aggregate by date (take mean)
-        if 'Ticker' in actuals_df.columns and len(actuals_df['Ticker'].unique()) > 1:
-            actual_agg = actuals_df.groupby('DateOnly')['Actual_Pct_Change'].mean().reset_index()
-            actual_dates = actual_agg['DateOnly']
-            actual_values = actual_agg['Actual_Pct_Change']
-        else:
-            actual_dates = actuals_df['DateOnly']
-            actual_values = actuals_df['Actual_Pct_Change']
-        
-        # Actual data points
-        fig.add_trace(go.Scatter(
-            x=actual_dates,
-            y=actual_values,
-            name='Actual % Change',
-            yaxis='y2',
-            mode='markers',
-            marker=dict(color='gold', size=8, symbol='circle'),
-            hovertemplate='Date: %{x}<br>Actual: %{y:.2f}%<extra></extra>'
-        ))
-        
-        # Calculate and display gaps (forecast vs actual) where dates overlap
-        forecast_df = pd.DataFrame({
-            'DateOnly': pd.to_datetime(forecast_index).normalize(),
-            'Forecast': forecast_mean
-        })
-        
-        # Prepare actual data for merging
-        if 'Ticker' in actuals_df.columns and len(actuals_df['Ticker'].unique()) > 1:
-            actual_for_gap = actual_agg.copy()
-            actual_for_gap.rename(columns={'Actual_Pct_Change': 'Actual'}, inplace=True)
-        else:
-            actual_for_gap = actuals_df[['DateOnly', 'Actual_Pct_Change']].copy()
-            actual_for_gap.rename(columns={'Actual_Pct_Change': 'Actual'}, inplace=True)
-        
-        # Merge to find overlapping dates
-        gap_df = pd.merge(forecast_df, actual_for_gap, on='DateOnly', how='inner')
-        
-        if not gap_df.empty:
-            gap_df['Gap'] = gap_df['Forecast'] - gap_df['Actual']
-            
-            # Add gap visualization (error bars or connecting lines)
-            for _, row in gap_df.iterrows():
-                fig.add_trace(go.Scatter(
-                    x=[row['DateOnly'], row['DateOnly']],
-                    y=[row['Forecast'], row['Actual']],
-                    name='Forecast Gap',
-                    yaxis='y2',
-                    mode='lines',
-                    line=dict(color='orange', width=2, dash='dot'),
-                    showlegend=False,
-                    hoverinfo="none"
-                ))
-            
-            # Add invisible points at gap midpoints for targeted hover
-            for _, row in gap_df.iterrows():
-                midpoint = (row['Forecast'] + row['Actual']) / 2
-                fig.add_trace(go.Scatter(
-                    x=[row['DateOnly']],
-                    y=[midpoint],
-                    name='Gap Info',
-                    yaxis='y2',
-                    mode='markers',
-                    marker=dict(color='orange', size=8, opacity=0),
-                    showlegend=False,
-                    hovertemplate=f'Date: %{{x}}<br>Gap: {row["Gap"]:.2f}%<extra></extra>'
-                ))
-            
-            # Add a single legend entry for gaps
-            if len(gap_df) > 0:
-                fig.add_trace(go.Scatter(
-                    x=[gap_df.iloc[0]['DateOnly']],
-                    y=[gap_df.iloc[0]['Forecast']],
-                    name='Forecast Gap',
-                    yaxis='y2',
-                    mode='lines',
-                    line=dict(color='orange', width=2, dash='dot'),
-                    showlegend=True,
-                    hoverinfo="skip"
-                ))
-
-    fig.update_layout(
-        title=dict(
-            text='Sentiment vs Stock Change Forecast',
-            font=dict(size=20),
-            y=0.95,
-            x=0.5,
-            xanchor='center',
-            yanchor='top'
-        ),
-        hovermode='x unified',
-        legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
-        margin=dict(l=60, r=60, t=140, b=60),
-        template='plotly_dark',
-        xaxis=dict(
-            title='Date',
-            showgrid=False,
-            tickangle=-45,
-            tickfont=dict(size=10)
-        ),
-        yaxis=dict(
-            title='Standardized Sentiment',
-            title_font=dict(color='royalblue'),
-            tickfont=dict(color='royalblue'),
-            range=[-2, 2]   # sentiment fixed range
-        ),
-        yaxis2=dict(
-            title='Stock % Change',
-            title_font=dict(color='limegreen'),
-            tickfont=dict(color='limegreen'),
-            overlaying='y',
-            side='right'
-        )
-    )
-
-    fig.show()
 ```
 
 #### Plot: Sentiment vs Stock % Change Forecast
@@ -846,7 +672,7 @@ AI_sentiment_df = AI_process_sentiment(AI_sentiment_news_df)
 AI_sentiment_df.head()
 ```
 
-#### Like we did with the `SBUX` stock above lets get stock prices for all of our AI stocks now.  
+#### Like we did with the `SBUX` stock above let's get stock prices for all of our AI stocks now.  
 
 ```{python}
 # Match date range to your sentiment dataset
@@ -885,7 +711,7 @@ AI_stock_prices = pd.read_csv("data/AI_top10_price_snapshot.csv")
 AI_stock_prices.head()
 ```
 
-As we did before lets merge everything into one dataframe to analyse it!
+As we did before let's merge everything into one dataframe to analyse it!
 
 ```{python}
 # Ensure both DateOnly columns are datetime
