@@ -65,11 +65,25 @@ def standardize_dataframe(df, source_name):
     return df
 
 
-def load_ira_data(path):
-    """Loads and processes the IRA disinformation dataset"""
+def load_ira_data(path, n=30000, random_state=42):
+    """
+    Loads and processes the IRA disinformation dataset efficiently by processing 
+    each file in chunks.
+    """
     disinfo_files = glob.glob(os.path.join(path, 'IRAhandle_tweets_*.csv'))
-    df = pd.concat((pd.read_csv(f, low_memory=False, encoding='utf-8-sig') for f in disinfo_files), ignore_index=True)
-    df = standardize_dataframe(df, 'ira')
+    num_files = len(disinfo_files)
+    ## 8/11/2025: added code to load in data per-chunk and sample immediately. Should prevent OOM errors.
+    sample_size_per_file = n // num_files
+    all_samples = []
+    for f in disinfo_files:
+        df_temp = pd.read_csv(f, low_memory=False, encoding='utf-8-sig')
+        num_to_sample = min(len(df_temp), sample_size_per_file)
+        all_samples.append(df_temp.sample(n=num_to_sample, random_state=random_state))
+    df = pd.concat(all_samples, ignore_index=True)
+    if len(df) > n:
+        df = df.sample(n=n, random_state=random_state)
+    
+    df = standardize_dataframe(df, 'ira') 
     df['source'] = 'IRA'
     df['is_propaganda'] = 1
     return df
