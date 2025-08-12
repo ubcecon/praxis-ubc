@@ -1,140 +1,77 @@
-import os
-from pathlib import Path
 
-import torch
-import torch.nn as nn
-from transformers import Trainer, TrainingArguments
-from datasets import Dataset
+import os
+import pandas as pd
 import numpy as np
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
+from datasets import Dataset
+from transformers import (AutoTokenizer,AutoModelForSequenceClassification, TrainingArguments, Trainer, pipeline)
 
 os.environ["HF_HUB_OFFLINE"] = "1"
-MODEL_DIR = Path("../paraphrase-multilingual-MiniLM-L12-v2")
+OUTPUT_DIR = "./disinformation_classifier"
 
-from sentence_transformers import SentenceTransformer
-encoder = SentenceTransformer(str(MODEL_DIR), local_files_only=True)
-tweets = pd.read_csv("soci_270/russian_disinformation_tweets.csv")
+tweets = pd.read_csv("russian_training_data.csv")
 
-tweets = tweets.rename(columns={"post_text": "text", "is_control": "labels"})
+tweets = tweets.rename(columns={"post_text": "text", "is_control": "label"})
+tweets = tweets[["text", "label"]].dropna()
+tweets['label'] = tweets['label'].astype(int)
+tweets['label'] = 1 - tweets['label'] #make labels make sense 
 
-tweets = tweets[["text", "labels"]].dropna()
+splitter = GroupShuffleSplit(n_splits=1, test_size=0.2, random_state=42)
 
-tweets_small = tweets.sample(n=200000, random_state=42).reset_index(drop=True)
+train_idx, eval_idx = next(splitter.split(tweets, groups=tweets['accountid']))
 
-train_tweets , eval_tweets  = train_test_split(tweets, test_size=0.1, stratify=tweets["labels"], random_state=42)
+train_df = tweets.iloc[train_idx]
+eval_df = tweets.iloc[eval_idx]
+model = AutoModelForSequenceClassification.from_pretrained(
+    'sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2',num_labels=2)
 
-train_tweets["labels"] = train_tweets["labels"].astype(int)
-eval_tweets ["labels"] = eval_tweets ["labels"].astype(int)
+train_dataset = Dataset.from_pandas(train_df.reset_index(drop=True))
+eval_dataset = Dataset.from_pandas(eval_df.reset_index(drop=True))
 
-# Load local SBERT encoder
-encoder = SentenceTransformer(str(MODEL_DIR), local_files_only=True)
+def tokenize_function(examples):
+    return tokenizer(examples["text"], padding="max_length", truncation=True)
 
-# lightweight classification head
-class HeadMLP(nn.Module):
-    def __init__(self, in_dim, hidden_dim=256, num_labels=2):
-        super().__init__()
-        self.fc1 = nn.Linear(in_dim, hidden_dim)
-        self.act = nn.ReLU()
-        self.dropout = nn.Dropout(0.1)
-        self.fc2 = nn.Linear(hidden_dim, num_labels)
+tokenized_train_dataset = train_dataset.map(tokenize_function, batched=True)
+tokenized_eval_dataset = eval_dataset.map(tokenize_function, batched=True)
 
-    def forward(self, embeddings, labels=None, **kwargs):
-        """
-        Accepts embeddings (tensor) and optional labels, 
-        and ignores any extra keyword args like num_items_in_batch.
-        """
-        x = self.act(self.fc1(embeddings))
-        x = self.dropout(x)
-        logits = self.fc2(x)
+tokenized_train_dataset = tokenized_train_dataset.remove_columns(["text"])
+tokenized_eval_dataset = tokenized_eval_dataset.remove_columns(["text"])
 
-        loss = None
-        if labels is not None:
-            loss = nn.CrossEntropyLoss()(logits, labels)
-        return {"loss": loss, "logits": logits}
-
-# instantiate head
-head = HeadMLP(
-    in_dim=encoder.get_sentence_embedding_dimension(),
-    hidden_dim=256,
-    num_labels=2
-)
-
-def make_hf_dataset(df):
-    df = (
-        df
-        .rename(columns={"post_text": "text", "is_control": "labels"})
-        .reset_index(drop=True)
-    )
-    ds = Dataset.from_pandas(df)
-    # batched=True → batch["labels"] is a list, so cast each element
-    ds = ds.map(
-        lambda batch: {"labels": [int(x) for x in batch["labels"]]},
-        batched=True,
-    )
-    return ds
-
-raw_train = make_hf_dataset(train_tweets)
-raw_eval  = make_hf_dataset(eval_tweets)
-
-# map over text → embeddings
-def embed_batch(batch):
-    embeds = encoder.encode(
-        batch["text"],
-        convert_to_tensor=False,
-        show_progress_bar=False,
-        batch_size=64
-    )
-    return {"embeddings": embeds}
-
-train_ds = raw_train.map(
-    embed_batch,
-    batched=True,
-    remove_columns=["text"]
-)
-eval_ds = raw_eval.map(
-    embed_batch,
-    batched=True,
-    remove_columns=["text"]
-)
-
-# set to torch format
-train_ds.set_format(type="torch", columns=["embeddings", "labels"])
-eval_ds.set_format(type="torch", columns=["embeddings", "labels"])
+tokenized_train_dataset.set_format("torch")
+tokenized_eval_dataset.set_format("torch")
 
 def compute_metrics(pred):
     labels = pred.label_ids
-    preds  = np.argmax(pred.predictions, axis=1)
-    acc    = accuracy_score(labels, preds)
-    p, r, f1, _ = precision_recall_fscore_support(labels, preds, average="binary")
+    preds = np.argmax(pred.predictions, axis=1)
+    acc = accuracy_score(labels, preds)
+    p, r, f1, _ = precision_recall_fscore_support(labels, preds, average="binary", pos_label=0, zero_division=0)
     return {"accuracy": acc, "precision": p, "recall": r, "f1": f1}
 
-# training args
 training_args = TrainingArguments(
-    output_dir="./st-finetuned",
-    eval_strategy="epoch",
-    logging_strategy="steps",
-    logging_steps=100,
-    save_strategy="epoch",
-    save_total_limit=2,
+    output_dir=OUTPUT_DIR,
+    eval_strategy="epoch",      
+    save_strategy="epoch",     
+    num_train_epochs=3,
     per_device_train_batch_size=16,
     per_device_eval_batch_size=32,
-    learning_rate=2e-4,
-    num_train_epochs=3,
+    learning_rate=2e-5,
     weight_decay=0.01,
-    load_best_model_at_end=True,
-    metric_for_best_model="f1",
-    bf16=True,
+    load_best_model_at_end=True, 
+    metric_for_best_model="f1",  
+    save_total_limit=2,          
+    bf16=True,                   
     push_to_hub=False,
-    remove_unused_columns=False,  
 )
 
 trainer = Trainer(
-    model=head,
+    model=model,
     args=training_args,
-    train_dataset=train_ds,
-    eval_dataset=eval_ds,
+    train_dataset=tokenized_train_dataset,
+    eval_dataset=tokenized_eval_dataset,
+    tokenizer=tokenizer,
     compute_metrics=compute_metrics,
 )
 
-# train!!!
+
 trainer.train()
