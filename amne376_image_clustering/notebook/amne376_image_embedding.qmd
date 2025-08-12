@@ -12,7 +12,6 @@ format:
   html:
     code-fold: true
     code-summary: "Show the code"
-    allow-html: false
   ipynb:
     jupyter:
       kernelspec:
@@ -42,12 +41,68 @@ Before you start, make sure you
 # !pip install matplotlib numpy pandas opencv-python scikit-learn torch torchvision transformers datasets grad-cam tensorflow keras
 ```
 
-**Important:** Please run the following cell before continuing, as it sets up the image folders required for this notebook.
+**Important:** Please run the following cells before continuing, as it sets up the libraries and image folders required for this notebook.
+
+```{python}
+# Standard library
+import os
+from collections import defaultdict
+from pathlib import Path
+
+# Imaging / computer vision
+from PIL import Image
+import cv2
+import numpy as np
+from torchvision import transforms
+
+# Visualization
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib.colors import ListedColormap
+import plotly.express as px
+import plotly.io as pio
+
+# Data handling
+import pandas as pd
+
+# SciPy / numerical utilities
+from scipy.ndimage import convolve
+
+# scikit-learn
+from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.preprocessing import LabelEncoder
+from sklearn.datasets import make_moons
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.neural_network import MLPClassifier
+from sklearn import metrics
+from sklearn.metrics import classification_report
+
+# TensorFlow / Keras (VGG16)
+from tensorflow.keras.applications import VGG16
+from tensorflow.keras.preprocessing import image as keras_image
+from tensorflow.keras.applications.vgg16 import preprocess_input
+
+# PyTorch / torchvision / transformers
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import random_split
+from torchvision.models import convnext_base, ConvNeXt_Base_Weights
+from transformers import AutoImageProcessor, ConvNextV2Model
+
+# Misc
+from tqdm.notebook import tqdm
+
+# Local helpers
+from zip_extractor import ZipExtractor
+```
 
 ```{python}
 # Don't change this cell
-from zip_extractor import ZipExtractor
-
 # Define the source path and the destination
 sources = ["example_images.zip", "richter_kouroi_complete_front_only.zip"]
 dest = "../data/"
@@ -76,10 +131,6 @@ However, for monochrome images, there is only one colour channel, the grayscale.
 
 Let's start with a three-view of the New York Kouros, here we read in the images and present them together.
 ```{python}
-import os
-from PIL import Image
-import matplotlib.pyplot as plt
-
 # Define the folder path where the images are stored
 image_path = '../data/example_images' 
 
@@ -131,11 +182,6 @@ However, one can quickly realize the drawbacks of this approach. First, it relie
 
 **Bag of Visual Words (BoVW)** is a more practical method for recognizing similarity. The rationale behind this is very complicated, but to put it simply, it treats a “feature” in an image as a “word” (a set of numbers containing information about the feature) and calculates how often each word appears in the image. Here, we created a visual vocabulary containing 20 “words” using three-view photos of the New York Kouros, and visualized what a visual word represents on the left-view image. Here, we pick the visual word with ID 6: 
 ```{python}
-import cv2
-import numpy as np
-from sklearn.cluster import KMeans
-from collections import defaultdict
-
 # Define the number of clusters for KMeans
 n_clusters   = 20
 word_to_show = 6
@@ -222,9 +268,6 @@ As you may have realized, the visual word frequency distributions of different i
 ``` -->
 ```{python}
 #| echo: false
-import numpy as np
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 
 # Academic style settings
 plt.rc('font', family='serif', size=12)
@@ -247,7 +290,7 @@ v1_d = np.array([-1, 1, 1])
 v2_d = np.array([1, -1, 1])
 
 # Function to compute cosine similarity
-def cosine_similarity(u, v):
+def cosine_sim(u, v):
     return np.dot(u, v) / (np.linalg.norm(u) * np.linalg.norm(v))
 
 # Set up figure and subplots
@@ -265,7 +308,7 @@ def plot_2d(ax, u, v, title, color_u='C0', color_v='C1'):
     ax.quiver(0, 0, v[0], v[1], angles='xy', scale_units='xy', scale=1,
               color=color_v, label=r'$\mathbf{{v}}={} $'.format(v))
     # Compute cosine similarity
-    cos_sim = cosine_similarity(u, v)
+    cos_sim = cosine_sim(u, v)
     # Title and labels
     ax.set_title(f"{title}\nCosine similarity = {cos_sim:.2f}")
     ax.set_xlabel('$x$')
@@ -292,7 +335,7 @@ sub_d.quiver(0, 0, 0, ux, uy, uz, length=1.0, normalize=True, color='C0',
              label=r'$\mathbf{{u}}={} $'.format(v1_d))
 sub_d.quiver(0, 0, 0, vx, vy, vz, length=1.0, normalize=True, color='C1',
              label=r'$\mathbf{{v}}={} $'.format(v2_d))
-cos_sim_d = cosine_similarity(v1_d, v2_d)
+cos_sim_d = cosine_sim(v1_d, v2_d)
 sub_d.set_title(f"(d) 3D example\nCosine similarity = {cos_sim_d:.2f}")
 sub_d.set_xlabel('$x$')
 sub_d.set_ylabel('$y$')
@@ -322,8 +365,6 @@ You can think of the visual word frequency histogram for each image as an arrow 
 Here, we perform pairwise cosine similarity measurements on left-view, front-view, and back-view photographs of New York Kouros, and show the results.
 
 ```{python}
-from sklearn.metrics.pairwise import cosine_similarity
-
 hist_list = []
 for img_name, _, descriptors in image_data:
     if descriptors.shape[0] > 0:
@@ -447,9 +488,6 @@ Imagine sliding a tiny image over an image as a filter to make the actual image 
 Below is one of such filters, or its professional term, a kernel, how do you think it will filter an image to make the image look like it?
 
 ```{python}
-import matplotlib.pyplot as plt
-import numpy as np
-
 # Kernel
 kernel = np.array([
     [-1, -1, -1],
@@ -473,8 +511,6 @@ plt.show()
 This is how an actual image **Convolved** with the filter:
 
 ```{python}
-from scipy.ndimage import convolve
-from PIL import Image
 
 # Load the image as grayscale
 img_path = "../data/example_images/page300_img01_photo8.jpg"
@@ -596,9 +632,6 @@ plt.tight_layout(); plt.show()
 Over the years, people have discovered these tiny images or "kernels" or "filters". In machine learning, we discover or learn these potentially useful filters directly from the data, rather than through mathematical derivation. In a word, machine learning can "learn" the filters from data what would be useful for downstream tasks like classifying images or identifying things in an image.
 
 ```{python}
-from tensorflow.keras.applications import VGG16
-from tensorflow.keras.preprocessing import image
-from tensorflow.keras.applications.vgg16 import preprocess_input
 
 # 1. Load a pretrained conv model (VGG16 without top)
 model = VGG16(weights='imagenet', include_top=False)
@@ -616,8 +649,8 @@ kernel_late  = late_layer.get_weights()[0][:, :, 0, 0]
 
 # 4. Load and preprocess an image
 def load_and_gray(path, target_size=(224,224)):
-    img = image.load_img(path, target_size=target_size)
-    img_arr = image.img_to_array(img)
+    img = keras_image.load_img(path, target_size=target_size)
+    img_arr = keras_image.img_to_array(img)
     # convert to grayscale
     gray = cv2.cvtColor(img_arr.astype('uint8'), cv2.COLOR_RGB2GRAY)
     # normalize
@@ -676,8 +709,6 @@ Typically, a model used for image classification can (on its own) learn filters 
 
 For the rest of the notebook, we will use a small selection of photographs from Richter's Kouroi (1942), which contain frontal shots of Kouroi with a full torso and recognizable facial features. We have also prepared a labeled metadata that shows information about which group and era these Kouroi belong to and what materials they are made of. We can begin by looking at some basic information from the metadata:
 ```{python}
-import pandas as pd
-
 # Read in the metadata CSV file
 # Note that we are only going to investigate a subset of the full dataset
 df = pd.read_csv('../data/complete_sculpture_dataset_labeled.csv')
@@ -728,8 +759,6 @@ bar_plot(df, 'era', 'material')
 To get a direct idea of the general characteristics of this subset of photographs, we read the photographs from the image directory and show the first 4 images in this dataset.
 ```{python}
 # Read in the images as a list 
-from pathlib import Path
-
 data_dir = Path("../data/richter_kouroi_complete_front_only")
 image_paths = sorted(data_dir.glob("*.jpg"))
 
@@ -821,12 +850,6 @@ Here, we will load the pre-trained ConvNeXt V2 model, pass the image folder to g
 
 ```{python}
 # Read in the pre-trained ConvNeXtV2 model
-from transformers import AutoImageProcessor
-from transformers import ConvNextV2Model
-from torchvision.models import convnext_base,  ConvNeXt_Base_Weights
-import torch
-from tqdm.notebook import tqdm
-
 # Load the pre-trained ConvNeXtV2 model and image processor
 processor = AutoImageProcessor.from_pretrained("facebook/convnextv2-base-22k-224") 
 
@@ -908,10 +931,6 @@ We printed the embedded results above to see what they look like, and we also di
 Here, we will use plotly to create interactive visualizations, feel free to play with it and discuss patterns that you notice.
 
 ```{python}
-from sklearn.decomposition import PCA
-import plotly.express as px
-import plotly.io as pio
-
 pio.renderers.default = "plotly_mimetype+notebook_connected"
 
 # load metadata
@@ -969,10 +988,6 @@ fig.show()
 In addition to observing how the labels are clustered based on the embeddings, we can train classifiers to categorize objects into appropriate labels based on the image embeddings directly. A traditional approach is through a technique called **logistic regression**. 
 
 ```{python}
-from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import train_test_split
-from sklearn import metrics
-
 X = embeddings
 y1 = pc_df['era'].tolist()
 y2 = pc_df['material'].tolist()
@@ -1012,9 +1027,6 @@ $$
 It reflects the proportion of true predictions out of all predictions made using the classifier. However, as shown above in the report, the accuracy of predicting era based on image embedding is not satisfactory. Still, we can visualize the decision boundary of this classifier on our 2D PCA of image embeddings to see what went wrong:
 
 ```{python}
-from matplotlib.colors import ListedColormap
-from sklearn.preprocessing import LabelEncoder
-
 # Prepare your 2D data + labels
 X_pca = pc_df[['PC1','PC2']].values
 y_era = pc_df['era'].values
@@ -1170,10 +1182,6 @@ The last classifier we're going to visit today is a neural network classifier, u
 
 We begin by creating the data loader and load the Kouroi data directly from the folder:
 ```{python}
-import torch.nn as nn
-import torch.optim as optim
-from torch.utils.data import Dataset, DataLoader
-
 # Map the materials to integers
 MAT2IDX = {
     'Marble': 0,
@@ -1206,8 +1214,6 @@ class KouroiDataset(Dataset):
 
 ```{python}
 # Tain-test split
-from torch.utils.data import random_split
-
 train_df, test_df = train_test_split(
     df,
     test_size=0.25,                 # 20% held out for testing
@@ -1393,10 +1399,6 @@ print("Predicted Era:", pred_era)
 We then pass it into our trained CNN classifier and see how its material would be classified:
 
 ```{python}
-from PIL import Image
-import torch
-from torchvision import transforms
-
 # reload the model
 model = Classifier(
     backbone_name="facebook/convnextv2-base-22k-224",
@@ -1651,11 +1653,6 @@ In the context of machine learning, two common pitfalls are **underfitting** and
 
 Let's examine the two problems with a simulated two-class data:
 ```{python}
-from sklearn.datasets     import make_moons
-from sklearn.model_selection import train_test_split
-from sklearn.linear_model  import LogisticRegression
-from sklearn.neural_network import MLPClassifier
-
 # Generate a simulater two-class data
 X, y = make_moons(n_samples=500, noise=0.40, random_state=0)
 
