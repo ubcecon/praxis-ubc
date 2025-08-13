@@ -30,7 +30,6 @@ across time in the greater Arizona/New Mexico area of the US (From Mills et al. 
 
 **Network science in Sociology** Network analysis in sociology is the systematic study of social structure through the mapping and measurement of relationships among individuals, groups, or organizations. It is not a discipline on its own, but rather a methodological and theoretical approach within sociology that helps conceptualize, describe, and model society as interconnected sets of actors linked by specific relationships. Network analysis in sociology is a core tool for understanding how relationships and social structures impact individuals and groups,
 
-
 ### 1.1 Key terms
 
 ::: {.columns}
@@ -83,7 +82,7 @@ The example to the left is a **directed graph**: the edges between nodes have a 
 :::
 
 ::: {.column width="50%"}
-**Centrality:** Centrality measures the importance, influence, or prominence of nodes (entities) within a network. The centrality of a node tells us how "important" a node is to the aggregate network. There are many different kinds of centrality, but the four most well-known ones are degree, betweenness, closeness, and eigenvector centrality. This notebook will primarily focus on the first three.
+**Centrality:** Centrality measures the importance, influence, or prominence of nodes (entities) within a network. The centrality of a node tells us how "important" a node is to the aggregate network. There are many different kinds of centrality, but the four most well-known ones are degree, betweenness, closeness, and eigenvector centrality.
 :::
 :::
 
@@ -91,7 +90,7 @@ The example to the left is a **directed graph**: the edges between nodes have a 
 
 `NetworkX` is a Python library that is used for the creation, manipulation, and visualization of complex networks. It provides tools to work with both undirected and directed networks, perform network-related calculations, and visualize the results. 
 
-A library in Python is a collection of code that makes everyday tasks more efficient. In this case working with networks becomes much simpler when using network X. 
+A library in Python is a collection of code that makes everyday tasks more efficient. In this case working with networks becomes much simpler when using NetworkX. 
 
 If you want to read the NetworkX documentation you can follow the [NetworkX documentation link](https://networkx.org/documentation/stable/reference/introduction.html){target="_blank"}. This link shows what kind of commands exist within the NetworkX library.
 
@@ -99,7 +98,7 @@ If you want to read the NetworkX documentation you can follow the [NetworkX docu
 
 #### 1.2.1 Importing NetworkX
 
-We can import NetworkX using the `import` command. At the same time, we'll also import the `matplotlib.pyplot` library, for plotting graphs. Additionally, we'll import `pandas` for basic data wrangling, and `numpy` for math. The `as` command allows us to use `networkx` commands without needing to type out `networkx` each time. Additionally, we'll import the `community_louvain` package for the _louvain_ clustering algorithm. Along with some other libraries for our code to function. 
+We can import NetworkX using the `import` command. At the same time, we'll also import the `matplotlib.pyplot` library, for plotting graphs. Additionally, we'll import `pandas` for basic data wrangling, and `numpy` for math. The `as` command allows us to use `networkx` commands without needing to type out `networkx` each time. Along with some other libraries. 
 
 
 ```{python}
@@ -153,7 +152,7 @@ nx.draw(G, pos = position, with_labels = True) # `pos` argument assigns a positi
 
 Instead of creating a graph with predetermined positions of nodes and edges we can also generate a random graph with a set amount of nodes and edges. Below you can change the amount of nodes and edges by changing `n` and `d` which correspond to the number of nodes and the  degree (number of edges) that each node has. Creating a random graph could be more helpful for testing or when you want to try something and don't wish to spend time plotting a real network and determining paths for all edges and nodes. 
 
-The first most basic command we will use is the  `nx.random_regular_graph` command. Which generates a random regular graph. 
+The command we will use is the  `nx.random_regular_graph` command. Which generates a random regular graph. 
 
 ```{python}
 # Set a seed for reproducibility so that everytime the code runs we get the same random graph
@@ -178,43 +177,11 @@ print(f"Number of edges: {rr_graph.number_of_edges()}")
 print(f"Degree of each node: {d}")
 ```
 
-Another option is using the Erdős-Rényi model which can be accessed using the `nx.erdos_renyi_graph(n, p)` command. This command has two inputs n and p. N is the number of nodes and p is the probability of edge creation to each node. 
-
-The Erdős–Rényi model refers to one of two closely related models for generating random graphs or the evolution of a random network. These models are named after Hungarian mathematicians Paul Erdős and Alfréd Rényi, who introduced one of the models in 1959
-
-```{python}
-# Set a seed for reproducibility so that everytime the code runs we get the same random graph
-random.seed(43)
-
-# Parameters
-n = 20  # number of nodes
-p = 0.2  # probability of edge creation
-
-# Generate the Erdős-Rényi random graph
-er_graph = nx.erdos_renyi_graph(n, p)
-
-# Visualize the graph
-plt.figure(figsize=(8, 6))
-nx.draw(er_graph, with_labels=True, node_color='lightblue', node_size=500, font_size=10, font_weight='bold')
-plt.title("Erdős-Rényi Random Graph")
-plt.show()
-
-# Print some basic information about the graph
-print(f"Number of nodes: {er_graph.number_of_nodes()}")
-print(f"Number of edges: {er_graph.number_of_edges()}")
-print(f"Average degree: {sum(dict(er_graph.degree()).values()) / n:.2f}")
-
-```
-
-There are more commands in NetworkX to generate random graphs, but the two above demonstrate two common methods of random graph generations. The first being a set number of nodes and edges and the second being a set number of nodes and a probability of edge creation between them. 
-
 ## 2. Degrees, Density and Weights
 
 ### 2.1 Degrees  
 
-The **degree** of a node is the number of edges that are connected to a node. The degree of a node $N$ is denoted as $deg(N)$. The maximum degree of a network $G$ is denoted by $\Delta(G)$ and is the degree of the node with the highest degree in the network. Conversely, the minimum degree is denoted as $\delta(G)$. 
-
-- If a node on a graph with $n$ nodes has degree $n-1$ it is called a *dominating vertex*. Not every graph has a dominating vertex. 
+The **degree** of a node is the number of edges that are connected to a node.
 
 We can see the degree of each node by running `dict(G.degree())`. This create a dictionary of key-value pairs for our network, where each key is the name of the node and the value is it's respective degree. 
 
@@ -290,37 +257,12 @@ nx.draw(G, pos = position, node_color=color_map, with_labels=True)
 
 ### 2.2 Density
 
-Density is defined as: 
-
-$$
-\text{Density} = \frac{\text{Number of Possible Edges}}{\text{Number of Actual Edges}}
-​$$
- 
-In an undirected graph, the total number of edges is $\frac{V\times(V-1)}{2}$, where V is the total number of nodes.
-In a directed graph, the total number of edges is $V\times(V-1)$, because a connection between point A and point B can either be *from* point A *to* point B, or *to* point A *from* point B (hence multiplying by 2). 
- 
-- Note that self-loops (edges from and to the same node) are counted in the total number of edges but not in the maximum number of edges so graphs can have a density greater than 1.
-
-The formula for undirected graph density is:
-
-$$
-\frac{2E}{V(V-1)}
-$$
-
-And for directed graphs, it is:
-
-$$
-\frac{E}{V(V-1)}
-$$
-
- Where $E$ is the number of edges in our graph and $V$ is the number of nodes.
+Density refers to the proportion of actual edges in a network compared to the total possible connections. It indicates how interconnected the nodes in a network are, with a higher density suggesting a more connected network. Density is defined from [0,1], meaning a network with a density of 0.95 is very interconncected. Note that self-loops (edges from and to the same node) are counted in the total number of edges but not in the maximum number of edges so graphs can have a density greater than 1.
 
 We can calculate the density of our graph:
 
 ```{python}
-
 nx.density(G)
-
 ```
 
 ### 2.3 Weights
@@ -370,7 +312,7 @@ sm = plt.cm.ScalarMappable(cmap="Greys", norm=norm) # creates a scalarmappable o
 plt.colorbar(sm, ax=ax) #plotting color bar
 ```
 
-### 3. Adjacency matrices 
+## 3. Adjacency matrices 
 
 An **Adjacency matrix** is a method of representing graphs in matrix form. In an adjacency matrix, the rows and columns correspond to the vertices (or nodes) of the graph. The entries of the matrix indicate whether pairs of vertices are adjacent or not in the graph. Normally, a value of 1 is assigned to entries where an edge is present, and 0 is assigned to entries where an edge is not. For a weighed graph, the weight of the edge is represented as a numerical value for entries where an edge is present.
 
@@ -414,3 +356,228 @@ plt.title('Adjacency Matrix Visualization')
 plt.xlabel('Node Index')
 plt.ylabel('Node Index')
 ```
+
+## 4.0 Measures of Centrality
+
+**Centrality** is defined as the set of metrics used to determine the importance or influence of a particular node within a network. It helps to identify which nodes hold strategic significance in terms of connectivity, information flow, or influence over other nodes. Various centrality metrics, such as degree, betweenness, and eigenvector centrality, provide different perspectives on the role each node plays within the network's overall structure.
+
+### 4.1 Network Distance and Eccentricity 
+
+Before talking about centrality, we first need to talk a bit about *distance*. **Distance**, also known as **Geodesic distance**, is defined as the number of edges traversed by the shortest path between two nodes.
+
+- The distance between a node and itself is 0.
+- The distance between a node and a node for which no shortest path exists (such as a node that is disconnected from other nodes) is $\infty$.
+- The distance between a node and it's neighbor is 1.
+
+A node's **eccentricity** is the maximum distance from said node to all other nodes in the graph. For instance, in the following network, the eccentricity of node $A$ is 2, but the eccentricity of node $B$ is 1. 
+
+```{python}
+nodes = ("A","B", "C")
+edges = [("A","B"), ("B", "C")]
+
+G_example = nx.Graph()
+G_example.add_edges_from(edges)
+G_example.add_nodes_from(nodes)
+
+color_map = ["salmon", "lightblue", "salmon"]
+
+
+red_patch = mpatches.Patch(color='salmon', label='eccentricity = 1') 
+blue_patch = mpatches.Patch(color='lightblue', label='eccentricity = 2') 
+plt.legend(handles=[blue_patch, red_patch])
+
+nx.draw(G_example, node_color=color_map, with_labels=True)
+```
+
+If we color the nodes of our random graph by eccentricity, we can see:
+
+```{python}
+#Create random graph
+random.seed(415) #Course code
+n = 20 
+d = 3
+rr_graph = nx.random_regular_graph(d, n)
+
+# Compute eccentricity
+ecc = nx.eccentricity(rr_graph)
+unique_ecc = sorted(set(ecc.values()))
+
+# Choose a color for each unique eccentricity using matplotlib
+colors = plt.get_cmap('tab10', len(unique_ecc))
+ecc_to_color = {e: colors(i) for i, e in enumerate(unique_ecc)}
+color_map = [ecc_to_color[ecc[node]] for node in rr_graph.nodes()]
+
+# Create a legend
+patches = [mpatches.Patch(color=colors(i), label=f"eccentricity = {e}") for i, e in enumerate(unique_ecc)]
+
+plt.figure(figsize=(8, 6))
+nx.draw(rr_graph, node_color=color_map, with_labels=True, node_size=500, font_size=10, font_weight='bold')
+plt.legend(handles=patches, bbox_to_anchor=(1, 1))
+plt.title("Random Regular Graph with Eccentricity Coloring")
+plt.tight_layout()
+plt.show()
+
+# Print summary
+print(f"Number of nodes: {rr_graph.number_of_nodes()}")
+print(f"Number of edges: {rr_graph.number_of_edges()}")
+print(f"Eccentricity distribution: {ecc}")
+
+```
+
+We can see that the nodes in the furthest corners have an eccentricity of 6 and more central nodes have a lower eccentricity. 
+
+### 4.2 Degree Centrality
+
+Degree centrality is simple: Recall that the **degree** of a node is the number of nodes directly connected to it. In degree centrality, the more adjacent nodes, the more important the network is considered to be. Degree centrality is used primarily in social networks, where nodes with higher degrees are commonly major channels of information. A high degree means a node has many direct ties with other nodes, and has better access to resources within the network.
+
+Note that the NetworkX `nx.degree_centrality()` function normalizes each node's degree by dividing by the maximum possible degree in the network. Therefore for graphs without self-loops the degree centrality is always $\leq 1$. For educational purposes, we un-normalize the degree values, but this is not common practice. 
+
+We can not use the same random graph technique as each node will have a degree equal to 3, instead we will use the first graph from this notebook. 
+
+We can calculate the degree centrality of all our nodes in our network:
+
+```{python}
+# Define the graph
+nodes = (1, 2, 3, 4, 5, 6)
+edges = [
+    (1, 2), (2, 3), (3, 1), (1, 5), (3, 5),
+    (4, 5), (4, 6), (6, 1), (6, 3), (6, 4),
+    (4, 3), (5, 5), (3, 5)
+]
+G = nx.Graph()
+G.add_edges_from(edges)
+G.add_nodes_from(nodes)
+
+# Get degree for each node
+degree_dict = dict(G.degree())
+degrees = list(degree_dict.values())
+unique_degrees = sorted(set(degrees))
+
+# Assign a unique color per degree
+colors = plt.get_cmap('viridis', len(unique_degrees))
+degree_to_color = {deg: colors(i) for i, deg in enumerate(unique_degrees)}
+color_map = [degree_to_color[degree_dict[n]] for n in G.nodes()]
+
+# Create legend for each degree
+patches = [mpatches.Patch(color=colors(i), label=f"degree = {deg}") for i, deg in enumerate(unique_degrees)]
+
+plt.figure(figsize=(6, 4))
+nx.draw(G, with_labels=True, node_color=color_map, node_size=800, edge_color='gray', font_weight='bold')
+plt.legend(handles=patches, bbox_to_anchor=(1, 1))
+plt.title("Degree Centrality Graph")
+plt.tight_layout()
+plt.show()
+
+```
+
+### 4.3 Closeness Centrality 
+
+**Closeness centrality** is a measure of how close a node is to all other nodes in the network. It can be computed as the "sum of the geodesic distances of a node to all other nodes in the network". A node is *important* if it is *close to all other nodes in the network*. One flaw of closeness centrality is that while it is a useful indicator of node importance in small networks, it produces little variation in large networks with many edges.
+
+```{python}
+# Define the graph
+nodes = (1, 2, 3, 4, 5, 6)
+edges = [(1, 2), (2, 3), (3, 1), (1, 5), (3, 5),(4, 5), (4, 6), (6, 1), (6, 3), (6, 4),(4, 3), (5, 5), (3, 5)]
+G = nx.Graph()
+G.add_edges_from(edges)
+G.add_nodes_from(nodes)
+
+# Calculate closeness centrality
+centrality = nx.closeness_centrality(G)
+
+# Normalize centrality values for color mapping (so 0 = min, 1 = max)
+centralities = np.array(list(centrality.values()))
+norm_centrality = (centralities - centralities.min()) / (centralities.max() - centralities.min() + 1e-9)
+
+# Map normalized centrality to colormap
+cmap = plt.cm.plasma
+color_map = [cmap(val) for val in norm_centrality]
+
+plt.figure(figsize=(6, 4))
+nx.draw(G, with_labels=True, node_color=color_map, node_size=800, edge_color='gray', font_weight='bold')
+plt.title("Graph Colored by Closeness Centrality")
+plt.tight_layout()
+plt.show()
+
+# Print node centrality table
+print("Node\tCloseness Centrality")
+for node in G.nodes():
+    print(f"{node}\t{centrality[node]:.4f}")
+```
+
+### 4.4 Betweenness Centrality
+
+**Betweenness Centrality** is a measure of the importance of a node based on how well it serves as a **bridge** between nodes in a network. The mathematical representation of the betweeness centrality of a node is the number of times each node has to pass through that node to reach every other node in a network. Nodes with high betweenness thus serve as "bridges" within a network.
+
+Consider the graph below:
+
+```{python}
+#Define our network
+G_betweenness_example = nx.Graph()
+edges_list = [(0,1),(0,2),(0,3),(0,4),(1,2),(2,3),(3,4),(1,4),(2,4),(1,3),(4,5),(5,6)]
+G_betweenness_example.add_edges_from(edges_list)
+pos = nx.spring_layout(G_betweenness_example, seed=1000)
+
+#Draw our graph
+nx.draw(G_betweenness_example,pos=pos, with_labels=True, edgecolors="black", node_color="bisque", node_size=800)
+```
+
+Node $4$ serves as a *bridge* between nodes 5 and 6 to the rest of the nodes in the network. For a path to be drawn between nodes 6 or 5 to nodes 0,1,2,3, the path *must* go through node 4. Let's calculate the betweenness centrality of this network, and label nodes by centrality:
+
+```{python}
+#Define our network
+G_betweenness_example = nx.Graph()
+edges_list = [(0,1),(0,2),(0,3),(0,4),(1,2),(2,3),(3,4),(1,4),(2,4),(1,3),(4,5),(5,6)]
+G_betweenness_example.add_edges_from(edges_list)
+pos = nx.spring_layout(G_betweenness_example, seed=1000)
+
+#Find the centrality values for our nodes
+centrality = nx.betweenness_centrality(G_betweenness_example, normalized=False)
+centrality_values = np.array(list(centrality.values()))
+cmap="BuPu"
+
+#Put labels on our network
+labels = {}
+for node in G_betweenness_example.nodes():
+    labels[node] = centrality_values[node]
+
+
+#Draw our graph using `nx.draw`
+nx.draw(G_betweenness_example,pos=pos, node_color=centrality_values, edgecolors="black", cmap=cmap, node_size=800)
+nx.draw_networkx_labels(G_betweenness_example, pos, labels=labels, font_color="orangered")
+```
+
+We can see that node 4 does indeed have the highest betweenness centrality. The values of 0 for nodes 0, 1, 2, 3 and 6 indicate that each node can reach every other node without passing through those nodes. The value of 5.0 for node 5 indicates that five nodes *must* pass through node 5 in order to reach another node. 
+
+### 4.5 Eigenvector centrality
+
+**Eigenvector centrality** is a measure of the influence of a node in a network by considering not just how many connections it has (as we did with degree centrality), but also the importance of those connections: A node with high eigenvector centrality is connected to many nodes that themselves have high centrality, making it more influential in spreading information or resources. Unlike simpler measures like degree centrality, which only counts connections, eigenvector centrality looks at the overall structure of the network. It helps identify key players in a network who might not have the most connections but are well-connected to other important nodes. 
+
+```{python}
+# Create a larger network 
+G = nx.barabasi_albert_graph(n=20, m=2, seed=42)  # 20 nodes and each connects to 2
+
+# Calculate eigenvector centrality
+centrality = nx.eigenvector_centrality(G)
+
+# Normalize values for coloring
+centrality_values = np.array(list(centrality.values()))
+norm_centrality = (centrality_values - centrality_values.min()) / (centrality_values.max() - centrality_values.min() + 1e-9)
+cmap = plt.cm.plasma
+color_map = [cmap(val) for val in norm_centrality]
+
+# Draw the graph
+plt.figure(figsize=(8, 6))
+pos = nx.spring_layout(G, seed=42)
+nx.draw(G, pos=pos, with_labels=True, node_color=color_map,
+        node_size=800, font_weight='bold', edge_color='gray')
+plt.title('Large Graph Colored by Eigenvector Centrality')
+plt.tight_layout()
+plt.show()
+
+# Print node eigenvector centrality table
+print("Node\tEigenvector Centrality")
+for node in G.nodes():
+    print(f"{node}\t{centrality[node]:.4f}")
+```
+
