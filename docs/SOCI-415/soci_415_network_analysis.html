@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-GB" xml:lang="en-GB"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.3.450">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="dcterms.date" content="2025-06-22">
+<meta name="description" content="This notebook is an introduction to basic network analysis in Python.">
+
+<title>Praxis - SOCI 415 Network Analysis</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<link href="../../media/praxis-badge.png" rel="icon" type="image/png">
+<script src="../../site_libs/quarto-html/quarto.js"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 20,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<meta name="keywords" content="economics, econometrics, R, data, machine learning, UBC, COMET, geog 374, econ 325, econ 326, learning, teaching, learn r, r help, help, tutorial, r tutorial for beginners,learning statistics with r, learn r programming, learn statistics, linear regression, r machine learning, learn machine learning, university of british columbia, british columbia, r programming for beginners, r language tutorial, r tutorial for beginners, economic data, econometrics tutoring, economics help for students, economics homework help, oer resources for teachers, open educational resources for teachers, educational resource, oer project, oer materials, oer resources, learn economics online, learn econometrics, teach yourself economics, teach yourself econometrics, econometrics basics for beginners">
+
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<link rel="stylesheet" href="../../styles.css">
+</head>
+
+<body class="nav-fixed">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg navbar-dark ">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container">
+    <a href="../../index.html" class="navbar-brand navbar-brand-logo">
+    <img src="../../media/praxis-badge-white.png" alt="" class="navbar-logo">
+    </a>
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">Praxis</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-get-startedplaceholder_1" role="button" data-bs-toggle="dropdown" aria-expanded="false" rel="" target="">
+ <span class="menu-text">Get Started/Placeholder_1</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-get-startedplaceholder_1">    
+        <li>
+    <a class="dropdown-item" href="../../pages/quickstart.html" rel="" target="">
+ <span class="dropdown-text">Quickstart Guide</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-courses" role="button" data-bs-toggle="dropdown" aria-expanded="false" rel="" target="">
+ <span class="menu-text">Courses</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-courses">    
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_HIST-414.html" rel="" target="">
+ <span class="dropdown-text">HIST-414</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_AMNE-376.html" rel="" target="">
+ <span class="dropdown-text">AMNE-376</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_SOCI415.html" rel="" target="">
+ <span class="dropdown-text">SOCI-415</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_SOCI280.html" rel="" target="">
+ <span class="dropdown-text">SOCI-280</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_ECON227.html" rel="" target="">
+ <span class="dropdown-text">ECON-227</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="../../pages/index/all.html" rel="" target="">
+ <span class="dropdown-text">Browse All</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-topics" role="button" data-bs-toggle="dropdown" aria-expanded="false" rel="" target="">
+ <span class="menu-text">Topics</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-topics">    
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_CNN.html" rel="" target="">
+ <span class="dropdown-text">CNN</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_convolution.html" rel="" target="">
+ <span class="dropdown-text">Convolution</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_text_analysis.html" rel="" target="">
+ <span class="dropdown-text">Text Analysis</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-teach-with-praxis" role="button" data-bs-toggle="dropdown" aria-expanded="false" rel="" target="">
+ <span class="menu-text">Teach With prAxIs</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-teach-with-praxis">    
+        <li>
+    <a class="dropdown-item" href="../../pages/teaching_with_comet.html" rel="" target="">
+ <span class="dropdown-text">Learn how to teach with prAxIs</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/using_comet.html" rel="" target="">
+ <span class="dropdown-text">Using prAxIs in the Classroom</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-launch-praxis" role="button" data-bs-toggle="dropdown" aria-expanded="false" rel="" target="">
+      <i class="bi bi-play" role="img">
+</i> 
+ <span class="menu-text">Launch prAxIs</span>
+    </a>
+    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="nav-menu-launch-praxis">    
+        <li>
+    <a class="dropdown-item" href="https://open.jupyter.ubc.ca/jupyter/hub/user-redirect/git-pull?repo=https%3A%2F%2Fgithub.com%2Fubcecon%2Fcomet-notebooks&amp;urlpath=lab%2Ftree%2Fcomet-notebooks%2F&amp;branch=main" rel="" target=""><i class="bi bi-cloud-check" role="img">
+</i> 
+ <span class="dropdown-text">Launch on JupyterOpen (with Data)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://open.jupyter.ubc.ca/jupyter/hub/user-redirect/git-pull?repo=https%3A%2F%2Fgithub.com%2Fubcecon%2Fcomet-project&amp;urlpath=lab%2Ftree%2Fcomet-project%2F&amp;branch=main" rel="" target=""><i class="bi bi-cloud-check" role="img">
+</i> 
+ <span class="dropdown-text">Launch on JupyterOpen (lite)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ubc.syzygy.ca/jupyter/hub/user-redirect/git-pull?repo=https%3A%2F%2Fgithub.com%2Fubcecon%2Fcomet-project&amp;urlpath=lab%2Ftree%2Fcomet-project%2F&amp;branch=main" rel="" target=""><i class="bi bi-gear" role="img">
+</i> 
+ <span class="dropdown-text">Launch on Syzygy</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://colab.research.google.com/github/ubcecon/comet-notebooks/blob/main/" rel="" target=""><i class="bi bi-google" role="img">
+</i> 
+ <span class="dropdown-text">Launch on Colab</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://github.com/ubcecon/comet-notebooks/archive/refs/heads/main.zip" rel="" target=""><i class="bi bi-cloud-download" role="img">
+</i> 
+ <span class="dropdown-text">Launch Locally</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="https://github.com/ubcecon/comet-open/archive/refs/heads/datasets.zip" rel="" target=""><i class="bi bi-clipboard-data" role="img">
+</i> 
+ <span class="dropdown-text">Project Datasets</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://github.com/ubcecon/comet-open" rel="" target="">
+ <span class="dropdown-text">Github Repository</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="../../#" rel="" target="">
+ <span class="menu-text">|</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-about" role="button" data-bs-toggle="dropdown" aria-expanded="false" rel="" target="">
+ <span class="menu-text">About</span>
+    </a>
+    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="nav-menu-about">    
+        <li>
+    <a class="dropdown-item" href="../../pages/team.html" rel="" target="">
+ <span class="dropdown-text">prAxIs Team</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/copyright.html" rel="" target="">
+ <span class="dropdown-text">Copyright Information</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+            <div class="quarto-navbar-tools">
+</div>
+          </div> <!-- /navcollapse -->
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-full page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#what-is-network-analysis" id="toc-what-is-network-analysis" class="nav-link active" data-scroll-target="#what-is-network-analysis">1. What is Network analysis?</a>
+  <ul class="collapse">
+  <li><a href="#key-terms" id="toc-key-terms" class="nav-link" data-scroll-target="#key-terms">1.1 Key terms</a></li>
+  <li><a href="#networkx" id="toc-networkx" class="nav-link" data-scroll-target="#networkx">1.2 NetworkX</a></li>
+  <li><a href="#creating-random-graphs" id="toc-creating-random-graphs" class="nav-link" data-scroll-target="#creating-random-graphs">1.3 Creating Random Graphs</a></li>
+  </ul></li>
+  <li><a href="#degrees-density-and-weights" id="toc-degrees-density-and-weights" class="nav-link" data-scroll-target="#degrees-density-and-weights">2. Degrees, Density and Weights</a>
+  <ul class="collapse">
+  <li><a href="#degrees" id="toc-degrees" class="nav-link" data-scroll-target="#degrees">2.1 Degrees</a></li>
+  <li><a href="#density" id="toc-density" class="nav-link" data-scroll-target="#density">2.2 Density</a></li>
+  <li><a href="#weights" id="toc-weights" class="nav-link" data-scroll-target="#weights">2.3 Weights</a></li>
+  </ul></li>
+  <li><a href="#adjacency-matrices" id="toc-adjacency-matrices" class="nav-link" data-scroll-target="#adjacency-matrices">3. Adjacency matrices</a></li>
+  <li><a href="#measures-of-centrality" id="toc-measures-of-centrality" class="nav-link" data-scroll-target="#measures-of-centrality">4.0 Measures of Centrality</a>
+  <ul class="collapse">
+  <li><a href="#network-distance-and-eccentricity" id="toc-network-distance-and-eccentricity" class="nav-link" data-scroll-target="#network-distance-and-eccentricity">4.1 Network Distance and Eccentricity</a></li>
+  <li><a href="#degree-centrality" id="toc-degree-centrality" class="nav-link" data-scroll-target="#degree-centrality">4.2 Degree Centrality</a></li>
+  <li><a href="#closeness-centrality" id="toc-closeness-centrality" class="nav-link" data-scroll-target="#closeness-centrality">4.3 Closeness Centrality</a></li>
+  <li><a href="#betweenness-centrality" id="toc-betweenness-centrality" class="nav-link" data-scroll-target="#betweenness-centrality">4.4 Betweenness Centrality</a></li>
+  <li><a href="#eigenvector-centrality" id="toc-eigenvector-centrality" class="nav-link" data-scroll-target="#eigenvector-centrality">4.5 Eigenvector centrality</a></li>
+  </ul></li>
+  </ul>
+<div class="toc-actions"><div><i class="bi bi-github"></i></div><div class="action-links"><p><a href="https://github.com/ubcecon/praxis-ubc/issues/new" class="toc-action">Report an issue</a></p></div></div><div class="quarto-alternate-formats"><h2>Other Formats</h2><ul><li><a href="soci_415_network_analysis.ipynb" download="soci_415_network_analysis.ipynb"><i class="bi bi-journal-code"></i>Jupyter</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content column-page-left" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">SOCI 415 Network Analysis</h1>
+  <div class="quarto-categories">
+    <div class="quarto-category">Python</div>
+    <div class="quarto-category">network analysis</div>
+  </div>
+  </div>
+
+<div>
+  <div class="description">
+    This notebook is an introduction to basic network analysis in Python.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">22 June 2025</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+</header>
+
+<p>This notebook introduces key concepts in network analysis pertaining to sociology and provides a hands-on tutorial to using the NetworkX Python library.</p>
+<section id="what-is-network-analysis" class="level2">
+<h2 class="anchored" data-anchor-id="what-is-network-analysis">1. What is Network analysis?</h2>
+<p><strong>Network Analysis</strong> is a set of techniques used to study the structure and dynamics of networks. <strong>Networks</strong> are collections of objects/locations/entities (called <em>nodes</em>) connected by relationships (called <em>edges</em>). Network analysis has applications in many fields, including sociology, biology, economics, computer science, and more.</p>
+<figure class="figure">
+<img src="media/networks.png" alt="Network" style="width:80%" class="figure-img">
+<figcaption class="figure-caption">
+Regional networks of ceramic similarity across time in the greater Arizona/New Mexico area of the US (From Mills et al.&nbsp;2013, Fig. 2)
+</figcaption>
+</figure>
+<p><strong>Network science in Sociology</strong> Network analysis in sociology is the systematic study of social structure through the mapping and measurement of relationships among individuals, groups, or organizations. It is not a discipline on its own, but rather a methodological and theoretical approach within sociology that helps conceptualize, describe, and model society as interconnected sets of actors linked by specific relationships. Network analysis in sociology is a core tool for understanding how relationships and social structures impact individuals and groups,</p>
+<section id="key-terms" class="level3">
+<h3 class="anchored" data-anchor-id="key-terms">1.1 Key terms</h3>
+<div class="columns">
+<div class="column" style="width:50%;">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="media/example_graph.png" style="width:100.0%" alt="Nodes in a network." height="300" class="figure-img"></p>
+<figcaption class="figure-caption">An example of a graph with nodes and edges.</figcaption>
+</figure>
+</div>
+</div><div class="column" style="width:50%;">
+<p><strong>Node:</strong> A node is a representation of an individual entity or actor in a network. In different contexts, nodes can be people, organizations, cities, or any other unit of analysis.</p>
+<p><strong>Edge:</strong> An edge represents the relationship or connection between two nodes. Edges can be directed (having a specific direction from one node to another) or undirected (no direction, implying a mutual relationship).</p>
+</div>
+</div>
+<div class="columns">
+<div class="column" style="width:50%;">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="media/example_graph_2.png" style="width:100.0%" alt="Nodes in a network with degree." height="300" class="figure-img"></p>
+<figcaption class="figure-caption">An example of a network with nodes colored by degree.</figcaption>
+</figure>
+</div>
+</div><div class="column" style="width:50%;">
+<p><strong>Degree:</strong> The degree of a node is the number of edges connected to it. In directed networks, this can be further divided into in-degree (number of incoming edges) and out-degree (number of outgoing edges).</p>
+</div>
+</div>
+<div class="columns">
+<div class="column" style="width:50%;">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="media/example_graph_dir.png" style="width:100.0%" alt="Nodes in a network with degree." height="300" class="figure-img"></p>
+<figcaption class="figure-caption">An example of a network with nodes colored by degree.</figcaption>
+</figure>
+</div>
+</div><div class="column" style="width:50%;">
+<p>The network above is an example of a <strong>Undirected graph</strong>, a graph with no direction. This means that if there is a connection between node A and node B, it is bidirectional - A is connected to B, and B is connected to A.</p>
+<p>The example to the left is a <strong>directed graph</strong>: the edges between nodes have a specific direction. This means that if there is an edge from node A to node B, it does not imply there is an edge from B to A unless explicitly stated.</p>
+</div>
+</div>
+<div class="columns">
+<div class="column" style="width:50%;">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="media/example_density.png" style="width:100.0%" alt="Nodes in a network with degree." height="300" class="figure-img"></p>
+<figcaption class="figure-caption">An example of a network with nodes colored by degree.</figcaption>
+</figure>
+</div>
+</div><div class="column" style="width:50%;">
+<p><strong>Density:</strong> Density is a measure that indicates how closely connected the nodes in a network are. Specifically, it refers to the ratio of the number of actual edges in the network to the maximum possible number of edges between nodes.</p>
+</div>
+</div>
+<div class="columns">
+<div class="column" style="width:50%;">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="media/example_graph_closeness_centrality.png" style="width:100.0%" alt="Nodes in a network with degree." height="300" class="figure-img"></p>
+<figcaption class="figure-caption">An example of a network with nodes colored by degree.</figcaption>
+</figure>
+</div>
+</div><div class="column" style="width:50%;">
+<p><strong>Centrality:</strong> Centrality measures the importance, influence, or prominence of nodes (entities) within a network. The centrality of a node tells us how “important” a node is to the aggregate network. There are many different kinds of centrality, but the four most well-known ones are degree, betweenness, closeness, and eigenvector centrality.</p>
+</div>
+</div>
+</section>
+<section id="networkx" class="level3">
+<h3 class="anchored" data-anchor-id="networkx">1.2 NetworkX</h3>
+<p><code>NetworkX</code> is a Python library that is used for the creation, manipulation, and visualization of complex networks. It provides tools to work with both undirected and directed networks, perform network-related calculations, and visualize the results.</p>
+<p>A library in Python is a collection of code that makes everyday tasks more efficient. In this case working with networks becomes much simpler when using NetworkX.</p>
+<p>If you want to read the NetworkX documentation you can follow the <a href="https://networkx.org/documentation/stable/reference/introduction.html" target="_blank">NetworkX documentation link</a>. This link shows what kind of commands exist within the NetworkX library.</p>
+<section id="importing-networkx" class="level4">
+<h4 class="anchored" data-anchor-id="importing-networkx">1.2.1 Importing NetworkX</h4>
+<p>We can import NetworkX using the <code>import</code> command. At the same time, we’ll also import the <code>matplotlib.pyplot</code> library, for plotting graphs. Additionally, we’ll import <code>pandas</code> for basic data wrangling, and <code>numpy</code> for math. The <code>as</code> command allows us to use <code>networkx</code> commands without needing to type out <code>networkx</code> each time. Along with some other libraries.</p>
+<div class="cell" data-execution_count="1">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt <span class="co">#allows us to call the matplotlib.pyplot library as 'plt'</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.patches <span class="im">as</span> mpatches <span class="co">#imports mpatches matplotlib subpackage </span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> networkx <span class="im">as</span> nx <span class="co">#allows us to call the networkx library as 'nx'</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd <span class="co">#allows us to call the pandas library as 'pd'</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> geopandas <span class="im">as</span> gpd</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> contextily <span class="im">as</span> ctx</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> mpl_toolkits.axes_grid1.inset_locator <span class="im">import</span> inset_axes</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> community <span class="im">as</span> community_louvain</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> random</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="creating-simple-networks-using-networkx" class="level4">
+<h4 class="anchored" data-anchor-id="creating-simple-networks-using-networkx">1.2.2 Creating simple networks using NetworkX</h4>
+<p>We’ll start by creating a simple graph:</p>
+<p>Below in the code we choose our nodes and edges between them.</p>
+<div class="cell" data-execution_count="2">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>G <span class="op">=</span> nx.Graph() <span class="co">#creates an empty network graph</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>nodes <span class="op">=</span> (<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>, <span class="dv">4</span>, <span class="dv">5</span>, <span class="dv">6</span>) <span class="co">#our nodes, labeled 1,2,3,4,5,6.</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>edges <span class="op">=</span> [(<span class="dv">1</span>, <span class="dv">2</span>), (<span class="dv">2</span>, <span class="dv">3</span>), (<span class="dv">3</span>, <span class="dv">1</span>), (<span class="dv">1</span>,<span class="dv">5</span>), (<span class="dv">3</span>,<span class="dv">5</span>), (<span class="dv">4</span>, <span class="dv">5</span>), (<span class="dv">4</span>, <span class="dv">6</span>), (<span class="dv">6</span>, <span class="dv">1</span>), (<span class="dv">6</span>, <span class="dv">3</span>), (<span class="dv">6</span>,<span class="dv">4</span>), (<span class="dv">4</span>, <span class="dv">3</span>), (<span class="dv">5</span>, <span class="dv">5</span>), (<span class="dv">3</span>, <span class="dv">5</span>)]</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>        <span class="co">#the connections between our nodes are stored in an array, containing pairs of numbers called tuples.</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>G.add_edges_from(edges) <span class="co">#the `add_edges_from()` command adds edges to the network</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>G.add_nodes_from(nodes) <span class="co">#the `add_nodes_from()` command adds nodes to the network</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>nx.draw(G, with_labels <span class="op">=</span> <span class="va">True</span>) <span class="co">#renders the graph in the notebook</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>        <span class="co">#the `with_labels = True` argument specifies that we want labels on the nodes.</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Let’s create a directed graph using <code>nx.DiGraph()</code>. We’ll also set our node positions using a seed: this will ensure that each time the nodes are rendered they hold the same position on the graph. You can set the seed to any number.</p>
+<div class="cell" data-execution_count="3">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>G <span class="op">=</span> nx.DiGraph() <span class="co">#creates an empty directed graph object</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>nodes <span class="op">=</span> (<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>, <span class="dv">4</span>, <span class="dv">5</span>, <span class="dv">6</span>) <span class="co">#our nodes</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>edges <span class="op">=</span> [(<span class="dv">1</span>, <span class="dv">2</span>), (<span class="dv">2</span>, <span class="dv">3</span>), (<span class="dv">3</span>, <span class="dv">1</span>), (<span class="dv">1</span>,<span class="dv">5</span>), (<span class="dv">3</span>,<span class="dv">5</span>), (<span class="dv">4</span>, <span class="dv">5</span>), (<span class="dv">4</span>, <span class="dv">6</span>), (<span class="dv">6</span>, <span class="dv">1</span>), (<span class="dv">6</span>, <span class="dv">3</span>), (<span class="dv">6</span>,<span class="dv">4</span>), (<span class="dv">4</span>, <span class="dv">3</span>), (<span class="dv">5</span>, <span class="dv">5</span>), (<span class="dv">3</span>, <span class="dv">5</span>)] <span class="co">#our tuples stored in an array which represent our nodes</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>G.add_edges_from(edges) <span class="co">#connects edges to nodes</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>G.add_nodes_from(nodes) <span class="co">#connects edges to nodes</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>position <span class="op">=</span> nx.spring_layout(G, seed<span class="op">=</span><span class="dv">100</span>)</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="co">#nx.draw plots our network</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>nx.draw(G, pos <span class="op">=</span> position, with_labels <span class="op">=</span> <span class="va">True</span>) <span class="co"># `pos` argument assigns a position to each node</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+</section>
+<section id="creating-random-graphs" class="level3">
+<h3 class="anchored" data-anchor-id="creating-random-graphs">1.3 Creating Random Graphs</h3>
+<p>Instead of creating a graph with predetermined positions of nodes and edges we can also generate a random graph with a set amount of nodes and edges. Below you can change the amount of nodes and edges by changing <code>n</code> and <code>d</code> which correspond to the number of nodes and the degree (number of edges) that each node has. Creating a random graph could be more helpful for testing or when you want to try something and don’t wish to spend time plotting a real network and determining paths for all edges and nodes.</p>
+<p>The command we will use is the <code>nx.random_regular_graph</code> command. Which generates a random regular graph.</p>
+<div class="cell" data-execution_count="4">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Set a seed for reproducibility so that everytime the code runs we get the same random graph</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>random.seed(<span class="dv">42</span>)</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Parameters</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">20</span>  <span class="co"># number of nodes</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>d <span class="op">=</span> <span class="dv">3</span>   <span class="co"># degree of each node</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Generate the random regular graph</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>rr_graph <span class="op">=</span> nx.random_regular_graph(d, n)</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Visualize the graph, you can change the size, color, font and node size. </span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>plt.figure(figsize<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">6</span>)) </span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>nx.draw(rr_graph, with_labels<span class="op">=</span><span class="va">True</span>, node_color<span class="op">=</span><span class="st">'lightgreen'</span>, node_size<span class="op">=</span><span class="dv">500</span>, font_size<span class="op">=</span><span class="dv">10</span>, font_weight<span class="op">=</span><span class="st">'bold'</span>)</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>plt.title(<span class="st">"Random Regular Graph"</span>)</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>plt.show()</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Print some basic information about the graph</span></span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Number of nodes: </span><span class="sc">{</span>rr_graph<span class="sc">.</span>number_of_nodes()<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Number of edges: </span><span class="sc">{</span>rr_graph<span class="sc">.</span>number_of_edges()<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Degree of each node: </span><span class="sc">{</span>d<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+</section>
+<section id="degrees-density-and-weights" class="level2">
+<h2 class="anchored" data-anchor-id="degrees-density-and-weights">2. Degrees, Density and Weights</h2>
+<section id="degrees" class="level3">
+<h3 class="anchored" data-anchor-id="degrees">2.1 Degrees</h3>
+<p>The <strong>degree</strong> of a node is the number of edges that are connected to a node.</p>
+<p>We can see the degree of each node by running <code>dict(G.degree())</code>. This create a dictionary of key-value pairs for our network, where each key is the name of the node and the value is it’s respective degree.</p>
+<div class="cell" data-execution_count="5">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>degrees <span class="op">=</span> <span class="bu">dict</span>(G.degree())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>If we want to see the degree of node <span class="math inline">\(n\)</span>, we can do so by running <code>print(degrees[n])</code>. For instance:</p>
+<div class="cell" data-execution_count="6">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(degrees[<span class="dv">1</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Let’s color the nodes of our graph based on their degree. We’ll create a function called <code>get_node_colors</code> which takes in the degree dictionary of each node and returns a color. We’ll then create a for-loop that iterates over each nodes in the list of nodes, gets the color of each node using the <code>get_node_colors</code> function we defined earlier, and appends it to an empty list called <code>color_map</code>.</p>
+<div class="cell" data-execution_count="7">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>degrees <span class="op">=</span> <span class="bu">dict</span>(G.degree())</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>nodes <span class="op">=</span> <span class="bu">list</span>(G.nodes())</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> get_node_colors(degree):</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> degree <span class="kw">in</span> [<span class="dv">1</span>, <span class="dv">2</span>]:</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="st">'blue'</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">elif</span> degree <span class="kw">in</span> [<span class="dv">3</span>, <span class="dv">4</span>]:</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="st">'green'</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">elif</span> degree <span class="kw">in</span> [<span class="dv">5</span>, <span class="dv">6</span>]:</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="st">'yellow'</span></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>    <span class="cf">else</span>:</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="st">'red'</span> </span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>color_map <span class="op">=</span> [] <span class="co">#`color_map` is an empty list</span></span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> node <span class="kw">in</span> nodes:</span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>  color <span class="op">=</span> get_node_colors(degrees[node]) <span class="co"># get color of current node using node_colors according to degree of node</span></span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>  color_map.append(color) <span class="co"># appends color of each node to color_map for each node in nodes</span></span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(degrees)</span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(nodes)</span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(color_map)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>The <span class="math inline">\(n\)</span>-th entry in <code>color_map</code> corresponds to the <span class="math inline">\(n\)</span>-th node in <code>nodes</code>. For instance, <code>color_map[0]</code> returns the color of the first node (1).</p>
+<div class="cell" data-execution_count="8">
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>color_map[<span class="dv">0</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>We can now color the nodes of our graph, using the color map we defined above. The <code>node_color</code> argument takes in an array or list of colors that it uses to color each node.</p>
+<div class="cell" data-execution_count="9">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>G <span class="op">=</span> nx.DiGraph() <span class="co"># creates an empty directed graph object</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>nodes <span class="op">=</span> (<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>, <span class="dv">4</span>, <span class="dv">5</span>, <span class="dv">6</span>) </span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>edges <span class="op">=</span> [(<span class="dv">1</span>, <span class="dv">2</span>), (<span class="dv">2</span>, <span class="dv">3</span>), (<span class="dv">3</span>, <span class="dv">1</span>), (<span class="dv">1</span>,<span class="dv">5</span>), (<span class="dv">3</span>,<span class="dv">5</span>), (<span class="dv">4</span>, <span class="dv">5</span>), (<span class="dv">4</span>, <span class="dv">6</span>), (<span class="dv">6</span>, <span class="dv">1</span>), (<span class="dv">6</span>, <span class="dv">3</span>), (<span class="dv">6</span>,<span class="dv">4</span>), (<span class="dv">4</span>, <span class="dv">3</span>), (<span class="dv">5</span>, <span class="dv">5</span>), (<span class="dv">3</span>, <span class="dv">5</span>)]</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>G.add_edges_from(edges) </span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>G.add_nodes_from(nodes) </span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>position <span class="op">=</span> nx.spring_layout(G, seed<span class="op">=</span><span class="dv">100</span>)</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>nx.draw(G, pos <span class="op">=</span> position, node_color<span class="op">=</span>color_map, with_labels<span class="op">=</span><span class="va">True</span>) </span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>    <span class="co"># node_color argument colors the nodes based on a given list or array of colors, </span></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>    <span class="co"># with the first color corresponding to the first node, second to the second node, etc.</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Let’s also add a legend to our graph, which gives information about the meaning of each color. We’ll do this using the <code>mpatches</code> subpackage we imported earlier.</p>
+<div class="cell" data-execution_count="10">
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>blue_patch <span class="op">=</span> mpatches.Patch(color<span class="op">=</span><span class="st">'blue'</span>, label<span class="op">=</span><span class="st">'1-2 edges'</span>) </span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>green_patch <span class="op">=</span> mpatches.Patch(color<span class="op">=</span><span class="st">'green'</span>, label<span class="op">=</span><span class="st">'3-4 edges'</span>)</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>yellow_patch <span class="op">=</span> mpatches.Patch(color<span class="op">=</span><span class="st">'yellow'</span>, label<span class="op">=</span><span class="st">'5-6 edges'</span>)</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>plt.legend(handles<span class="op">=</span>[blue_patch, green_patch, yellow_patch]) <span class="co">#adds legend to the plot</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>nx.draw(G, pos <span class="op">=</span> position, node_color<span class="op">=</span>color_map, with_labels<span class="op">=</span><span class="va">True</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="density" class="level3">
+<h3 class="anchored" data-anchor-id="density">2.2 Density</h3>
+<p>Density refers to the proportion of actual edges in a network compared to the total possible connections. It indicates how interconnected the nodes in a network are, with a higher density suggesting a more connected network. Density is defined from [0,1], meaning a network with a density of 0.95 is very interconncected. Note that self-loops (edges from and to the same node) are counted in the total number of edges but not in the maximum number of edges so graphs can have a density greater than 1.</p>
+<p>We can calculate the density of our graph:</p>
+<div class="cell" data-execution_count="11">
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>nx.density(G)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="weights" class="level3">
+<h3 class="anchored" data-anchor-id="weights">2.3 Weights</h3>
+<p>Often times, you may end up working with <em>weighted</em> graphs: for instance, these weights could correspond to popularity of roads in road networks, or the size of pipes in a sewage network.</p>
+<p>We’ll standardize our weights to be between 1 and 2 (as otherwise the results are messy). We’ll do this using a for-loop, like we did with the degrees.</p>
+<div class="cell" data-execution_count="12">
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>G_weights <span class="op">=</span> nx.DiGraph() <span class="co">#creating a new graph object called G_weights</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>nodes <span class="op">=</span> [<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>, <span class="dv">4</span>, <span class="dv">5</span>, <span class="dv">6</span>]</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>edges <span class="op">=</span> [(<span class="dv">1</span>, <span class="dv">2</span>), (<span class="dv">2</span>, <span class="dv">3</span>), (<span class="dv">3</span>, <span class="dv">1</span>), (<span class="dv">1</span>,<span class="dv">5</span>), (<span class="dv">3</span>,<span class="dv">5</span>), (<span class="dv">4</span>, <span class="dv">5</span>), (<span class="dv">4</span>, <span class="dv">6</span>), (<span class="dv">6</span>, <span class="dv">1</span>), (<span class="dv">6</span>, <span class="dv">3</span>), (<span class="dv">6</span>,<span class="dv">4</span>), (<span class="dv">4</span>, <span class="dv">3</span>), (<span class="dv">5</span>, <span class="dv">5</span>), (<span class="dv">3</span>, <span class="dv">5</span>)]</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>weights <span class="op">=</span> [<span class="dv">100</span>, <span class="dv">50</span>, <span class="dv">75</span>, <span class="dv">50</span>, <span class="dv">60</span>, <span class="dv">100</span>, <span class="dv">100</span>, <span class="dv">75</span>, <span class="dv">40</span>, <span class="dv">50</span>, <span class="dv">50</span>, <span class="dv">100</span>, <span class="dv">100</span>] <span class="co">#add list of weights</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>G_weights.add_edges_from(edges) </span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>G_weights.add_nodes_from(nodes) </span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>adjusted_weights <span class="op">=</span> []</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> weight <span class="kw">in</span> weights:</span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>    adjusted_weight <span class="op">=</span> <span class="dv">1</span><span class="op">+</span> (<span class="bu">max</span>(weights)<span class="op">-</span>weight)<span class="op">/</span>(<span class="bu">max</span>(weights)<span class="op">-</span><span class="bu">min</span>(weights)) <span class="co">#standardizes weights to be between 1 and 2</span></span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>    adjusted_weights.append(adjusted_weight)</span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>position <span class="op">=</span> nx.spring_layout(G, seed<span class="op">=</span><span class="dv">100</span>)</span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(adjusted_weights)</span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>nx.draw(G_weights, pos <span class="op">=</span> position, width <span class="op">=</span> adjusted_weights, with_labels <span class="op">=</span> <span class="va">True</span>) </span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>    <span class="co"># width argument take in a list or array of numbers corresponding to weights</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>This is great, but the results aren’t very clear. Let’s add a color gradient to the edges to represent different weights.</p>
+<div class="cell" data-execution_count="13">
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>norm <span class="op">=</span> plt.Normalize(<span class="bu">min</span>(weights), <span class="bu">max</span>(weights), clip<span class="op">=</span><span class="va">False</span>) </span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">#`plot.normalizes` normalizes the weights such that they are evenly distributed across the gradient spectrum</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>edge_colors <span class="op">=</span> plt.cm.Greys(norm(weights)) </span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>    <span class="co"># norm(weights) normalizes the weights </span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>    <span class="co"># plot.cm.greys() assigns the weights to color values</span></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>    <span class="co"># edge_colors is a multidimensional array of RGBA color values corresponding to each edge</span></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots() <span class="co">#explicitly specifying figure and axes in order to create a color bar</span></span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>nx.draw(G_weights, pos<span class="op">=</span>position, edge_color<span class="op">=</span>edge_colors, width<span class="op">=</span>adjusted_weights, with_labels<span class="op">=</span><span class="va">True</span>, ax<span class="op">=</span>ax) </span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>    <span class="co">#ax = ax argument needed for color bar</span></span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Adding color bar</span></span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>sm <span class="op">=</span> plt.cm.ScalarMappable(cmap<span class="op">=</span><span class="st">"Greys"</span>, norm<span class="op">=</span>norm) <span class="co"># creates a scalarmappable object which acts </span></span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a>                                                    <span class="co"># as a bridge between the numerical weight values and color map</span></span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a>plt.colorbar(sm, ax<span class="op">=</span>ax) <span class="co">#plotting color bar</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+</section>
+<section id="adjacency-matrices" class="level2">
+<h2 class="anchored" data-anchor-id="adjacency-matrices">3. Adjacency matrices</h2>
+<p>An <strong>Adjacency matrix</strong> is a method of representing graphs in matrix form. In an adjacency matrix, the rows and columns correspond to the vertices (or nodes) of the graph. The entries of the matrix indicate whether pairs of vertices are adjacent or not in the graph. Normally, a value of 1 is assigned to entries where an edge is present, and 0 is assigned to entries where an edge is not. For a weighed graph, the weight of the edge is represented as a numerical value for entries where an edge is present.</p>
+<p>We can convert our simple graph to an adjacency matrix:</p>
+<div class="cell" data-execution_count="14">
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>nx.to_pandas_adjacency(G)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>If we want to use our weighted graph, we can use the following code:</p>
+<div class="cell" data-execution_count="15">
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co"># len(edges) returns the total number of entries in the list of edges.</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="co"># range(len(edges)): This generates a sequence of numbers from 0 to n-1 where n is len(edges), </span></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>    <span class="co">#so the for-loop will run n times with i taking each value in that range, one at a time.</span></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="bu">len</span>(edges)):</span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>    edge <span class="op">=</span> edges[i] <span class="co"># retrieves the edge at position i in the list of edges</span></span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>    weight <span class="op">=</span> weights[i] <span class="co"># retrieves the weight at position i in the list of weights</span></span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>    G_weights.add_edge(edge[<span class="dv">0</span>], edge[<span class="dv">1</span>], weight<span class="op">=</span>weight) <span class="co"># adds an edge with a weight to the graph </span></span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>nx.to_pandas_adjacency(G_weights, nodelist<span class="op">=</span>nodes, weight<span class="op">=</span><span class="st">'weight'</span>) <span class="co">#converts to pandas adjacency matrix with the weights in place</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>We can visualize our matrix using the code below. Note that instead of using <code>nx.to_pandas_adjacency</code> we use <code>nx.to_numpy_array</code>: this allows us to store the matrix in the form of an array.</p>
+<div class="cell" data-execution_count="16">
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>adj_matrix <span class="op">=</span> nx.to_numpy_array(G_weights, nodelist<span class="op">=</span>nodes, weight<span class="op">=</span><span class="st">'weight'</span>)</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>plt.figure(figsize<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">8</span>)) <span class="co">#displays data as an image on a 2d raster; in our case, a numpy array</span></span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>plt.imshow(adj_matrix, cmap<span class="op">=</span><span class="st">'gray_r'</span>)</span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(adj_matrix.shape[<span class="dv">0</span>]): <span class="co">#loops through each row of the matrix</span></span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> j <span class="kw">in</span> <span class="bu">range</span>(adj_matrix.shape[<span class="dv">1</span>]): <span class="co">#for each row, loops through each column of the matrix</span></span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a>        plt.text(j, i, <span class="bu">int</span>(adj_matrix[i, j]),</span>
+<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a>                 ha<span class="op">=</span><span class="st">'center'</span>, va<span class="op">=</span><span class="st">'center'</span>, color<span class="op">=</span><span class="st">'red'</span>, size<span class="op">=</span><span class="dv">30</span>) <span class="co">#prints the value at that position in the matrix on the graph</span></span>
+<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a>plt.title(<span class="st">'Adjacency Matrix Visualization'</span>)</span>
+<span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a>plt.xlabel(<span class="st">'Node Index'</span>)</span>
+<span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a>plt.ylabel(<span class="st">'Node Index'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="measures-of-centrality" class="level2">
+<h2 class="anchored" data-anchor-id="measures-of-centrality">4.0 Measures of Centrality</h2>
+<p><strong>Centrality</strong> is defined as the set of metrics used to determine the importance or influence of a particular node within a network. It helps to identify which nodes hold strategic significance in terms of connectivity, information flow, or influence over other nodes. Various centrality metrics, such as degree, betweenness, and eigenvector centrality, provide different perspectives on the role each node plays within the network’s overall structure.</p>
+<section id="network-distance-and-eccentricity" class="level3">
+<h3 class="anchored" data-anchor-id="network-distance-and-eccentricity">4.1 Network Distance and Eccentricity</h3>
+<p>Before talking about centrality, we first need to talk a bit about <em>distance</em>. <strong>Distance</strong>, also known as <strong>Geodesic distance</strong>, is defined as the number of edges traversed by the shortest path between two nodes.</p>
+<ul>
+<li>The distance between a node and itself is 0.</li>
+<li>The distance between a node and a node for which no shortest path exists (such as a node that is disconnected from other nodes) is <span class="math inline">\(\infty\)</span>.</li>
+<li>The distance between a node and it’s neighbor is 1.</li>
+</ul>
+<p>A node’s <strong>eccentricity</strong> is the maximum distance from said node to all other nodes in the graph. For instance, in the following network, the eccentricity of node <span class="math inline">\(A\)</span> is 2, but the eccentricity of node <span class="math inline">\(B\)</span> is 1.</p>
+<div class="cell" data-execution_count="17">
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>nodes <span class="op">=</span> (<span class="st">"A"</span>,<span class="st">"B"</span>, <span class="st">"C"</span>)</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>edges <span class="op">=</span> [(<span class="st">"A"</span>,<span class="st">"B"</span>), (<span class="st">"B"</span>, <span class="st">"C"</span>)]</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>G_example <span class="op">=</span> nx.Graph()</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>G_example.add_edges_from(edges)</span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>G_example.add_nodes_from(nodes)</span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>color_map <span class="op">=</span> [<span class="st">"salmon"</span>, <span class="st">"lightblue"</span>, <span class="st">"salmon"</span>]</span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>red_patch <span class="op">=</span> mpatches.Patch(color<span class="op">=</span><span class="st">'salmon'</span>, label<span class="op">=</span><span class="st">'eccentricity = 1'</span>) </span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a>blue_patch <span class="op">=</span> mpatches.Patch(color<span class="op">=</span><span class="st">'lightblue'</span>, label<span class="op">=</span><span class="st">'eccentricity = 2'</span>) </span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a>plt.legend(handles<span class="op">=</span>[blue_patch, red_patch])</span>
+<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a>nx.draw(G_example, node_color<span class="op">=</span>color_map, with_labels<span class="op">=</span><span class="va">True</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>If we color the nodes of our random graph by eccentricity, we can see:</p>
+<div class="cell" data-execution_count="18">
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co">#Create random graph</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>random.seed(<span class="dv">415</span>) <span class="co">#Course code</span></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">20</span> </span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>d <span class="op">=</span> <span class="dv">3</span></span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>rr_graph <span class="op">=</span> nx.random_regular_graph(d, n)</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Compute eccentricity</span></span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>ecc <span class="op">=</span> nx.eccentricity(rr_graph)</span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>unique_ecc <span class="op">=</span> <span class="bu">sorted</span>(<span class="bu">set</span>(ecc.values()))</span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Choose a color for each unique eccentricity using matplotlib</span></span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>colors <span class="op">=</span> plt.get_cmap(<span class="st">'tab10'</span>, <span class="bu">len</span>(unique_ecc))</span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a>ecc_to_color <span class="op">=</span> {e: colors(i) <span class="cf">for</span> i, e <span class="kw">in</span> <span class="bu">enumerate</span>(unique_ecc)}</span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a>color_map <span class="op">=</span> [ecc_to_color[ecc[node]] <span class="cf">for</span> node <span class="kw">in</span> rr_graph.nodes()]</span>
+<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Create a legend</span></span>
+<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a>patches <span class="op">=</span> [mpatches.Patch(color<span class="op">=</span>colors(i), label<span class="op">=</span><span class="ss">f"eccentricity = </span><span class="sc">{</span>e<span class="sc">}</span><span class="ss">"</span>) <span class="cf">for</span> i, e <span class="kw">in</span> <span class="bu">enumerate</span>(unique_ecc)]</span>
+<span id="cb18-18"><a href="#cb18-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-19"><a href="#cb18-19" aria-hidden="true" tabindex="-1"></a>plt.figure(figsize<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">6</span>))</span>
+<span id="cb18-20"><a href="#cb18-20" aria-hidden="true" tabindex="-1"></a>nx.draw(rr_graph, node_color<span class="op">=</span>color_map, with_labels<span class="op">=</span><span class="va">True</span>, node_size<span class="op">=</span><span class="dv">500</span>, font_size<span class="op">=</span><span class="dv">10</span>, font_weight<span class="op">=</span><span class="st">'bold'</span>)</span>
+<span id="cb18-21"><a href="#cb18-21" aria-hidden="true" tabindex="-1"></a>plt.legend(handles<span class="op">=</span>patches, bbox_to_anchor<span class="op">=</span>(<span class="dv">1</span>, <span class="dv">1</span>))</span>
+<span id="cb18-22"><a href="#cb18-22" aria-hidden="true" tabindex="-1"></a>plt.title(<span class="st">"Random Regular Graph with Eccentricity Coloring"</span>)</span>
+<span id="cb18-23"><a href="#cb18-23" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb18-24"><a href="#cb18-24" aria-hidden="true" tabindex="-1"></a>plt.show()</span>
+<span id="cb18-25"><a href="#cb18-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-26"><a href="#cb18-26" aria-hidden="true" tabindex="-1"></a><span class="co"># Print summary</span></span>
+<span id="cb18-27"><a href="#cb18-27" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Number of nodes: </span><span class="sc">{</span>rr_graph<span class="sc">.</span>number_of_nodes()<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb18-28"><a href="#cb18-28" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Number of edges: </span><span class="sc">{</span>rr_graph<span class="sc">.</span>number_of_edges()<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb18-29"><a href="#cb18-29" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Eccentricity distribution: </span><span class="sc">{</span>ecc<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>We can see that the nodes in the furthest corners have an eccentricity of 6 and more central nodes have a lower eccentricity.</p>
+</section>
+<section id="degree-centrality" class="level3">
+<h3 class="anchored" data-anchor-id="degree-centrality">4.2 Degree Centrality</h3>
+<p>Degree centrality is simple: Recall that the <strong>degree</strong> of a node is the number of nodes directly connected to it. In degree centrality, the more adjacent nodes, the more important the network is considered to be. Degree centrality is used primarily in social networks, where nodes with higher degrees are commonly major channels of information. A high degree means a node has many direct ties with other nodes, and has better access to resources within the network.</p>
+<p>Note that the NetworkX <code>nx.degree_centrality()</code> function normalizes each node’s degree by dividing by the maximum possible degree in the network. Therefore for graphs without self-loops the degree centrality is always <span class="math inline">\(\leq 1\)</span>. For educational purposes, we un-normalize the degree values, but this is not common practice.</p>
+<p>We can not use the same random graph technique as each node will have a degree equal to 3, instead we will use the first graph from this notebook.</p>
+<p>We can calculate the degree centrality of all our nodes in our network:</p>
+<div class="cell" data-execution_count="19">
+<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Define the graph</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>nodes <span class="op">=</span> (<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>, <span class="dv">4</span>, <span class="dv">5</span>, <span class="dv">6</span>)</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>edges <span class="op">=</span> [</span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>    (<span class="dv">1</span>, <span class="dv">2</span>), (<span class="dv">2</span>, <span class="dv">3</span>), (<span class="dv">3</span>, <span class="dv">1</span>), (<span class="dv">1</span>, <span class="dv">5</span>), (<span class="dv">3</span>, <span class="dv">5</span>),</span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>    (<span class="dv">4</span>, <span class="dv">5</span>), (<span class="dv">4</span>, <span class="dv">6</span>), (<span class="dv">6</span>, <span class="dv">1</span>), (<span class="dv">6</span>, <span class="dv">3</span>), (<span class="dv">6</span>, <span class="dv">4</span>),</span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>    (<span class="dv">4</span>, <span class="dv">3</span>), (<span class="dv">5</span>, <span class="dv">5</span>), (<span class="dv">3</span>, <span class="dv">5</span>)</span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>]</span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a>G <span class="op">=</span> nx.Graph()</span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>G.add_edges_from(edges)</span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a>G.add_nodes_from(nodes)</span>
+<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Get degree for each node</span></span>
+<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a>degree_dict <span class="op">=</span> <span class="bu">dict</span>(G.degree())</span>
+<span id="cb19-14"><a href="#cb19-14" aria-hidden="true" tabindex="-1"></a>degrees <span class="op">=</span> <span class="bu">list</span>(degree_dict.values())</span>
+<span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a>unique_degrees <span class="op">=</span> <span class="bu">sorted</span>(<span class="bu">set</span>(degrees))</span>
+<span id="cb19-16"><a href="#cb19-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-17"><a href="#cb19-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Assign a unique color per degree</span></span>
+<span id="cb19-18"><a href="#cb19-18" aria-hidden="true" tabindex="-1"></a>colors <span class="op">=</span> plt.get_cmap(<span class="st">'viridis'</span>, <span class="bu">len</span>(unique_degrees))</span>
+<span id="cb19-19"><a href="#cb19-19" aria-hidden="true" tabindex="-1"></a>degree_to_color <span class="op">=</span> {deg: colors(i) <span class="cf">for</span> i, deg <span class="kw">in</span> <span class="bu">enumerate</span>(unique_degrees)}</span>
+<span id="cb19-20"><a href="#cb19-20" aria-hidden="true" tabindex="-1"></a>color_map <span class="op">=</span> [degree_to_color[degree_dict[n]] <span class="cf">for</span> n <span class="kw">in</span> G.nodes()]</span>
+<span id="cb19-21"><a href="#cb19-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-22"><a href="#cb19-22" aria-hidden="true" tabindex="-1"></a><span class="co"># Create legend for each degree</span></span>
+<span id="cb19-23"><a href="#cb19-23" aria-hidden="true" tabindex="-1"></a>patches <span class="op">=</span> [mpatches.Patch(color<span class="op">=</span>colors(i), label<span class="op">=</span><span class="ss">f"degree = </span><span class="sc">{</span>deg<span class="sc">}</span><span class="ss">"</span>) <span class="cf">for</span> i, deg <span class="kw">in</span> <span class="bu">enumerate</span>(unique_degrees)]</span>
+<span id="cb19-24"><a href="#cb19-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-25"><a href="#cb19-25" aria-hidden="true" tabindex="-1"></a>plt.figure(figsize<span class="op">=</span>(<span class="dv">6</span>, <span class="dv">4</span>))</span>
+<span id="cb19-26"><a href="#cb19-26" aria-hidden="true" tabindex="-1"></a>nx.draw(G, with_labels<span class="op">=</span><span class="va">True</span>, node_color<span class="op">=</span>color_map, node_size<span class="op">=</span><span class="dv">800</span>, edge_color<span class="op">=</span><span class="st">'gray'</span>, font_weight<span class="op">=</span><span class="st">'bold'</span>)</span>
+<span id="cb19-27"><a href="#cb19-27" aria-hidden="true" tabindex="-1"></a>plt.legend(handles<span class="op">=</span>patches, bbox_to_anchor<span class="op">=</span>(<span class="dv">1</span>, <span class="dv">1</span>))</span>
+<span id="cb19-28"><a href="#cb19-28" aria-hidden="true" tabindex="-1"></a>plt.title(<span class="st">"Degree Centrality Graph"</span>)</span>
+<span id="cb19-29"><a href="#cb19-29" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb19-30"><a href="#cb19-30" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="closeness-centrality" class="level3">
+<h3 class="anchored" data-anchor-id="closeness-centrality">4.3 Closeness Centrality</h3>
+<p><strong>Closeness centrality</strong> is a measure of how close a node is to all other nodes in the network. It can be computed as the “sum of the geodesic distances of a node to all other nodes in the network”. A node is <em>important</em> if it is <em>close to all other nodes in the network</em>. One flaw of closeness centrality is that while it is a useful indicator of node importance in small networks, it produces little variation in large networks with many edges.</p>
+<div class="cell" data-execution_count="20">
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Define the graph</span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>nodes <span class="op">=</span> (<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>, <span class="dv">4</span>, <span class="dv">5</span>, <span class="dv">6</span>)</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>edges <span class="op">=</span> [(<span class="dv">1</span>, <span class="dv">2</span>), (<span class="dv">2</span>, <span class="dv">3</span>), (<span class="dv">3</span>, <span class="dv">1</span>), (<span class="dv">1</span>, <span class="dv">5</span>), (<span class="dv">3</span>, <span class="dv">5</span>),(<span class="dv">4</span>, <span class="dv">5</span>), (<span class="dv">4</span>, <span class="dv">6</span>), (<span class="dv">6</span>, <span class="dv">1</span>), (<span class="dv">6</span>, <span class="dv">3</span>), (<span class="dv">6</span>, <span class="dv">4</span>),(<span class="dv">4</span>, <span class="dv">3</span>), (<span class="dv">5</span>, <span class="dv">5</span>), (<span class="dv">3</span>, <span class="dv">5</span>)]</span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>G <span class="op">=</span> nx.Graph()</span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>G.add_edges_from(edges)</span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>G.add_nodes_from(nodes)</span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Calculate closeness centrality</span></span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>centrality <span class="op">=</span> nx.closeness_centrality(G)</span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Normalize centrality values for color mapping (so 0 = min, 1 = max)</span></span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a>centralities <span class="op">=</span> np.array(<span class="bu">list</span>(centrality.values()))</span>
+<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a>norm_centrality <span class="op">=</span> (centralities <span class="op">-</span> centralities.<span class="bu">min</span>()) <span class="op">/</span> (centralities.<span class="bu">max</span>() <span class="op">-</span> centralities.<span class="bu">min</span>() <span class="op">+</span> <span class="fl">1e-9</span>)</span>
+<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a><span class="co"># Map normalized centrality to colormap</span></span>
+<span id="cb20-16"><a href="#cb20-16" aria-hidden="true" tabindex="-1"></a>cmap <span class="op">=</span> plt.cm.plasma</span>
+<span id="cb20-17"><a href="#cb20-17" aria-hidden="true" tabindex="-1"></a>color_map <span class="op">=</span> [cmap(val) <span class="cf">for</span> val <span class="kw">in</span> norm_centrality]</span>
+<span id="cb20-18"><a href="#cb20-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-19"><a href="#cb20-19" aria-hidden="true" tabindex="-1"></a>plt.figure(figsize<span class="op">=</span>(<span class="dv">6</span>, <span class="dv">4</span>))</span>
+<span id="cb20-20"><a href="#cb20-20" aria-hidden="true" tabindex="-1"></a>nx.draw(G, with_labels<span class="op">=</span><span class="va">True</span>, node_color<span class="op">=</span>color_map, node_size<span class="op">=</span><span class="dv">800</span>, edge_color<span class="op">=</span><span class="st">'gray'</span>, font_weight<span class="op">=</span><span class="st">'bold'</span>)</span>
+<span id="cb20-21"><a href="#cb20-21" aria-hidden="true" tabindex="-1"></a>plt.title(<span class="st">"Graph Colored by Closeness Centrality"</span>)</span>
+<span id="cb20-22"><a href="#cb20-22" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb20-23"><a href="#cb20-23" aria-hidden="true" tabindex="-1"></a>plt.show()</span>
+<span id="cb20-24"><a href="#cb20-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-25"><a href="#cb20-25" aria-hidden="true" tabindex="-1"></a><span class="co"># Print node centrality table</span></span>
+<span id="cb20-26"><a href="#cb20-26" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Node</span><span class="ch">\t</span><span class="st">Closeness Centrality"</span>)</span>
+<span id="cb20-27"><a href="#cb20-27" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> node <span class="kw">in</span> G.nodes():</span>
+<span id="cb20-28"><a href="#cb20-28" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>node<span class="sc">}</span><span class="ch">\t</span><span class="sc">{</span>centrality[node]<span class="sc">:.4f}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="betweenness-centrality" class="level3">
+<h3 class="anchored" data-anchor-id="betweenness-centrality">4.4 Betweenness Centrality</h3>
+<p><strong>Betweenness Centrality</strong> is a measure of the importance of a node based on how well it serves as a <strong>bridge</strong> between nodes in a network. The mathematical representation of the betweeness centrality of a node is the number of times each node has to pass through that node to reach every other node in a network. Nodes with high betweenness thus serve as “bridges” within a network.</p>
+<p>Consider the graph below:</p>
+<div class="cell" data-execution_count="21">
+<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="co">#Define our network</span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>G_betweenness_example <span class="op">=</span> nx.Graph()</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>edges_list <span class="op">=</span> [(<span class="dv">0</span>,<span class="dv">1</span>),(<span class="dv">0</span>,<span class="dv">2</span>),(<span class="dv">0</span>,<span class="dv">3</span>),(<span class="dv">0</span>,<span class="dv">4</span>),(<span class="dv">1</span>,<span class="dv">2</span>),(<span class="dv">2</span>,<span class="dv">3</span>),(<span class="dv">3</span>,<span class="dv">4</span>),(<span class="dv">1</span>,<span class="dv">4</span>),(<span class="dv">2</span>,<span class="dv">4</span>),(<span class="dv">1</span>,<span class="dv">3</span>),(<span class="dv">4</span>,<span class="dv">5</span>),(<span class="dv">5</span>,<span class="dv">6</span>)]</span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>G_betweenness_example.add_edges_from(edges_list)</span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>pos <span class="op">=</span> nx.spring_layout(G_betweenness_example, seed<span class="op">=</span><span class="dv">1000</span>)</span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a><span class="co">#Draw our graph</span></span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a>nx.draw(G_betweenness_example,pos<span class="op">=</span>pos, with_labels<span class="op">=</span><span class="va">True</span>, edgecolors<span class="op">=</span><span class="st">"black"</span>, node_color<span class="op">=</span><span class="st">"bisque"</span>, node_size<span class="op">=</span><span class="dv">800</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Node <span class="math inline">\(4\)</span> serves as a <em>bridge</em> between nodes 5 and 6 to the rest of the nodes in the network. For a path to be drawn between nodes 6 or 5 to nodes 0,1,2,3, the path <em>must</em> go through node 4. Let’s calculate the betweenness centrality of this network, and label nodes by centrality:</p>
+<div class="cell" data-execution_count="22">
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="co">#Define our network</span></span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>G_betweenness_example <span class="op">=</span> nx.Graph()</span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>edges_list <span class="op">=</span> [(<span class="dv">0</span>,<span class="dv">1</span>),(<span class="dv">0</span>,<span class="dv">2</span>),(<span class="dv">0</span>,<span class="dv">3</span>),(<span class="dv">0</span>,<span class="dv">4</span>),(<span class="dv">1</span>,<span class="dv">2</span>),(<span class="dv">2</span>,<span class="dv">3</span>),(<span class="dv">3</span>,<span class="dv">4</span>),(<span class="dv">1</span>,<span class="dv">4</span>),(<span class="dv">2</span>,<span class="dv">4</span>),(<span class="dv">1</span>,<span class="dv">3</span>),(<span class="dv">4</span>,<span class="dv">5</span>),(<span class="dv">5</span>,<span class="dv">6</span>)]</span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>G_betweenness_example.add_edges_from(edges_list)</span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>pos <span class="op">=</span> nx.spring_layout(G_betweenness_example, seed<span class="op">=</span><span class="dv">1000</span>)</span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a><span class="co">#Find the centrality values for our nodes</span></span>
+<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a>centrality <span class="op">=</span> nx.betweenness_centrality(G_betweenness_example, normalized<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a>centrality_values <span class="op">=</span> np.array(<span class="bu">list</span>(centrality.values()))</span>
+<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a>cmap<span class="op">=</span><span class="st">"BuPu"</span></span>
+<span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-12"><a href="#cb22-12" aria-hidden="true" tabindex="-1"></a><span class="co">#Put labels on our network</span></span>
+<span id="cb22-13"><a href="#cb22-13" aria-hidden="true" tabindex="-1"></a>labels <span class="op">=</span> {}</span>
+<span id="cb22-14"><a href="#cb22-14" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> node <span class="kw">in</span> G_betweenness_example.nodes():</span>
+<span id="cb22-15"><a href="#cb22-15" aria-hidden="true" tabindex="-1"></a>    labels[node] <span class="op">=</span> centrality_values[node]</span>
+<span id="cb22-16"><a href="#cb22-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-17"><a href="#cb22-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-18"><a href="#cb22-18" aria-hidden="true" tabindex="-1"></a><span class="co">#Draw our graph using `nx.draw`</span></span>
+<span id="cb22-19"><a href="#cb22-19" aria-hidden="true" tabindex="-1"></a>nx.draw(G_betweenness_example,pos<span class="op">=</span>pos, node_color<span class="op">=</span>centrality_values, edgecolors<span class="op">=</span><span class="st">"black"</span>, cmap<span class="op">=</span>cmap, node_size<span class="op">=</span><span class="dv">800</span>)</span>
+<span id="cb22-20"><a href="#cb22-20" aria-hidden="true" tabindex="-1"></a>nx.draw_networkx_labels(G_betweenness_example, pos, labels<span class="op">=</span>labels, font_color<span class="op">=</span><span class="st">"orangered"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>We can see that node 4 does indeed have the highest betweenness centrality. The values of 0 for nodes 0, 1, 2, 3 and 6 indicate that each node can reach every other node without passing through those nodes. The value of 5.0 for node 5 indicates that five nodes <em>must</em> pass through node 5 in order to reach another node.</p>
+</section>
+<section id="eigenvector-centrality" class="level3">
+<h3 class="anchored" data-anchor-id="eigenvector-centrality">4.5 Eigenvector centrality</h3>
+<p><strong>Eigenvector centrality</strong> is a measure of the influence of a node in a network by considering not just how many connections it has (as we did with degree centrality), but also the importance of those connections: A node with high eigenvector centrality is connected to many nodes that themselves have high centrality, making it more influential in spreading information or resources. Unlike simpler measures like degree centrality, which only counts connections, eigenvector centrality looks at the overall structure of the network. It helps identify key players in a network who might not have the most connections but are well-connected to other important nodes.</p>
+<div class="cell" data-execution_count="23">
+<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create a larger network </span></span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>G <span class="op">=</span> nx.barabasi_albert_graph(n<span class="op">=</span><span class="dv">20</span>, m<span class="op">=</span><span class="dv">2</span>, seed<span class="op">=</span><span class="dv">42</span>)  <span class="co"># 20 nodes and each connects to 2</span></span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Calculate eigenvector centrality</span></span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a>centrality <span class="op">=</span> nx.eigenvector_centrality(G)</span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Normalize values for coloring</span></span>
+<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a>centrality_values <span class="op">=</span> np.array(<span class="bu">list</span>(centrality.values()))</span>
+<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a>norm_centrality <span class="op">=</span> (centrality_values <span class="op">-</span> centrality_values.<span class="bu">min</span>()) <span class="op">/</span> (centrality_values.<span class="bu">max</span>() <span class="op">-</span> centrality_values.<span class="bu">min</span>() <span class="op">+</span> <span class="fl">1e-9</span>)</span>
+<span id="cb23-10"><a href="#cb23-10" aria-hidden="true" tabindex="-1"></a>cmap <span class="op">=</span> plt.cm.plasma</span>
+<span id="cb23-11"><a href="#cb23-11" aria-hidden="true" tabindex="-1"></a>color_map <span class="op">=</span> [cmap(val) <span class="cf">for</span> val <span class="kw">in</span> norm_centrality]</span>
+<span id="cb23-12"><a href="#cb23-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-13"><a href="#cb23-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Draw the graph</span></span>
+<span id="cb23-14"><a href="#cb23-14" aria-hidden="true" tabindex="-1"></a>plt.figure(figsize<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">6</span>))</span>
+<span id="cb23-15"><a href="#cb23-15" aria-hidden="true" tabindex="-1"></a>pos <span class="op">=</span> nx.spring_layout(G, seed<span class="op">=</span><span class="dv">42</span>)</span>
+<span id="cb23-16"><a href="#cb23-16" aria-hidden="true" tabindex="-1"></a>nx.draw(G, pos<span class="op">=</span>pos, with_labels<span class="op">=</span><span class="va">True</span>, node_color<span class="op">=</span>color_map,</span>
+<span id="cb23-17"><a href="#cb23-17" aria-hidden="true" tabindex="-1"></a>        node_size<span class="op">=</span><span class="dv">800</span>, font_weight<span class="op">=</span><span class="st">'bold'</span>, edge_color<span class="op">=</span><span class="st">'gray'</span>)</span>
+<span id="cb23-18"><a href="#cb23-18" aria-hidden="true" tabindex="-1"></a>plt.title(<span class="st">'Large Graph Colored by Eigenvector Centrality'</span>)</span>
+<span id="cb23-19"><a href="#cb23-19" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb23-20"><a href="#cb23-20" aria-hidden="true" tabindex="-1"></a>plt.show()</span>
+<span id="cb23-21"><a href="#cb23-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-22"><a href="#cb23-22" aria-hidden="true" tabindex="-1"></a><span class="co"># Print node eigenvector centrality table</span></span>
+<span id="cb23-23"><a href="#cb23-23" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Node</span><span class="ch">\t</span><span class="st">Eigenvector Centrality"</span>)</span>
+<span id="cb23-24"><a href="#cb23-24" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> node <span class="kw">in</span> G.nodes():</span>
+<span id="cb23-25"><a href="#cb23-25" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>node<span class="sc">}</span><span class="ch">\t</span><span class="sc">{</span>centrality[node]<span class="sc">:.4f}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+          // target, if specified
+          link.setAttribute("target", "_blank");
+      }
+    }
+});
+</script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+ <a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc-sa/4.0/80x15.png"></a>.  <a rel="license" href="https://comet.arts.ubc.ca/pages/copyright.html">See details.</a>
+  </li>  
+</ul>
+    </div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    </div>
+    <div class="nav-footer-right">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+ The prAxIs Project and UBC are located on the traditional, ancestral and unceded territory of the xʷməθkʷəy̓əm (Musqueam) and Sḵwx̱wú7mesh (Squamish) peoples.
+  </li>  
+</ul>
+    </div>
+  </div>
+</footer>
+
+
+
+</body></html>

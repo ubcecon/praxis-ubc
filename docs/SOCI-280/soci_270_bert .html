@@ -1,0 +1,1525 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-GB" xml:lang="en-GB"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.3.450">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Praxis - Introduction to Sentiment Analysis: Identifying and Mapping Disinformation Campaigns using NLP</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<link href="../../media/praxis-badge.png" rel="icon" type="image/png">
+<script src="../../site_libs/quarto-html/quarto.js"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 20,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<meta name="keywords" content="economics, econometrics, R, data, machine learning, UBC, COMET, geog 374, econ 325, econ 326, learning, teaching, learn r, r help, help, tutorial, r tutorial for beginners,learning statistics with r, learn r programming, learn statistics, linear regression, r machine learning, learn machine learning, university of british columbia, british columbia, r programming for beginners, r language tutorial, r tutorial for beginners, economic data, econometrics tutoring, economics help for students, economics homework help, oer resources for teachers, open educational resources for teachers, educational resource, oer project, oer materials, oer resources, learn economics online, learn econometrics, teach yourself economics, teach yourself econometrics, econometrics basics for beginners">
+
+
+<link rel="stylesheet" href="../../styles.css">
+</head>
+
+<body class="nav-fixed">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg navbar-dark ">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container">
+    <a href="../../index.html" class="navbar-brand navbar-brand-logo">
+    <img src="../../media/praxis-badge-white.png" alt="" class="navbar-logo">
+    </a>
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">Praxis</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-get-startedplaceholder_1" role="button" data-bs-toggle="dropdown" aria-expanded="false" rel="" target="">
+ <span class="menu-text">Get Started/Placeholder_1</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-get-startedplaceholder_1">    
+        <li>
+    <a class="dropdown-item" href="../../pages/quickstart.html" rel="" target="">
+ <span class="dropdown-text">Quickstart Guide</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-courses" role="button" data-bs-toggle="dropdown" aria-expanded="false" rel="" target="">
+ <span class="menu-text">Courses</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-courses">    
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_HIST-414.html" rel="" target="">
+ <span class="dropdown-text">HIST-414</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_AMNE-376.html" rel="" target="">
+ <span class="dropdown-text">AMNE-376</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_SOCI415.html" rel="" target="">
+ <span class="dropdown-text">SOCI-415</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_SOCI280.html" rel="" target="">
+ <span class="dropdown-text">SOCI-280</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_ECON227.html" rel="" target="">
+ <span class="dropdown-text">ECON-227</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="../../pages/index/all.html" rel="" target="">
+ <span class="dropdown-text">Browse All</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-topics" role="button" data-bs-toggle="dropdown" aria-expanded="false" rel="" target="">
+ <span class="menu-text">Topics</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-topics">    
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_CNN.html" rel="" target="">
+ <span class="dropdown-text">CNN</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_convolution.html" rel="" target="">
+ <span class="dropdown-text">Convolution</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_text_analysis.html" rel="" target="">
+ <span class="dropdown-text">Text Analysis</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-teach-with-praxis" role="button" data-bs-toggle="dropdown" aria-expanded="false" rel="" target="">
+ <span class="menu-text">Teach With prAxIs</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-teach-with-praxis">    
+        <li>
+    <a class="dropdown-item" href="../../pages/teaching_with_comet.html" rel="" target="">
+ <span class="dropdown-text">Learn how to teach with prAxIs</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/using_comet.html" rel="" target="">
+ <span class="dropdown-text">Using prAxIs in the Classroom</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-launch-praxis" role="button" data-bs-toggle="dropdown" aria-expanded="false" rel="" target="">
+      <i class="bi bi-play" role="img">
+</i> 
+ <span class="menu-text">Launch prAxIs</span>
+    </a>
+    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="nav-menu-launch-praxis">    
+        <li>
+    <a class="dropdown-item" href="https://open.jupyter.ubc.ca/jupyter/hub/user-redirect/git-pull?repo=https%3A%2F%2Fgithub.com%2Fubcecon%2Fcomet-notebooks&amp;urlpath=lab%2Ftree%2Fcomet-notebooks%2F&amp;branch=main" rel="" target=""><i class="bi bi-cloud-check" role="img">
+</i> 
+ <span class="dropdown-text">Launch on JupyterOpen (with Data)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://open.jupyter.ubc.ca/jupyter/hub/user-redirect/git-pull?repo=https%3A%2F%2Fgithub.com%2Fubcecon%2Fcomet-project&amp;urlpath=lab%2Ftree%2Fcomet-project%2F&amp;branch=main" rel="" target=""><i class="bi bi-cloud-check" role="img">
+</i> 
+ <span class="dropdown-text">Launch on JupyterOpen (lite)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ubc.syzygy.ca/jupyter/hub/user-redirect/git-pull?repo=https%3A%2F%2Fgithub.com%2Fubcecon%2Fcomet-project&amp;urlpath=lab%2Ftree%2Fcomet-project%2F&amp;branch=main" rel="" target=""><i class="bi bi-gear" role="img">
+</i> 
+ <span class="dropdown-text">Launch on Syzygy</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://colab.research.google.com/github/ubcecon/comet-notebooks/blob/main/" rel="" target=""><i class="bi bi-google" role="img">
+</i> 
+ <span class="dropdown-text">Launch on Colab</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://github.com/ubcecon/comet-notebooks/archive/refs/heads/main.zip" rel="" target=""><i class="bi bi-cloud-download" role="img">
+</i> 
+ <span class="dropdown-text">Launch Locally</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="https://github.com/ubcecon/comet-open/archive/refs/heads/datasets.zip" rel="" target=""><i class="bi bi-clipboard-data" role="img">
+</i> 
+ <span class="dropdown-text">Project Datasets</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://github.com/ubcecon/comet-open" rel="" target="">
+ <span class="dropdown-text">Github Repository</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="../../#" rel="" target="">
+ <span class="menu-text">|</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-about" role="button" data-bs-toggle="dropdown" aria-expanded="false" rel="" target="">
+ <span class="menu-text">About</span>
+    </a>
+    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="nav-menu-about">    
+        <li>
+    <a class="dropdown-item" href="../../pages/team.html" rel="" target="">
+ <span class="dropdown-text">prAxIs Team</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/copyright.html" rel="" target="">
+ <span class="dropdown-text">Copyright Information</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+            <div class="quarto-navbar-tools">
+</div>
+          </div> <!-- /navcollapse -->
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-full page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#disinformation-in-the-information-age" id="toc-disinformation-in-the-information-age" class="nav-link active" data-scroll-target="#disinformation-in-the-information-age">Disinformation in the Information Age</a></li>
+  <li><a href="#learning-outcomes" id="toc-learning-outcomes" class="nav-link" data-scroll-target="#learning-outcomes">Learning Outcomes</a></li>
+  <li><a href="#key-terms-and-concepts" id="toc-key-terms-and-concepts" class="nav-link" data-scroll-target="#key-terms-and-concepts">Key Terms and Concepts</a></li>
+  <li><a href="#dataset" id="toc-dataset" class="nav-link" data-scroll-target="#dataset">Dataset</a>
+  <ul class="collapse">
+  <li><a href="#the-analysis-data" id="toc-the-analysis-data" class="nav-link" data-scroll-target="#the-analysis-data">1) The analysis data:</a></li>
+  <li><a href="#the-model-training-data" id="toc-the-model-training-data" class="nav-link" data-scroll-target="#the-model-training-data">2) The model training data:</a></li>
+  </ul></li>
+  <li><a href="#preliminary-data-analysis" id="toc-preliminary-data-analysis" class="nav-link" data-scroll-target="#preliminary-data-analysis">0. Preliminary data analysis</a>
+  <ul class="collapse">
+  <li><a href="#kaggle-api-setup" id="toc-kaggle-api-setup" class="nav-link" data-scroll-target="#kaggle-api-setup">1) 🔑 Kaggle API Setup</a></li>
+  <li><a href="#hashtag-analysis" id="toc-hashtag-analysis" class="nav-link" data-scroll-target="#hashtag-analysis">0.1 Hashtag analysis</a>
+  <ul class="collapse">
+  <li><a href="#stop-and-reflect" id="toc-stop-and-reflect" class="nav-link" data-scroll-target="#stop-and-reflect">🛑 Stop and Reflect</a></li>
+  </ul></li>
+  <li><a href="#can-we-tune-models-to-detect-online-disinformation-campaigns-classifying-current-tweets-with-a-model-finetuned-on-the-russian_disinformation_tweets-dataset" id="toc-can-we-tune-models-to-detect-online-disinformation-campaigns-classifying-current-tweets-with-a-model-finetuned-on-the-russian_disinformation_tweets-dataset" class="nav-link" data-scroll-target="#can-we-tune-models-to-detect-online-disinformation-campaigns-classifying-current-tweets-with-a-model-finetuned-on-the-russian_disinformation_tweets-dataset">1. Can we tune models to detect online disinformation campaigns? Classifying current tweets with a model finetuned on the russian_disinformation_tweets dataset</a>
+  <ul class="collapse">
+  <li><a href="#exploring-our-model" id="toc-exploring-our-model" class="nav-link" data-scroll-target="#exploring-our-model">Exploring Our Model</a></li>
+  <li><a href="#classification-and-its-discontents" id="toc-classification-and-its-discontents" class="nav-link" data-scroll-target="#classification-and-its-discontents">Classification and Its Discontents</a></li>
+  </ul></li>
+  <li><a href="#what-is-sentiment-analysis" id="toc-what-is-sentiment-analysis" class="nav-link" data-scroll-target="#what-is-sentiment-analysis">1. What is Sentiment Analysis?</a>
+  <ul class="collapse">
+  <li><a href="#batch-sentiment-analysis" id="toc-batch-sentiment-analysis" class="nav-link" data-scroll-target="#batch-sentiment-analysis">Batch Sentiment Analysis</a></li>
+  </ul></li>
+  <li><a href="#multilingual-sentiment-analysis" id="toc-multilingual-sentiment-analysis" class="nav-link" data-scroll-target="#multilingual-sentiment-analysis">3. Multilingual Sentiment Analysis</a></li>
+  <li><a href="#introduction-to-toxicity-analysis" id="toc-introduction-to-toxicity-analysis" class="nav-link" data-scroll-target="#introduction-to-toxicity-analysis">4. Introduction to Toxicity Analysis</a>
+  <ul class="collapse">
+  <li><a href="#positive-profanity" id="toc-positive-profanity" class="nav-link" data-scroll-target="#positive-profanity">4.1 Positive profanity</a></li>
+  <li><a href="#in-group-language" id="toc-in-group-language" class="nav-link" data-scroll-target="#in-group-language">4.2 In-group language</a></li>
+  <li><a href="#toxicity-analysis-using-detoxify" id="toc-toxicity-analysis-using-detoxify" class="nav-link" data-scroll-target="#toxicity-analysis-using-detoxify">Toxicity analysis using Detoxify</a></li>
+  </ul></li>
+  </ul></li>
+  </ul>
+<div class="toc-actions"><div><i class="bi bi-github"></i></div><div class="action-links"><p><a href="https://github.com/ubcecon/praxis-ubc/issues/new" class="toc-action">Report an issue</a></p></div></div></nav>
+    </div>
+<!-- main -->
+<main class="content column-page-left" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Introduction to Sentiment Analysis: Identifying and Mapping Disinformation Campaigns using NLP</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+</header>
+
+<p><em>Module adapted from UBC COMET, prepared originally by Anneke Dresselhuis and Irene Berezin, by Irene Berezin, Anna Kovtunenko, Jalen Faddick and the prAxIs UBC team.</em></p>
+<section id="disinformation-in-the-information-age" class="level2">
+<h2 class="anchored" data-anchor-id="disinformation-in-the-information-age">Disinformation in the Information Age</h2>
+<p><strong>Disinformation</strong> is defined as being deliberately false information, created with the intention to mislead its reader. Disinformation has been weaponized since the early middle ages: for example, in the 19th century, New York-based newspaper <em>The Sun</em> published a series of articles about the discovery of life on the Moon, with the purpose of increasing sales of <em>The Sun</em>. The papers claimed that, using a massive telescope, an english astronomer had discovered vegetation, bipedal beavers, and human-like aliens, dubbed “man-bats”, that were four feet tall, had wings, and could fly (Zielinski, 2015). Whether-or-not the <em>great Moon Hoax</em> lead to <em>The Sun</em> becoming a successfull paper remains uncertain; some accounts claim that the series of papers brought <em>The Sun</em> to international fame, however it’s likely that rumors of <em>The Sun’s</em> hoax increasing the paper’s circulation were exaggerated.</p>
+<div style="display: flex; align-items: flex-start; gap: 1em;">
+<div style="flex: 0 0 500px;">
+<pre><code>&lt;img 
+  src="soci_270_images/disinformation_example_1.png" 
+  alt="An example of disinformation spread on twitter urnign voters to vote via twitter" 
+  style="width: 100%; height: auto; display: block;"&gt;</code></pre>
+</div>
+<div style="flex: 0 0 500px;">
+<pre><code>&lt;img 
+  src="soci_270_images/muller_report_1.png" 
+  alt="Middle example" 
+  style="width: 100%; height: auto; display: block;"&gt;</code></pre>
+</div>
+</div>
+<p>This is an example of a (mostly) harmless disinformation campaign; However, disinformation campaigns can, and have, been used instead to sway public opinion on critical matters. For example, during the Cold War, the KGB orchestrated a widespread disinformation campaign, alledging that HIV/AIDS was a bioweapon engineered by the United States, in an effort to stoke global mistrust of public health authorities and foster anti-americanism (Selvage &amp; Nehring, 2019). A particularly relevant example is political elections: State-sponsored Russian actors have mounted disinformation campaigns in every single U.S. federal election since 2016, at the latest. In 2016, for instance, the Russian state-sponsored Internet Research Agency (IRA) ran hundreds of Facebook and Twitter groups that amplified divisive content, and organized astroturf rallies in key US states, most notably Pennsylvania (Menn and Dave, 2018). The extent to which these coordinated campains influenced the 2016 United States election remains unclear: initial findings by the DOJ suggested that Russia coordinated a sweeping, large scale multi-million dollar online campaign aimed to praise Donald Trump and disparage Hillary Clinton (Muller, 2019). However, multiple studies have found that even under generous assumptions about presuasion rates, the vote-shifts caused by the IRA’s disinformation campaigns were too small to sway the election’s outcome (Allcot &amp; Gentzkow, 2017, Eady et al., 2023).</p>
+<p>With the rise of digital platforms and generative AI, the scale, speed, and sophistication of disinformation have grown exponentially. From elections and pandemics to social justice movements and international conflicts, false or misleading content is being spread online to manipulate emotions and polarize public opinion. The challenge today is not just the volume of disinformation, but how convincing and targeted it has become. Former U.S. Director of National Intelligence Avril Haines describes how state-sponsored campaigns, like Russia’s Kremlin, now operate using “a vast multimedia influence apparatus,” including bots, cyber-actors, fake news websites, and social media trolls. <strong>Large language models (LLMs)</strong> can now generate human-like tweets, comments, and articles at scale. Combined with deepfakes, doppelgänger sites, and AI-generated personas, these tools allow bad actors to craft propaganda that appears authentic, emotionally resonant, and difficult to detect.</p>
+<p>In this notebook, we’ll use machine learning — specifically, pretrained large language models — to study the language of disinformation in a real dataset of English and Russian-language tweets. These tweets include both known propagandist and non-propagandist content.</p>
+</section>
+<section id="learning-outcomes" class="level2">
+<h2 class="anchored" data-anchor-id="learning-outcomes">Learning Outcomes</h2>
+<p>By the end of this module, you will be able to better understand disinformation and propaganda techniques using the following computational tools:</p>
+<ul>
+<li><strong>Sentiment analysis</strong> to detect emotional tone (positive, negative, neutral)</li>
+<li><strong>Toxicity analysis</strong> to identify harmful or aggressive language (e.g., insults, threats)</li>
+<li><strong>Statistical testing</strong> to compare patterns between tweet types and languages (e.g., English vs.&nbsp;Russian)</li>
+</ul>
+<p>You’ll learn how to work with pretrained LLMs, interpret model predictions, and use basic statistical methods to answer questions like:</p>
+<ul>
+<li>Are propagandist tweets more emotionally charged or toxic than normal political tweets?</li>
+<li>Do they use different rhetorical strategies in different languages?</li>
+<li>Can we identify signals that indicate a tweet is part of a disinformation campaign?</li>
+</ul>
+<p>Through this analysis, we’ll explore various dimmensions of AI applications, critically examining how it can be used to better understand and detect the patterns of disinformation when working with large amounts of social data.</p>
+</section>
+<section id="key-terms-and-concepts" class="level2">
+<h2 class="anchored" data-anchor-id="key-terms-and-concepts">Key Terms and Concepts</h2>
+<p><strong>Disinformation:</strong> Disinformation is generally understood as the <em>intentional</em> spreading of false, misleading, or incorrect information, in order to influence the public or create an outcome, usually political.</p>
+<p><strong>Propaganda:</strong> Propaganda is similar to disinformation in it’s intent to spread a cause or doctrine, but can differ in how systematically or overtly it is speread. The two concepts are both forms of misinformation, with propaganda generally being employed to promote a cause.</p>
+<p><strong>Large Language Model (LLM):</strong> A Large Language Model is a langauge model trained on a very large set of text data, accessing the features of the text by converting units of text into quanitative representations that can be used for various tasks, such as chatbotting, or in the case of this notebook, Natural Language Processing.</p>
+<p><strong>Natural Language Processing (NLP):</strong> Natural Langauge Processing encompasses a wide variety of techniques and practices wtih the goal of enabling computers to understand, interpret, and produce human language. The key NLP techniques in this notebook are <em>sentiment analysis</em>, a technique that analayzes the relative positivity or negativity of langauge, and <em>toxicity analyis</em> which analyzes the relative aggressiveness of language.</p>
+<p><strong>BERT:</strong> to enable these analyses we will be using two BERT models. BERT (Bidirectional Encoder Representations from Transformers) is an open-source framework for machine learning and is used for NLP. BERT is well-suited to understanding langauge, rather than generating it, which is what this notebook is concerned with. The specific BERT models we are using are a multi-lingual <a href="https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2">model</a>, which can analyze tweets in different languages, and a <a href="https://huggingface.co/cardiffnlp/twitter-roberta-base-sentiment">model</a> trained for analyzing tweet sentiments.</p>
+<p><strong>Fine Tuning:</strong> The multi-lingual model is fine-tuned, or trained specifically on the Russian Disinformation tweet dataset. This is done by inputting a training subset of the data, where the tweets are labeled as Disinformation, into the BERT model to create a model familiar with our data, and well-suited to producing analyses.</p>
+</section>
+<section id="dataset" class="level2">
+<h2 class="anchored" data-anchor-id="dataset">Dataset</h2>
+<p>Our data for this notebook comes from four sources:</p>
+<section id="the-analysis-data" class="level3">
+<h3 class="anchored" data-anchor-id="the-analysis-data">1) The analysis data:</h3>
+<p>The data used from our analysis is a combination of four datasets: 1) The Russian troll tweets dataset, AKA the Internet Research Agency (IRA) tweets dataset is a large, verified collection of social media posts created by the Internet Research agency, the Russian state-sponsored troll farm we talked about earlier. The data was collected and provided by FiveThirtyEight (RIP) an America political news website that focused on providing detailed statistical analyses of the political climate in the United States. Compared to other Russian troll datasets, the IRA dataset is unparalleled in terms of accuracy because the data labels were directly provided by Twitter’s internal security teams, which identified the IRA troll accounts and turned them over to the United States Congress as evidence for the Senate Select Committee on Intelligence’s investigation into foreign election interference. Hence, every single tweet in the dataset is a known, verified Russian disinformation account. 2) The sentiment140 dataset is a massive English language datasets of tweets, created by Standford with the purpose of training sentiment analysis detection models. This dataset serves as our English control group. 3) Likewise, the Rusentimental dataset is a dataset of modern-day Russian tweets, collected by Russian NLP researchers for sentiment analysis purposes. This serves as our Russian control group. 4) Lastly, we added tweets taken from a collection of known Russian disinformation accounts that were active during the start of the Russia-Ukraine War. Researchers selected these tweets based on the accounts’ “association with state-backed media and a history of spreading disinformation and misinformation”.</p>
+</section>
+<section id="the-model-training-data" class="level3">
+<h3 class="anchored" data-anchor-id="the-model-training-data">2) The model training data:</h3>
+<p>For our analysis, we trained a <strong>tweet propaganda detection model</strong> off of the paper “Labeled Datasets for Research on Information Operations”, which provides the same verified collection of disinformation accounts from the IRA, as well as a “control” dataset of legitimate, topically-related accounts, which allowed for a direct, comparative analysis between malicious and organic online posts, within the same conversational political context. To avoid including training data in our in-class analysis, the IRA dataset was randomly split in two, with one half being used for model training and the other half being used for the in-class demo.</p>
+<p><img src="soci_270_images/datasets_explainer.png" class="img-fluid"></p>
+</section>
+</section>
+<section id="preliminary-data-analysis" class="level1">
+<h1>0. Preliminary data analysis</h1>
+<p>In order to get started using machine learning to map disinformation campaigns, we need to set our machines up to be able to:</p>
+<ol type="1">
+<li>Open and interpret the dataset.</li>
+<li>Visualize key aspects of the data.</li>
+<li>Access a pre-trained machine learning model that can be used on our data.</li>
+</ol>
+<p>To do this, we are using the <code>import</code> statement which allows us to access the functions and capabilities of each module. The modules we are using allow us to complete differenet tasks. We will use Python to communicate which capabilities we want to use and we will continue writing in Python to use these capabilities. We will learn more about what each module is doing as we continue to use them.</p>
+<p><strong>Important</strong>: If you don’t have the required packages installed, you can install them by uncommenting (i.e.&nbsp;removing the “#”) and running the following command in a code cell:</p>
+<div class="cell" data-scrolled="true">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># !pip install pandas numpy torch scikit-learn matplotlib seaborn datar datasets transformers nltk ipywidgets ipython scipy kaggle detoxify</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell" data-execution_count="3">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Kaggle API </span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Path to the ~/.kaggle folder in your home directory</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>kaggle_dir <span class="op">=</span> os.path.join(os.getcwd(), <span class="st">".kaggle"</span>)</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Set environment variable so Kaggle CLI uses this folder</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>os.environ[<span class="st">'KAGGLE_CONFIG_DIR'</span>] <span class="op">=</span> kaggle_dir</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Create folder if it doesn't exist</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="kw">not</span> os.path.exists(kaggle_dir):</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>    os.makedirs(kaggle_dir)</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f".kaggle folder created at: </span><span class="sc">{</span>kaggle_dir<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a><span class="cf">else</span>:</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f".kaggle folder already exists at: </span><span class="sc">{</span>kaggle_dir<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>.kaggle folder created at: c:\Users\Irene\praxis-ubc\soci_270\.kaggle</code></pre>
+</div>
+</div>
+<p>Note that our data needs to be pulled off of the internet for us to use first. For this, we will need two seperate API keys one for Kagle, and one for GitHub. Let’ first get the Kaggle API key.</p>
+<section id="kaggle-api-setup" class="level3">
+<h3 class="anchored" data-anchor-id="kaggle-api-setup">1) 🔑 <a href="https://www.kaggle.com/docs/api">Kaggle API Setup</a></h3>
+<ol type="1">
+<li>Go to <a href="https://www.kaggle.com">https://www.kaggle.com</a> and log in.</li>
+<li>Click on your profile picture (top right) → <strong>“Account”</strong> and click settings.</li>
+<li>Scroll down to the <strong>“API”</strong> section → click <strong>“Create New API Token”</strong>.</li>
+<li>This will download a file called <code>kaggle.json</code></li>
+</ol>
+<section id="upload-your-kaggle.json-file" class="level4">
+<h4 class="anchored" data-anchor-id="upload-your-kaggle.json-file">Upload Your <code>kaggle.json</code> File</h4>
+<p>Make sure to **upload your <code>kaggle.json</code> file into the .kaggle folder.</p>
+</section>
+<section id="steps" class="level4">
+<h4 class="anchored" data-anchor-id="steps">Steps:</h4>
+<ol type="1">
+<li>In your Jupyter environment (e.g.&nbsp;JupyterHub):</li>
+<li>Click on the <strong>file browser pane</strong>.</li>
+<li>Navigate to the <code>.kaggle/</code> folder inside your project directory.</li>
+<li><strong>Upload</strong> the <code>kaggle.json</code> file (you downloaded it from Kaggle earlier).</li>
+<li>Your folder structure should now look like this:</li>
+</ol>
+<pre><code>/your-project/
+├── .kaggle/
+│   └── kaggle.json
+├── soci_270_bert.ipynb</code></pre>
+<blockquote class="blockquote">
+<p>Once this is done, the Kaggle API will work normally in your script.</p>
+</blockquote>
+<div class="cell" data-execution_count="8">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> re</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> collections <span class="im">import</span> Counter</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> datar</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> ipywidgets <span class="im">as</span> widgets</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> kaggle</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> seaborn <span class="im">as</span> sns</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> torch</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> datar.dplyr <span class="im">import</span> glimpse</span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> datasets <span class="im">import</span> Dataset</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> IPython.display <span class="im">import</span> HTML, clear_output, display</span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> nltk.corpus <span class="im">import</span> stopwords</span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> scipy.stats <span class="im">import</span> chi2_contingency</span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.metrics <span class="im">import</span> (</span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>    ConfusionMatrixDisplay,</span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>    accuracy_score,</span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>    confusion_matrix,</span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a>    precision_recall_fscore_support,</span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.model_selection <span class="im">import</span> train_test_split</span>
+<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> transformers <span class="im">import</span> (</span>
+<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a>    AutoModel,</span>
+<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a>    AutoTokenizer,</span>
+<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a>    DataCollatorWithPadding,</span>
+<span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a>    Trainer,</span>
+<span id="cb7-30"><a href="#cb7-30" aria-hidden="true" tabindex="-1"></a>    TrainingArguments,</span>
+<span id="cb7-31"><a href="#cb7-31" aria-hidden="true" tabindex="-1"></a>    pipeline,</span>
+<span id="cb7-32"><a href="#cb7-32" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb7-33"><a href="#cb7-33" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> nltk</span>
+<span id="cb7-34"><a href="#cb7-34" aria-hidden="true" tabindex="-1"></a>nltk.download(<span class="st">'stopwords'</span>)</span>
+<span id="cb7-35"><a href="#cb7-35" aria-hidden="true" tabindex="-1"></a></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>[nltk_data] Downloading package stopwords to /home/jovyan/nltk_data...
+[nltk_data]   Package stopwords is already up-to-date!</code></pre>
+</div>
+<div class="cell-output cell-output-display" data-execution_count="8">
+<pre><code>True</code></pre>
+</div>
+</div>
+<p>Now that we have successfully accessed all of the functions we need to carry out our disinformation investigation, we can start to look into the data we are working with. We are going to be using the <code>pandas</code> library, which is a popular tool to read and handle data. Now lets get the GitHub Personal Access Token (PAT), so we can pull the data we need.</p>
+</section>
+<section id="github-personal-access-token-pat-setup" class="level4">
+<h4 class="anchored" data-anchor-id="github-personal-access-token-pat-setup">🔐 2. GitHub Personal Access Token (PAT) Setup</h4>
+<p>If you’re accessing <strong>private data or repositories</strong> from GitHub, you’ll need to authenticate using a <strong>Personal Access Token (PAT)</strong>.</p>
+</section>
+<section id="steps-to-create-a-github-token" class="level4">
+<h4 class="anchored" data-anchor-id="steps-to-create-a-github-token">Steps to Create a GitHub Token:</h4>
+<ol type="1">
+<li>Go to <a href="https://github.com/settings/tokens">https://github.com/settings/tokens</a>.</li>
+<li>Click <strong>“Generate new token”</strong> (select <strong>classic</strong> token).</li>
+<li>Give it a name, select an expiry date, and check scopes like:
+<ul>
+<li><code>repo</code> (for access to private repositories)</li>
+<li><code>read:org</code> (if needed)</li>
+</ul></li>
+<li>Click <strong>“Generate token”</strong> and <strong>copy the token</strong>. This is your GitHub API key.</li>
+</ol>
+</section>
+<section id="how-to-use-it" class="level4">
+<h4 class="anchored" data-anchor-id="how-to-use-it">How to Use It:</h4>
+<p>When pulling data from GitHub using code or tools like <code>git clone</code> or <code>requests.get()</code>, use:</p>
+<ul>
+<li>Your <strong>GitHub username</strong> as the username</li>
+<li>Your <strong>GitHub token (PAT)</strong> as the password</li>
+</ul>
+<p>You’ll usually be prompted in the terminal or notebook when accessing private content.</p>
+<blockquote class="blockquote">
+<p><strong>Do not share your token or upload it to public repositories!</strong></p>
+</blockquote>
+<p>Once that’s done, run the code below to pull and generate our dataset:</p>
+<div class="cell" data-execution_count="9">
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> data_pulling <span class="im">import</span> create_disinformation_dataset</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Loaded War Propaganda
+Loaded Sentiment140
+Loaded RuSentitweet</code></pre>
+</div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>create_disinformation_dataset()  <span class="co"># creates our dataset</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Check path:"</span>, os.path.abspath(<span class="st">"data/combined_disinformation_dataset_final.csv"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>tweets <span class="op">=</span> pd.read_csv(<span class="st">"data/combined_disinformation_dataset_final.csv"</span>) <span class="co">#loads in the dataset for us to use</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>tweets <span class="op">=</span> tweets[[<span class="st">'language'</span>, <span class="st">'date'</span>, <span class="st">'time'</span>, <span class="st">'source'</span>, <span class="st">'is_propaganda'</span>, <span class="st">'content'</span>]]</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(tweets.columns) <span class="co"># the columns we chose to keep for our analysis</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Let’s take a look at the dataset together. Recall that our dataset is comprised of four different datasets. Use the drop-down menu below to take a glimpse at the data for each of the four datasets. What do you notice?</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>unique_categories <span class="op">=</span> [<span class="st">'All'</span>] <span class="op">+</span> <span class="bu">sorted</span>([<span class="bu">str</span>(cat) <span class="cf">for</span> cat <span class="kw">in</span> tweets[<span class="st">'source'</span>].unique().tolist()])</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>category_dropdown <span class="op">=</span> widgets.Dropdown(</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>    options<span class="op">=</span>unique_categories,</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>    value<span class="op">=</span><span class="st">'All'</span>,</span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>    description<span class="op">=</span><span class="st">'Source dataset:'</span>,</span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>    style<span class="op">=</span>{<span class="st">'description_width'</span>: <span class="st">'initial'</span>},</span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>    layout<span class="op">=</span>{<span class="st">'width'</span>: <span class="st">'400px'</span>}</span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a>output <span class="op">=</span> widgets.Output()</span>
+<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> filter_by_category(change):</span>
+<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a>    selected_category <span class="op">=</span> change[<span class="st">'new'</span>]</span>
+<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> output:</span>
+<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a>        clear_output(wait<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> selected_category <span class="op">==</span> <span class="st">'All'</span>:</span>
+<span id="cb14-18"><a href="#cb14-18" aria-hidden="true" tabindex="-1"></a>            display(tweets)</span>
+<span id="cb14-19"><a href="#cb14-19" aria-hidden="true" tabindex="-1"></a>        <span class="cf">else</span>:</span>
+<span id="cb14-20"><a href="#cb14-20" aria-hidden="true" tabindex="-1"></a>            filtered_df <span class="op">=</span> tweets[tweets[<span class="st">'source'</span>].astype(<span class="bu">str</span>) <span class="op">==</span> selected_category]</span>
+<span id="cb14-21"><a href="#cb14-21" aria-hidden="true" tabindex="-1"></a>            display(filtered_df)</span>
+<span id="cb14-22"><a href="#cb14-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-23"><a href="#cb14-23" aria-hidden="true" tabindex="-1"></a>category_dropdown.observe(filter_by_category, names<span class="op">=</span><span class="st">'value'</span>)</span>
+<span id="cb14-24"><a href="#cb14-24" aria-hidden="true" tabindex="-1"></a>display(category_dropdown, output)</span>
+<span id="cb14-25"><a href="#cb14-25" aria-hidden="true" tabindex="-1"></a>filter_by_category({<span class="st">'new'</span>: <span class="st">'All'</span>})</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>To continue exploring the data, we are going to take a look at tweets that are labeled as control tweets, meaning they are not Russian disinformation. These tweets just come from the posts of regular users. These posts are not necessarily apolitical, or without an attempt to persuade; however, they do not meet the dataset’s criteria of disinformation.</p>
+<p>Take a look at a few of the characteristics of the tweets below, looking at both the text of the tweets and the data associated with each post. Some of the tweets look very similar to each other. Look through the tweet metadata and examine if any of the other characteristics of the posts are similar.</p>
+<p>Think about what you might be able to infer from each user based on their posts, and the metadata available to us in this dataset. Consider what is missing from this picture as well. What data might be unavailable to us, and how does it limit our picture of these users. While you are building a picture of the Twitter user (their beliefs, intent, history, posting time, etc.), list a couple reasons why you believe these users were not flagged as disinformation.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>category_dropdown <span class="op">=</span> widgets.Dropdown(options<span class="op">=</span>[<span class="dv">0</span>, <span class="dv">1</span>], value<span class="op">=</span><span class="dv">1</span>,  description<span class="op">=</span><span class="st">'Filter by Label:'</span>,style<span class="op">=</span>{<span class="st">'description_width'</span>: <span class="st">'initial'</span>}, layout<span class="op">=</span>{<span class="st">'width'</span>: <span class="st">'400px'</span>})</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>pd.options.display.max_colwidth <span class="op">=</span> <span class="va">None</span></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>output <span class="op">=</span> widgets.Output()</span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> filter_by_label(change):</span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>    selected_label <span class="op">=</span> change[<span class="st">'new'</span>]</span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> output:</span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>        clear_output(wait<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>        filtered_text <span class="op">=</span> tweets[tweets[<span class="st">'is_propaganda'</span>] <span class="op">==</span> selected_label][<span class="st">'content'</span>]</span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>        display(filtered_text)</span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a>category_dropdown.observe(filter_by_label, names<span class="op">=</span><span class="st">'value'</span>)</span>
+<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a>display(category_dropdown, output)</span>
+<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a>filter_by_label({<span class="st">'new'</span>: category_dropdown.value})</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>For now, let’s focus solely on the propagandist dataset: Recall that the tweets here originate from two seperate datasets – one from known propagandist accounts active around and before the 2016 US presidential election, and one from known propagandist accounts discovered during the start of the Russia-Ukraine war in 2022.</p>
+<p>There are many ways we can represent the posting activity visually. In this graph, we visualize the posting activity weekly over the course of a decade. It is important to select a scale appropriate for the amount of data we are working with, especially if that data spans a wide range. Here, we are using a log scale on the y-axis (the number of posts).</p>
+<blockquote class="blockquote">
+<p>A Log (or logarithmic) scale is a way to represent data which spans large numerical ranges, and makes it easier to visualize and interpret data that changes dramatically.</p>
+</blockquote>
+<p>As you look at the graph pay close attention to the following:</p>
+<ol type="1">
+<li><p>General trends in activity. Does either type of tweet increase over time? Is there any stagnation? Which years had the most weekly overall activity?</p></li>
+<li><p>Which years stick out as being exceptionally different. Consider some key events from those years. If nothing comes to mind immediately, do a quick search for top news topics of those years in your browser.</p></li>
+</ol>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>propaganda_df <span class="op">=</span> tweets[tweets[<span class="st">'is_propaganda'</span>] <span class="op">==</span> <span class="dv">1</span>].copy()</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>propaganda_df[<span class="st">'date'</span>] <span class="op">=</span> pd.to_datetime(propaganda_df[<span class="st">'date'</span>], errors<span class="op">=</span><span class="st">'coerce'</span>)</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>propaganda_df.dropna(subset<span class="op">=</span>[<span class="st">'date'</span>], inplace<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>propaganda_df[<span class="st">'week'</span>] <span class="op">=</span> propaganda_df[<span class="st">'date'</span>].dt.to_period(<span class="st">'W'</span>)</span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>weekly_counts <span class="op">=</span> propaganda_df.groupby([<span class="st">'week'</span>, <span class="st">'source'</span>]).size().reset_index(name<span class="op">=</span><span class="st">'count'</span>)</span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>weekly_counts[<span class="st">'week'</span>] <span class="op">=</span> weekly_counts[<span class="st">'week'</span>].dt.to_timestamp()</span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>plt.figure(figsize<span class="op">=</span>(<span class="dv">12</span>, <span class="dv">5</span>))</span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a>sns.lineplot(data<span class="op">=</span>weekly_counts, x<span class="op">=</span><span class="st">'week'</span>, y<span class="op">=</span><span class="st">'count'</span>, hue<span class="op">=</span><span class="st">'source'</span>)</span>
+<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a>plt.yscale(<span class="st">'log'</span>, base<span class="op">=</span><span class="dv">10</span>) <span class="co">#scaled log10. Remove this and see how the visualization changes!</span></span>
+<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a>plt.title(<span class="st">"Weekly Posting Activity of Disinformation Sources"</span>)</span>
+<span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a>plt.xlabel(<span class="st">"Week"</span>)</span>
+<span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a>plt.ylabel(<span class="st">"Number of Posts (log 10 scale)"</span>) </span>
+<span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a>plt.legend(title<span class="op">=</span><span class="st">"Source"</span>)</span>
+<span id="cb16-17"><a href="#cb16-17" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb16-18"><a href="#cb16-18" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Another aspect of our data we can look at is the characteristics of the text itself. How are the tweets originating from the IRA Dataset and the tweets originating from the 2022 War Propaganda Dataset different? Are they the same length? Do they discuss the same topics? What language(s) are the tweets in?</p>
+<p>Textual information like this act as clues to give us information about who the target audience of these tweets is, and what propagandist messages are specifically being spread.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>propaganda_df <span class="op">=</span> tweets[(tweets[<span class="st">'is_propaganda'</span>] <span class="op">==</span> <span class="dv">1</span>) <span class="op">&amp;</span> (tweets[<span class="st">'content'</span>].notna())].copy()</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>propaganda_df[<span class="st">'tweet_length'</span>] <span class="op">=</span> propaganda_df[<span class="st">'content'</span>].<span class="bu">str</span>.<span class="bu">len</span>()</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>plt.figure(figsize<span class="op">=</span>(<span class="dv">12</span>, <span class="dv">7</span>))</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>sns.histplot(data<span class="op">=</span>propaganda_df, x<span class="op">=</span><span class="st">'tweet_length'</span>, hue<span class="op">=</span><span class="st">'source'</span>, </span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>             kde<span class="op">=</span><span class="va">True</span>, common_norm<span class="op">=</span><span class="va">False</span>, stat<span class="op">=</span><span class="st">'density'</span>,</span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>             bins<span class="op">=</span><span class="dv">50</span>, palette<span class="op">=</span>{<span class="st">'IRA'</span>: <span class="st">'steelblue'</span>, <span class="st">'WarPropaganda'</span>: <span class="st">'orangered'</span>})</span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>plt.title(<span class="st">'Distribution of Tweet Lengths by Source'</span>, fontsize<span class="op">=</span><span class="dv">16</span>)</span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>plt.xlabel(<span class="st">'Tweet Length (Number of Characters)'</span>, fontsize<span class="op">=</span><span class="dv">12</span>)</span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>plt.ylabel(<span class="st">'Density'</span>, fontsize<span class="op">=</span><span class="dv">12</span>)</span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a>plt.xlim(<span class="dv">0</span>, <span class="dv">300</span>) <span class="co"># The majority of tweets are under 280 characters</span></span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a>plt.legend(title<span class="op">=</span><span class="st">'Source'</span>, labels<span class="op">=</span>[<span class="st">'2022 War Propaganda'</span>, <span class="st">'IRA'</span>])</span>
+<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a>plt.grid(<span class="va">True</span>, linestyle<span class="op">=</span><span class="st">'--'</span>, alpha<span class="op">=</span><span class="fl">0.6</span>)</span>
+<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Consider the graph above. It shows us the distribution of tweet length across the 2022 War Propaganda Dataset (red) and IRA Dataset (blue). Why do you think both datasets have bimodal (i.e.&nbsp;two peaks) distributions? Look at the data to tease out the relationship between length and tweet types.</p>
+<p>Another aspect of the text we could look at is the types of words that appear the most frequently in each dataset. What do you notice?</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>stop_words <span class="op">=</span> <span class="bu">set</span>(stopwords.words(<span class="st">'english'</span>))</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> clean_text_and_get_words(text):</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>    text <span class="op">=</span> text.lower() </span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>    text <span class="op">=</span> re.sub(<span class="vs">r'http\S+|www\S+|https\S+'</span>, <span class="st">''</span>, text, flags<span class="op">=</span>re.MULTILINE) </span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>    text <span class="op">=</span> re.sub(<span class="vs">r'\@\w+|\#'</span>,<span class="st">''</span>, text) </span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>    text <span class="op">=</span> re.sub(<span class="vs">r'[^\w\s]'</span>,<span class="st">''</span>, text) </span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>    words <span class="op">=</span> [word <span class="cf">for</span> word <span class="kw">in</span> text.split() <span class="cf">if</span> word <span class="kw">not</span> <span class="kw">in</span> stop_words <span class="kw">and</span> <span class="bu">len</span>(word) <span class="op">&gt;</span> <span class="dv">2</span>]</span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> words</span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>ira_words <span class="op">=</span> propaganda_df[propaganda_df[<span class="st">'source'</span>] <span class="op">==</span> <span class="st">'IRA'</span>][<span class="st">'content'</span>].dropna().<span class="bu">apply</span>(clean_text_and_get_words)</span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>war_words <span class="op">=</span> propaganda_df[propaganda_df[<span class="st">'source'</span>] <span class="op">==</span> <span class="st">'WarPropaganda'</span>][<span class="st">'content'</span>].dropna().<span class="bu">apply</span>(clean_text_and_get_words)</span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a>ira_top_words <span class="op">=</span> Counter([word <span class="cf">for</span> sublist <span class="kw">in</span> ira_words <span class="cf">for</span> word <span class="kw">in</span> sublist]).most_common(<span class="dv">15</span>)</span>
+<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a>war_top_words <span class="op">=</span> Counter([word <span class="cf">for</span> sublist <span class="kw">in</span> war_words <span class="cf">for</span> word <span class="kw">in</span> sublist]).most_common(<span class="dv">15</span>)</span>
+<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a>fig, (ax1, ax2) <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">18</span>, <span class="dv">8</span>))</span>
+<span id="cb18-18"><a href="#cb18-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-19"><a href="#cb18-19" aria-hidden="true" tabindex="-1"></a>ax1.barh(<span class="op">*</span><span class="bu">zip</span>(<span class="op">*</span><span class="bu">reversed</span>(ira_top_words)), color<span class="op">=</span><span class="st">'steelblue'</span>)</span>
+<span id="cb18-20"><a href="#cb18-20" aria-hidden="true" tabindex="-1"></a>ax1.set_title(<span class="st">'Top 15 Words in IRA Tweets'</span>, fontsize<span class="op">=</span><span class="dv">16</span>)</span>
+<span id="cb18-21"><a href="#cb18-21" aria-hidden="true" tabindex="-1"></a>ax1.set_xlabel(<span class="st">'Frequency'</span>)</span>
+<span id="cb18-22"><a href="#cb18-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-23"><a href="#cb18-23" aria-hidden="true" tabindex="-1"></a>ax2.barh(<span class="op">*</span><span class="bu">zip</span>(<span class="op">*</span><span class="bu">reversed</span>(war_top_words)), color<span class="op">=</span><span class="st">'orangered'</span>)</span>
+<span id="cb18-24"><a href="#cb18-24" aria-hidden="true" tabindex="-1"></a>ax2.set_title(<span class="st">'Top 15 Words in War Propaganda Tweets'</span>, fontsize<span class="op">=</span><span class="dv">16</span>)</span>
+<span id="cb18-25"><a href="#cb18-25" aria-hidden="true" tabindex="-1"></a>ax2.set_xlabel(<span class="st">'Frequency'</span>)</span>
+<span id="cb18-26"><a href="#cb18-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-27"><a href="#cb18-27" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb18-28"><a href="#cb18-28" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>After filtering out some additional common, insignificant words (called ‘stopwords’ in NLP, consider words like “the”, “a”, and “is”), we can look at the same question using word clouds. In word clouds, the larger the word, the more frequently it appears within a given subset of the dataset.</p>
+<p><img src="soci_270_images/wordclouds.png" class="img-fluid"></p>
+<p>Another dimmension we could look at with this data is the posting activity of control vs.&nbsp;disinformation tweets over the course of the day. Note that the tweets were all originally collected in UTC, which we changed to PST.</p>
+<p>🧠 <strong>Key Questions:</strong></p>
+<ul>
+<li>Consider why each account is posting at different times.</li>
+<li>Is there a meaningingful difference in who posts when? Why might that be?</li>
+<li>Is there anything surprising to you about the tweet volume at each hour?</li>
+</ul>
+<p>Think about some possible explanations for the trends in the data and consider whether it confirms or challenges your assumptions about how and when disinformation is produced. Why are both the IRA and sentiment140 datasets so consistent across time, whereas the 2022 War Propaganda dataset experiences considerable dips in posting activity over the course of 24 hours? Hint: Think about what time zone’s sleep schedule this would correspond to.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>tweets[<span class="st">'datetime_utc'</span>] <span class="op">=</span> pd.to_datetime(</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>    tweets[<span class="st">'date'</span>].astype(<span class="bu">str</span>) <span class="op">+</span> <span class="st">' '</span> <span class="op">+</span> tweets[<span class="st">'time'</span>].astype(<span class="bu">str</span>), </span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>    errors<span class="op">=</span><span class="st">'coerce'</span></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>tweets.dropna(subset<span class="op">=</span>[<span class="st">'datetime_utc'</span>], inplace<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>tweets[<span class="st">'datetime_pst'</span>] <span class="op">=</span> tweets[<span class="st">'datetime_utc'</span>].dt.tz_localize(<span class="st">'UTC'</span>).dt.tz_convert(<span class="st">'US/Pacific'</span>)</span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a>tweets[<span class="st">'hour'</span>] <span class="op">=</span> tweets[<span class="st">'datetime_pst'</span>].dt.hour</span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>hourly_totals <span class="op">=</span> tweets.groupby([<span class="st">'source'</span>, <span class="st">'hour'</span>]).size().reset_index(name<span class="op">=</span><span class="st">'count'</span>)</span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a>sns.set_style(<span class="st">"whitegrid"</span>, {<span class="st">'grid.linestyle'</span>: <span class="st">'--'</span>})</span>
+<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a>plt.figure(figsize<span class="op">=</span>(<span class="dv">15</span>, <span class="dv">8</span>))</span>
+<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-14"><a href="#cb19-14" aria-hidden="true" tabindex="-1"></a>sns.lineplot(data<span class="op">=</span>hourly_totals, x<span class="op">=</span><span class="st">'hour'</span>, y<span class="op">=</span><span class="st">'count'</span>, hue<span class="op">=</span><span class="st">'source'</span>, palette<span class="op">=</span><span class="st">'viridis'</span>, linewidth<span class="op">=</span><span class="fl">2.5</span>, marker<span class="op">=</span><span class="st">'o'</span>, markersize<span class="op">=</span><span class="dv">6</span>)</span>
+<span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-16"><a href="#cb19-16" aria-hidden="true" tabindex="-1"></a>plt.yscale(<span class="st">'log'</span>)</span>
+<span id="cb19-17"><a href="#cb19-17" aria-hidden="true" tabindex="-1"></a>plt.title(<span class="st">'Total Tweet Volume by Hour of Day (PST)'</span>, fontsize<span class="op">=</span><span class="dv">18</span>)</span>
+<span id="cb19-18"><a href="#cb19-18" aria-hidden="true" tabindex="-1"></a>plt.xlabel(<span class="st">'Hour of Day (PST)'</span>, fontsize<span class="op">=</span><span class="dv">12</span>)</span>
+<span id="cb19-19"><a href="#cb19-19" aria-hidden="true" tabindex="-1"></a>plt.ylabel(<span class="st">'Total Number of Tweets (Log Scale)'</span>, fontsize<span class="op">=</span><span class="dv">12</span>)</span>
+<span id="cb19-20"><a href="#cb19-20" aria-hidden="true" tabindex="-1"></a>plt.xticks(<span class="bu">range</span>(<span class="dv">0</span>, <span class="dv">24</span>, <span class="dv">2</span>))</span>
+<span id="cb19-21"><a href="#cb19-21" aria-hidden="true" tabindex="-1"></a>plt.xlim(<span class="dv">0</span>, <span class="dv">23</span>)</span>
+<span id="cb19-22"><a href="#cb19-22" aria-hidden="true" tabindex="-1"></a>plt.legend(title<span class="op">=</span><span class="st">'Data Source'</span>, fontsize<span class="op">=</span><span class="dv">12</span>)</span>
+<span id="cb19-23"><a href="#cb19-23" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb19-24"><a href="#cb19-24" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<blockquote class="blockquote">
+<p>⏪ <strong>Callback</strong></p>
+<p>Remember when we first examined the features of our data, the total number of disinformation posts was significantly higher than the number of control posts? That difference in volume is represented graphically below with the greater average number of posts from disinformation accounts. It is important to recognize that this is just a feature of our dataset, and is not necessarily representative of all the posts on Twitter at that time. Nevertheless, there are some important features of this visualization that we need to consider.</p>
+</blockquote>
+<p>As you look over the graph, try to answer the following questions:</p>
+<ol type="1">
+<li>Why are disinformation accounts posting early in the morning and late at night? What might they be trying to acheive with such an aggressive posting schedule.</li>
+<li>Think about your own social media posting. When do you usually post? Is this reflected by the Control curve?</li>
+<li>Additionally, think about when you are on social media. What hours are you most frequently looking at content?</li>
+</ol>
+<blockquote class="blockquote">
+<p>📱 <strong>Activity</strong></p>
+<p>If you freuqently use social media, take a look at you screen activity in your devices settings and look at the hours you frequently use social media applications. If you don’t have social media, find a partner who’s comfortable sharing their data with you and compare the hours of usage to the posting activity of the Disinformation accounts and the Control accounts.</p>
+</blockquote>
+<p>Does your usage align or differ from the activity of the accounts in our dataset?</p>
+</section>
+</section>
+<section id="hashtag-analysis" class="level2">
+<h2 class="anchored" data-anchor-id="hashtag-analysis">0.1 Hashtag analysis</h2>
+<p>What hashtags are being used in tweets from propagandist vs.&nbsp;non-propagandist accounts? For the next part of our data analysis, we’ll find the freqency of the 10 most common hashtags used by the two account types. As you explore the tables below, notice the content and language of the hashtags.</p>
+<p>Our earlier language analysis suggests that most disinformation in this dataset is likely in English. By examining the hashtags used in these tweets, we can better understand the specific words, topics, and narratives that disinformation accounts are trying to amplify.</p>
+<p>To begin, we’ll extract hashtags from our textual data by finding phrases beginning with the character #, and ignoring hashtags shorter than 10 letters for the sake of making things interesting.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>tweets[<span class="st">'content'</span>] <span class="op">=</span> tweets[<span class="st">'content'</span>].astype(<span class="bu">str</span>) <span class="co"># because some of the tweets aren't strings, apparently</span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> extract_hashtags(text):</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> re.findall(<span class="vs">r'#(\w+)'</span>, text.lower())</span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>tweets[<span class="st">'hashtags'</span>] <span class="op">=</span> tweets[<span class="st">'content'</span>].<span class="bu">apply</span>(extract_hashtags)</span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>tweets[<span class="st">'hashtags'</span>] <span class="op">=</span> tweets[<span class="st">'hashtags'</span>].<span class="bu">apply</span>(<span class="kw">lambda</span> hashtag_list: [tag <span class="cf">for</span> tag <span class="kw">in</span> hashtag_list <span class="cf">if</span> <span class="bu">len</span>(tag) <span class="op">&gt;</span> <span class="dv">10</span>])</span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(tweets[[<span class="st">'is_propaganda'</span>, <span class="st">'content'</span>, <span class="st">'hashtags'</span>]].head())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Now we can visualize the frequency of the 10 most common hashtags longer than 10 characters used by propagandist accounts over time.</p>
+<blockquote class="blockquote">
+<h3 id="engage-critically" class="anchored">🔎 Engage Critically</h3>
+<p>❓ <strong>Key Questions</strong></p>
+<ol type="1">
+<li>With reference to the timeline of tweets, and the hashtags below, describe some of the main targets of Russian disinformation.</li>
+<li>Given what you know about disinformation, what are the <em>intentions</em> of these accounts, and what <em>outcomes</em> are they attempting to create?</li>
+<li>What do the hashtags <em>not</em> tell us about the disinformation accounts? Where might our ability to conclude the intentions and outcomes of these accounts be limited by the data we have examined?</li>
+<li>What additional data could we collect to better understand this type of disinformation.</li>
+</ol>
+</blockquote>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>propaganda_tweets <span class="op">=</span> tweets[tweets[<span class="st">'is_propaganda'</span>] <span class="op">==</span> <span class="dv">1</span>]</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>propaganda_hashtags <span class="op">=</span> propaganda_tweets.explode(<span class="st">'hashtags'</span>)</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>top_20_propaganda <span class="op">=</span> propaganda_hashtags[<span class="st">'hashtags'</span>].value_counts().head(<span class="dv">10</span>)</span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>top_prop_list <span class="op">=</span> top_20_propaganda.index.tolist()</span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>top_prop_df <span class="op">=</span> propaganda_hashtags[propaganda_hashtags[<span class="st">'hashtags'</span>].isin(top_prop_list)]</span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a>top_prop_df[<span class="st">'date'</span>] <span class="op">=</span> pd.to_datetime(top_prop_df[<span class="st">'date'</span>], errors<span class="op">=</span><span class="st">'coerce'</span>)</span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a>top_prop_df.dropna(subset<span class="op">=</span>[<span class="st">'date'</span>], inplace<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a>prop_weekly <span class="op">=</span> top_prop_df.groupby(<span class="st">'hashtags'</span>).resample(<span class="st">'W'</span>, on<span class="op">=</span><span class="st">'date'</span>).size().reset_index(name<span class="op">=</span><span class="st">'count'</span>)</span>
+<span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-12"><a href="#cb21-12" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">1</span>, figsize<span class="op">=</span>(<span class="dv">18</span>, <span class="dv">10</span>))</span>
+<span id="cb21-13"><a href="#cb21-13" aria-hidden="true" tabindex="-1"></a>fig.suptitle(<span class="st">'Weekly spread of Top 10 propaganda hashtags over time'</span>, fontsize<span class="op">=</span><span class="dv">20</span>)</span>
+<span id="cb21-14"><a href="#cb21-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-15"><a href="#cb21-15" aria-hidden="true" tabindex="-1"></a>sns.lineplot(ax<span class="op">=</span>ax, data<span class="op">=</span>prop_weekly, x<span class="op">=</span><span class="st">'date'</span>, y<span class="op">=</span><span class="st">'count'</span>, hue<span class="op">=</span><span class="st">'hashtags'</span>, palette<span class="op">=</span><span class="st">'viridis'</span>)</span>
+<span id="cb21-16"><a href="#cb21-16" aria-hidden="true" tabindex="-1"></a>ax.set_title(<span class="st">'Propaganda Hashtags (IRA only)'</span>, fontsize<span class="op">=</span><span class="dv">16</span>)</span>
+<span id="cb21-17"><a href="#cb21-17" aria-hidden="true" tabindex="-1"></a>ax.set_xlabel(<span class="st">'Date (by week)'</span>)</span>
+<span id="cb21-18"><a href="#cb21-18" aria-hidden="true" tabindex="-1"></a>ax.set_ylabel(<span class="st">'Weekly Count'</span>)</span>
+<span id="cb21-19"><a href="#cb21-19" aria-hidden="true" tabindex="-1"></a>ax.legend(bbox_to_anchor<span class="op">=</span>(<span class="fl">1.02</span>, <span class="dv">1</span>), loc<span class="op">=</span><span class="st">'upper left'</span>, borderaxespad<span class="op">=</span><span class="fl">0.</span>)</span>
+<span id="cb21-20"><a href="#cb21-20" aria-hidden="true" tabindex="-1"></a>ax.grid(<span class="va">True</span>, which<span class="op">=</span><span class="st">'both'</span>, linestyle<span class="op">=</span><span class="st">'--'</span>, linewidth<span class="op">=</span><span class="fl">0.5</span>)</span>
+<span id="cb21-21"><a href="#cb21-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-22"><a href="#cb21-22" aria-hidden="true" tabindex="-1"></a>plt.tight_layout(rect<span class="op">=</span>[<span class="dv">0</span>, <span class="dv">0</span>, <span class="fl">0.9</span>, <span class="fl">0.96</span>])</span>
+<span id="cb21-23"><a href="#cb21-23" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>To explore how these hashtags trend over time, you can use the interactive tool below. Enter one or more hashtags (separated by commas) to visualize their weekly frequency in the dataset. This can help reveal how certain narratives gain momentum or fade in relevance.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>all_hashtags_df <span class="op">=</span> tweets.explode(<span class="st">'hashtags'</span>)</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>all_hashtags_df[<span class="st">'date'</span>] <span class="op">=</span> pd.to_datetime(all_hashtags_df[<span class="st">'date'</span>], errors<span class="op">=</span><span class="st">'coerce'</span>)</span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>all_hashtags_df.dropna(subset<span class="op">=</span>[<span class="st">'date'</span>, <span class="st">'hashtags'</span>], inplace<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>all_hashtags_df[<span class="st">'hashtags'</span>] <span class="op">=</span> all_hashtags_df[<span class="st">'hashtags'</span>].<span class="bu">str</span>.lower()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>hashtag_input <span class="op">=</span> widgets.Text(value<span class="op">=</span><span class="st">'news,russia,syria'</span>,placeholder<span class="op">=</span><span class="st">'Enter hashtags, separated by commas'</span>,description<span class="op">=</span><span class="st">'Hashtags:'</span>,layout<span class="op">=</span>{<span class="st">'width'</span>: <span class="st">'50%'</span>})</span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>plot_output <span class="op">=</span> widgets.Output()</span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> update_plot(change):</span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a>    hashtags_to_plot <span class="op">=</span> [tag.strip().lower() <span class="cf">for</span> tag <span class="kw">in</span> change[<span class="st">'new'</span>].split(<span class="st">','</span>) <span class="cf">if</span> tag.strip()]</span>
+<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> plot_output:</span>
+<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a>        clear_output(wait<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb23-10"><a href="#cb23-10" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="kw">not</span> hashtags_to_plot:</span>
+<span id="cb23-11"><a href="#cb23-11" aria-hidden="true" tabindex="-1"></a>            <span class="bu">print</span>(<span class="st">"enter at least one hashtag"</span>)</span>
+<span id="cb23-12"><a href="#cb23-12" aria-hidden="true" tabindex="-1"></a>            <span class="cf">return</span></span>
+<span id="cb23-13"><a href="#cb23-13" aria-hidden="true" tabindex="-1"></a>        filtered_data <span class="op">=</span> all_hashtags_df[all_hashtags_df[<span class="st">'hashtags'</span>].isin(hashtags_to_plot)]</span>
+<span id="cb23-14"><a href="#cb23-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-15"><a href="#cb23-15" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> filtered_data.empty:</span>
+<span id="cb23-16"><a href="#cb23-16" aria-hidden="true" tabindex="-1"></a>            <span class="bu">print</span>(<span class="st">"No data found for the specified hashtags"</span>)</span>
+<span id="cb23-17"><a href="#cb23-17" aria-hidden="true" tabindex="-1"></a>            <span class="cf">return</span></span>
+<span id="cb23-18"><a href="#cb23-18" aria-hidden="true" tabindex="-1"></a>        weekly_counts <span class="op">=</span> filtered_data.groupby(<span class="st">'hashtags'</span>).resample(<span class="st">'W'</span>, on<span class="op">=</span><span class="st">'date'</span>).size().reset_index(name<span class="op">=</span><span class="st">'count'</span>)</span>
+<span id="cb23-19"><a href="#cb23-19" aria-hidden="true" tabindex="-1"></a>        fig, ax <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">1</span>, figsize<span class="op">=</span>(<span class="dv">12</span>, <span class="dv">7</span>))</span>
+<span id="cb23-20"><a href="#cb23-20" aria-hidden="true" tabindex="-1"></a>        sns.lineplot(data<span class="op">=</span>weekly_counts, x<span class="op">=</span><span class="st">'date'</span>, y<span class="op">=</span><span class="st">'count'</span>, hue<span class="op">=</span><span class="st">'hashtags'</span>, ax<span class="op">=</span>ax)</span>
+<span id="cb23-21"><a href="#cb23-21" aria-hidden="true" tabindex="-1"></a>        </span>
+<span id="cb23-22"><a href="#cb23-22" aria-hidden="true" tabindex="-1"></a>        ax.set_title(<span class="st">'Weekly Frequency of Selected Hashtags'</span>)</span>
+<span id="cb23-23"><a href="#cb23-23" aria-hidden="true" tabindex="-1"></a>        ax.set_xlabel(<span class="st">'Date'</span>)</span>
+<span id="cb23-24"><a href="#cb23-24" aria-hidden="true" tabindex="-1"></a>        ax.set_ylabel(<span class="st">'Weekly Mentions'</span>)</span>
+<span id="cb23-25"><a href="#cb23-25" aria-hidden="true" tabindex="-1"></a>        ax.grid(<span class="va">True</span>, linestyle<span class="op">=</span><span class="st">'--'</span>, linewidth<span class="op">=</span><span class="fl">0.5</span>)</span>
+<span id="cb23-26"><a href="#cb23-26" aria-hidden="true" tabindex="-1"></a>        plt.tight_layout()</span>
+<span id="cb23-27"><a href="#cb23-27" aria-hidden="true" tabindex="-1"></a>        plt.show()</span>
+<span id="cb23-28"><a href="#cb23-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-29"><a href="#cb23-29" aria-hidden="true" tabindex="-1"></a>hashtag_input.observe(update_plot, names<span class="op">=</span><span class="st">'value'</span>)</span>
+<span id="cb23-30"><a href="#cb23-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-31"><a href="#cb23-31" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Enter a comma-separated list of hashtags to see their trends over time."</span>)</span>
+<span id="cb23-32"><a href="#cb23-32" aria-hidden="true" tabindex="-1"></a>display(widgets.VBox([hashtag_input, plot_output]))</span>
+<span id="cb23-33"><a href="#cb23-33" aria-hidden="true" tabindex="-1"></a>update_plot({<span class="st">'new'</span>: hashtag_input.value})</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<section id="stop-and-reflect" class="level3">
+<h3 class="anchored" data-anchor-id="stop-and-reflect">🛑 Stop and Reflect</h3>
+<p>Now that we have gone through the dataset and examined a variety of its features, take a few minutes and disucss the following questions with a partner or small group.</p>
+<ol type="1">
+<li>What are the conclusions we have come to regarding disinformation? How are they influenced or limited by the dataset?</li>
+<li>So far we have only looked at statistical aspects of the data without using machine learning techniques. Make some predictions on how the machine learning techniques we will use next might change our understanding of online disinformation. How might machine learning, specifically NLP, be used to enrich our understanding of disinformation?</li>
+<li>Has your understanding of online disinformation changed after looking at this data? Write down a few questions you have about online disinformation, the dataset, or the computational methods we have been using.</li>
+</ol>
+</section>
+</section>
+<section id="can-we-tune-models-to-detect-online-disinformation-campaigns-classifying-current-tweets-with-a-model-finetuned-on-the-russian_disinformation_tweets-dataset" class="level2">
+<h2 class="anchored" data-anchor-id="can-we-tune-models-to-detect-online-disinformation-campaigns-classifying-current-tweets-with-a-model-finetuned-on-the-russian_disinformation_tweets-dataset">1. Can we tune models to detect online disinformation campaigns? Classifying current tweets with a model finetuned on the russian_disinformation_tweets dataset</h2>
+<section id="exploring-our-model" class="level3">
+<h3 class="anchored" data-anchor-id="exploring-our-model">Exploring Our Model</h3>
+<p>Now that we have examined our data and looked at some of the key features in the Russian Disinformation Dataset, we can start thinking about ways to use machine learning to answer questions, classify features, and make predictions about our dataset. To do any of these tasks we first require a way to interpret the text data and assign numeric qualities to our tweets.</p>
+<p>The model we are using to do this is a multilingual model which maps sentences and paragraphs into multi-dimensional vector space. In other words, it takes the sentences and paragraphs of our tweets and assigns them a position associated with their meaning. This is done based on the context of the token (the unit of text, like a word or sentence). The model we are using is capable of interpreting multiple languages and is fine-tuned, or specifically trained, on the data we are examining. The code below is going to call upon a pre-built classifier which uses this fine-tuned model to predict whether a tweet is likely Russian propaganda. The two sample tweets are:</p>
+<ol type="1">
+<li><p>“#qanon #trump Hunter Biden is a Ukranian Shill”</p></li>
+<li><p>“What great weather we have today”</p></li>
+</ol>
+<p>The model is going to take these text inputs, represent them in vector space, and then report whether their respective values are similar to those of disinformation tweets.</p>
+</section>
+<section id="classification-and-its-discontents" class="level3">
+<h3 class="anchored" data-anchor-id="classification-and-its-discontents">Classification and Its Discontents</h3>
+<p>Before we explore the possibilities of our model to classify, we should first consider some of the main concerns and limitations regarding classification. Classification is an essential element of how machine learning operates. At its core it is the method of finding features that are central to a class and assigning units to that class based on those features. As you may already see, this “in-or-out” framework necessarily flattens some of the richness of human life, in order to effectively create these incredibly useful classes.</p>
+<blockquote class="blockquote">
+<p><strong>Example:</strong></p>
+<p>You might say a cat and a dog are really easy to classify. Most people know what a dog looks like and that it looks different than a cat. But if all I tell you is that there are two animals that commonly live with humans, that have a tail and paws, and make noise you might have a hard time classifying them, because they share common features.</p>
+<p>It is important to think deeply about how we are classifying, especially as many datasets are labeled by people, who carry their own understandings of what belongs to each class.</p>
+<p>Any class or classifier will be informed by the balance of abstraction to specificity, and we should always keep this in mind when we are classifying. It is important to be specific enough to ascertain the qualities we are interested in, but not so specific we end up with thousands of classes.</p>
+</blockquote>
+<p>Now that we have explored some of the trickiness of classification as a concept, we can look at how machine learning can help us work through some of these challenges. By using data that is labeled as disinformation our model can be trained to associated certain numerical feautres with disinformation, and when we give it text data that is similar to what it knows to be disinformation, it will classify it as such.</p>
+<p>For this analysis, we trained a model on a dataset very similar to ours, with the purpose of detecting propaganda tweets. Recall, however, that this model was trained <strong>soley on tweets around and before the 2016 presidential election–meaning it has never seen any tweets posted after this point</strong>. Given this information, what kinds of tweets do you think the model will struggle with the most? What kinds of propaganda tweets will it excel at detecting? Try using the model below, and see if you can get it to label a string of text as disinformation.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>classifier <span class="op">=</span> pipeline(<span class="st">"text-classification"</span>,model<span class="op">=</span><span class="st">"IreneBerezin/soci-280-model"</span>)</span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(classifier(<span class="st">"crooked hillary is trying to rig the election! #MAGA!"</span>)) <span class="co">#put your text in here</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Let’s now apply the model to a random sample of the dataset we’ve been studying. How well do you think the model will perform?</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>tweets_sample <span class="op">=</span> tweets.sample(n<span class="op">=</span><span class="dv">2000</span>, random_state<span class="op">=</span><span class="dv">60</span>)</span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>tweets_inference <span class="op">=</span> tweets_sample[[<span class="st">"content"</span>, <span class="st">"is_propaganda"</span>]].dropna()</span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>tweets_inference[<span class="st">'is_propaganda'</span>] <span class="op">=</span> <span class="dv">1</span> <span class="op">-</span> tweets_inference[<span class="st">'is_propaganda'</span>] <span class="co"># for whatever reasons the labels are switched in the training data</span></span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>classifier <span class="op">=</span> pipeline(<span class="st">"text-classification"</span>,model<span class="op">=</span><span class="st">"IreneBerezin/soci-280-model"</span>,device<span class="op">=-</span><span class="dv">1</span>)</span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a>predictions <span class="op">=</span> classifier(tweets_inference[<span class="st">'content'</span>].tolist(),batch_size<span class="op">=</span><span class="dv">32</span>,truncation<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a>predicted_labels <span class="op">=</span> [<span class="bu">int</span>(p[<span class="st">'label'</span>].split(<span class="st">'_'</span>)[<span class="dv">1</span>]) <span class="cf">for</span> p <span class="kw">in</span> predictions]</span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a>true_labels <span class="op">=</span> tweets_inference[<span class="st">'is_propaganda'</span>].tolist()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>display_labels <span class="op">=</span> [<span class="st">'Disinformation'</span>, <span class="st">'Normal Tweet'</span>]</span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>cm <span class="op">=</span> confusion_matrix(y_true<span class="op">=</span>true_labels,y_pred<span class="op">=</span>predicted_labels,labels<span class="op">=</span>[<span class="dv">0</span>, <span class="dv">1</span>])</span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>disp <span class="op">=</span> ConfusionMatrixDisplay(confusion_matrix<span class="op">=</span>cm,display_labels<span class="op">=</span>display_labels)</span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">8</span>))</span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a>ax.set_title(<span class="st">"Confusion Matrix"</span>, fontsize<span class="op">=</span><span class="dv">16</span>)</span>
+<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a>disp.plot(ax<span class="op">=</span>ax, cmap<span class="op">=</span><span class="st">'Greys'</span>) </span>
+<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a>plt.xticks(rotation<span class="op">=</span><span class="dv">45</span>)</span>
+<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb26-13"><a href="#cb26-13" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Pretty terribly, apparently! Above is what’s called a <strong>confusion matrix</strong>: it shows the number of labels that were correctly predicted, and incorrectly predicted. We see that, out of a random sample of 2000 tweets:</p>
+<ul>
+<li>797 tweets were marked as disinformation, and were, in fact, disinformation</li>
+<li>504 tweets were labelled as normal tweets while they were, in fact, disinformation</li>
+<li>282 tweets were labelled disinformation when they were in fact normal</li>
+<li>417 tweets were correctly labelled as normal tweets</li>
+</ul>
+<p>So, better than blindly guessing (which would put us on average as 500 tweets in each category) but still very bad.</p>
+<p>This is an example of <strong>overfitting</strong>: instead of actually learning what constitutes a propagandist tweet, the model simply memorized the specific writing styles of the troll accounts present in the training set. Hence, when it was shown new tweets from different troll accounts in the test set, it failed, as it never learned the general patterns that define an account as part of a coordinated disinformation campaign. The model did the ML equivalent of memorizing in great detail all the solutions to questions in a math textbook instead of actually learning how to solve them.</p>
+</section>
+</section>
+<section id="what-is-sentiment-analysis" class="level2">
+<h2 class="anchored" data-anchor-id="what-is-sentiment-analysis">1. What is Sentiment Analysis?</h2>
+<blockquote class="blockquote">
+<p>“Sentiment analysis is the practice of applying natural language processing and text analysis techniques to identify and extract subjective information from text” (Hussein, 2018).</p>
+</blockquote>
+<p>As this definition alludes, sentiment analysis is a part of <strong>natural language processing (NLP)</strong>, a field at the intersection of human language and computation. Because humans are complex, emotional beings, the language we use is often shaped by our affective (emotional) dispositions. Sentiment analysis, sometimes referred to as “opinion mining”, is one way researchers can methodologically understand the emotional intentions, typically positive, negative, or neutral sentiments, that lie in textual datasets.</p>
+<blockquote class="blockquote">
+<h3 id="engage-critically-1" class="anchored">🔎 Engage Critically</h3>
+<p>At the heart of sentiment analysis is the assumption that language reveals interior, affective states, and that these states can be codified and generalized to broader populations. AI scholar Kate Crawford, in her book <a href="https://katecrawford.net/atlas">Atlas of AI</a>, explores how many assumptions found in contemporary sentiment research (i.e., that there are 7 universal emotions) are largely unsubstantiated notions that emerged from mid-20th century research funded by the US Department of Defense. Rather than maintaining that emotions can be universally categorized, her work invites researchers to think about how emotional expression is highly contextualized by social and cultural factors and the distinct subject positions of content makers.</p>
+<blockquote class="blockquote">
+<p>❓ Consider the research question for your sentiment analysis. How might the text you are working with be shaped by the distinct groups that have generated it?</p>
+</blockquote>
+<blockquote class="blockquote">
+<p>❓ Are there steps you can take to educate yourself around the unique language uses of your dataset (for example, directly speaking with someone from that group or learning from a qualified expert on the subject)?</p>
+</blockquote>
+<p>If you’re interested, you can learn more about data justice in community research in a <a href="https://orice.ubc.ca/wp-content/uploads/sites/43/2022/06/2022-Gender-Guide-1.pdf">guide</a> created by UBC’s Office for Regional and International Community Engagement.</p>
+</blockquote>
+<p>The rise of <a href="https://en.wikipedia.org/wiki/Web_2.0">web 2.0</a> has produced prolific volumes of user-generated content (UGC) on the internet, particularly as people engage in a variety of social platforms and forums to share opinions, ideas and express themselves. Maybe you are interested in understanding how people feel about a particular political candidate by examining tweets around election time, or you wonder what people think about a particular bus route on reddit. UGC is often unstructured data, meaning that it isn’t organized in a recognizable way.</p>
+<p>Structured data for opinions about a political candidate might look like this:</p>
+<table class="table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Pro</th>
+<th>Con</th>
+<th>Neutral</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Supports climate action policies</td>
+<td>No plan for lowering the cost of living</td>
+<td>UBC Graduate</td>
+</tr>
+<tr class="even">
+<td>Expand mental health services</td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>While unstructured data might look like this:</p>
+<blockquote class="blockquote">
+<p>love that she’s trying to increase mental health services + actually cares abt the climate 👏 but what’s up w rent n grocieries?? i dont wanna go broke out here 😭 a ubc alum too like i thought she’d understand</p>
+</blockquote>
+<p>In the structured data example above, the reviewer defines which parts of the feedback are positive, negative or neutral. In the unstructured example on the other hand, there are many typos and a given sentence might include a positive and a negative review as well as more nuanced contextual information (i.e.&nbsp;mentioning being a UBC alum when discussing cost of living). While messy, this contextual information often carries valuable insights that can be very useful for researchers.</p>
+<p>The task of sentiment analysis is to make sense of these kinds of nuanced textual data - often for the purpose of understanding people, predicting human behaviour, or even in some cases, manipulating human behaviour.</p>
+<p>Disinformation campaigns often aim to sway public opinion by influencing the emotional tone of online conversations. <strong>Sentiment analysis</strong> allows us to detect and understand these patterns by identifying whether large volumes of text express <strong>positive</strong>, <strong>negative</strong>, or <strong>neutral</strong> sentiment.</p>
+<p>Our model is pretrained, meaning it has already learnt from millions of labelled examples how to distinguish different sentiments. Specifically, because the model we’ll be using was trained on English tweets, it’s tuned to the language and syntax common on Twitter/X, and is limited to analyzing English-language text.</p>
+<p><strong>Language is complex and always changing.</strong></p>
+<p>In the English language, for example, the word “present” has multiple meanings which could have positive, negative or neutral connotations. Further, a contemporary sentiment lexicon might code the word “miss” as being associated with negative or sad emotional experiences such as longing; if such a lexicon were applied to a 19th century novel which uses the word “miss” to describe single women, then, it might incorrectly associate negative sentiment where it shouldn’t be. While sentiment analysis can be a useful tool, it demands ongoing criticality and reflexivity from a researcher (you!). Throughout your analysis, be sure to continually ask yourself whether a particular sentiment lexicon is appropriate for your project.</p>
+<p>Now, we’re ready to get back to our analysis. Below, we’ll load in our model and tokenizer and start playing around with identifying the sentiment of different phrases.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb27"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>sentiment <span class="op">=</span> pipeline(<span class="st">"sentiment-analysis"</span>, model<span class="op">=</span><span class="st">"cardiffnlp/twitter-roberta-base-sentiment-latest"</span>)</span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(sentiment(<span class="st">"I hate everyone and everything"</span>))</span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(sentiment(<span class="st">"Life is great!"</span>))</span>
+<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(sentiment(<span class="st">"Hello world"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Let’s breakdown this output. There are two parts to what the model returns:</p>
+<ol type="1">
+<li><strong>Label</strong> → a classification labelling the text as either having positive, negative, or neutral sentiment</li>
+<li><strong>Score</strong> → the model’s confidence in it’s classification</li>
+</ol>
+<blockquote class="blockquote">
+<h3 id="engage-critically-2" class="anchored">🔎 Engage Critically</h3>
+<p>Try using the interactive tool below to explore how a machine learning model detects sentiment in short texts like tweets. The model classifies each input as positive, neutral, or negative, and assigns a probability score to each label. Type a sentence (like a tweet or short message) into the box below and click “Analyze” to see how the model interprets its emotional tone.</p>
+</blockquote>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>text_input <span class="op">=</span> widgets.Text(</span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>    value<span class="op">=</span><span class="st">"hello world!"</span>,</span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>    placeholder<span class="op">=</span><span class="st">"Type a sentence here"</span>,</span>
+<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a>    description<span class="op">=</span><span class="st">"Input:"</span>,</span>
+<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a>    layout<span class="op">=</span>widgets.Layout(width<span class="op">=</span><span class="st">"70%"</span>)</span>
+<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a>analyze_btn <span class="op">=</span> widgets.Button(description<span class="op">=</span><span class="st">"Analyze"</span>, button_style<span class="op">=</span><span class="st">"primary"</span>)</span>
+<span id="cb28-8"><a href="#cb28-8" aria-hidden="true" tabindex="-1"></a>output_area <span class="op">=</span> widgets.Output()</span>
+<span id="cb28-9"><a href="#cb28-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-10"><a href="#cb28-10" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> on_analyze_clicked(b):</span>
+<span id="cb28-11"><a href="#cb28-11" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> output_area:</span>
+<span id="cb28-12"><a href="#cb28-12" aria-hidden="true" tabindex="-1"></a>        clear_output(wait<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb28-13"><a href="#cb28-13" aria-hidden="true" tabindex="-1"></a>        scores <span class="op">=</span> sentiment(text_input.value)</span>
+<span id="cb28-14"><a href="#cb28-14" aria-hidden="true" tabindex="-1"></a>        labels <span class="op">=</span> [item[<span class="st">"label"</span>] <span class="cf">for</span> item <span class="kw">in</span> scores]</span>
+<span id="cb28-15"><a href="#cb28-15" aria-hidden="true" tabindex="-1"></a>        probs  <span class="op">=</span> [item[<span class="st">"score"</span>] <span class="cf">for</span> item <span class="kw">in</span> scores]</span>
+<span id="cb28-16"><a href="#cb28-16" aria-hidden="true" tabindex="-1"></a>        fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">6</span>,<span class="dv">4</span>))</span>
+<span id="cb28-17"><a href="#cb28-17" aria-hidden="true" tabindex="-1"></a>        bars <span class="op">=</span> ax.bar(labels, probs)</span>
+<span id="cb28-18"><a href="#cb28-18" aria-hidden="true" tabindex="-1"></a>        ax.set_ylim(<span class="dv">0</span>, <span class="dv">1</span>)</span>
+<span id="cb28-19"><a href="#cb28-19" aria-hidden="true" tabindex="-1"></a>        ax.set_ylabel(<span class="st">"Probability"</span>)</span>
+<span id="cb28-20"><a href="#cb28-20" aria-hidden="true" tabindex="-1"></a>        ax.set_title(<span class="st">"Sentiment Probability Distribution"</span>)</span>
+<span id="cb28-21"><a href="#cb28-21" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> bar, prob <span class="kw">in</span> <span class="bu">zip</span>(bars, probs):</span>
+<span id="cb28-22"><a href="#cb28-22" aria-hidden="true" tabindex="-1"></a>            height <span class="op">=</span> bar.get_height()</span>
+<span id="cb28-23"><a href="#cb28-23" aria-hidden="true" tabindex="-1"></a>            ax.text(</span>
+<span id="cb28-24"><a href="#cb28-24" aria-hidden="true" tabindex="-1"></a>                bar.get_x() <span class="op">+</span> bar.get_width() <span class="op">/</span> <span class="dv">2</span>,  </span>
+<span id="cb28-25"><a href="#cb28-25" aria-hidden="true" tabindex="-1"></a>                height <span class="op">+</span> <span class="fl">0.02</span>,                    </span>
+<span id="cb28-26"><a href="#cb28-26" aria-hidden="true" tabindex="-1"></a>                <span class="ss">f"</span><span class="sc">{</span>prob<span class="sc">:.2f}</span><span class="ss">"</span>,                   </span>
+<span id="cb28-27"><a href="#cb28-27" aria-hidden="true" tabindex="-1"></a>                ha<span class="op">=</span><span class="st">"center"</span>, va<span class="op">=</span><span class="st">"bottom"</span>,</span>
+<span id="cb28-28"><a href="#cb28-28" aria-hidden="true" tabindex="-1"></a>                color<span class="op">=</span><span class="st">"red"</span>, fontsize<span class="op">=</span><span class="dv">12</span>)</span>
+<span id="cb28-29"><a href="#cb28-29" aria-hidden="true" tabindex="-1"></a>        plt.show()</span>
+<span id="cb28-30"><a href="#cb28-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-31"><a href="#cb28-31" aria-hidden="true" tabindex="-1"></a>analyze_btn.on_click(on_analyze_clicked)</span>
+<span id="cb28-32"><a href="#cb28-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-33"><a href="#cb28-33" aria-hidden="true" tabindex="-1"></a>display(widgets.VBox([text_input, analyze_btn, output_area]))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<section id="batch-sentiment-analysis" class="level3">
+<h3 class="anchored" data-anchor-id="batch-sentiment-analysis">Batch Sentiment Analysis</h3>
+<p>Now, let’s start running sentiment analysis on our dataset. The general steps to run our analysis include:</p>
+<ol type="1">
+<li><p>Loading a pretrained model and tokenizer</p>
+<p>We load a RoBERTa model that has been fine-tuned for sentiment analysis on tweets, along with its corresponding tokenizer.</p></li>
+<li><p>Creating sentiment analysis pipeline</p>
+<p>We set up a Hugging Face pipeline that handles finer steps in our sentiment analysis, such as <strong>tokenization</strong> (breaking up text into smaller units, called <em>tokens</em>), <strong>batching</strong> (processing multiple texts at once for efficiency), and <strong>prediction</strong> (predicting the overall sentiment).</p></li>
+<li><p>Running batch sentiment analysis on the dataset</p>
+<p>To efficiently analyze large numbers of tweets, we split the dataset into batches of 1,000 tweets and process them one batch at a time. To store the predictions, we extract the predicted sentiment labels and save them in a column named <code>sentiment</code>.</p></li>
+<li><p>Previewing the results</p></li>
+</ol>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>tweets_small <span class="op">=</span> tweets.groupby(<span class="st">'source'</span>).sample(n<span class="op">=</span><span class="dv">1000</span>, random_state<span class="op">=</span><span class="dv">42</span>)</span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>tweets_small <span class="op">=</span> tweets_small.sample(frac<span class="op">=</span><span class="dv">1</span>, random_state<span class="op">=</span><span class="dv">42</span>).reset_index(drop<span class="op">=</span><span class="va">True</span>) <span class="co">#you might want to change this value</span></span>
+<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a>tweets_small[<span class="st">"sentiment"</span>] <span class="op">=</span> <span class="st">""</span> </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb30"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>batch_size <span class="op">=</span> <span class="dv">1000</span></span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> start <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">0</span>, <span class="bu">len</span>(tweets_small), batch_size):</span>
+<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a>    end <span class="op">=</span> start <span class="op">+</span> batch_size</span>
+<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a>    batch_texts <span class="op">=</span> tweets_small[<span class="st">"content"</span>].iloc[start:end].tolist()</span>
+<span id="cb30-6"><a href="#cb30-6" aria-hidden="true" tabindex="-1"></a>    results <span class="op">=</span> sentiment(batch_texts)           </span>
+<span id="cb30-7"><a href="#cb30-7" aria-hidden="true" tabindex="-1"></a>    labels  <span class="op">=</span> [res[<span class="st">"label"</span>] <span class="cf">for</span> res <span class="kw">in</span> results]</span>
+<span id="cb30-8"><a href="#cb30-8" aria-hidden="true" tabindex="-1"></a>    tweets_small.loc[start:end<span class="op">-</span><span class="dv">1</span>, <span class="st">"sentiment"</span>] <span class="op">=</span> labels </span>
+<span id="cb30-9"><a href="#cb30-9" aria-hidden="true" tabindex="-1"></a>    n <span class="op">=</span> n<span class="op">+</span><span class="dv">1</span></span>
+<span id="cb30-10"><a href="#cb30-10" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f'batch </span><span class="sc">{</span>n<span class="sc">}</span><span class="ss"> done'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb31"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(tweets_small[[<span class="st">"content"</span>, <span class="st">"sentiment"</span>]].head())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>We can see the first 5 tweets and their predicted sentiment above.</p>
+<p>Now that we know how to run sentiment analysis to identify the overarching sentiment of a tweet, we are now in good position to ask and investigate whether emotionally charged language is more common in propaganda. Let’s explore this by forming a hypothesis and testing it statistically.</p>
+<blockquote class="blockquote">
+<h3 id="engage-critically-3" class="anchored">🔎 Engage Critically</h3>
+<p><strong>Hypothesis</strong>: Propagandist tweets (<code>is_propaganda == 1</code>) are more emotionally charged — that is, they are more likely to be classified as <strong>Positive</strong> or <strong>Negative</strong> (non-neutral) compared to non-propagandist tweets (<code>is_propaganda == 0</code>).</p>
+<p>We will test whether the difference in sentiment category frequencies between the two groups is statistically significant.</p>
+</blockquote>
+<p>First, let’s examine the sentiment distribution for each group:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb32"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a>dist <span class="op">=</span> pd.crosstab(tweets_small[<span class="st">'sentiment'</span>], tweets_small[<span class="st">'is_propaganda'</span>], normalize<span class="op">=</span><span class="st">'columns'</span>)</span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a>dist.columns <span class="op">=</span> [<span class="st">'Non-propagandist'</span>, <span class="st">'Propagandist'</span>]</span>
+<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(dist <span class="op">*</span> <span class="dv">100</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Reading the table, we can see that the majority of non-propagandist tweets are either negative (~43%) or neutral (~44%), while the majority of propagandist tweets (~63%) express neutral sentiment.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb33"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(tweets_small[<span class="st">'sentiment'</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb34"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="co"># We define 'charged' sentiment as Positive or Negative</span></span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>tweets_small[<span class="st">'charged'</span>] <span class="op">=</span> tweets_small[<span class="st">'sentiment'</span>].isin([<span class="st">'positive'</span>, <span class="st">'negative'</span>]).astype(<span class="bu">int</span>)</span>
+<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Constructing a  contingency table: rows = propagandist/non propagandist group, columnss = charged vs neutral</span></span>
+<span id="cb34-5"><a href="#cb34-5" aria-hidden="true" tabindex="-1"></a>contingency <span class="op">=</span> pd.crosstab(tweets_small[<span class="st">'is_propaganda'</span>], tweets_small[<span class="st">'charged'</span>])</span>
+<span id="cb34-6"><a href="#cb34-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Contingency table:</span><span class="ch">\n</span><span class="st">"</span>, contingency)</span>
+<span id="cb34-7"><a href="#cb34-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-8"><a href="#cb34-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Chi-squared test</span></span>
+<span id="cb34-9"><a href="#cb34-9" aria-hidden="true" tabindex="-1"></a>chi2, p, dof, expected <span class="op">=</span> chi2_contingency(contingency)</span>
+<span id="cb34-10"><a href="#cb34-10" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"p-value = </span><span class="sc">{</span>p<span class="sc">:.3e}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<blockquote class="blockquote">
+<h3 id="engage-critically-4" class="anchored">🔎 Engage Critically</h3>
+<p>Try interpreting the output. What are our results telling us? Based on the p-value, what can we conclude about our hypothesis?</p>
+</blockquote>
+</section>
+</section>
+<section id="multilingual-sentiment-analysis" class="level2">
+<h2 class="anchored" data-anchor-id="multilingual-sentiment-analysis">3. Multilingual Sentiment Analysis</h2>
+<p>Our dataset of tweets isn’t entirely in English — many of the tweets are written in Russian. Could this be skewing our results? How is our model actually handling Russian-language tweets compared to English ones?</p>
+<blockquote class="blockquote">
+<h3 id="engage-critically-5" class="anchored">🔎 Engage Critically</h3>
+<p>Recall our discussion on sentiment lexicons in Section 1:</p>
+<blockquote class="blockquote">
+<p>While sentiment analysis can be a useful tool, it demands ongoing criticality and reflexivity from a researcher (you!). Throughout your analysis, be sure to continually ask yourself whether a particular sentiment lexicon is appropriate for your project.</p>
+</blockquote>
+<p>❓ How might the use of a monolingual sentiment model introduce bias into our results? Are non-English tweets being misclassified as neutral, negative, or positive when they shouldn’t be?</p>
+</blockquote>
+<p>With this in mind, let’s explore below. We’ll use the Unicode values of Cyrillic characters to identify Russian-language tweets, and run sentiment analysis seperately on Russian and and English tweets.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb35"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a>tweets_lang <span class="op">=</span> tweets_small.copy()</span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a>tweets_small[<span class="st">'language'</span>] <span class="op">=</span> tweets_small[<span class="st">'language'</span>].<span class="bu">str</span>.lower().<span class="bu">str</span>[:<span class="dv">2</span>]</span>
+<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a>en_tweets <span class="op">=</span> tweets_lang[tweets_lang[<span class="st">'language'</span>] <span class="op">==</span> <span class="st">'en'</span>]</span>
+<span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a>ru_tweets  <span class="op">=</span> tweets_lang[tweets_lang[<span class="st">'language'</span>] <span class="op">==</span> <span class="st">'ru'</span>]</span>
+<span id="cb35-6"><a href="#cb35-6" aria-hidden="true" tabindex="-1"></a>eng_dist <span class="op">=</span> pd.crosstab(en_tweets[<span class="st">'sentiment'</span>], en_tweets[<span class="st">'is_propaganda'</span>], normalize<span class="op">=</span><span class="st">'columns'</span>) <span class="op">*</span> <span class="dv">100</span></span>
+<span id="cb35-7"><a href="#cb35-7" aria-hidden="true" tabindex="-1"></a>ru_dist  <span class="op">=</span> pd.crosstab(ru_tweets[<span class="st">'sentiment'</span>],  ru_tweets[<span class="st">'is_propaganda'</span>],  normalize<span class="op">=</span><span class="st">'columns'</span>) <span class="op">*</span> <span class="dv">100</span></span>
+<span id="cb35-8"><a href="#cb35-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-9"><a href="#cb35-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Renaming columns for clarity</span></span>
+<span id="cb35-10"><a href="#cb35-10" aria-hidden="true" tabindex="-1"></a>col_map <span class="op">=</span> {<span class="dv">0</span>: <span class="st">'Non-propagandist'</span>, <span class="dv">1</span>: <span class="st">'Propagandist'</span>}</span>
+<span id="cb35-11"><a href="#cb35-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-12"><a href="#cb35-12" aria-hidden="true" tabindex="-1"></a>eng_dist <span class="op">=</span> eng_dist.rename(columns<span class="op">=</span><span class="kw">lambda</span> c: col_map.get(c, <span class="bu">str</span>(c)))</span>
+<span id="cb35-13"><a href="#cb35-13" aria-hidden="true" tabindex="-1"></a>ru_dist  <span class="op">=</span> ru_dist.rename(columns<span class="op">=</span><span class="kw">lambda</span> c: col_map.get(c, <span class="bu">str</span>(c)))</span>
+<span id="cb35-14"><a href="#cb35-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-15"><a href="#cb35-15" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"English Tweets Sentiment (%):</span><span class="ch">\n</span><span class="st">"</span>, eng_dist, <span class="st">"</span><span class="ch">\n</span><span class="st">"</span>)</span>
+<span id="cb35-16"><a href="#cb35-16" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Russian Tweets Sentiment (%):</span><span class="ch">\n</span><span class="st">"</span>, ru_dist)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<blockquote class="blockquote">
+<h3 id="engage-critically-6" class="anchored">🔎 Engage Critically</h3>
+<p>Take a moment to interpret the results before continuing. What do they tell us about the performance of our model on Russian-language tweets? Why do you think that is?</p>
+</blockquote>
+<p>From the table above, we can see that our model is performing very poorly on Russian-language tweets, as nearly all of the Russian tweets are being marked as neutral regardless of if they are propagandist or not. This means that the pretrained model we were using before is not an appropriate choice based on the characteristics of our data, namely that a significant portion of the tweets are written in Russian, a language the model was not trained to make reliable predictions on.</p>
+<p>Let’s try re-running our sentiment analysis using a different model. This time, we’ll use a model trained on 198 million tweets that were not filtered by language. As a result, the training data reflects the most commonly used languages on the platform at the time of collection, with Russian conveniently ranking as the 11th most frequent.</p>
+<p>We’ll follow the same steps for batch sentiment analysis that we did in Section 2:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb36"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a>sentiment_multi <span class="op">=</span> pipeline(<span class="st">"sentiment-analysis"</span>, model<span class="op">=</span><span class="st">"cardiffnlp/twitter-xlm-roberta-base-sentiment-multilingual"</span>)</span>
+<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a>batch_size <span class="op">=</span> <span class="dv">1000</span></span>
+<span id="cb36-4"><a href="#cb36-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> start <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">0</span>, <span class="bu">len</span>(tweets_small), batch_size):</span>
+<span id="cb36-5"><a href="#cb36-5" aria-hidden="true" tabindex="-1"></a>    end <span class="op">=</span> start <span class="op">+</span> batch_size</span>
+<span id="cb36-6"><a href="#cb36-6" aria-hidden="true" tabindex="-1"></a>    batch_texts <span class="op">=</span> tweets_small[<span class="st">"content"</span>].iloc[start:end].tolist()</span>
+<span id="cb36-7"><a href="#cb36-7" aria-hidden="true" tabindex="-1"></a>    results <span class="op">=</span> sentiment_multi(batch_texts)           </span>
+<span id="cb36-8"><a href="#cb36-8" aria-hidden="true" tabindex="-1"></a>    labels  <span class="op">=</span> [res[<span class="st">"label"</span>] <span class="cf">for</span> res <span class="kw">in</span> results]</span>
+<span id="cb36-9"><a href="#cb36-9" aria-hidden="true" tabindex="-1"></a>    tweets_small.loc[start:end<span class="op">-</span><span class="dv">1</span>, <span class="st">"sentiment"</span>] <span class="op">=</span> labels </span>
+<span id="cb36-10"><a href="#cb36-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-11"><a href="#cb36-11" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(tweets_small[[<span class="st">"content"</span>, <span class="st">"sentiment"</span>]].head())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>To make the results easier to visualize, let’s create a table that shows the percentage distribution of sentiment labels (positive, neutral, negative) within propagandist and non-propagandist tweets.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb37"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a>multi_dist <span class="op">=</span> pd.crosstab(tweets_small[<span class="st">'sentiment'</span>], tweets[<span class="st">'is_propaganda'</span>], normalize<span class="op">=</span><span class="st">'columns'</span>) <span class="op">*</span> <span class="dv">100</span></span>
+<span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a>multi_dist.columns <span class="op">=</span> [<span class="st">'Non-propagandist'</span>, <span class="st">'Propagandist'</span>]</span>
+<span id="cb37-3"><a href="#cb37-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Multilingual Model Sentiment (%):</span><span class="ch">\n</span><span class="st">"</span>, multi_dist)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>The sentiment distribution between propagandist and non-propagandist tweets is quite similar when using the multilingual model. Both groups are predominantly neutral (around 50%), with roughly equal proportions of negative and positive sentiment.</p>
+<p>Now, let’s run a statistical test to see if there’s a meaningful difference in sentiment between propagandist and non-propagandist tweets. Specifically, we want to know:</p>
+<blockquote class="blockquote">
+<p><em>Are propagandist tweets more likely to be emotionally charged (positive or negative) than neutral, compared to non-propagandist tweets?</em></p>
+</blockquote>
+<p>To answer this, we’ll use a <strong>chi-squared test</strong>, which helps us check whether the differences we see in the data are likely due to chance or if they’re statistically significant.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb38"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a>tweets_small[<span class="st">'charged_multi'</span>] <span class="op">=</span> tweets_small[<span class="st">'sentiment'</span>].isin([<span class="st">'positive'</span>,<span class="st">'negative'</span>]).astype(<span class="bu">int</span>)</span>
+<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a>contingency_multi <span class="op">=</span> pd.crosstab(tweets_small[<span class="st">'is_propaganda'</span>], tweets_small[<span class="st">'charged_multi'</span>])</span>
+<span id="cb38-3"><a href="#cb38-3" aria-hidden="true" tabindex="-1"></a>chi2_multi, p_multi, <span class="op">*</span>_ <span class="op">=</span> chi2_contingency(contingency_multi)</span>
+<span id="cb38-4"><a href="#cb38-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Chi-squared p-value with multilingual model: </span><span class="sc">{</span>p_multi<span class="sc">:.3e}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<blockquote class="blockquote">
+<h3 id="engage-critically-7" class="anchored">🔎 Engage Critically</h3>
+<p>Take a moment to interpret the results before continuing. What does our p-value tell us about our inital research question above?</p>
+</blockquote>
+<p>Our p-value (0.00003727) is much smaller than the common significance level of 0.05, indicating that the difference in how emotionally charged tweets are distributed between propagandist and non-propagandist groups is very unlikely to be due to random chance.</p>
+<p>This means there is strong evidence that propagandist tweets are more likely to be emotionally charged compared to non-propagandist tweets, according to the multilingual model’s sentiment analysis.</p>
+</section>
+<section id="introduction-to-toxicity-analysis" class="level2">
+<h2 class="anchored" data-anchor-id="introduction-to-toxicity-analysis">4. Introduction to Toxicity Analysis</h2>
+<p><em>Warning: this section contains examples of potentially offensive or profane text</em></p>
+<p><strong>Toxicity analysis</strong> is another type of classification task that uses machine learning to detect whether a piece of text contains toxic speech. Jigsaw, a Google subsidary and leader in technological solutions for threats to civil society, uses the following definition for “toxic speech” proposed by Dixon et al.&nbsp;(2018):</p>
+<blockquote class="blockquote">
+<p>”[R]ude, disrespectful, or unreasonable language that is likely to make someone leave a discussion”</p>
+</blockquote>
+<blockquote class="blockquote">
+<h3 id="engage-critically-8" class="anchored">🔎 Engage Critically</h3>
+<p>This definition is widely considered by the NLP community to be ill-defined and vague. Why do you think? What issues could potentially arise from this definition, and how could they impact (for example) a comment flagging tool that gives warnings to social media users whose comments meet this definition of toxic speech?</p>
+</blockquote>
+<p>A core issue defined by Berezin, Farahbakhsh, and Crespi (2023) is that the definition “gives no quantitative measure of the toxicity and operates with highly subjective cultural terms”, yet still remains widely used by researchers and developers in the field. We’ll explore some of the ways this definition is influencing toxicity analysis briefly below.</p>
+<section id="positive-profanity" class="level3">
+<h3 class="anchored" data-anchor-id="positive-profanity">4.1 Positive profanity</h3>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="soci_270_images/toxicity_noscore_reddit_example.png" title="Text: Fuck dude, nurses are the shit" class="img-fluid figure-img"></p>
+<figcaption class="figure-caption">Fuck dude, nurses are the shit (Mauboussin, 2022)</figcaption>
+</figure>
+</div>
+<p>Consider the Reddit post above. Is the comment an example of toxic speech? Probably not, right?</p>
+<p>Now imagine you are Perspective API, Google’s AI toxicity moderation tool, with your scope of “toxic speech” limited solely to the definition of ”rude, disrespectful, or unreasonable language that is likely to make someone leave a discussion”. Because of your architecture, you are limited in the way you can understand a message in context. You process the comment and immediately detect two profanities that meet your requirement for being rude language, and assign it a subsequent toxicity score:</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="soci_270_images/toxicity_reddit_example.png" title="Fuck dude, nurses are the shit with Toxicity Score (98.62%)" class="img-fluid figure-img"></p>
+<figcaption class="figure-caption">Fuck dude, nurses are the shit with Toxicity Score (98.62%) (Mauboussin, 2022)</figcaption>
+</figure>
+</div>
+<p>This is where, in the NLP community, there has been a growing discussion to ensure toxicity analysis tools, especially detectors used in online discussion and social media platforms, are more robust than simply being ‘profanity detectors’. They must be able to interpret a word in context.</p>
+</section>
+<section id="in-group-language" class="level3">
+<h3 class="anchored" data-anchor-id="in-group-language">4.2 In-group language</h3>
+<p>Consider in-group words used by distinct communities. Many of these words, once used as derogatory slurs against a group of people (such as Black or LGBTQ+ folk), have now largely been reclaimed and are prevalent in the lexicons of individuals identifying within these communities, no longer considered offensive when used by the in-group. However, if human annotators label textual data that ML models then are trained on, biases can permeate the models and lead to the classification of non-toxic, in-group language as harmful or offensive. Notably, African-American Vernacular English (AAVE) has been found to be flagged as toxic due to linguistic bias. XX frames how the challenge impacts toxicity detectors well:</p>
+<blockquote class="blockquote">
+<h3 id="engage-critically-9" class="anchored">🔎 Engage Critically</h3>
+<p>How do you think this challenge can impact toxicity detectors? Resende et al.&nbsp;(2024) underscore this tension, noting that:</p>
+<blockquote class="blockquote">
+<p>…[S]uch a fine line between causal speaking and offensive discourse is problematic from a human and computational perspective. In that case, these interpretations are confounding to automatic content moderation tools. In other words, toxicity/sentiment analysis tools are usually developed using manual rules or supervised ML techniques that employ human-labeled data to extract patterns. The disparate treatment embodied by machine learning models usually replicates discrimination patterns historically practiced by humans when interacting with processes in the real world. Due to biases in this process, a lack of context leads both rule-based and machine learning-based models to a concerning scenario where minorities do not receive equal treatment. <br> <em>Resende et al., 2024, p.&nbsp;2</em></p>
+</blockquote>
+</blockquote>
+<p>Resende et al.&nbsp;(2024) also conducted a comparison analysis of toxicity models, including Google’s Perspective API and Detoxify (the model we’ll be using for our own analysis soon).</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="soci_270_images/toxicity_aave_score_table.png" title="Comparing the Toxicity Scoring Models" class="img-fluid figure-img"></p>
+<figcaption class="figure-caption">Comparing the Toxicity Scoring Models (Resende et al., 2024)</figcaption>
+</figure>
+</div>
+<p>This bias shown in this model’s performance can come from many factors in its structure, from data provenance and annotation to model architecture and processing, to a combination of many.</p>
+<blockquote class="blockquote">
+<h3 id="engage-critically-10" class="anchored">🔎 Engage Critically</h3>
+<p>If you could, what questions would you want to ask the people who build these models?</p>
+</blockquote>
+</section>
+<section id="toxicity-analysis-using-detoxify" class="level3">
+<h3 class="anchored" data-anchor-id="toxicity-analysis-using-detoxify">Toxicity analysis using Detoxify</h3>
+<p>The model we’ll be using is called <strong>Detoxify</strong> (you can read more about it <a href="https://github.com/unitaryai/detoxify?tab=readme-ov-file">here</a>). It was trained on large datasets of online comments across seven languages, including English and Russian. Detoxify provides an overall <strong>toxicity score</strong> for each text and can also detect five specific subtypes of toxicity: <code>identity_attack</code>, <code>insult</code>, <code>obscene</code>, <code>sexual_explicit</code>, and <code>threat</code>.</p>
+<p>In the context of our dataset, propagandist tweets often aim to provoke strong emotions, spread hate, or stir conflict. Running toxicity analysis can help us investigate questions like:</p>
+<ul>
+<li><em>Are propagandist tweets more toxic than non-propagandist ones?</em></li>
+<li><em>What types of toxic language are most common?</em></li>
+<li><em>Are there patterns in how toxicity is used to influence or manipulate public discourse?</em></li>
+</ul>
+<p>Toxicity analysis gives us another lens to understand how language and emotion are used in disinformation campaigns. Let’s begin by importing the necessary libraries and tools:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb39"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> detoxify <span class="im">import</span> Detoxify</span>
+<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> Detoxify(<span class="st">'original'</span>, device<span class="op">=</span><span class="st">'cpu'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Before we throw this model at our dataset, let’s take a look at what ‘toxic’ really means.</p>
+<p>We’ll be repeating the same hypothesis test that we performed using our sentiment analysis models, this time trying to answer:</p>
+<blockquote class="blockquote">
+<p>Are tweets deemed toxic more likely to originate from propagandists relative to non-propagandist tweets?</p>
+</blockquote>
+<p>Here, we’ll define a tweet <em>toxic</em> if it meets or exceeds a toxicity theshold of 0.5.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb40"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a>texts <span class="op">=</span> tweets_small[<span class="st">'content'</span>].tolist()</span>
+<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a>results <span class="op">=</span> model.predict(texts)</span>
+<span id="cb40-3"><a href="#cb40-3" aria-hidden="true" tabindex="-1"></a>toxicity_df <span class="op">=</span> pd.DataFrame(results)</span>
+<span id="cb40-4"><a href="#cb40-4" aria-hidden="true" tabindex="-1"></a>tweets_small <span class="op">=</span> tweets_small.join(toxicity_df)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb41"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a>threshold <span class="op">=</span> <span class="fl">0.5</span></span>
+<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a>tweets_small[<span class="st">'charged'</span>] <span class="op">=</span> (tweets_small[<span class="st">'toxicity'</span>] <span class="op">&gt;</span> threshold).astype(<span class="bu">int</span>)</span>
+<span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb41-4"><a href="#cb41-4" aria-hidden="true" tabindex="-1"></a>contingency <span class="op">=</span> pd.crosstab(tweets_small[<span class="st">'is_propaganda'</span>], tweets_small[<span class="st">'charged'</span>])</span>
+<span id="cb41-5"><a href="#cb41-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Contingency table:</span><span class="ch">\n</span><span class="st">"</span>, contingency)</span>
+<span id="cb41-6"><a href="#cb41-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb41-7"><a href="#cb41-7" aria-hidden="true" tabindex="-1"></a>chi2, p, dof, expected <span class="op">=</span> chi2_contingency(contingency)</span>
+<span id="cb41-8"><a href="#cb41-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Chi-squared statistic: </span><span class="sc">{</span>chi2<span class="sc">:.2f}</span><span class="ss">"</span>)</span>
+<span id="cb41-9"><a href="#cb41-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"p-value: </span><span class="sc">{</span>p<span class="sc">:.3e}</span><span class="ss">"</span>)</span>
+<span id="cb41-10"><a href="#cb41-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb41-11"><a href="#cb41-11" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"</span><span class="ch">\n</span><span class="st">Sample of results:"</span>)</span>
+<span id="cb41-12"><a href="#cb41-12" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(tweets_small[[<span class="st">'content'</span>, <span class="st">'is_propaganda'</span>, <span class="st">'toxicity'</span>, <span class="st">'charged'</span>]].head())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Following the logic from the sentiment analysis results, what do these results tell us about our hypothesis? How do you think the results would change if we used a different threshold to define toxicity?</p>
+
+
+</section>
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+          // target, if specified
+          link.setAttribute("target", "_blank");
+      }
+    }
+});
+</script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+ <a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc-sa/4.0/80x15.png"></a>.  <a rel="license" href="https://comet.arts.ubc.ca/pages/copyright.html">See details.</a>
+  </li>  
+</ul>
+    </div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    </div>
+    <div class="nav-footer-right">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+ The prAxIs Project and UBC are located on the traditional, ancestral and unceded territory of the xʷməθkʷəy̓əm (Musqueam) and Sḵwx̱wú7mesh (Squamish) peoples.
+  </li>  
+</ul>
+    </div>
+  </div>
+</footer>
+
+
+
+</body></html>
