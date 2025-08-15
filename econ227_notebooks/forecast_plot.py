@@ -173,7 +173,7 @@ def create_plot(combined_df, forecast_mean, forecast_ci, forecast_index, actuals
             range=[-2, 2]   # sentiment fixed range
         ),
         yaxis2=dict(
-            title='Stock % Change',
+            title='Stock % Changes',
             title_font=dict(color='limegreen'),
             tickfont=dict(color='limegreen'),
             overlaying='y',
