@@ -1,0 +1,64 @@
+name: Build and Deploy
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      
+      - name: Lint Quarto Notebooks
+        run: |
+          find ./project/docs/ -name "*.qmd" -type f -exec python meta/testing/linter.py {} \; > lint_output.txt
+          if [ -s lint_output.txt ]; then
+            echo "linting_failed=true" >> $GITHUB_OUTPUT
+            cat lint_output.txt
+          fi
+
+      - name: Build Docker image
+        run: |
+          docker build -t my-app-image:latest -f ./meta/building/.dockerfile .
+
+      - name: Extract web content
+        run: |
+          mkdir -p ./web-content
+          docker create --name temp-container my-app-image:latest
+          docker cp temp-container:/usr/share/nginx/html/. ./web-content
+          docker rm temp-container
+          
+          echo "Web content directory contents:"
+          ls -la ./web-content
+
+      - name: Upload files as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: site
+          path: ./web-content
+          if-no-files-found: error
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: site
+          path: site-content
+
+      - name: Print directory structure
+        run: |
+          echo "Contents of site-content directory:"
+          ls -la site-content
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: site-content
+          publish_branch: gh-pages
