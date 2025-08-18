@@ -1,6 +1,6 @@
-# SHARE-AI: "Unpacking the Black Box: Critical AI Literacies for Arts Students"
+# prAxIs: "Unpacking the Black Box: Critical AI Literacies for Arts Students"
 
-A repository for our the large TLEF project: Social science, Humanities, and Arts Research and Education: AI project.
+A repository for our the large TLEF project: Unpacking the Black Box: Critical AI Literacies for Arts Students.
 
 ## Important Documents
 
@@ -29,8 +29,12 @@ It is very important that you follow these guidelines when committing work to th
 This repository is organized into several distinct parts, housed in the `main` branch's `root` directory.
 
 * The directory `/meta` contains general repository management files.
-* The directory `/project` contains all the main project files.
+* The directory `/project` contains all the main project files, including the website.
+  * `/docs` contains the notebooks and lesson plans.
+  * `/pages` contains the website material, distinct from the other content.
+  * `/media` and `/files` contain supplemental items.
 * The directory `/documentation` contains all the project documentation, including the style guides.
+  * Some of these are also included in the website.
 
 We use the [Quarto](https://quarto.org/) framework to write content and build the website, although we also can support raw `.ipynb` notebooks, as well.
 

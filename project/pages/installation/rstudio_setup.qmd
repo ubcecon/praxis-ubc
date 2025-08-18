@@ -1,0 +1,143 @@
+---
+title: "Using RStudio"
+title-block-banner: false
+date: last-modified
+published-title: Last Updated
+toc: true
+---
+
+![](../media/installing_via_Rstudio.png)
+
+This page explains how to set up RStudio in order to access and use the COMET notebooks.
+
+:::{.callout-note}
+If you are using RStudio, you will want to ensure that you use the `.Rmd` or `.qmd` (R Markdown or Quarto) versions of the notebooks, not the `.ipynb` versions.  Currently, RStudio does not natively support the Python notebook format.
+:::
+
+## 1. Installing R
+
+The first thing we'll need to do is install R onto our computer.
+
+::: panel-tabset
+
+### Windows
+
+1.  Head to [cran.r-project.org for windows](https://cran.r-project.org/bin/windows/base/) and press `Download R-4.4.0 for Windows`
+2.  Select `Okay > Next` and select your destination location.
+3.  Select the components `Main files`, `64-bit files` and `Message translations`. Then, press *next*.
+4.  Select the toggle `No (acccept defaults)` and press *next*.
+5.  Select both `save version number in registry` and \`associate R with .RData files.
+6.  Once the installation is complete, press `Finish`.
+
+### MacOS
+
+1.  Head to [cran.r-project.org for macOSx](https://cran.r-project.org/bin/macosx/) and select the release (on the left-hand side) suited for your device type.
+2.  Open the installer and select `continue` \> `continue` \> `continue` \> `agree` \> `install`.
+
+:::
+
+## 2. Installing RStudio
+
+We'll now install RStudio, our IDE of choice.
+
+::: panel-tabset
+
+## Windows
+
+1.  Head to [RStudio](https://posit.co/download/rstudio-desktop/) and press `Download RStudio Desktop for windows`.
+2.  Open the RStudio setup and press `Next` \> `Next` \> `Install`.\
+
+## MacOS
+
+1.  [RStudio](https://posit.co/download/rstudio-desktop/), scroll down to "OS", and select the Mac installer.
+2.  Open the Rstudio setup and install.
+:::
+
+## 3. Installing package compilers
+
+We'll need to install a package compiler to activate the `renv.lock`, a package bundle made specifically for the COMET notebooks.
+
+::: panel-tabset
+
+## Windows
+
+RTools is a program that allows us to compile R packages from source.
+
+> [Rtools can be installed with link.](https://cran.r-project.org/bin/windows/Rtools/rtools44/files/rtools44-6104-6039.exe)
+
+In the Rtools installer, press `Next` \> `Next` (ensuring that both check boxes are ticked) \> `Install`.
+
+## MacOS
+
+For Mac, you'll need to install *Xcode Command Line Tools* instead.
+
+1.  Open the Mac terminal. To do so, click on the spotlight icon in the menu bar and search for “terminal.”
+2.  **Install Homebrew**: Homebrew is a package manager for MacOS which we will use to install Xcode. In the Mac terminal, paste:
+
+`/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`
+
+This might prompt you to enter your user password, which is the password that you use to sign into your device (Note that for privacy reasons you won't be able to see the characters that you type). Once you've entered your password, press `enter`. This may take a while to run.
+
+3. You should get an output similar to this:
+
+![](../media/homebrew.png)
+
+Notice the warning. To fix this, we'll need to add our installation to the system path. In the terminal, run:
+
+`(echo; echo 'eval "$(/opt/homebrew/bin/brew shellenv)"') >> ~/.zprofile`
+
+followed by:
+
+`eval "$(/opt/homebrew/bin/brew shellenv)"`
+
+which will add the required path to the installation.
+
+4.  **Verify installations:** to check that Xtools is installed, run `$ brew doctor` in the termial. This should display the output *"Your system is ready to brew."*
+
+:::
+
+## 4. Downloading and opening the COMET notebooks
+
+### 4.1. Downloading the COMET notebooks
+
+1.  Open [comet.arts.ubc.ca](https://comet.arts.ubc.ca/) and, in the top right corner, select `Launch Comet` \> `Launch Locally`. This will download a .zip file to your computer.
+2.  Open the file in file explorer and extract the zip folder to your preferred destination.
+
+## 4.2. Importing the COMET notebooks into RStudio
+
+We can now import the COMET notebooks into RStudio. When we say "import", what we really mean is setting the **working directory**. The working directory is the location in your computer where you are working in. Unlike VSCode and other high-level IDEs, setting our working directory is done manually by specifiying our location using the R console.
+
+1.  Locate the downloaded COMET notebooks and copy the *absolute file path* by right-clicking on the folder and pressing `copy as path`. If you are on a Mac, hold the option key and select `Copy (file name) as Pathname`.
+2.  Locate the current working directory in RStudio by entering `getwd()` in the R console (bottom left of the screen).
+
+![The output should look something like this on windows, but won't necessarily give the same file path.](../media/Rstudio_getwd.png)
+
+3.  We'll now set our working directory to the COMET folder. To do so, enter the following command into the console:
+
+`setwd("C:/your/file/path/goes/here")`
+
+Where "C:/your/file/path/goes/here" is the absolute file path you copied earlier, **with the backshashes (\\) set to forward slashes (/)**. For example, the file path (on windows) `C:\users\i_love_econ` will be changed to `C:/users/i_love_econ`.
+
+::: callout-warning
+
+RStudio requires file paths to have a forward slash instead of a back slash. If you don't adjust the absolute file path accordingly, you won't be able to set/change your working directory.
+
+:::
+
+To check that you've got the right working directory, run `getwd()` again.
+
+### 4.3. Changing your working directory in the files tab.
+
+On the right-hand bottom side of Rstudio there is a display that shows your files. If you'd like to change it to your current working directory, press the small button `...` button called "go to directory". This will allow you to pick the COMET modules folder from your file system and navigate it from within R.
+
+![](../media/Changing_files.png)
+
+## 5. Activating the COMET environment
+
+We're now ready to activate the COMET environment in RStudio.
+
+1.  In the R console, enter the following line of code: `install.packages("renv")`. This will install the `renv` package, which will allow RStudio to read the custom environment file for the notebooks.
+
+2.  In the R console, run `renv::restore()`. You should get a message that reads: *"It looks like you've called renv::restore() in a project that hasn't been activated yet. How would you like to proceed?"*. Press `1`. This should restart R. If it doesn't, run `renv::activate()`.
+
+3.  To check that everything is installed properly, run `renv::status()`. This command will give you a the list of packages in your environment (Note that this might take some time to run).
