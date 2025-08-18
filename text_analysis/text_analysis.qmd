@@ -1,4 +1,12 @@
 
+---
+title: ""
+author: "Kaiyan Zhang, Irene Berezin, Alex Ronczewski"
+format: revealjs
+scrollable: true
+smaller: true
+---
+
 ## Section 1: Traditional qualitative coding
 
 The Coding Manual for Qualitative Researchers
@@ -6,59 +14,129 @@ Qualitative Data: An Introduction to Coding and Analysis
 https://resources.nu.edu/c.php?g=1007180&p=7392331
 
 
-### 1.1 Examples of traditional qualitative coding, papers
+## 1.1 Examples of traditional qualitative coding, papers
 
 A interactive NYT article would work nicely here. A lot of their research is qualitative coding voter preferences etc
 
-### 1.2 Recent updates
+## 1.2 Recent updates
 
 https://www.mturk.com/
 https://www.prolific.com/academic-researchers
 
 ## Section 2: Computational text analysis
 
-### 2.1 Supervised machine learning
 
-Tokenization, Text Normalization, Stop Word Removal, TF-IDF (google it + show off the relevant python/R libraries)
+
+We can split up ML-based NLP methods into two categories: **supervised** and **unsupervised** learning.
+
+## 2.0 Why computational text analysis?
+
+## 2.1 Supervised machine learning
+
+In supervised learning, a model is trained on a dataset of documents that are *already assigned human-provided annotations*. The model first analyzes this pre-labeled data to learn the features (ex; lingustic patterns, structures, semantic relationships) associated with each category. Once trained, the model can then process new, *unseen* text for tasks like entity identification, sentiment analysis, translation, and other classification tasks. 
+
+## 2.1.1 But first, text preprocessing...
+
+Before we can proceed with an analysis of our texts, we need to *preprocess* them using a series of steps. We do this because supervised learning models cannot work with raw text^{1}. Models like Logistic Regression, Support Vector Machines, and Naive Bayes are fundamentally *mathematical algorithms* that operate on numerical data. They have no inherent ability to understand strings of text.
+
+Text preprocessing usually involves the following steps:
+1) Tokenization 
+2) Text normalization (sometimes)
+3) Stopword removal
+4) Vectorization (BoW, TF-IDF, Embeddings)
+
+## Tokenization and stopword removal
+
+A **token** is a fundamental unit of text, often times a subword of a word, created by segmenting a larger string of text for a model to process.
+
+```
+Sentence: The pack of chihuahuas chased after the frightened cat.
+List of tokens: ['the', 'pack', 'of', 'chihuahua', '##s', 'chased', 'after', 'the', 'frightened', 'cat', '.']
+String of tokens: the pack of chihuahua ##s chased after the frightened cat .
+```
+
+An example using bert-based-uncased's autotokenizer. 
+
+A **stopword** is an extremely common word, like "the," "a," or "is,", that is often removed from text during preprocessing as it carries virtually no meaningful information on its own. As these words add noise without contributing any unique information, removing them allows a model to focus on the more meaningful words that actually differentiate documents. 
+
+```
+Original Tokens:    ['the', 'pack', 'of', 'chihuahua', '##s', 'chased', 'after', 'the', 'frightened', 'cat', '.']
+Tokens (stopwords removed):    ['pack', 'chihuahua', '##s', 'chased', 'frightened', 'cat', '.']
+```
+
+## To normalize, or not to normalize?
+
+## Vectorization: Bag of Words
+
+ML models are fundamentally based on math, so they require structured numerical data. **Vectorization** is the process of translating unstructured text into a numerical format. Different vectorization techniques result in different interpretations of the resulting vectors of numbers. The two simplest vectorization methods are Bag of Words (BoW) and TF-IDF.
+- **Bag of Words**: Consider a spreadsheet where each column corresponds to a document, and each row is the *the number of times each word (in the document) shows up in the document*. For example, consider the sentence "The pack of chihuahuas chased after the frightened cat". The BoW representation of this sentence is $<2,1,1,1,1,1,1,1>$. 
+
+Pros:
+1) Resulting matrix values are extremely easy to interpret.
+Cons: 
+1) resulting matrix becomes very sparse very fast
+2) Context-agnostic: "The dog chased after the cat" has the same matrix representation as "the cat chased after the dog".
+3) **Every word is treated equally, so common words dominate.**
+
+![BoW representation of two sentences](media/dogs_and_cats.png)
+
+## Vectorization: Bag of Words (continued)
+
+Recall the BoW representation of the two sentences from the previous slide. Now imagine if instead of each document being a single sentence, it was hundreds-- even after stopword removal, very frequent words would still dominate and be considered important. Are they actually important? Probably not. 
+
+![A BoW matrix comparing Jane Austen's "Emma" and Moby Dick.](media/bow_matrix.png)
+
+## Vectorization: TF-IDF
+
+What if instead of looking at aggregate counts for words, we looked at their *importance* relative to other documents? **TF-IDF** calculates a word's importance by multiplying its frequency within a document by a score that increases for words that are rare across the entire collection of documents, and penalises for words that are common across documents. 
+
+- Note: TF-IDF works best with corpora containing many medium-length texts (ex; collections of news articles). In general, the more documents we have, the better this method will perform.
+
+## Some useful libraries: 
+
 For R:
 - SnowballC
 - tidytext
 Python:
-- scikitlearn
+- Scikit-learn
+- nltk
 
-#### 2.1.1 Statistical frameworks
+## 2.1.2 Statistical frameworks
 
 https://smltar.com/ 
 Naive Bayes, Logistic Regression, SVMs
 - Show off R/python libraries for this
 
-#### 2.1.2 Deep learning frameworks
+## 2.1.3 Deep learning frameworks
 
 https://www.packtpub.com/en-us/product/getting-started-with-google-bert-9781838821593
 
 
-### 2.2 Unsupervised learning 
+## 2.2 Unsupervised learning 
 
-#### 2.2.1 Topic modelling
+
+## 2.2.1 Topic modelling
+
+
 
 - LDA
 Introduction to Topic Modeling and Text Classification, W.J.B. Mattingly
 
-#### 2.2.2 Clustering
+## 2.2.2 Clustering
 
 - K-means, Hierarchical
 Text Mining: Classification, Clustering, and Applications, Ashok N. Srivastava
 
-#### 2.2.3 Embeddings (briefly)
+## 2.2.3 Embeddings (briefly)
 - Word2Vec
 - Skip-Gram, CBOW
 Embeddings in Natural Language Processing: Theory and Advances in Vector Representations of Meaning
 
-### 2.3 Natural Language Processing (brief)
+## 2.3 Natural Language Processing (brief)
 
 Natural Language Processing (NLP) is a branch of artificial intelligence that enables computers to understand, interpret, and generate human language. By combining computational linguistics with machine learning and deep learning techniques, NLP allows machines to process language data, and reveal meaning. 
 
-#### 2.3.1 Dependency Relationships
+## 2.3.1 Dependency Relationships
 
 At the core of NLP is the concept of dependency. Dependency is the process to analyze the grammatical structure in a sentence and find related words as well as the type of relationship between them. Each word’s grammatical role—such as subject, verb, or object contributes to the overall structure of the sentence. For example, in the sentence "He bought a car." The verb bought links all of the other words. He is the subject and the car is the object. Dependency parsing is the process by which these relationships are mapped out, creating a visual structure (called a parse tree) that makes the underlying grammatical links explicit. In computational linguistics and NLP, identifying these dependencies is fundamental for tasks like machine translation, question answering, and summarization.
 
@@ -67,7 +145,7 @@ An example of a parse tree for "He bought a new car."
 
 These parse trees help explain meanings in complex sentences for the computer. They make a map of semantic meaning. 
 
-#### 2.3.2 Named Entity Recognition (NER) / Object Detection 
+## 2.3.2 Named Entity Recognition (NER) / Object Detection 
 
 Named Entity Recognition (NER) is a technique in NLP that identifies and classifies named entities in text into predefined categories like person, organization, location, dates. A named entity is a real-world object that can be denoted with a proper name for instance: The University of British Columbia, Vancouver or August 20. "These categories can include, but are not limited to, names of individuals, organizations, locations, expressions of times, quantities, medical codes, monetary values and percentages, among others. Essentially, NER is the process of taking a string of text (i.e., a sentence, paragraph or entire document), and identifying and classifying the entities that refer to each category." (IBM)
 
@@ -82,7 +160,7 @@ An example of this could be scanning a stock market report and extracting names 
 
 The image above is from <cogitotech.com>.
 
-#### 2.3.3 Grammatical Parsing
+## 2.3.3 Grammatical Parsing
 
 Grammatical parsing in NLP is the process of examining the grammatical structure and relationships inside a given sentence or text. "It involves analyzing the text to determine the roles of specific words, such as nouns, verbs, and adjectives, as well as their interrelationships" (Intellipaat). 
 
@@ -97,21 +175,21 @@ Lets look at an example from Intellipaat with the sentance “John is playing a 
 In the image above the Top-Down Parser looks through identifing that John is a noun then moves back up and examines the next word until it finally reaches a full sentence structure. 
 
 
-### 2.4 Recent Updates
+## 2.4 Recent Updates
 
-#### 2.4.1 NLI, zero-shot learning, BERT
+## 2.4.1 NLI, zero-shot learning, BERT
 
-#### 2.4.2 Classification and discovery using decoder only models
+## 2.4.2 Classification and discovery using decoder only models
 
-##### 2.4.2.1 Zero shot, few shot, RAG, fine tuning of LLMs (all very briefly! just mention them)
+## 2.4.2.1 Zero shot, few shot, RAG, fine tuning of LLMs (all very briefly! just mention them)
 
-##### 2.4.2.2 LLMs using APIs vs. chat-based format (brief)
+## 2.4.2.2 LLMs using APIs vs. chat-based format (brief)
 
-##### 2.4.2.3 Local models vs. sending data to a company (brief)
+## 2.4.2.3 Local models vs. sending data to a company (brief)
 
-### 2.5 AI ethics
+## 2.5 AI ethics
 
-### 2.6 Sources
+## 2.6 Sources
 
 From Section 2.3
 - https://www.ibm.com/think/topics/natural-language-processing
