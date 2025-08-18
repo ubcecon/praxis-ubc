@@ -25,11 +25,7 @@ https://www.prolific.com/academic-researchers
 
 ## Section 2: Computational text analysis
 
-
-
 We can split up ML-based NLP methods into two categories: **supervised** and **unsupervised** learning.
-
-## 2.0 Why computational text analysis?
 
 ## 2.1 Supervised machine learning
 
@@ -66,9 +62,14 @@ Tokens (stopwords removed):    ['pack', 'chihuahua', '##s', 'chased', 'frightene
 
 ## To normalize, or not to normalize?
 
+The recent consensus amogst researchers using NLP tools is that often times normalization methods are either redundant or counterproductive. Removing stopwords, for instance, is often moreso a cosmetic change than one that impacts the model. Likewise, stemming and lemmatization of tokens can reduce topic readability as well as conflate terms with different meanings^{2}. 
+
+That's not to say don't remove stopwords/stem/lemmatize. Just dont do so blindly--  think very carefully about *why* you doing so and how it affects your model. 
+
 ## Vectorization: Bag of Words
 
 ML models are fundamentally based on math, so they require structured numerical data. **Vectorization** is the process of translating unstructured text into a numerical format. Different vectorization techniques result in different interpretations of the resulting vectors of numbers. The two simplest vectorization methods are Bag of Words (BoW) and TF-IDF.
+
 - **Bag of Words**: Consider a spreadsheet where each column corresponds to a document, and each row is the *the number of times each word (in the document) shows up in the document*. For example, consider the sentence "The pack of chihuahuas chased after the frightened cat". The BoW representation of this sentence is $<2,1,1,1,1,1,1,1>$. 
 
 Pros:
@@ -101,18 +102,57 @@ Python:
 - Scikit-learn
 - nltk
 
-## 2.1.2 Statistical frameworks
+## 2.1.2 Supervised learning statistical frameworks
 
-https://smltar.com/ 
-Naive Bayes, Logistic Regression, SVMs
-- Show off R/python libraries for this
+Supervised methods usually fall into two categories: regression and classification.
 
-## 2.1.3 Deep learning frameworks
+- **Regression** is used to predict numeric or continuous value (ex; predicting which year a given court case is from based on its' language)
 
-https://www.packtpub.com/en-us/product/getting-started-with-google-bert-9781838821593
+- **Classification** is used to predict class labels or group membership (ex; predicting if the author of a tweet is a republican or democrat)
 
+![An illustration of a regression task versus a classification task](media/regression_vs_classification.png)
+
+## Some examples of supervised methods: Naive bayes
+
+A **Naive bayes** classifier is used for predicting class labels for given series of texts. It operates under the assumption that across a given document, the presence of a particular word in a document is unrelated to the presence of any other word. From there, it calculates the probability of seeing each word within a given label (using the pre-labelled data) and then uses those pre-calculated probabilities to make an educated guess about which classes texts it hasn't seen before fit into.
+
+- For example, suppose we are building a naive bayes model that attempts to classify texts based on if they were written by Jane Austen or Herman Melville. Let's say we give the model the following sentence: "The white whale swam in the sea." The key features the model would look at are the counts of the words: "white," "whale," "swam," and "sea."
+
+- The model then calculates the probability of seeing these words based on their frequencies in the pre-labelled Austen and Melville texts that it was trained on. Since words like 'whale' and 'sea' are far more common in Melville's writing, the model assigns the sentence to belonging to the Melville class because that classification has the higher probability.
+
+## Some examples of supervised methods: Logistic regression
+
+**Logistic regression** is a statistical method used for binary classification tasks (ex; does a sentence belong to Melville or Austen's works), that calculates the probability of an outcome falling into one of two categories by fitting data to a special function called a sigmoid.
+
+- Unlike Naive Bayes, logistic regression does not assume that features are independent; instead, it learns how they work together to influence which class a given text belongs to.
+
+- Hence, it's known as a **discriminative model**, because it directly learns the boundary that distinguishes the classes, whereas Naive Bayes is a **generative model** that learns the characteristics of each class individually.
+
+- Logistic regression works best when we have a greater need for model interpretability and probabalistic outputs, as the coefficients in a trained logistic regression model directly correspond to the influence of each feature on the outcome. (Ex; a high coefficient on the word "whale" directly indicates that its' presence significantly increases the calculated probability of a sentence being classified as a work of Herman Melville.)
+
+![An example of the difference between generative and discriminative models.](media/gen_disc_model-1.png)
+
+##  Some examples of supervised methods: Support Vector Machines
+
+Wheras logistic regression models the probability of an observation belonging to a certain class by considering the influence of *all* data points, **Support Vector Machines** (SVMs) aim to find the best decision boundary ("best" being defined as the one that maximizes the distance between the different classes) focusing only on the **most difficult-to-classify points**. 
+
+- SVM works best with High-Dimensional Data (small datasets with many unique words), when we want a clear margin of separation, and/or when our primary goal is soley classification and we don't need to know the specific probability of a data point belonging to a given class. 
+
+## A comparison of the three methods on a binary classification task
+
+Below are the results of running each of the three methods discussed on a set of sentences from Moby Dick and Emma. We've limited the bag of words vectorizer to build a vocabulary of the top 20 most frequent words, excluding common English stop words. 
+
+![Logistic regression + PCA on sentences from *Moby Dick* and *Emma*.](media/logistic_reg_output.png)
+![SVM + PCA on sentences from *Moby Dick* and *Emma*. Polynomial instead of linear kernel.](media/svm_output.png)
+![Again, this time with Naive Bayes + PCA.](media/naive_bayes_output.png)
+
+Note the axes-- we'll get into what PCA is shortly. 
 
 ## 2.2 Unsupervised learning 
+
+Thus far, all the examples of statistical methods we've covered are instances of **supervised learning**. We already know what our labels are going to be, the task is assigning the right labels to the right sentences. But what if we didn't know what our labels were? What if we wanted to infer the labels soley from the features found within our data?
+
+
 
 
 ## 2.2.1 Topic modelling
