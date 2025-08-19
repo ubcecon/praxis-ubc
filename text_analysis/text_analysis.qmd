@@ -99,15 +99,258 @@ In the image above the Top-Down Parser looks through identifing that John is a n
 
 ### 2.4 Recent Updates
 
-#### 2.4.1 NLI, zero-shot learning, BERT
+###### Learning goals (2–3 minutes)
+- Understand **what NLI is** and how it enables **zero-shot** labeling
+- Differentiate **encoder** vs **decoder** style models at a glance
+- Know the four **modern workflows**: zero-shot, few-shot, **RAG**, fine-tuning
+- Grasp **privacy trade-offs**: APIs, chat, local vs. cloud
+
+<!-- Presenter note:
+Keep this short: “We’re covering concepts only. Think ‘what exists and why it matters.’”
+-->
+
+#### 2.4.1 Natural Language Inference (NLI) and Zero-Shot Learning
+
+###### What is Natural Language Inference (NLI)?  
+Natural Language Inference (NLI) is a task where a model is given two sentences and must decide if the second sentence makes sense based on the first.  
+
+Think of a student passing an exam on a subject they’ve never really studied before. That works because humans generalize from what they know.  Zero-Shot Learning (ZSL) lets models do the same — applying knowledge to new tasks without ever seeing examples.  [Zero-Shot Text Classification](https://medium.com/@asanchezyali/zero-shot-text-classification-c737db000005)
+
+- **Premise** = the original statement.  
+- **Hypothesis** = the statement we want to check against the premise.  
+
+The model has to choose between three possibilities:  
+1. **Entailment (Yes)** — the hypothesis fits with the premise.  
+2. **Contradiction (No)** — the hypothesis clashes with the premise.  
+3. **Neutral (Maybe)** — there isn’t enough information to decide.  
+
+**Example**
+
+| Premise                   | Hypothesis                  | Answer Type           | Why?                                                   |
+|----------------------------|-----------------------------|-----------------------|--------------------------------------------------------|
+| A man is riding a bicycle. | A man is outdoors.          | **Entailment (Yes)**  | Riding a bike usually implies being outside.           |
+| A man is riding a bicycle. | A man is swimming.          | **Contradiction (No)**| You cannot ride a bike and swim at the same time.      |
+| A man is riding a bicycle. | The man is wearing a helmet.| **Neutral (Maybe)**   | The premise doesn’t tell us if he is wearing a helmet. |
+
+
+This is important because it shows the model isn’t just matching words, it’s making an **inference about meaning (reasoning)**.
+
+---
+
+###### From NLI to Zero-Shot Learning  
+Now imagine this: A student is able to pass an exam on a subject they’ve never studied. They do it by **generalizing** knowledge from other subjects.  
+
+Zero-Shot Learning (ZSL) works the same way for AI. Instead of needing thousands of training examples for a task, we can reframe classification as an NLI problem:  
+
+- The **premise** is the text we want to classify.  
+- The **hypotheses** are the possible labels, rewritten as simple sentences.  
+  - Example: *“This review is positive.”*, *“This review is negative.”*, *“This review is neutral.”*  
+
+The model then tests: *Does the premise support this hypothesis?* The one that fits best is then chosen as the label.  
+
+**Example**  
+- Premise: *“The café’s coffee is absolutely amazing!”*  
+- Hypotheses:  
+  1. *“This review is positive.”*  
+  2. *“This review is negative.”*  
+  3. *“This review is neutral.”*  
+- Model’s answer: **Positive** — no labeled training data required.
+
+---
+
+###### Why Zero-Shot Matters  
+For a long time, supervised machine learning required building large, carefully labeled datasets before a model could classify text. You had to teach the student (the model) before it could pass the exam. This was expensive and time-consuming.
+
+With NLI-based zero-shot methods, we can:  
+- **Scale** human codebooks or categories across very large corpus.  
+- **Prototype quickly** test out categories before committing to labeling thousands of documents.  
+- **Explore free-text responses** in surveys or interviews without heavy preprocessing. You don't need to read an entire review to tell the customer is unhappy. 
+
+These methods are powered by **encoder-only transformers (models designed mainly to read text)** like BERT, RoBERTa, and DeBERTa, which are strong at understanding relationships between sentences.  
+
+- **Before ~2020** Zero-shot classification was rare because a lot of labeled data was needed.  
+- **Now** With strong NLI models, we can classify text cheaply and effectively even without training data (teaching the model). 
+
+**Applications**  
+- Auto-tagging and organizing large collections of documents  
+- Moderating harmful or misleading content  
+- Routing customer service tickets to the right team  
+- Rapidly scanning survey responses to detect themes  
+
+###### Beyond Text: Zero-Shot in Vision  
+Zero-shot learning is not just for text. Vision-language systems combine images and text in the same “meaning space.” This allows a model to classify **images it has never seen before** using natural-language descriptions.  
+
+For example, given a new photo of an animal, the model can choose between descriptions like *“a photo of a zebra”* or *“a photo of a horse”* — even if “zebra” was never explicitly labeled in its training data.  
+
+![](media/NLI_Image_classification.jpg){fig-align="center" width="80%"}
 
 #### 2.4.2 Classification and discovery using decoder only models
 
-##### 2.4.2.1 Zero shot, few shot, RAG, fine tuning of LLMs (all very briefly! just mention them)
+**What are they?**  
+Decoder-only transformers (pattern matchers like GPT) generate text one word at a time. With the right prompts, they can **classify, summarize, or find patterns**.
 
-##### 2.4.2.2 LLMs using APIs vs. chat-based format (brief)
+**Why it matters**  
+- Works without special training for many tasks.   
+- Lets us explore and scale categories quickly.  
+- Used in most modern chatbots and APIs (ChatGPT, Claude, LLaMA, etc.).
+
+###### Using these models in practice
+
+**APIs vs. Chat**  
+- *APIs*: They allow you to connect the model to your own system. Good for automation.  
+- *Chat UIs*: Easy to use and quick. Good for testing ideas. 
+
+**Local vs. Cloud**  
+- *Local*: data stays private; needs hardware. 
+- *Cloud*: easy access; data leaves your system.  
+
+**Applications**  
+- Auto-tagging document and moderating text   
+- Detecting customers intent in messages   
+- Drafting summaries and themes  
+
+::: callout-important
+**Watch outs**
+- Models can “hallucinate” (make things up).
+- Results depend on how you phrase the prompt.
+- Privacy risks if data leaves your system.
+- Costs add up if used at scale. 
+:::
+
+##### 2.4.2.1 Four Ways to Guide Large Language Models 
+
+There are **four main ways** we can get large language models (LLMs) to handle classification or generation tasks. They range from the simplest, asking the model directly (such as when we generally ChatGPT), to the most advanced — retraining it on your own data (teaching a model). 
+
+1. **Zero-shot**  
+Ask the model directly. No training data.  
+*Example:* “Classify this as positive or negative.”
+
+2. **Few-shot**  
+Add a handful of examples to guide the model.  
+*Example:* Show 3 labeled reviews, then give it a new one.
+
+3. **RAG (Retrieval-Augmented Generation)**  
+Model looks up facts from your own documents and uses what it already knows.  
+*Why:* reduces “hallucinations” and keeps answers grounded.
+
+**Fine-tuning**  
+Retrain the model on your data (eg. specialising in Legal text)  
+*Best for:* consistent style, domain knowledge, large-scale use.
+
+::: callout-tip
+Think of it as a ladder:  
+Start with **zero-shot**, move up to **few-shot**, then **RAG**, and finally **fine-tuning**.Each step gives the model more guidance
+:::
+
+##### 2.4.2.2 LLMs: APIs vs. Chat-Based Interfaces  
+
+LLMs can be used in **two main ways**:  
+1. **APIs** to connect the model into your own systems.  
+2. **Chat-based interfaces** interact directly through a conversational window.
+
+Both have strengths and weaknesses, depening on its application. 
+
+###### APIs (Application Programming Interfaces)  
+
+**What it is**  
+Think of an API as a “pipeline.” You send text to the model in the background, and it sends a response back. There is no chat window, it runs quietly inside your systems.  
+
+**Strengths**  
+- Its great for **automation** (batch jobs, workflows, scheduled tasks).  
+- Can **integrate with existing apps** (e.g., surveys, chatbots, customer support).  
+- Scales to handle **large datasets** consistently.  
+
+::: callout-note
+**Use Case: Surveys with APIs**  
+
+Imagine a company that collects short surveys at the end of every sale. They want to know if customers felt the process was **easy** or **confusing**.  
+
+Instead of hiring someone to read through thousands of responses, the system sends each survey to an **API**. The LLM quickly classifies the answers into categories, and the company gets a clear report — all done automatically in the background.  
+:::
+
+**Limitations**  
+- Needs **technical setup** (developers, coding, integration).  
+- Not designed for **interactive exploration** — you don’t “chat,” you send structured requests, usually in the form of code. 
+
+---
+
+###### Chat-Based Interfaces  
+
+**What it is**  
+This is the familiar **conversational window** — you type, the model replies.  
+
+**Strengths**  
+- Extremely **intuitive** — no setup required.  
+- Perfect for **brainstorming, Q&A, and demos**.  
+- Great for **quick experiments** when you want to test an idea on the fly.  
+
+**Limitations**  
+- Harder to **scale or automate** (each interaction is manual).  
+- Answers may be **less consistent** in formatting compared to API outputs.  
+
+---
+
+###### Why This Matters (At a Glance)  
+- **APIs** = best for *quiet, large-scale automation and production systems*.  
+- **Chat** = best for *human-in-the-loop exploration and design*.  
+
+In practice, most teams combine both approaches:  
+- Use **Chat interfaces** for prototyping and developing ideas.  
+- Use **APIs** for scaling those ideas into production pipelines. 
 
 ##### 2.4.2.3 Local models vs. sending data to a company (brief)
+**The choice:**  
+Do you run the model **on your own machine (local)**, or do you **send data to a company’s servers (cloud/hosted APIs)**?
+
+---
+
+###### Local Models
+- Data stays in your own environment, so you have more **privacy & control**.  
+- No outside company sees your text.  
+- Good for sensitive data (health, finance, legal).  
+- Downsides: needs **hardware (GPUs, storage)** and technical setup.
+
+---
+
+###### Cloud / Hosted APIs
+- Example: OpenAI, Anthropic, Google, Microsoft.  
+- **Fast start, easy to use**; no setup needed.  
+- Access to **state-of-the-art** models.  
+- Downsides: data leaves your system, subject to **company policies**.  
+- Pay per use; can be expensive at scale. 
+
+::: callout-important
+**Cost Watch: APIs at Scale**
+API pricing typically depends on how many *tokens* (pieces of text) you send and receive. For example:
+
+- **GPT-4.5** costs about **$75 per 1 million input tokens** and **$150 per 1 million output tokens**. 
+
+**Scenario:** If a company processes **10,000 reviews/day**, each 100 input + 50 output tokens:
+
+- With GPT-4.5:  
+  - Input cost = (10,000 × 100) / 1M × $75 ≈ **$75**  
+  - Output cost = (10,000 × 50) / 1M × $150 ≈ **$75**  
+  - **Total ≈ $150/day → ~$4,500/month**
+:::
+
+---
+
+###### Quick Comparison
+
+| Local Models              | Cloud/Hosted APIs       |
+|---------------------------|-------------------------|
+| Privacy & control         | Easy & instant access   |
+| Needs hardware setup      | No setup needed         |
+| Good for sensitive data   | Best models available   |
+| Higher upfront effort     | Ongoing usage costs     |
+
+::: callout-important
+**Rule of thumb:**  
+- If privacy is critical use a **local model**.  
+- If speed & cutting-edge accuracy matter use **cloud APIs**.  
+:::
+
+--- 
 
 ### 2.5 AI ethics
 
@@ -121,3 +364,7 @@ From Section 2.3
 - https://lincsproject.ca/docs/terms/named-entity-recognition
 - https://intellipaat.com/blog/what-is-parsing-in-nlp/
 - https://www.cogitotech.com/natural-language-processing/named-entity-recognition/
+From Section 2.4
+- Yali Sánchez, *Zero-Shot Text Classification* — [Medium article](https://medium.com/@asanchezyali/zero-shot-text-classification-c737db000005)  
+- Modulai Blog: *Zero-Shot Learning in NLP* — <https://modulai.io/blog/zero-shot-learning-in-nlp/>  
+- Wikipedia: *Zero-shot learning* — <https://en.wikipedia.org/wiki/Zero-shot_learning>  
