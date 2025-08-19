@@ -60,11 +60,11 @@ Original Tokens:    ['the', 'pack', 'of', 'chihuahua', '##s', 'chased', 'after',
 Tokens (stopwords removed):    ['pack', 'chihuahua', '##s', 'chased', 'frightened', 'cat', '.']
 ```
 
-## To normalize, or not to normalize?
+## Text normalization
 
 The recent consensus amogst researchers using NLP tools is that often times normalization methods are either redundant or counterproductive. Removing stopwords, for instance, is often moreso a cosmetic change than one that impacts the model. Likewise, stemming and lemmatization of tokens can reduce topic readability as well as conflate terms with different meanings^{2}. 
 
-That's not to say don't remove stopwords/stem/lemmatize. Just dont do so blindly--  think very carefully about *why* you doing so and how it affects your model. 
+That's not to say don't remove stopwords/stem/lemmatize. It's useful for some methods but not for others (LDA). Just dont do so blindly--  think very carefully about *why* you doing so and how it affects your model. 
 
 ## Vectorization: Bag of Words
 
@@ -146,33 +146,81 @@ Below are the results of running each of the three methods discussed on a set of
 ![SVM + PCA on sentences from *Moby Dick* and *Emma*. Polynomial instead of linear kernel.](media/svm_output.png)
 ![Again, this time with Naive Bayes + PCA.](media/naive_bayes_output.png)
 
-Note the axes-- we'll get into what PCA is shortly. 
-
 ## 2.2 Unsupervised learning 
 
-Thus far, all the examples of statistical methods we've covered are instances of **supervised learning**. We already know what our labels are going to be, the task is assigning the right labels to the right sentences. But what if we didn't know what our labels were? What if we wanted to infer the labels soley from the features found within our data?
+Thus far, all the examples of statistical methods we've covered are instances of **supervised learning**. We already know what our labels are going to be, the task is assigning the right labels to the right sentences. But what if we didn't know what our labels were? What if we wanted to infer the labels soley from the features found within our data? 
 
+- **Unsupervised learning** uses ML algorithms to discover hidden patterns and structures in our data, based *solely on its features*, without any predefined labels to guide the process. 
 
-
+-  Examples include: Clustering, topic modelling, word embeddings
 
 ## 2.2.1 Topic modelling
 
+A **topic** is a label that is assigned to textual data which details the subjects within the text^{3}. Consider the following two sentences:
+
+1) French cuisine is some of the best in the world, despite the often lack of spices. 
+
+2) I've always loved Japanese food, mainly because I prefer fish raw rather than cooked. 
+
+What topic would you assign to each of the two texts? "French food" and "Japanese food" might come to mind. What about the next pair of sentences?
+
+1) French cuisine is some of the best in the world, despite the often lack of spices. 
+
+2) Dogs are very loud and unhygenic, yet people still love having them around. 
+
+What topics would you assign now? Even though sentence 1 is the same as in the previous example, a more general description of "food" might make more sense here. The point is that **topics are corpus-specific**. The topics we assign to a given text are not just dependent on the text itself, but on the other texts surrounding it. 
+
+A **cluster** is the formal name for the group of texts that an algorithm identifies as being similar *before* we assign a topic label. The goal of a clustering algorithm is to find these natural groupings in the data automatically, *without* any human guidance. 
+
+## 2.2.2 Hard Clustering methods: K-means and Hierarchical clustering
+
+We can partition clustering methods into two sets: hard clustering methods and soft clustering methods. **Hard clustering methods** assign texts to *a single* topic. For example, a text can either be about food, about dogs, but not both. The two most famous examples of this are k-means and hierarchical clustering.
+
+- **K-means Clustering** is the simplest form of clustering: it randomly creates *k* cluster centers, then iteratively changes them to minimize euclidian distance. K-means requires the researcher to set the number of cluster centers, so it's best suited when there's a clear hypothsis about the expected number of clusters. 
+
+- **Hierarchical Clustering** is a method of cluster analysis that seeks to build a hierarchy of clusters. It groups data points into a tree-like structure, called a dendrogram, without requiring the number of clusters to be predetermined. The algorithm works by either progressively merging the closest clusters (agglomerative) or by starting with one giant cluster and progressively splitting it (divisive). A researcher can then decide how many clusters to use by "cutting" the resulting tree at a given height. 
+
+- Use Hierarchical Clustering when the number of natural clusters in the text is unknown, and the primary goal is to simply explore the relationships between documents. Ideal for small(er) datasets. 
+
+## 2.2.3 Soft Clustering methods: LDA for topic modelling
+
+**Latent Dirichlet Allocation** (LDA) is an unsupervised learning algorithm used for topic modeling, that discovers topics from a collection of documents by identifying words that frequently appear together. LDA is a *soft clustering* method: it can assign a given text from a corpus to *more than one topic*. LDA works by assuming that each document is a mixture of various underlying topics (and in turn, that each topic is a mixture of words). Then, the algorithm tries to figure out which words belong to which topics, and which topics belong to which documents. 
+
+- Like K-means, the number of topics must be specified manually, with there being no right answer. Quickly becomes a game of trial and error.
+
+- LDA is ultimately a BoW model, so it doesn't understand context. Adding bigrams/trigrams might help, but polysemy remains an issue.
 
 
-- LDA
-Introduction to Topic Modeling and Text Classification, W.J.B. Mattingly
+## 2.2.4 LDA as a method of dimensionality reduction
 
-## 2.2.2 Clustering
+Despite these limitations, LDA is still an extemely powerful tool for unsupervised topic discovery, and reduces dimensionality in a meaningful way: instead of using thousands of words as features for a supervised ML model, we can instead use the topic distributions from LDA.
 
-- K-means, Hierarchical
-Text Mining: Classification, Clustering, and Applications, Ashok N. Srivastava
+![Naive Bayes on the Emma/Moby Dick dataset. This time, each sentence's position is determined by the prevalence of topics, discovered via LDA.](media/naive_bayes_lda_topics.png)
 
-## 2.2.3 Embeddings (briefly)
-- Word2Vec
-- Skip-Gram, CBOW
-Embeddings in Natural Language Processing: Theory and Advances in Vector Representations of Meaning
 
-## 2.3 Natural Language Processing (brief)
+## 2.2.5 Embeddings
+
+Recall how we mentioned vectorization methods like BoW and TF-IDF are context insensitive? **Word embeddings are another vector representation of text**, which is context-senstive. In short, a word embedding model is trained on a massive corpus of text to create dense numerical vectors for words by learning from their context. We can then apply that word embedding model onto our own corpus to generate a set of *context-sensitive* vectors for our texts. 
+
+- Consider the sentences: *The film was incredible.* and *That movie is amazing.*. A BoW model only cares about word counts, so it would conclude that the sentences are completely unrelated (no words are in common!). With Word2Vec, the word *film* lies closely to *movie* in an embedding space. Likewise, *incredible* and *amazing* sit closely together.
+
+- As word embeddings capture semantic meaning, a word embedding model would correctly notice that the two sentences are quite similar. 
+
+- **Word2Vec** is a common technique for creating word embeddings, which it accomplishes using either a **Skip-Gram** or **CBOW** architecture. A CBOW model learns by using surrounding context words to predict a masked target word. Coversely, a Skip-Gram model uses a provided target word to predict the surrounding context words. 
+
+### 2.2.6 Return to unsupervised methods: BERT
+
+The primary issue with Word2Vec is that the resulting vector representations are *static*: each word has exactly one, fixed vector representation. Hence, the vector representations of the words in the sentences "The dog chased after the cat" and "The cat chased after the dog" are identical. What if instead we could generate **dynamic embeddings**, that change based on our textual corpus? 
+
+- Bidirectional Encoder Representations from Transformers (colloquially called BERT) generates such dynamic embeddings using a mix of self-attention and positional encodings: to generate a vector representation for a word, it looks at the entire sentence surrounding it weighing the relationship between every word. Additionally, it makes note of the exact sequence of words, establishing subject-object relationships.
+
+- In our "The dog chased the cat" and "The cat chased the dog" examples, BERT would correctly understand that the subject-object roles are reversed, and hence assign two different meanings. 
+
+### BERT, continued
+
+![Our initial Naive Bayes classifier, this time with dynamic embeddings generated with BERT. Note the great variation, yet still highly distinct classes.](media/naive_bayes_BERT.png)
+
+## 2.3 Natural Language Processing
 
 Natural Language Processing (NLP) is a branch of artificial intelligence that enables computers to understand, interpret, and generate human language. By combining computational linguistics with machine learning and deep learning techniques, NLP allows machines to process language data, and reveal meaning. 
 
