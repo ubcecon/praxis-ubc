@@ -1,4 +1,12 @@
 
+---
+title: ""
+author: "Irene Berezin, Alex Ronczewski, Krishaant Pathman"
+format: revealjs
+scrollable: true
+smaller: true
+---
+
 ## Section 1: Traditional qualitative coding
 
 The Coding Manual for Qualitative Researchers
@@ -6,59 +14,232 @@ Qualitative Data: An Introduction to Coding and Analysis
 https://resources.nu.edu/c.php?g=1007180&p=7392331
 
 
-### 1.1 Examples of traditional qualitative coding, papers
+## 1.1 Examples of traditional qualitative coding, papers
 
 A interactive NYT article would work nicely here. A lot of their research is qualitative coding voter preferences etc
 
-### 1.2 Recent updates
+## 1.2 Recent updates
 
 https://www.mturk.com/
 https://www.prolific.com/academic-researchers
 
 ## Section 2: Computational text analysis
 
-### 2.1 Supervised machine learning
+We can split up ML-based NLP methods into two categories: **supervised** and **unsupervised** learning.
 
-Tokenization, Text Normalization, Stop Word Removal, TF-IDF (google it + show off the relevant python/R libraries)
+## 2.1 Supervised machine learning
+
+In supervised learning, a model is trained on a dataset of documents that are *already assigned human-provided annotations*. The model first analyzes this pre-labeled data to learn the features (ex: lingustic patterns, structures, semantic relationships) associated with each category. Once trained, the model can then process new, *unseen* text for tasks like entity identification, sentiment analysis, translation, and other classification tasks. 
+
+## 2.1.1 But first, text preprocessing...
+
+Before we can proceed with an analysis of our texts, we need to *preprocess* them using a series of steps. We do this because supervised learning models cannot work with raw text^[1]. Models like Logistic Regression, Support Vector Machines, and Naive Bayes are fundamentally *mathematical algorithms* that operate on numerical data. They have no inherent ability to understand strings of text.
+
+Text preprocessing usually involves the following steps:
+1) Tokenization 
+2) Text normalization (sometimes)
+3) Stopword removal
+4) Vectorization (BoW, TF-IDF, Embeddings)
+
+::: aside
+True for classical models. However even modern models like GPTs still work with numerical representations of textual data under the hood, even if they take in raw text as inputs. 
+:::
+
+## Tokenization and stopword removal
+
+A **token** is a fundamental unit of text, often times a word, or a subword of a word, created by segmenting a larger string of text for a model to process.
+
+```
+Sentence: The pack of chihuahuas chased after the frightened cat.
+List of tokens: ['the', 'pack', 'of', 'chihuahua', '##s', 'chased', 'after', 'the', 'frightened', 'cat', '.']
+String of tokens: the pack of chihuahua ##s chased after the frightened cat .
+```
+
+An example using bert-based-uncased's autotokenizer. 
+
+A **stopword** is an extremely common word, like "the," "a," or "is,", that is often removed from text during preprocessing as it carries virtually no meaningful information on its own. As these words add noise without contributing any unique information, removing them allows a model to focus on the more meaningful words that actually differentiate documents. 
+
+```
+Original Tokens:    ['the', 'pack', 'of', 'chihuahua', '##s', 'chased', 'after', 'the', 'frightened', 'cat', '.']
+Tokens (stopwords removed):    ['pack', 'chihuahua', '##s', 'chased', 'frightened', 'cat', '.']
+```
+
+## Text normalization
+
+Sometimes, a researcher may want to add a few additional preprocessing steps. These can include:
+
+- Stemming: Reducing words to their root form, or stem. 
+- Lemmatization: Reducing a word to its base or dictionary form, known as the lemma
+
+Text normalization can often be useful, but it isn't strictly necessary. In fact, stemming and lemmatization of tokens can reduce topic readability as well as conflate terms with different meanings^[2]. That's not to say don't stem/lemmatize, just dont do so blindly--  think very carefully about *why* you doing so and how it affects your model. 
+
+::: aside
+Consult [Maria Antoniak's guide](https://maria-antoniak.github.io/2022/07/27/topic-modeling-for-the-people.html) on when to/when not to normalize tokens.
+:::
+
+## Vectorization: Bag of Words
+
+ML models are fundamentally based on math, so they require structured numerical data. **Vectorization** is the process of translating unstructured text into a numerical format. Different vectorization techniques result in different interpretations of the resulting vectors of numbers. The two simplest vectorization methods are Bag of Words (BoW) and TF-IDF.
+
+- **Bag of Words**: Consider a spreadsheet where each column corresponds to a document, and each row is the *the number of times each word (in the document) shows up in the document*. For example, consider the sentence "The pack of chihuahuas chased after the frightened cat". The BoW representation of this sentence is $<2,1,1,1,1,1,1,1>$. 
+
+Pros:
+1) Resulting matrix values are extremely easy to interpret.
+Cons: 
+1) Resulting matrix becomes very sparse very fast.
+2) Context-agnostic: "The dog chased after the cat" has the same matrix representation as "the cat chased after the dog".
+3) **Every word is treated equally, so common words dominate.**
+
+![BoW representation of two sentences](media/dogs_and_cats.png)
+
+## Vectorization: Bag of Words (continued)
+
+Recall the BoW representation of the two sentences from the previous slide. Now imagine if instead of each document being a single sentence, it was hundreds-- even after stopword removal, very frequent words would still dominate and be considered important. Are they actually important? Probably not. 
+
+![A BoW matrix comparing Jane Austen's "Emma" and Moby Dick.](media/bow_matrix.png)
+
+## Vectorization: TF-IDF
+
+What if instead of looking at aggregate counts for words, we looked at their *importance* relative to other documents? **TF-IDF** calculates a word's importance by multiplying its frequency within a document by a score that increases for words that are rare across the entire collection of documents, and penalises for words that are common across documents. 
+
+- Note: TF-IDF works best with corpora containing many medium-length texts (ex: collections of news articles). In general, the more documents we have, the better this method will perform.
+
+## Some useful libraries: 
+
 For R:
 - SnowballC
 - tidytext
 Python:
-- scikitlearn
+- Scikit-learn
+- nltk
 
-#### 2.1.1 Statistical frameworks
+## 2.1.2 Supervised learning statistical frameworks
 
-https://smltar.com/ 
-Naive Bayes, Logistic Regression, SVMs
-- Show off R/python libraries for this
+Supervised methods usually fall into two categories: regression and classification.
 
-#### 2.1.2 Deep learning frameworks
+- **Regression** is used to predict numeric or continuous value (ex: predicting which year a given court case is from based on its language)
 
-https://www.packtpub.com/en-us/product/getting-started-with-google-bert-9781838821593
+- **Classification** is used to predict class labels or group membership (ex: predicting if the author of a tweet is a Republican or Democrat)
+
+![An illustration of a regression task versus a classification task. Credit to ](media/regression_vs_classification.png)
+
+## Some examples of supervised methods: Naive Bayes
+
+A **Naive Bayes** classifier is used for predicting class labels for given series of texts. It operates under the assumption that across a given document, the presence of a particular word in a document is unrelated to the presence of any other word. From there, it calculates the probability of seeing each word within a given label (using the pre-labelled data) and then uses those pre-calculated probabilities to make an educated guess about which classes texts it hasn't seen before fit into.
+
+- For example, suppose we are building a Naive Bayes model that attempts to classify texts based on if they were written by Jane Austen or Herman Melville. Let's say we give the model the following sentence: "The white whale swam in the sea." The key features the model would look at are the counts of the words: "white," "whale," "swam," and "sea."
+
+- The model then calculates the probability of seeing these words based on their frequencies in the pre-labelled Austen and Melville texts that it was trained on. Since words like 'whale' and 'sea' are far more common in Melville's writing, the model assigns the sentence to belonging to the Melville class because that classification has the higher probability.
+
+## Some examples of supervised methods: Logistic regression
+
+**Logistic regression** is a statistical method used for binary classification tasks (ex: does a sentence belong to Melville or Austen's works), that calculates the probability of an outcome falling into one of two categories by fitting data to a special function called a sigmoid.
+
+- Unlike Naive Bayes, logistic regression does not assume that features are independent; instead, it learns how they work together to influence which class a given text belongs to.
+
+- Hence, it's known as a **discriminative model**, because it directly learns the boundary that distinguishes the classes, whereas Naive Bayes is a **generative model** that learns the characteristics of each class individually.
+
+- Logistic regression works best when we have a greater need for model interpretability and probabalistic outputs, as the coefficients in a trained logistic regression model directly correspond to the influence of each feature on the outcome. (ex: a high coefficient on the word "whale" directly indicates that its' presence significantly increases the calculated probability of a sentence being classified as a work of Herman Melville.)
+
+![An example of the difference between generative and discriminative models. Credit to the LearnOpenCV team for this image.](media/gen_disc_model-1.png)
+
+##  Some examples of supervised methods: Support Vector Machines
+
+Wheras logistic regression models the probability of an observation belonging to a certain class by considering the influence of *all* data points, **Support Vector Machines** (SVMs) aim to find the best decision boundary ("best" being defined as the one that maximizes the distance between the different classes) focusing only on the **most difficult-to-classify points**. 
+
+- SVM works best with High-Dimensional Data (small datasets with many unique words), when we want a clear margin of separation, and/or when our primary goal is soley classification and we don't need to know the specific probability of a data point belonging to a given class. 
+
+## A comparison of the three methods on a binary classification task
+
+Below are the results of running each of the three methods discussed on a set of sentences from Moby Dick and Emma. We've limited the bag of words vectorizer to build a vocabulary of the top 20 most frequent words, excluding common English stop words. 
+
+![Logistic regression + PCA on sentences from *Moby Dick* and *Emma*.](media/logistic_reg_output.png)
+![SVM + PCA on sentences from *Moby Dick* and *Emma*. Polynomial instead of linear kernel.](media/svm_output.png)
+![Again, this time with Naive Bayes + PCA.](media/naive_bayes_output.png)
+
+## 2.2 Unsupervised learning 
+
+Thus far, all the examples of statistical methods we've covered are instances of **supervised learning**. We already know what our labels are going to be, the task is assigning the right labels to the right sentences. But what if we didn't know what our labels were? What if we wanted to infer the labels soley from the features found within our data? 
+
+- **Unsupervised learning** uses ML algorithms to discover hidden patterns and structures in our data, based *solely on its features*, without any predefined labels to guide the process. 
+
+-  Examples include: Clustering, topic modelling, word embeddings
+
+## 2.2.1 Topic modelling
+
+A **topic** is a label that is assigned to textual data which details the subjects within the text^[3]. Consider the following two sentences:
+
+1) French cuisine is some of the best in the world, despite the often lack of spices. 
+
+2) I've always loved Japanese food, mainly because I prefer fish raw rather than cooked. 
+
+What topic would you assign to each of the two texts? "French food" and "Japanese food" might come to mind. What about the next pair of sentences?
+
+1) French cuisine is some of the best in the world, despite the often lack of spices. 
+
+2) Dogs are very loud and unhygenic, yet people still love having them around. 
+
+What topics would you assign now? Even though sentence 1 is the same as in the previous example, a more general description of "food" might make more sense here. The point is that **topics are corpus-specific**. The topics we assign to a given text are not just dependent on the text itself, but on the other texts surrounding it. 
+
+A **cluster** is the formal name for the group of texts that an algorithm identifies as being similar *before* we assign a topic label. The goal of a clustering algorithm is to find these natural groupings in the data automatically, *without* any human guidance. 
+
+::: aside
+Credit to Dr. W.J.B. Mattingly's excellent [guide on topic modelling](https://topic-modeling.pythonhumanities.com/intro.html) for the explanation examples. 
+:::
+
+## 2.2.2 Hard Clustering methods: K-means and Hierarchical clustering
+
+We can partition clustering methods into two sets: hard clustering methods and soft clustering methods. **Hard clustering methods** assign texts to *a single* topic. For example, a text can either be about food, about dogs, but not both. The two most famous examples of this are k-means and hierarchical clustering.
+
+- **K-means Clustering** is the simplest form of clustering: it randomly creates *k* cluster centers, then iteratively changes them to minimize euclidian distance. K-means requires the researcher to set the number of cluster centers, so it's best suited when there's a clear hypothsis about the expected number of clusters. 
+
+- **Hierarchical Clustering** is a method of cluster analysis that seeks to build a hierarchy of clusters. It groups data points into a tree-like structure, called a dendrogram, without requiring the number of clusters to be predetermined. The algorithm works by either progressively merging the closest clusters (agglomerative) or by starting with one giant cluster and progressively splitting it (divisive). A researcher can then decide how many clusters to use by "cutting" the resulting tree at a given height. 
+
+- Use Hierarchical Clustering when the number of natural clusters in the text is unknown, and the primary goal is to simply explore the relationships between documents. Ideal for small(er) datasets. 
+
+## 2.2.3 Soft Clustering methods: LDA for topic modelling
+
+**Latent Dirichlet Allocation** (LDA) is an unsupervised learning algorithm used for topic modeling, that discovers topics from a collection of documents by identifying words that frequently appear together. LDA is a *soft clustering* method: it can assign a given text from a corpus to *more than one topic*. LDA works by assuming that each document is a mixture of various underlying topics (and in turn, that each topic is a mixture of words). Then, the algorithm tries to figure out which words belong to which topics, and which topics belong to which documents. 
+
+- Like K-means, the number of topics must be specified manually, with there being no right answer. It quickly becomes a game of trial and error.
+
+- LDA is ultimately a BoW model, so it doesn't understand context. Adding bigrams/trigrams might help, but polysemy remains an issue.
 
 
-### 2.2 Unsupervised learning 
+## 2.2.4 LDA as a method of dimensionality reduction
 
-#### 2.2.1 Topic modelling
+Despite these limitations, LDA is still an extemely powerful tool for unsupervised topic discovery, and reduces dimensionality in a meaningful way: instead of using thousands of words as features for a supervised ML model, we can instead use the topic distributions from LDA.
 
-- LDA
-Introduction to Topic Modeling and Text Classification, W.J.B. Mattingly
+![Naive Bayes on the Emma/Moby Dick dataset. This time, each sentence's position is determined by the prevalence of topics, discovered via LDA.](media/naive_bayes_lda_topics.png)
 
-#### 2.2.2 Clustering
 
-- K-means, Hierarchical
-Text Mining: Classification, Clustering, and Applications, Ashok N. Srivastava
+## 2.2.5 Embeddings
 
-#### 2.2.3 Embeddings (briefly)
-- Word2Vec
-- Skip-Gram, CBOW
-Embeddings in Natural Language Processing: Theory and Advances in Vector Representations of Meaning
+Recall how we mentioned vectorization methods like BoW and TF-IDF are context insensitive? **Word embeddings are another vector representation of text**, which is context-senstive. In short, a word embedding model is trained on a massive corpus of text to create dense numerical vectors for words by learning from their context. We can then apply that word embedding model onto our own corpus to generate a set of *context-sensitive* vectors for our texts. 
 
-### 2.3 Natural Language Processing (brief)
+- Consider the sentences: *The film was incredible.* and *That movie is amazing.*. A BoW model only cares about word counts, so it would conclude that the sentences are completely unrelated (no words are in common!). With Word2Vec, the word *film* lies closely to *movie* in an embedding space. Likewise, *incredible* and *amazing* sit closely together.
+
+- As word embeddings capture semantic meaning, a word embedding model would correctly notice that the two sentences are quite similar. 
+
+- **Word2Vec** is a common technique for creating word embeddings, which it accomplishes using either a **Skip-Gram** or **CBOW** architecture. A CBOW model learns by using surrounding context words to predict a masked target word. Coversely, a Skip-Gram model uses a provided target word to predict the surrounding context words. 
+
+### 2.2.6 Return to unsupervised methods: BERT
+
+The primary issue with Word2Vec is that the resulting vector representations are *static*: each word has exactly one, fixed vector representation. Hence, the vector representations of the words in the sentences "The dog chased after the cat" and "The cat chased after the dog" are identical. What if instead we could generate **dynamic embeddings**, that change based on our textual corpus? 
+
+- Bidirectional Encoder Representations from Transformers (colloquially called BERT) generates such dynamic embeddings using a mix of self-attention and positional encodings: to generate a vector representation for a word, it looks at the entire sentence surrounding it weighing the relationship between every word. Additionally, it makes note of the exact sequence of words, establishing subject-object relationships.
+
+- In our "The dog chased the cat" and "The cat chased the dog" examples, BERT would correctly understand that the subject-object roles are reversed, and hence assign two different meanings. 
+
+### BERT, continued
+
+![Our initial Naive Bayes classifier, this time with dynamic embeddings generated with BERT. Note the great variation, yet still highly distinct classes.](media/naive_bayes_BERT.png)
+
+## 2.3 Natural Language Processing
 
 Natural Language Processing (NLP) is a branch of artificial intelligence that enables computers to understand, interpret, and generate human language. By combining computational linguistics with machine learning and deep learning techniques, NLP allows machines to process language data, and reveal meaning. 
 
-#### 2.3.1 Dependency Relationships
+## 2.3.1 Dependency Relationships
 
 At the core of NLP is the concept of dependency. Dependency is the process to analyze the grammatical structure in a sentence and find related words as well as the type of relationship between them. Each word’s grammatical role—such as subject, verb, or object contributes to the overall structure of the sentence. For example, in the sentence "He bought a car." The verb bought links all of the other words. He is the subject and the car is the object. Dependency parsing is the process by which these relationships are mapped out, creating a visual structure (called a parse tree) that makes the underlying grammatical links explicit. In computational linguistics and NLP, identifying these dependencies is fundamental for tasks like machine translation, question answering, and summarization.
 
@@ -67,7 +248,7 @@ An example of a parse tree for "He bought a new car."
 
 These parse trees help explain meanings in complex sentences for the computer. They make a map of semantic meaning. 
 
-#### 2.3.2 Named Entity Recognition (NER) / Object Detection 
+## 2.3.2 Named Entity Recognition (NER) / Object Detection 
 
 Named Entity Recognition (NER) is a technique in NLP that identifies and classifies named entities in text into predefined categories like person, organization, location, dates. A named entity is a real-world object that can be denoted with a proper name for instance: The University of British Columbia, Vancouver or August 20. "These categories can include, but are not limited to, names of individuals, organizations, locations, expressions of times, quantities, medical codes, monetary values and percentages, among others. Essentially, NER is the process of taking a string of text (i.e., a sentence, paragraph or entire document), and identifying and classifying the entities that refer to each category." (IBM)
 
@@ -82,7 +263,7 @@ An example of this could be scanning a stock market report and extracting names 
 
 The image above is from <cogitotech.com>.
 
-#### 2.3.3 Grammatical Parsing
+## 2.3.3 Grammatical Parsing
 
 Grammatical parsing in NLP is the process of examining the grammatical structure and relationships inside a given sentence or text. "It involves analyzing the text to determine the roles of specific words, such as nouns, verbs, and adjectives, as well as their interrelationships" (Intellipaat). 
 
@@ -97,23 +278,30 @@ Lets look at an example from Intellipaat with the sentance “John is playing a 
 In the image above the Top-Down Parser looks through identifing that John is a noun then moves back up and examines the next word until it finally reaches a full sentence structure. 
 
 
-### 2.4 Recent Updates
+## 2.4 Recent Updates
 
-#### 2.4.1 NLI, zero-shot learning, BERT
+## 2.4.1 NLI, zero-shot learning, BERT
 
-#### 2.4.2 Classification and discovery using decoder only models
+## 2.4.2 Classification and discovery using decoder only models
 
-##### 2.4.2.1 Zero shot, few shot, RAG, fine tuning of LLMs (all very briefly! just mention them)
+## 2.4.2.1 Zero shot, few shot, RAG, fine tuning of LLMs (all very briefly! just mention them)
 
-##### 2.4.2.2 LLMs using APIs vs. chat-based format (brief)
+## 2.4.2.2 LLMs using APIs vs. chat-based format (brief)
 
-##### 2.4.2.3 Local models vs. sending data to a company (brief)
+## 2.4.2.3 Local models vs. sending data to a company (brief)
 
-### 2.5 AI ethics
+## 2.5 AI ethics
 
-### 2.6 Sources
+## 2.6 Sources
 
-From Section 2.3
+Section 2.1 + 2.2
+
+- On text preprocessing and topic modelling: https://topic-modeling.pythonhumanities.com/intro.html (a great start!)
+- On word embeddings: https://link.springer.com/book/10.1007/978-3-031-02177-0 (may be too techincal, used as reference for creating slides)
+- On BERT: https://towardsdatascience.com/a-complete-guide-to-bert-with-code-9f87602e4a11/
+- On general topic modelling tips/misconceptions: https://maria-antoniak.github.io/2022/07/27/topic-modeling-for-the-people.html
+
+Section 2.3
 - https://www.ibm.com/think/topics/natural-language-processing
 - https://aws.amazon.com/what-is/nlp/ 
 - https://towardsdatascience.com/natural-language-processing-dependency-parsing-cf094bbbe3f7/
