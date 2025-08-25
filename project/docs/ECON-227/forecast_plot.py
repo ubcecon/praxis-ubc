@@ -42,6 +42,27 @@ def create_plot(combined_df, forecast_mean, forecast_ci, forecast_index, actuals
         hovertemplate='Date: %{x}<br>% Change: %{y:.2f}%<extra></extra>'
     ))
 
+    # Check for gap between last historical data and first forecast
+    last_historical_date = daily_agg.index.max()
+    first_forecast_date = pd.to_datetime(forecast_index[0]).normalize()
+    
+    # If there's a gap (more than 1 day), add connecting line
+    if (first_forecast_date - last_historical_date).days > 1:
+        last_historical_value = daily_agg['Pct_Change'].iloc[-1]
+        first_forecast_value = forecast_mean.iloc[0] if hasattr(forecast_mean, 'iloc') else forecast_mean[0]
+        
+        # Add connecting line to bridge the gap
+        fig.add_trace(go.Scatter(
+            x=[last_historical_date, first_forecast_date],
+            y=[last_historical_value, first_forecast_value],
+            name='Gap Bridge',
+            yaxis='y2',
+            mode='lines',
+            line=dict(color='gray', width=1, dash='dot'),
+            showlegend=False,
+            hoverinfo="skip"
+        ))
+
     # Forecast mean (NOW on y2)
     fig.add_trace(go.Scatter(
         x=forecast_index,
@@ -117,22 +138,25 @@ def create_plot(combined_df, forecast_mean, forecast_ci, forecast_index, actuals
                     mode='lines',
                     line=dict(color='orange', width=2, dash='dot'),
                     showlegend=False,
-                    hoverinfo="none"
+                    hoverinfo="skip"
                 ))
             
-            # Add invisible points at gap midpoints for targeted hover
-            for _, row in gap_df.iterrows():
-                midpoint = (row['Forecast'] + row['Actual']) / 2
-                fig.add_trace(go.Scatter(
-                    x=[row['DateOnly']],
-                    y=[midpoint],
-                    name='Gap Info',
-                    yaxis='y2',
-                    mode='markers',
-                    marker=dict(color='orange', size=8, opacity=0),
-                    showlegend=False,
-                    hovertemplate=f'Date: %{{x}}<br>Gap: {row["Gap"]:.2f}%<extra></extra>'
-                ))
+            # FIXED: Add all gap hover points in a single trace with individual hover data
+            gap_midpoints = [(row['Forecast'] + row['Actual']) / 2 for _, row in gap_df.iterrows()]
+            gap_dates = gap_df['DateOnly'].tolist()
+            gap_values = gap_df['Gap'].tolist()
+            
+            fig.add_trace(go.Scatter(
+                x=gap_dates,
+                y=gap_midpoints,
+                name='Gap Info',
+                yaxis='y2',
+                mode='markers',
+                marker=dict(color='orange', size=8, opacity=0),
+                showlegend=False,
+                customdata=gap_values,
+                hovertemplate='Date: %{x}<br>Gap: %{customdata:.2f}%<extra></extra>'
+            ))
             
             # Add a single legend entry for gaps
             if len(gap_df) > 0:
@@ -173,7 +197,7 @@ def create_plot(combined_df, forecast_mean, forecast_ci, forecast_index, actuals
             range=[-2, 2]   # sentiment fixed range
         ),
         yaxis2=dict(
-            title='Stock % Change',
+            title='Stock % Changes',
             title_font=dict(color='limegreen'),
             tickfont=dict(color='limegreen'),
             overlaying='y',
