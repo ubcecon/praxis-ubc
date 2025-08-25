@@ -21,12 +21,11 @@ format:
 * SOCI 415 Network Analysis Intro Notebook
 * Kinmatrix Dataset Notebook
 
-
 The China Biographical Database is a freely accessible relational database with biographical information about approximately 641,568 individuals as of August 2024, currently mainly from the 7th through 19th centuries. It was developed as a collaborative project between scholars at Harvard University, Academia Sinica, and Peking University. The data is useful for statistical, social network, and spatial analysis as well as serving as a biographical reference for Chinese History. 
 
 This dataset has many variables and is far more complex than the KINMATRIX Dataset we have used before, the dataset is far larger and contains more traditional networks as opposed to KINMATRIX's ego networks. If you wish to read more about the structure of the dataset you can follow the link [Structure of CBDB](https://projects.iq.harvard.edu/cbdb/structure-cbdb). 
 
-# 1.0 Data Loading + Intro
+# 1.0 Data Loading and Intro
 
 As with all of our notebooks so far we will begin with loading all of our libraries. This library list is similar to the one used in the KINMATRIX data analysis. 
 ```{python}
@@ -464,7 +463,7 @@ query = f'''
 df_gender = pd.read_sql_query(query, conn)
 conn.close()
 
-# Function to map female/male to number 1/0
+# Function to map female/male from number 1/0
 def sex_label(val):
     return 'female' if val == 1 else ('male' if val == 0 else 'unknown')
 
@@ -1073,11 +1072,11 @@ The top women 'bridges' in our dataset are:
 * [Wu Zhao(Wu Zetian)](https://en.wikipedia.org/wiki/Wu_Zetian) who was empress of China from 660 to 705, ruling first through others and later in her own right. She ruled as empress through her husband Emperor Gaozong and later as empress dowager through her sons Emperors Zhongzong and Ruizong, from 660 to 690. She is from Wenshui which is  "a county in the west-central part of Shanxi Province, China."" 
 * Cui Sui is most likely daugher of [Cui Ting Shi](https://en.wikipedia.org/wiki/Cui_Shi). She is from Qinghe which is "located in the south of Hebei province, China, bordering Shandong province to the east."
 
-# 5.0 Networks over time Cross-Dynasty First, then Set Time Periods (With Birth Year Var)
+# 5.0 Networks over time and Across Dynasties
 
 Next we will look at the dynasties over time and try to determine if there are quantifiable differences between the networks for each of these dynasties.
 
-To determine the dynasty we will use the *c_index_year* variable and if that does not exist as a substitute we will use *c_birthyear*.  
+To determine the dynasty we will use the `c_index_year` variable and if that does not exist as a substitute we will use `c_birthyear`. We have repeated this analysis with the `c_dynasty` variable the findings were nearly identical, but the code was more complicated so we have settled on this version.
 
 Load more data and define dynasties. 
 ```{python}
@@ -1105,7 +1104,7 @@ def assign_dynasty(row):
 biog_df['dynasty'] = biog_df.apply(assign_dynasty, axis=1)
 conn.close()
 
-#un comment if we want to see sorted by ammount
+#uncomment if we want to see sorted by ammount
 #print(biog_df['dynasty'].value_counts())
 ```
 
@@ -1392,289 +1391,7 @@ The findings here are quite interesting there seems to be quite a bit of variati
 * Ming: Very stable compared to other dynasties
 * Qing: Early Qing is more cohesive than late Qing except for a late density spike that is not accompanied by clustering. 
 
-# Try again for Dynasty analysis with Dynasty Variable
-
-We will try the analysis from above but using the built in Dynasty Variable. 
-
-**NOTE:** We can choose the best one for the final notebook. The findings are very similar. 
-
-Import our data with the dynasty variables. 
-```{python}
-conn = sqlite3.connect(db_path)
-biog_df = pd.read_sql_query("""
-    SELECT b.c_personid, b.c_birthyear, b.c_deathyear, b.c_index_year,
-           d.c_dynasty
-    FROM BIOG_MAIN b
-    LEFT JOIN DYNASTIES d ON b.c_dy = d.c_dy
-""", conn)
-
-# Load dynasty mapping
-dynasty_mapping = pd.read_sql_query('SELECT c_dy, c_dynasty FROM DYNASTIES', conn)
-conn.close()
-
-print("Dynasty mapping:")
-print(dynasty_mapping)
-print("\nUnique dynasties in biog_df:")
-print(biog_df['c_dynasty'].value_counts())
-```
-
-Make an ordered list of dynasties
-```{python}
-# Dynasty mapping
-dynasty_order = dynasty_mapping['c_dynasty'].tolist()
-
-# Remove duplicates
-dynasty_order = list(OrderedDict.fromkeys(dynasty_order))
-
-print("Full dynasty order from the database:", dynasty_order)
-print(f"Length after removing duplicates: {len(dynasty_order)}")
-
-biog_df['dynasty_cat'] = pd.Categorical(
-    biog_df['c_dynasty'],
-    categories=dynasty_order,
-    ordered=True
-)
-
-print("\nDynasty counts (full database order):")
-print(biog_df['dynasty_cat'].value_counts(sort=False))
-```
-
-See number amount of people assigned to each 
-```{python}
-
-dynasty_order = dynasty_mapping['c_dynasty'].tolist()
-dynasty_order = list(OrderedDict.fromkeys(dynasty_order))
-
-# Create the ordered categorical column
-biog_df['dynasty_cat'] = pd.Categorical(
-    biog_df['c_dynasty'],
-    categories=dynasty_order,
-    ordered=True
-)
-
-# Get counts, keeping order
-counts = biog_df['dynasty_cat'].value_counts(sort=False)
-
-print(f"Full dynasty order from the database ({len(dynasty_order)} dynasties):\n")
-for dynasty, count in zip(dynasty_order, counts):
-    print(f"{dynasty}: {count}")
-```
-
-Filter top 10
-```{python}
-# Convert counts to a DataFrame for easy use later
-largest_dynasties = counts.sort_values(ascending=False).head(15)
-
-print("Top 10 dynasties by count:\n")
-for dynasty, count in largest_dynasties.items():
-    print(f"{dynasty}: {count}")
-```
-
-We can see from this list that many of them are Korean like Choson. For this analysis we will look at Qing, Ming, Song, Tang, Yuan, and Republic of China as these are the biggest ones which are still Chinese. 
-
-```{python}
-selected_dynasties = ['Qing', 'Ming', 'Song', 'Tang', 'Yuan', 'Republic of China']
-
-conn = sqlite3.connect(db_path)
-
-# Load nodes and their dynasty
-biog_df = pd.read_sql_query("""
-    SELECT b.c_personid, d.c_dynasty
-    FROM BIOG_MAIN b
-    LEFT JOIN DYNASTIES d ON b.c_dy = d.c_dy
-""", conn)
-
-# Filter biog_df to only those in selected dynasties
-biog_df_selected = biog_df[biog_df['c_dynasty'].isin(selected_dynasties)].copy()
-selected_person_ids = set(biog_df_selected['c_personid'])
-
-# Load kinship relationships with dynasty info for both person and kin
-kin_df = pd.read_sql_query("""
-    SELECT 
-        k.c_personid, 
-        k.c_kin_id, 
-        k.c_kin_code,
-        d1.c_dynasty AS dynasty_person,
-        d2.c_dynasty AS dynasty_kin
-    FROM KIN_DATA k
-    LEFT JOIN BIOG_MAIN b1 ON k.c_personid = b1.c_personid
-    LEFT JOIN DYNASTIES d1 ON b1.c_dy = d1.c_dy
-    LEFT JOIN BIOG_MAIN b2 ON k.c_kin_id = b2.c_personid
-    LEFT JOIN DYNASTIES d2 ON b2.c_dy = d2.c_dy
-""", conn)
-
-conn.close()
-print(f"Loaded {len(kin_df):,} kinship relationships")
-
-# Filter for selected dynasties on both sides
-kin_df_selected = kin_df[
-    kin_df['dynasty_person'].isin(selected_dynasties) &
-    kin_df['dynasty_kin'].isin(selected_dynasties)
-].copy()
-
-print(f"Filtered to {len(kin_df_selected):,} kinship relationships between selected dynasties")
-print(kin_df_selected.head())
-
-# Build the NetworkX graph
-G = nx.Graph()
-for _, row in kin_df_selected.iterrows():
-    person = row['c_personid']
-    kin = row['c_kin_id']
-    kin_type = row['c_kin_code']
-    G.add_edge(person, kin, kinship=kin_type)
-
-print(f"Number of nodes: {G.number_of_nodes()}")
-print(f"Number of edges: {G.number_of_edges()}")
-```
-
-Excellent we have a network of 255,770 nodes and 246,028 edges. We can do the analysis like before. We will first get the number of nodes and edges for each dynasty and then get basic stats for each like Average Degree Centrality, Average Degree, Density, Average Clustering, and finally modularity. 
-
-```{python}
-
-selected_dynasties = ['Tang', 'Song', 'Yuan', 'Ming', 'Qing', 'Republic of China']
-
-def build_selected_dynasty_graphs(kin_df_selected, dynasty_list):
-    dynasty_graphs = {}
-    for dyn in dynasty_list:
-        sub_edges = kin_df_selected[kin_df_selected['dynasty_person'] == dyn]
-        if len(sub_edges) > 0:
-            G = nx.Graph()
-            # Only add edges where both person and kin belong to the dynasty
-            G.add_edges_from(zip(sub_edges['c_personid'], sub_edges['c_kin_id']))
-            dynasty_graphs[dyn] = G
-            print(f"{dyn}: {G.number_of_nodes()} nodes, {G.number_of_edges()} edges")
-        else:
-            print(f"{dyn}: No edges")
-    return dynasty_graphs
-
-dynasty_graphs = build_selected_dynasty_graphs(kin_df_selected, selected_dynasties)
-
-def analyze_dynasty_metrics_selected(dynasty_graphs, dynasty_list):
-    results = {}
-    for dyn_name in dynasty_list:
-        G = dynasty_graphs.get(dyn_name)
-        if G is None or G.number_of_nodes() == 0:
-            continue
-        # Degree centrality
-        deg_cent = nx.degree_centrality(G)
-        avg_deg_cent = sum(deg_cent.values()) / len(deg_cent)
-        # Average degree per node
-        avg_degree = (2 * G.number_of_edges()) / G.number_of_nodes()
-        # Graph density
-        density = nx.density(G)
-        # Clustering coefficient (average)
-        avg_clust = nx.average_clustering(G)
-        # Community detection: modularity
-        communities = list(nx.community.greedy_modularity_communities(G))
-        modularity = nx.community.modularity(G, communities)
-        results[dyn_name] = {
-            "avg_degree_centrality": avg_deg_cent,
-            "avg_degree": avg_degree,
-            "density": density,
-            "avg_clustering_coefficient": avg_clust,
-            "modularity": modularity
-        }
-        print(f"{dyn_name}: Avg Degree Centrality={avg_deg_cent:.4f}, Avg Degree={avg_degree:.2f}, "
-              f"Density={density:.6f}, Avg Clust Coeff={avg_clust:.4f}, Modularity={modularity:.4f}")
-    return results
-
-dynasty_metrics_selected = analyze_dynasty_metrics_selected(dynasty_graphs, selected_dynasties)
-```
-
-Point-form findings:
-
-* Ming is by far the largest dynasty here almost five times laregr than the Song, Tang and Qing.
-* Average Degree is highest in Song.
-* Density decreases with size as expected with Republic of China having the largest. 
-* Song has the highest clustering
-* All have very high modularity which makes sense for family networks. 
-
-```{python}
-def analyze_degree_distributions(dynasty_graphs, dynasty_list):
-    plt.figure(figsize=(15, 10))
-    for i, dyn_name in enumerate(dynasty_list):
-        G = dynasty_graphs.get(dyn_name)
-        if G is None or G.number_of_nodes() == 0:
-            continue
-        degrees = [d for n, d in G.degree()]
-        plt.subplot(2, 3, i+1)
-        plt.hist(degrees, bins=50, alpha=0.7, color=f'C{i}')
-        plt.title(f'{dyn_name} Degree Distribution')
-        plt.xlabel('Degree')
-        plt.ylabel('Frequency')
-        plt.yscale('log')  # Log scale to see heavy tails
-
-        mean_deg = np.mean(degrees)
-        median_deg = np.median(degrees)
-        max_deg = max(degrees)
-        std_deg = np.std(degrees)
-        skewness = stats.skew(degrees)
-
-        print(f"{dyn_name}: Mean={mean_deg:.2f} "
-              f"Std={std_deg:.2f}, Skewness={skewness:.2f}")
-    plt.tight_layout()
-    plt.show()
-
-#Run it 
-analyze_degree_distributions(dynasty_graphs, ['Tang', 'Song', 'Yuan', 'Ming', 'Qing', 'Republic of China'])
-```
-
-We again see the Ming Dynasty has a different distribution than Tang, Song and Qing, but Yuan also has a far more gradual decent with more in the 30 to 40 range than the others. 
-
-**MING ONLY FROM ABOVE:** There are many potential reasons for this, but one that stands out is the Ming Dynasties unique approach to scholar network formation and bureaucratic recruitment, which created a more centralized and hierarchical system compared to other Chinese dynasties. This very selective system created a different social network structure than previous dynasties. The Ming examination system produced a small core of connected scholars and officials who formed the adminstrative portion of the government. Unlike earlier dynasties where multiple pathways to office existed, the Ming system funneled nearly all political advancement through this single, narrow channel. This single channel was a series of exams which 2-3 million applicants would attempt per year with only about a thousand passing. This process lead to a social network which was more evenly connected than previous or future dynasties.  
-
-We will continue our analysis with looking at how many components each dynasty has and their fragmentation and average size. 
-
-Component Analysis 
-```{python}
-new_dynasty_list = ['Tang', 'Song', 'Yuan', 'Ming', 'Qing', 'Republic of China']
-
-def analyze_connected_components(dynasty_graphs, dynasty_list):
-    results = {}
-    for dyn_name in dynasty_list:
-        G = dynasty_graphs.get(dyn_name)
-        if G is None or G.number_of_nodes() == 0:
-            continue
-        # Get connected components
-        components = list(nx.connected_components(G))
-        num_components = len(components)
-        component_sizes = [len(c) for c in components]
-        # Calculate metrics
-        largest_component_size = max(component_sizes) if component_sizes else 0
-        fragmentation_index = 1 - (largest_component_size / G.number_of_nodes()) if G.number_of_nodes() > 0 else None
-        avg_component_size = np.mean(component_sizes) if component_sizes else 0
-        results[dyn_name] = {
-            "num_components": num_components,
-            "largest_component_size": largest_component_size,
-            "fragmentation_index": fragmentation_index,
-            "avg_component_size": avg_component_size,
-            "component_sizes": component_sizes
-        }
-        print(f"{dyn_name}: Components={num_components}, "
-              f"Largest={largest_component_size}, "
-              f"Fragmentation={fragmentation_index:.4f}, "
-              f"Avg Size={avg_component_size:.2f}")
-    return results
-
-# Run the command
-analyze_connected_components(dynasty_graphs, new_dynasty_list);
-```
-
-Point form results:
-
-* Song has by far the largest average size.
-* Tang and Song have far higher fragmentation than Yuan, Ming, Qing and Republic of China
-* Tang and Song both have a very large component while Yuan, Ming, Qing and Republic of China have relatively small ones. 
-
-Temporal Analysis (Maybe)
-
-# 6.0 Next Steps / Ideas
-Next Steps:
-
-* Add some sort of spatial analysis
-* Temporal Analysis for New Method (Find a way with index years)
-
-# 7.0 Citations
+# 6.0 Citations
 
 Al-Taie, M. Z., & Kadry, S. (2017). *Python for graph and network analysis*. Springer. https://doi.org/10.1007/978-3-319-53004-8
 
