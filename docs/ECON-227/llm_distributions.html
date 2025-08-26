@@ -6,9 +6,8 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="author" content="prAxIs UBC Team   Krishaant Pathman, Yash Mali, Kaiyan Zhang">
-<meta name="dcterms.date" content="2025-08-04">
-<meta name="description" content="This notebook aims to explain how large language models (LLMs) work and make predictions through an example of stock price prediction based on historical price data and news sentiment.">
+<meta name="author" content="prAxIs UBC Team   Krishaant Pathmananathan, Yash Mali, Kaiyan Zhang">
+<meta name="dcterms.date" content="2025-08-26">
 
 <title>Praxis - ECON 227 - How Do Large Language Models Predict?</title>
 <style>
@@ -269,12 +268,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
    
   <ul>
   <li><a href="#prerequisite" id="toc-prerequisite" class="nav-link active" data-scroll-target="#prerequisite">Prerequisite</a></li>
-  <li><a href="#introduction-distribution-of-llm-predictions" id="toc-introduction-distribution-of-llm-predictions" class="nav-link" data-scroll-target="#introduction-distribution-of-llm-predictions">Introduction: Distribution of LLM Predictions</a></li>
-  <li><a href="#predicting-stock-prices-from-news-headlines-with-ai" id="toc-predicting-stock-prices-from-news-headlines-with-ai" class="nav-link" data-scroll-target="#predicting-stock-prices-from-news-headlines-with-ai">Predicting Stock Prices from News Headlines with AI</a></li>
+  <li><a href="#introduction-distribution-of-llm-predictions" id="toc-introduction-distribution-of-llm-predictions" class="nav-link" data-scroll-target="#introduction-distribution-of-llm-predictions">1 Introduction: Distribution of LLM Predictions</a></li>
+  <li><a href="#sampling-and-temperature" id="toc-sampling-and-temperature" class="nav-link" data-scroll-target="#sampling-and-temperature">2 Sampling and Temperature</a></li>
+  <li><a href="#predicting-stock-prices-from-news-headlines-with-ai" id="toc-predicting-stock-prices-from-news-headlines-with-ai" class="nav-link" data-scroll-target="#predicting-stock-prices-from-news-headlines-with-ai">3 Predicting Stock Prices from News Headlines with AI</a></li>
   <li><a href="#preview-the-news-data" id="toc-preview-the-news-data" class="nav-link" data-scroll-target="#preview-the-news-data">Preview the News Data</a></li>
-  <li><a href="#classifying-headline-sentiment-with-llm" id="toc-classifying-headline-sentiment-with-llm" class="nav-link" data-scroll-target="#classifying-headline-sentiment-with-llm">Classifying Headline Sentiment with LLM</a></li>
-  <li><a href="#getting-stock-price-data" id="toc-getting-stock-price-data" class="nav-link" data-scroll-target="#getting-stock-price-data">Getting Stock Price Data</a></li>
-  <li><a href="#how-do-ais-feel-about-ai" id="toc-how-do-ais-feel-about-ai" class="nav-link" data-scroll-target="#how-do-ais-feel-about-ai">How Do AIs Feel About AI?</a></li>
+  <li><a href="#classifying-headline-sentiment-with-llm" id="toc-classifying-headline-sentiment-with-llm" class="nav-link" data-scroll-target="#classifying-headline-sentiment-with-llm">4 Classifying Headline Sentiment with LLM</a></li>
+  <li><a href="#getting-stock-price-data" id="toc-getting-stock-price-data" class="nav-link" data-scroll-target="#getting-stock-price-data">5 Getting Stock Price Data</a></li>
+  <li><a href="#how-do-ais-feel-about-ai" id="toc-how-do-ais-feel-about-ai" class="nav-link" data-scroll-target="#how-do-ais-feel-about-ai">6 How Do AIs Feel About AI?</a></li>
   <li><a href="#conclusion" id="toc-conclusion" class="nav-link" data-scroll-target="#conclusion">Conclusion</a></li>
   <li><a href="#key-takeaways" id="toc-key-takeaways" class="nav-link" data-scroll-target="#key-takeaways">Key Takeaways</a></li>
   <li><a href="#glossary" id="toc-glossary" class="nav-link" data-scroll-target="#glossary">Glossary</a></li>
@@ -290,16 +290,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h1 class="title">ECON 227 - How Do Large Language Models Predict?</h1>
   <div class="quarto-categories">
     <div class="quarto-category">Python</div>
-    <div class="quarto-category">LLM</div>
-    <div class="quarto-category">Sentiment Analysis</div>
+    <div class="quarto-category">Language Model Prediction</div>
   </div>
   </div>
 
-<div>
-  <div class="description">
-    This notebook aims to explain how large language models (LLMs) work and make predictions through an example of stock price prediction based on historical price data and news sentiment.
-  </div>
-</div>
 
 
 <div class="quarto-title-meta">
@@ -307,14 +301,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <div>
     <div class="quarto-title-meta-heading">Author</div>
     <div class="quarto-title-meta-contents">
-             <p>prAxIs UBC Team <br> <em>Krishaant Pathman, Yash Mali, Kaiyan Zhang</em> </p>
+             <p>prAxIs UBC Team <br> Krishaant Pathmananathan, Yash Mali, Kaiyan Zhang </p>
           </div>
   </div>
     
     <div>
     <div class="quarto-title-meta-heading">Published</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">4 August 2025</p>
+      <p class="date">26 August 2025</p>
     </div>
   </div>
   
@@ -324,19 +318,27 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 </header>
 
+<p>This notebook explores how large language models (LLMs) work by linking their probability-based predictions to real-world applications. We start with the basics of next-word prediction, then extend the idea to forecasting stock prices using news sentiment.</p>
 <section id="prerequisite" class="level3">
 <h3 class="anchored" data-anchor-id="prerequisite">Prerequisite</h3>
 <p>Before you start, make sure you have the required libraries installed, if not, <strong>uncomment the lines below (i.e.&nbsp;remove the #) and run the cell to install them</strong>:</p>
 <div class="cell" data-execution_count="1">
-<details>
-<summary>Code</summary>
-<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># !pip install yfinance finvizfinance transformers pandas numpy statsmodels holidays plotly ipywidgets </span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># # Core packages</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="co"># !pip install \</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co">#     yfinance \</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="co">#     finvizfinance \</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="co">#     transformers \</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="co">#     pandas \</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co">#     numpy \</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="co">#     statsmodels \</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="co">#     holidays \</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="co">#     plotly \</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="co">#     ipywidgets \</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="co">#     scikit-learn</span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="co"># !pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cpu --quiet</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p><strong>Important:</strong> Run this cell to load the libraries we need for running this notebook.</p>
 <div class="cell" data-execution_count="2">
-<details>
-<summary>Code</summary>
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># load libraries we need to run this notebook</span></span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> glob</span>
@@ -358,11 +360,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> IPython.display <span class="im">import</span> display, clear_output</span>
 <span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.metrics <span class="im">import</span> mean_squared_error, mean_absolute_error</span>
 <span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> forecast_plot <span class="im">import</span> create_plot</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
 </div>
 </section>
 <section id="introduction-distribution-of-llm-predictions" class="level3">
-<h3 class="anchored" data-anchor-id="introduction-distribution-of-llm-predictions">Introduction: Distribution of LLM Predictions</h3>
+<h3 class="anchored" data-anchor-id="introduction-distribution-of-llm-predictions">1 Introduction: Distribution of LLM Predictions</h3>
 <p>Large language models like ChatGPT do something that seems very simple: <strong>Next word prediction</strong>.</p>
 <p>What does that mean? It means that given a sequence of words, the model predicts the next word in the sequence. For example, if the input is “The cat sat on the”, the model might predict “mat” as the next word.</p>
 <p><img src="media/next_word_prediction.png" class="img-fluid"></p>
@@ -384,8 +385,6 @@ P(w_1, w_2, \ldots, w_T) = \prod_{t=1}^T P(w_t\mid w_1, \ldots w_{t-1})
 <p>These models give a probability distribution over the entire vocabulary (all the words the model was trained on). We can then pick the word with the highest probability as the next word or we can sample from this distribution to get more varied (creative) outputs.</p>
 <p>Let’s look at an example of how this works in practice:</p>
 <div class="cell" data-execution_count="3">
-<details>
-<summary>Code</summary>
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>warnings.filterwarnings(<span class="st">"ignore"</span>)</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Example vocabulary</span></span>
@@ -424,14 +423,14 @@ P(w_1, w_2, \ldots, w_T) = \prod_{t=1}^T P(w_t\mid w_1, \ldots w_{t-1})
 <span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
 <span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
 </div>
+</section>
+<section id="sampling-and-temperature" class="level3">
+<h3 class="anchored" data-anchor-id="sampling-and-temperature">2 Sampling and Temperature</h3>
 <p>The example above shows us the process of generating <span class="math inline">\(T=3\)</span>: at each step, the model calculates the conditional probability of the next word and then selects the word with the highest probability to insert into the sentence. The final output we obtain is “buy some milk”.</p>
 <p>To get more creative responses you change the distribution at the output where you pick the next word. Very simply this involves making the distribution sharper or flatter. If you make the distribution sharper, you are more likely to pick the word with the highest probability. If you make it flatter, you are more likely to pick a word that is not the most probable one.</p>
 <p>This is called <strong>temperature</strong>. A higher temperature makes the distribution flatter, while a lower temperature makes it sharper. You would want to use a temperature of more than 1 <span class="math inline">\((1.2-1.5)\)</span> for creative responses, and a temperature of less than 1 <span class="math inline">\((0.1 - 0.5)\)</span> for more focused responses. For a balanced response, you can use a temperature of <span class="math inline">\(0.7-1\)</span>. Another set of parameters are called top-p and top-k sampling.</p>
 <div class="cell" data-execution_count="4">
-<details>
-<summary>Code</summary>
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>warnings.filterwarnings(<span class="st">"ignore"</span>)</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>np.random.seed(<span class="dv">42</span>)</span>
@@ -485,15 +484,12 @@ P(w_1, w_2, \ldots, w_T) = \prod_{t=1}^T P(w_t\mid w_1, \ldots w_{t-1})
 <span id="cb4-51"><a href="#cb4-51" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb4-52"><a href="#cb4-52" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
 <span id="cb4-53"><a href="#cb4-53" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
 </div>
 <p>In the example above, we see how the probability distribution changes with different temperatures. A high temperature (1.5) results in a flatter distribution, meaning the model is more likely to sample from less probable tokens, while a low temperature (0.5) results in a sharper distribution, favoring the most probable tokens.</p>
 <p>Note that while this is with words and language, the same idea applies to any sequential data, like stock prices, weather data, etc. The model looks at what happened before and tries to guess what comes next.</p>
 <p>If you are interested in understanding the inner workings of these models, take a look at the interactive visualization at <a href="https://poloclub.github.io/transformer-explainer/">The Illustrated Transformer</a> . It provides an excellent, hands-on way to explore the core ideas behind modern language models.</p>
 <p>So, just like it guesses the next word in a sentence, it can guess the next day’s temperature or the next movement in a stock price, based on the pattern it sees in the earlier numbers.</p>
 <div class="cell" data-execution_count="5">
-<details>
-<summary>Code</summary>
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">10</span></span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>m <span class="op">=</span> <span class="dv">9</span></span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -519,13 +515,12 @@ P(w_1, w_2, \ldots, w_T) = \prod_{t=1}^T P(w_t\mid w_1, \ldots w_{t-1})
 <span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>plt.title(<span class="st">"Stock price over time."</span>)</span>
 <span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>plt.legend()</span>
 <span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
 </div>
 <p>Typically, when building a model to predict stock prices, you would use more information than just the past prices. For example, you might include things like public sentiment (how people feel about the stock), news headlines, or other features that could influence the price.</p>
 <p>In the examples below, that’s exactly what we’re going to try! We’ll see how adding these extra features can help the model make better predictions about what happens next.</p>
 </section>
 <section id="predicting-stock-prices-from-news-headlines-with-ai" class="level3">
-<h3 class="anchored" data-anchor-id="predicting-stock-prices-from-news-headlines-with-ai">Predicting Stock Prices from News Headlines with AI</h3>
+<h3 class="anchored" data-anchor-id="predicting-stock-prices-from-news-headlines-with-ai">3 Predicting Stock Prices from News Headlines with AI</h3>
 <p>Just like LLMs predict the next word based on the context of prior words:</p>
 <p><span class="math display">\[
 P(w_t \mid w_1, w_2, \ldots, w_{t-1})
@@ -582,8 +577,6 @@ P(w_t \mid w_1, w_2, \ldots, w_{t-1})
 <h3 class="anchored" data-anchor-id="preview-the-news-data">Preview the News Data</h3>
 <p>Here we use the <code>finvizfinance</code> packages to retrieve real-time news headlines for companies like Starbucks (SBUX).</p>
 <div class="cell" data-execution_count="6">
-<details>
-<summary>Code</summary>
 <div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># The code below will give us a snapshot of the 100 most recent news headlines for a particular stock in the last 30 days.  </span></span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> get_news_data(ticker):</span>
@@ -607,31 +600,24 @@ P(w_t \mid w_1, w_2, \ldots, w_{t-1})
 <span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a><span class="co"># Uncomment the line below get a more recent snapshot of the data! </span></span>
 <span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a><span class="co"># SBUX_news_df = get_news_data("SBUX")</span></span>
-<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a><span class="co"># SBUX_news_df.to_csv("data/SBUX_news.csv", index=False)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a><span class="co"># SBUX_news_df.to_csv("datasets/SBUX_news.csv", index=False)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>Let’s look at what the cleaned news data looks like. We’ll start with Starbucks (<code>SBUX</code>).</p>
 <p>Each row is a headline, what website it was from, the date it was published and a ticker indicating what stock it is for.</p>
 <div class="cell" data-execution_count="7">
-<details>
-<summary>Code</summary>
-<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>SBUX_news_df <span class="op">=</span> pd.read_csv(<span class="st">"data/SBUX_news.csv"</span>)</span>
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>SBUX_news_df <span class="op">=</span> pd.read_csv(<span class="st">"datasets/SBUX_news.csv"</span>)</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>SBUX_news_df.head()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
 </div>
 <p>Let’s take a closer look at the news titles. What would you say about their sentiment?</p>
 <div class="cell" data-execution_count="8">
-<details>
-<summary>Code</summary>
 <div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>titles <span class="op">=</span> SBUX_news_df[<span class="st">'Title'</span>].tolist()</span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"News on Starbucks:</span><span class="ch">\n</span><span class="st">"</span>)</span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">5</span>):</span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(titles[i])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i, title <span class="kw">in</span> <span class="bu">enumerate</span>(titles[:<span class="dv">5</span>], start<span class="op">=</span><span class="dv">1</span>):</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>i<span class="sc">}</span><span class="ss">. </span><span class="sc">{</span>title<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 <section id="classifying-headline-sentiment-with-llm" class="level3">
-<h3 class="anchored" data-anchor-id="classifying-headline-sentiment-with-llm">Classifying Headline Sentiment with LLM</h3>
+<h3 class="anchored" data-anchor-id="classifying-headline-sentiment-with-llm">4 Classifying Headline Sentiment with LLM</h3>
 <p>Earlier, we explored how <strong>large language models (LLMs)</strong> predict the <em>next word</em> by learning the probability distribution of possible outcomes based on context.</p>
 <p>Now, we apply a similar idea to <strong>entire sentences</strong>: in this case, financial news headlines. Instead of predicting the next word, the model assigns a probability to each <strong>sentiment category</strong> (e.g.&nbsp;POSITIVE, NEGATIVE, or NEUTRAL).</p>
 <section id="how-it-works" class="level4">
@@ -660,8 +646,6 @@ P(w_t \mid w_1, w_2, \ldots, w_{t-1})
 </blockquote>
 <p>Note that we will skip <code>NEUTRAL</code> news to focus on strong market signals.</p>
 <div class="cell" data-execution_count="9">
-<details>
-<summary>Code</summary>
 <div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>warnings.filterwarnings(<span class="st">"ignore"</span>)</span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Here we are just specifying the classifier (AI model) that decides on a sentiment </span></span>
 <span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -687,43 +671,30 @@ P(w_t \mid w_1, w_2, \ldots, w_{t-1})
 <span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a>    grouped[<span class="st">"7day_pct_positive"</span>] <span class="op">=</span> grouped[<span class="st">"POSITIVE"</span>] <span class="op">/</span> (grouped[<span class="st">"POSITIVE"</span>] <span class="op">+</span> grouped[<span class="st">"NEGATIVE"</span>])</span>
 <span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> grouped.reset_index()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
 </div>
 <p>Let’s use our model to see wether the sentence “I hate bananas” is negative or positive</p>
 <blockquote class="blockquote">
 <p><em>Try changing the words inside classify sentiment to see wether its is classified positive or negative</em></p>
 </blockquote>
 <div class="cell" data-execution_count="10">
-<details>
-<summary>Code</summary>
 <div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>classify_sentiment(<span class="st">"I hate bananas"</span>)        <span class="co"># You can change the words inside the function to test anything you want! </span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
 </div>
 <p>Now let’s apply this to our entire <code>SBUX_news_df</code> and see how each news headline is classified.</p>
 <div class="cell" data-execution_count="11">
-<details>
-<summary>Code</summary>
 <div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>news_df <span class="op">=</span> apply_sentiment(SBUX_news_df)       <span class="co"># Classify sentiment of each Starbucks news headline</span></span>
 <span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>news_df.head()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
 </div>
 <div class="cell" data-execution_count="12">
-<details>
-<summary>Code</summary>
 <div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"News Titles and Sentiments</span><span class="ch">\n</span><span class="st">"</span>)</span>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i, row <span class="kw">in</span> news_df.iterrows():</span>
 <span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> i <span class="op">&lt;</span> <span class="dv">5</span>:</span>
 <span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"Title: </span><span class="sc">{</span>row[<span class="st">'Title'</span>]<span class="sc">}</span><span class="ch">\n</span><span class="ss">Sentiment: </span><span class="sc">{</span>row[<span class="st">'Sentiment'</span>]<span class="sc">}</span><span class="ch">\n</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
 </div>
 <p>Let’s summarize the sentiment results by date. For each day we count the number of positive and negative headlines, then calculate 7-day moving averages and the daily percentage of positive news. This gives us a quick overview of news sentiment trends over time.</p>
 <div class="cell" data-execution_count="13">
-<details>
-<summary>Code</summary>
 <div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>sentiment_df <span class="op">=</span> process_sentiment(news_df)       <span class="co"># Summarize daily sentiment statistics</span></span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>sentiment_df.head()                             <span class="co"># Display the first 5 rows of the dataframe</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
 </div>
 </section>
 <section id="what-this-table-shows" class="level4">
@@ -744,12 +715,10 @@ This table lets us track how optimism or pessimism is <strong>building up over t
 </section>
 </section>
 <section id="getting-stock-price-data" class="level3">
-<h3 class="anchored" data-anchor-id="getting-stock-price-data">Getting Stock Price Data</h3>
-<p>We are using the <code>yfinance</code> package to get real stock price data directly from Yahoo Finance. The function below helps us download historical stock prices and compute the daily percentage change in the stock’s closing price. To make sure our results are replicable, this data has been saved as a <code>.csv</code> file “data/NVDA_snapshot.csv”</p>
+<h3 class="anchored" data-anchor-id="getting-stock-price-data">5 Getting Stock Price Data</h3>
+<p>We are using the <code>yfinance</code> package to get real stock price data directly from Yahoo Finance. The function below helps us download historical stock prices and compute the daily percentage change in the stock’s closing price. To make sure our results are replicable, this data has been saved as a <code>.csv</code> file “datasets/SBUX_price.csv”</p>
 <p>This allows us to analyze how stock prices change over time.</p>
 <div class="cell" data-execution_count="14">
-<details>
-<summary>Code</summary>
 <div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co"># The code below will give us a snapshot of stock prices for the duration in we have news headlines for.  </span></span>
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> get_stock_data(ticker, start, end):</span>
@@ -785,23 +754,19 @@ This table lets us track how optimism or pessimism is <strong>building up over t
 <span id="cb14-33"><a href="#cb14-33" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb14-34"><a href="#cb14-34" aria-hidden="true" tabindex="-1"></a><span class="co"># Uncomment the line below get a more recent snapshot of the data ! </span></span>
 <span id="cb14-35"><a href="#cb14-35" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-36"><a href="#cb14-36" aria-hidden="true" tabindex="-1"></a>SBUX_news_df[<span class="st">"DateOnly"</span>] <span class="op">=</span> pd.to_datetime(SBUX_news_df[<span class="st">"DateOnly"</span>])</span>
-<span id="cb14-37"><a href="#cb14-37" aria-hidden="true" tabindex="-1"></a>start_date <span class="op">=</span> SBUX_news_df[<span class="st">"DateOnly"</span>].<span class="bu">min</span>() <span class="op">-</span> pd.Timedelta(days<span class="op">=</span><span class="dv">1</span>) </span>
-<span id="cb14-38"><a href="#cb14-38" aria-hidden="true" tabindex="-1"></a>end_date <span class="op">=</span> SBUX_news_df[<span class="st">"DateOnly"</span>].<span class="bu">max</span>() <span class="op">+</span> pd.Timedelta(days<span class="op">=</span><span class="dv">1</span>) </span>
-<span id="cb14-39"><a href="#cb14-39" aria-hidden="true" tabindex="-1"></a>stock_df <span class="op">=</span> get_stock_data(<span class="st">"SBUX"</span>, start_date, end_date)</span>
-<span id="cb14-40"><a href="#cb14-40" aria-hidden="true" tabindex="-1"></a>stock_df.to_csv(<span class="st">"data/SBUX_price.csv"</span>, index<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb14-36"><a href="#cb14-36" aria-hidden="true" tabindex="-1"></a><span class="co"># SBUX_news_df["DateOnly"] = pd.to_datetime(SBUX_news_df["DateOnly"])</span></span>
+<span id="cb14-37"><a href="#cb14-37" aria-hidden="true" tabindex="-1"></a><span class="co"># start_date = SBUX_news_df["DateOnly"].min() - pd.Timedelta(days=1) </span></span>
+<span id="cb14-38"><a href="#cb14-38" aria-hidden="true" tabindex="-1"></a><span class="co"># end_date = SBUX_news_df["DateOnly"].max() + pd.Timedelta(days=1) </span></span>
+<span id="cb14-39"><a href="#cb14-39" aria-hidden="true" tabindex="-1"></a><span class="co"># stock_df = get_stock_data("SBUX", start_date, end_date)</span></span>
+<span id="cb14-40"><a href="#cb14-40" aria-hidden="true" tabindex="-1"></a><span class="co"># stock_df.to_csv("datasets/SBUX_price.csv", index=False)</span></span>
 <span id="cb14-41"><a href="#cb14-41" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-42"><a href="#cb14-42" aria-hidden="true" tabindex="-1"></a>SBUX_price_df <span class="op">=</span> pd.read_csv(<span class="st">"data/SBUX_price.csv"</span>)</span>
+<span id="cb14-42"><a href="#cb14-42" aria-hidden="true" tabindex="-1"></a>SBUX_price_df <span class="op">=</span> pd.read_csv(<span class="st">"datasets/SBUX_price.csv"</span>)</span>
 <span id="cb14-43"><a href="#cb14-43" aria-hidden="true" tabindex="-1"></a>SBUX_price_df.head()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
 </div>
 <p>Now we bring together the sentiment summary data and the stock price changes. By merging these two datasets, we can analyze how changes in news sentiment might be related to changes in Starbucks’ stock price. This combined dataset will help us answer the question: “Does positive news sentiment lead to an increase in stock price?”</p>
 <div class="cell" data-execution_count="15">
-<details>
-<summary>Code</summary>
-<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>combined_df <span class="op">=</span> combine_data(sentiment_df, stock_df)</span>
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>combined_df <span class="op">=</span> combine_data(sentiment_df, SBUX_price_df)</span>
 <span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>combined_df</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
 </div>
 <section id="forecasting-future-stock-changes-with-sentiment" class="level4">
 <h4 class="anchored" data-anchor-id="forecasting-future-stock-changes-with-sentiment">Forecasting Future Stock Changes with Sentiment</h4>
@@ -814,8 +779,6 @@ This table lets us track how optimism or pessimism is <strong>building up over t
 <p>Next, we will use a pre-defined <code>create_plot()</code> function to generate an interactive line chart that visualizes both stock price percentage changes and sentiment trends over time. This allows us to explore the relationship between market sentiment and stock performance in a clear, interactive way.</p>
 <p>By combining these functions, we can see how shifts in news sentiment may impact SBUX’s future stock movements. The forecasting approach essentially answers the question: “Given recent sentiment, what does the model predict for this stock’s price in the coming days?”</p>
 <div class="cell" data-execution_count="16">
-<details>
-<summary>Code</summary>
 <div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="co"># business days we should forecast for </span></span>
 <span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> get_future_dates(start_date, num_days):</span>
 <span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="kw">not</span> <span class="bu">isinstance</span>(start_date, pd.Timestamp):</span>
@@ -847,7 +810,6 @@ This table lets us track how optimism or pessimism is <strong>building up over t
 <span id="cb16-29"><a href="#cb16-29" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb16-30"><a href="#cb16-30" aria-hidden="true" tabindex="-1"></a>    forecast <span class="op">=</span> fit.get_forecast(steps<span class="op">=</span>forecast_steps, exog<span class="op">=</span>future_exog)</span>
 <span id="cb16-31"><a href="#cb16-31" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> forecast.predicted_mean, forecast.conf_int(), future_dates</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
 </div>
 </section>
 <section id="plot-sentiment-vs-stock-change-forecast" class="level4">
@@ -863,15 +825,12 @@ This table lets us track how optimism or pessimism is <strong>building up over t
 <p>This plot helps us visualize correlations and test basic forecasting using real-world data like stock prices and media sentiment.</p>
 </blockquote>
 <div class="cell" data-execution_count="17">
-<details>
-<summary>Code</summary>
 <div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>combined_df[<span class="st">'DateOnly'</span>] <span class="op">=</span> pd.to_datetime(combined_df[<span class="st">'DateOnly'</span>])  <span class="co"># convert to datetime</span></span>
 <span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>combined_df.set_index(<span class="st">'DateOnly'</span>, inplace<span class="op">=</span><span class="va">True</span>)  <span class="co"># use as index</span></span>
 <span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>combined_df.sort_index(inplace<span class="op">=</span><span class="va">True</span>)  <span class="co"># ensure time order</span></span>
 <span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>forecast_mean, forecast_ci, forecast_index <span class="op">=</span> fit_and_forecast(combined_df)</span>
 <span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>create_plot(combined_df, forecast_mean, forecast_ci, forecast_index)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
 </div>
 <blockquote class="blockquote">
 <p><strong>Disclaimer</strong>: This is a simplified model. In reality, stock prices are influenced by many factors, such as interest rates, earnings reports, geopolitical events, and investor speculation. This chart only considers one variable: news sentiment. It should not be used for actual trading decisions.</p>
@@ -882,15 +841,13 @@ This table lets us track how optimism or pessimism is <strong>building up over t
 </section>
 </section>
 <section id="how-do-ais-feel-about-ai" class="level3">
-<h3 class="anchored" data-anchor-id="how-do-ais-feel-about-ai">How Do AIs Feel About AI?</h3>
-<p>In this section of the notebook, we explore how our AI Sentiment Analysis model** feels about AI-related stocks. That’s a mouthful!</p>
+<h3 class="anchored" data-anchor-id="how-do-ais-feel-about-ai">6 How Do AIs Feel About AI?</h3>
+<p>In this section of the notebook, we explore how our <strong>AI Sentiment Analysis model</strong> feels about AI-related stocks. That’s a mouthful!</p>
 <p>The goal is to see if public sentiment (as captured by the headlines) is generally optimistic or pessimistic toward leading AI companies — as interpreted by another AI (we are using BERT here!).</p>
 <p>We’ll start by selecting the <a href="https://www.forbes.com/advisor/investing/best-ai-stocks/">top 10 AI stocks in 2025</a> as suggested by financial news magazine, Forbes - <code>ACN</code> (Accenture) - <code>ADBE</code> (Adobe) - <code>AMD</code> (Advanced Micro Devices) - <code>APP</code> (Applovin) - <code>AVGO</code> (Broadcom) - <code>CRM</code> (Salesforce) - <code>MRVL</code> (Marvell Technology) - <code>MU</code> (Micron Technology) - <code>NVDA</code> (NVIDIA) - <code>QCOM</code> (Qualcomm)</p>
 <p>For each company, we will: 2. Classify the sentiment using our <code>RoBERTa</code>-based model 1. Pull recent news headlines 3. Analyze the <strong>7-day rolling trends</strong> in public sentiment 4. Compare results across companies</p>
 <p>Let’s find out if the machines love themselves ?</p>
 <div class="cell" data-execution_count="18">
-<details>
-<summary>Code</summary>
 <div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co"># This code collects recent news headlines for each company in our AI stock list. It uses our  `get_news_data()` which we defined above. </span></span>
 <span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>ai_tickers <span class="op">=</span> [<span class="st">"ACN"</span>, <span class="st">"ADBE"</span>, <span class="st">"AMD"</span>, <span class="st">"APP"</span>, <span class="st">"AVGO"</span>, <span class="st">"CRM"</span>, <span class="st">"MRVL"</span>, <span class="st">"MU"</span>, <span class="st">"NVDA"</span>, <span class="st">"QCOM"</span>] <span class="co"># Top 10 AI stocks </span></span>
@@ -915,24 +872,18 @@ This table lets us track how optimism or pessimism is <strong>building up over t
 <span id="cb18-22"><a href="#cb18-22" aria-hidden="true" tabindex="-1"></a><span class="co"># Uncomment the line below get a more recent snapshot of the data !</span></span>
 <span id="cb18-23"><a href="#cb18-23" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb18-24"><a href="#cb18-24" aria-hidden="true" tabindex="-1"></a><span class="co"># Usage :</span></span>
-<span id="cb18-25"><a href="#cb18-25" aria-hidden="true" tabindex="-1"></a>AI_combined_news_df <span class="op">=</span> fetch_all_news(ai_tickers)</span>
-<span id="cb18-26"><a href="#cb18-26" aria-hidden="true" tabindex="-1"></a><span class="co">#AI_combined_news_df = pd.concat(all_news, ignore_index=True)</span></span>
-<span id="cb18-27"><a href="#cb18-27" aria-hidden="true" tabindex="-1"></a>AI_combined_news_df.to_csv(<span class="st">"data/AI_news_snapshot.csv"</span>, index<span class="op">=</span><span class="va">False</span>)</span>
-<span id="cb18-28"><a href="#cb18-28" aria-hidden="true" tabindex="-1"></a>AI_sentiment_news_df <span class="op">=</span> apply_sentiment(AI_combined_news_df)         </span>
-<span id="cb18-29"><a href="#cb18-29" aria-hidden="true" tabindex="-1"></a>AI_sentiment_news_df.to_csv(<span class="st">"data/AI_news_sentiment.csv"</span>, index<span class="op">=</span><span class="va">False</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
+<span id="cb18-25"><a href="#cb18-25" aria-hidden="true" tabindex="-1"></a><span class="co"># AI_combined_news_df = fetch_all_news(ai_tickers)</span></span>
+<span id="cb18-26"><a href="#cb18-26" aria-hidden="true" tabindex="-1"></a><span class="co"># #AI_combined_news_df = pd.concat(all_news, ignore_index=True)</span></span>
+<span id="cb18-27"><a href="#cb18-27" aria-hidden="true" tabindex="-1"></a><span class="co"># AI_combined_news_df.to_csv("datasets/AI_news_snapshot.csv", index=False)</span></span>
+<span id="cb18-28"><a href="#cb18-28" aria-hidden="true" tabindex="-1"></a><span class="co"># AI_sentiment_news_df = apply_sentiment(AI_combined_news_df)         </span></span>
+<span id="cb18-29"><a href="#cb18-29" aria-hidden="true" tabindex="-1"></a><span class="co"># AI_sentiment_news_df.to_csv("datasets/AI_news_sentiment.csv", index=False)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <div class="cell" data-execution_count="19">
-<details>
-<summary>Code</summary>
-<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>AI_sentiment_news_df <span class="op">=</span> pd.read_csv(<span class="st">"data/AI_news_sentiment.csv"</span>)</span>
+<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>AI_sentiment_news_df <span class="op">=</span> pd.read_csv(<span class="st">"datasets/AI_news_sentiment.csv"</span>)</span>
 <span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>AI_sentiment_news_df.head()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
 </div>
 <p>This<code>AI_process_sentiment</code> does for a bunch of companies what we did for SBUX. It automatically collect all their news headlines and put them in one place for analysis.</p>
 <div class="cell" data-execution_count="20">
-<details>
-<summary>Code</summary>
 <div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> AI_process_sentiment(news_df):</span>
 <span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>    filtered <span class="op">=</span> news_df[news_df[<span class="st">"Sentiment"</span>].isin([<span class="st">"POSITIVE"</span>, <span class="st">"NEGATIVE"</span>])].copy()</span>
 <span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -974,16 +925,13 @@ This table lets us track how optimism or pessimism is <strong>building up over t
 <span id="cb20-39"><a href="#cb20-39" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb20-40"><a href="#cb20-40" aria-hidden="true" tabindex="-1"></a>AI_sentiment_df <span class="op">=</span> AI_process_sentiment(AI_sentiment_news_df)</span>
 <span id="cb20-41"><a href="#cb20-41" aria-hidden="true" tabindex="-1"></a>AI_sentiment_df.head()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
 </div>
 <section id="like-we-did-with-the-sbux-stock-above-lets-get-stock-prices-for-all-of-our-ai-stocks-now." class="level4">
 <h4 class="anchored" data-anchor-id="like-we-did-with-the-sbux-stock-above-lets-get-stock-prices-for-all-of-our-ai-stocks-now.">Like we did with the <code>SBUX</code> stock above let’s get stock prices for all of our AI stocks now.</h4>
 <div class="cell" data-execution_count="21">
-<details>
-<summary>Code</summary>
 <div class="sourceCode cell-code" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Match date range to your sentiment dataset</span></span>
-<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>start_date <span class="op">=</span> pd.to_datetime(AI_combined_news_df[<span class="st">"DateOnly"</span>]).<span class="bu">min</span>() <span class="op">-</span> pd.Timedelta(days<span class="op">=</span><span class="dv">1</span>)</span>
-<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>end_date <span class="op">=</span> pd.to_datetime(AI_combined_news_df[<span class="st">"DateOnly"</span>]).<span class="bu">max</span>()</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>start_date <span class="op">=</span> pd.to_datetime(AI_sentiment_df[<span class="st">"DateOnly"</span>]).<span class="bu">min</span>() <span class="op">-</span> pd.Timedelta(days<span class="op">=</span><span class="dv">1</span>)</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>end_date <span class="op">=</span> pd.to_datetime(AI_sentiment_df[<span class="st">"DateOnly"</span>]).<span class="bu">max</span>()</span>
 <span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> fetch_and_save_stock_data(ticker_list, start_date, end_date, save_dir<span class="op">=</span><span class="st">"data/ai_prices"</span>):</span>
 <span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
@@ -1011,16 +959,13 @@ This table lets us track how optimism or pessimism is <strong>building up over t
 <span id="cb21-28"><a href="#cb21-28" aria-hidden="true" tabindex="-1"></a><span class="co"># price_files = glob.glob("data/ai_prices/*.csv")</span></span>
 <span id="cb21-29"><a href="#cb21-29" aria-hidden="true" tabindex="-1"></a><span class="co"># price_dfs = [pd.read_csv(f) for f in price_files]</span></span>
 <span id="cb21-30"><a href="#cb21-30" aria-hidden="true" tabindex="-1"></a><span class="co"># AI_combined_price_df = pd.concat(price_dfs, ignore_index=True)</span></span>
-<span id="cb21-31"><a href="#cb21-31" aria-hidden="true" tabindex="-1"></a><span class="co"># AI_combined_price_df.to_csv("data/AI_top10_price_snapshot.csv", index=False)</span></span>
+<span id="cb21-31"><a href="#cb21-31" aria-hidden="true" tabindex="-1"></a><span class="co"># AI_combined_price_df.to_csv("datasets/AI_top10_price_snapshot.csv", index=False)</span></span>
 <span id="cb21-32"><a href="#cb21-32" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-33"><a href="#cb21-33" aria-hidden="true" tabindex="-1"></a>AI_stock_prices <span class="op">=</span> pd.read_csv(<span class="st">"data/AI_top10_price_snapshot.csv"</span>)</span>
+<span id="cb21-33"><a href="#cb21-33" aria-hidden="true" tabindex="-1"></a>AI_stock_prices <span class="op">=</span> pd.read_csv(<span class="st">"datasets/AI_top10_price_snapshot.csv"</span>)</span>
 <span id="cb21-34"><a href="#cb21-34" aria-hidden="true" tabindex="-1"></a>AI_stock_prices.head()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
 </div>
 <p>As we did before let’s merge everything into one dataframe to analyse it!</p>
 <div class="cell" data-execution_count="22">
-<details>
-<summary>Code</summary>
 <div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Ensure both DateOnly columns are datetime</span></span>
 <span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>AI_sentiment_df[<span class="st">'DateOnly'</span>] <span class="op">=</span> pd.to_datetime(AI_sentiment_df[<span class="st">'DateOnly'</span>])</span>
 <span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>AI_stock_prices[<span class="st">'DateOnly'</span>] <span class="op">=</span> pd.to_datetime(AI_stock_prices[<span class="st">'DateOnly'</span>])</span>
@@ -1034,12 +979,9 @@ This table lets us track how optimism or pessimism is <strong>building up over t
 <span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb22-12"><a href="#cb22-12" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb22-13"><a href="#cb22-13" aria-hidden="true" tabindex="-1"></a>final_df.head()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
 </div>
 <p>Similar to our approach with the <code>SBUX</code> stock price, we can fit a SARIMAX model to this combined dataset and forecast the percentage change in AI stock prices for the next 7 business days, using both historical price trends and recent news sentiment as inputs.</p>
 <div class="cell" data-execution_count="23">
-<details>
-<summary>Code</summary>
 <div class="sourceCode cell-code" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> fit_and_forecast(final_df, forecast_steps<span class="op">=</span><span class="dv">7</span>):</span>
 <span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>    <span class="im">from</span> statsmodels.tsa.statespace.sarimax <span class="im">import</span> SARIMAX</span>
 <span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>    <span class="im">import</span> numpy <span class="im">as</span> np</span>
@@ -1070,11 +1012,8 @@ This table lets us track how optimism or pessimism is <strong>building up over t
 <span id="cb23-28"><a href="#cb23-28" aria-hidden="true" tabindex="-1"></a>    forecast_index <span class="op">=</span> pd.date_range(start<span class="op">=</span>last_date <span class="op">+</span> pd.Timedelta(days<span class="op">=</span><span class="dv">1</span>), periods<span class="op">=</span>forecast_steps, freq<span class="op">=</span><span class="st">'B'</span>)</span>
 <span id="cb23-29"><a href="#cb23-29" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb23-30"><a href="#cb23-30" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> forecast_mean, forecast_ci, forecast_index</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
 </div>
 <div class="cell" data-execution_count="24">
-<details>
-<summary>Code</summary>
 <div class="sourceCode cell-code" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>final_df <span class="op">=</span> final_df.copy()</span>
 <span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Sort and index</span></span>
@@ -1093,15 +1032,12 @@ This table lets us track how optimism or pessimism is <strong>building up over t
 <span id="cb24-16"><a href="#cb24-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Now call</span></span>
 <span id="cb24-17"><a href="#cb24-17" aria-hidden="true" tabindex="-1"></a>forecast_mean, forecast_ci, forecast_index <span class="op">=</span> fit_and_forecast(final_df)</span>
 <span id="cb24-18"><a href="#cb24-18" aria-hidden="true" tabindex="-1"></a>create_plot(final_df, forecast_mean, forecast_ci, forecast_index)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
 </div>
 </section>
 <section id="how-well-does-the-model-predict" class="level4">
 <h4 class="anchored" data-anchor-id="how-well-does-the-model-predict">How well does the model predict?</h4>
 <p>We can fetch the actual data to see how well our model predicts the AI stocks.</p>
 <div class="cell" data-execution_count="25">
-<details>
-<summary>Code</summary>
 <div class="sourceCode cell-code" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create function to generate the compare window</span></span>
 <span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> get_compare_window(compare_start, compare_target_end):</span>
 <span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -1179,7 +1115,6 @@ This table lets us track how optimism or pessimism is <strong>building up over t
 <span id="cb25-75"><a href="#cb25-75" aria-hidden="true" tabindex="-1"></a>    metrics <span class="op">=</span> {<span class="st">'count'</span>: <span class="bu">len</span>(mdf), <span class="st">'MAE'</span>: mae, <span class="st">'RMSE'</span>: rmse}</span>
 <span id="cb25-76"><a href="#cb25-76" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb25-77"><a href="#cb25-77" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> mdf, metrics</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
 </div>
 <p>The evaluation metrics we use are the <strong>Mean Absolute Error (MAE)</strong> and <strong>Root Mean Squared Error (RMSE)</strong>, which measure how far off our predictions are from the actual stock price changes.</p>
 <p>The MAE is the average of the absolute differences between predicted and actual values, while the RMSE is the square root of the average of squared differences. Usually, lower values of these metrics indicate better model performance.</p>
@@ -1190,8 +1125,6 @@ This table lets us track how optimism or pessimism is <strong>building up over t
 \]</span></p>
 <p>However, we must note that these metrics are not unitless, meaning they depend on the scale of the data. In our case, since we are predicting percentage changes in stock prices, the MAE and RMSE will be in percentage points.</p>
 <div class="cell" data-execution_count="26">
-<details>
-<summary>Code</summary>
 <div class="sourceCode cell-code" id="cb26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Fit the previous example for comparison</span></span>
 <span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>compare_start <span class="op">=</span> forecast_index[<span class="dv">0</span>]</span>
 <span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>compare_target_end <span class="op">=</span> forecast_index[<span class="op">-</span><span class="dv">1</span>]</span>
@@ -1210,15 +1143,11 @@ This table lets us track how optimism or pessimism is <strong>building up over t
 <span id="cb26-16"><a href="#cb26-16" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb26-17"><a href="#cb26-17" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="kw">not</span> mdf.empty:</span>
 <span id="cb26-18"><a href="#cb26-18" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(mdf.head())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
 </div>
 <p>Now, with the actual stock price data, let’s visualize it in the plot alongside our predictions to see if our confidence intervals capture the actual movements well.</p>
 <div class="cell" data-execution_count="27">
-<details>
-<summary>Code</summary>
 <div class="sourceCode cell-code" id="cb27"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Visualize the comparison and evaluate the confidence intervals</span></span>
 <span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>create_plot(final_df, forecast_mean, forecast_ci, forecast_index, actuals_df)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
 </div>
 <blockquote class="blockquote">
 <ul>
