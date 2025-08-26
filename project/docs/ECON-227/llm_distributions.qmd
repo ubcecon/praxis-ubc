@@ -1,31 +1,40 @@
 ---
-title: ECON 227 - How Do Large Language Models Predict?
-date: '2025-08-04'
-author: prAxIs UBC Team <br> _Krishaant Pathman, Yash Mali, Kaiyan Zhang_
-description: Discover how large language models (LLMs) work and make predictions through an example of stock price prediction based on historical price data and news sentiment.
+title: "ECON 227 - How Do Large Language Models Predict?"
+date: '2025-08-26'
+author: prAxIs UBC Team <br> Krishaant Pathmananathan, Yash Mali, Kaiyan Zhang
 categories:
   - Python
-  - LLM
-  - Sentiment Analysis
+  - Language Model Prediction
 format:
-  html:
-    code-fold: true
-    code-summary: Show the code
+  html: default
   ipynb:
     jupyter:
       kernelspec:
         display_name: Python
         language: python3
         name: python3
-jupyter: python3
 ---
+
+This notebook explores how large language models (LLMs) work by linking their probability-based predictions to real-world applications. We start with the basics of next-word prediction, then extend the idea to forecasting stock prices using news sentiment.
 
 ### Prerequisite
 
 Before you start, make sure you have the required libraries installed, if not, **uncomment the lines below (i.e. remove the #) and run the cell to install them**:
 
 ```{python}
-# !pip install yfinance finvizfinance transformers pandas numpy statsmodels holidays plotly ipywidgets 
+# # Core packages
+# !pip install \
+#     yfinance \
+#     finvizfinance \
+#     transformers \
+#     pandas \
+#     numpy \
+#     statsmodels \
+#     holidays \
+#     plotly \
+#     ipywidgets \
+#     scikit-learn
+# !pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cpu --quiet
 ```
 
 **Important:** Run this cell to load the libraries we need for running this notebook. 
@@ -54,7 +63,7 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error
 from forecast_plot import create_plot
 ```
 
-### Introduction: Distribution of LLM Predictions
+### 1 Introduction: Distribution of LLM Predictions
 
 Large language models like ChatGPT do something that seems very simple: **Next word prediction**.
 
@@ -132,6 +141,8 @@ for i, ax in enumerate(axes):
 plt.tight_layout()
 plt.show()
 ```
+
+### 2 Sampling and Temperature
 
 The example above shows us the process of generating $T=3$: at each step, the model calculates the conditional probability of the next word and then selects the word with the highest probability to insert into the sentence. The final output we obtain is "buy some milk".
 
@@ -238,7 +249,7 @@ Typically, when building a model to predict stock prices, you would use more inf
 
 In the examples below, that's exactly what we're going to try! We'll see how adding these extra features can help the model make better predictions about what happens next.
 
-### Predicting Stock Prices from News Headlines with AI
+### 3 Predicting Stock Prices from News Headlines with AI
 
 Just like LLMs predict the next word based on the context of prior words:
 
@@ -301,7 +312,7 @@ def get_news_data(ticker):
 
 # Uncomment the line below get a more recent snapshot of the data! 
 # SBUX_news_df = get_news_data("SBUX")
-# SBUX_news_df.to_csv("data/SBUX_news.csv", index=False)
+# SBUX_news_df.to_csv("datasets/SBUX_news.csv", index=False)
 ```
 
 Let's look at what the cleaned news data looks like. We'll start with Starbucks (`SBUX`).
@@ -309,7 +320,7 @@ Let's look at what the cleaned news data looks like. We'll start with Starbucks 
 Each row is a headline, what website it was from, the date it was published and a ticker indicating what stock it is for. 
 
 ```{python}
-SBUX_news_df = pd.read_csv("data/SBUX_news.csv")
+SBUX_news_df = pd.read_csv("datasets/SBUX_news.csv")
 SBUX_news_df.head()
 ```
 
@@ -318,11 +329,11 @@ Let's take a closer look at the news titles. What would you say about their sent
 ```{python}
 titles = SBUX_news_df['Title'].tolist()
 print("News on Starbucks:\n")
-for i in range(5):
-    print(titles[i])
+for i, title in enumerate(titles[:5], start=1):
+    print(f"{i}. {title}")
 ```
 
-### Classifying Headline Sentiment with LLM
+### 4 Classifying Headline Sentiment with LLM
 
 Earlier, we explored how **large language models (LLMs)** predict the *next word* by learning the probability distribution of possible outcomes based on context.
 
@@ -431,9 +442,9 @@ This table lets us track how optimism or pessimism is **building up over time**,
 - If it's dropping, it could mean public or investor concern is growing.
 - We can later plot this and compare it against stock price to see if sentiment influences market behavior.
 
-### Getting Stock Price Data 
+### 5 Getting Stock Price Data 
 
-We are using the `yfinance` package to get real stock price data directly from Yahoo Finance. The function below helps us download historical stock prices and compute the daily percentage change in the stock's closing price. To make sure our results are replicable, this data has been saved as a `.csv` file "data/NVDA_snapshot.csv"
+We are using the `yfinance` package to get real stock price data directly from Yahoo Finance. The function below helps us download historical stock prices and compute the daily percentage change in the stock's closing price. To make sure our results are replicable, this data has been saved as a `.csv` file "datasets/SBUX_price.csv"
 
 This allows us to analyze how stock prices change over time.
 
@@ -473,20 +484,20 @@ def combine_data(sent_df, stock_df):
 
 # Uncomment the line below get a more recent snapshot of the data ! 
 
-SBUX_news_df["DateOnly"] = pd.to_datetime(SBUX_news_df["DateOnly"])
-start_date = SBUX_news_df["DateOnly"].min() - pd.Timedelta(days=1) 
-end_date = SBUX_news_df["DateOnly"].max() + pd.Timedelta(days=1) 
-stock_df = get_stock_data("SBUX", start_date, end_date)
-stock_df.to_csv("data/SBUX_price.csv", index=False)
+# SBUX_news_df["DateOnly"] = pd.to_datetime(SBUX_news_df["DateOnly"])
+# start_date = SBUX_news_df["DateOnly"].min() - pd.Timedelta(days=1) 
+# end_date = SBUX_news_df["DateOnly"].max() + pd.Timedelta(days=1) 
+# stock_df = get_stock_data("SBUX", start_date, end_date)
+# stock_df.to_csv("datasets/SBUX_price.csv", index=False)
 
-SBUX_price_df = pd.read_csv("data/SBUX_price.csv")
+SBUX_price_df = pd.read_csv("datasets/SBUX_price.csv")
 SBUX_price_df.head()
 ```
 
 Now we bring together the sentiment summary data and the stock price changes. By merging these two datasets, we can analyze how changes in news sentiment might be related to changes in Starbucks' stock price. This combined dataset will help us answer the question: "Does positive news sentiment lead to an increase in stock price?" 
 
 ```{python}
-combined_df = combine_data(sentiment_df, stock_df)
+combined_df = combine_data(sentiment_df, SBUX_price_df)
 combined_df
 ```
 
@@ -535,7 +546,6 @@ def fit_and_forecast(combined_df, forecast_steps=3):
 
     forecast = fit.get_forecast(steps=forecast_steps, exog=future_exog)
     return forecast.predicted_mean, forecast.conf_int(), future_dates
-
 ```
 
 #### Plot: Sentiment vs Stock % Change Forecast
@@ -563,9 +573,9 @@ create_plot(combined_df, forecast_mean, forecast_ci, forecast_index)
 
 > *Think about what you would include in a model other than news to help us predict how a stock price might change ?*
 
-### How Do AIs Feel About AI?
+### 6 How Do AIs Feel About AI?
 
-In this section of the notebook, we explore how our AI Sentiment Analysis model** feels about AI-related stocks. That's a mouthful! 
+In this section of the notebook, we explore how our **AI Sentiment Analysis model** feels about AI-related stocks. That's a mouthful! 
 
 The goal is to see if public sentiment (as captured by the headlines) is generally optimistic or pessimistic toward leading AI companies — as interpreted by another AI (we are using BERT here!).
 
@@ -614,15 +624,15 @@ def fetch_all_news(ticker_list):
 # Uncomment the line below get a more recent snapshot of the data !
 
 # Usage :
-AI_combined_news_df = fetch_all_news(ai_tickers)
-#AI_combined_news_df = pd.concat(all_news, ignore_index=True)
-AI_combined_news_df.to_csv("data/AI_news_snapshot.csv", index=False)
-AI_sentiment_news_df = apply_sentiment(AI_combined_news_df)         
-AI_sentiment_news_df.to_csv("data/AI_news_sentiment.csv", index=False)
+# AI_combined_news_df = fetch_all_news(ai_tickers)
+# #AI_combined_news_df = pd.concat(all_news, ignore_index=True)
+# AI_combined_news_df.to_csv("datasets/AI_news_snapshot.csv", index=False)
+# AI_sentiment_news_df = apply_sentiment(AI_combined_news_df)         
+# AI_sentiment_news_df.to_csv("datasets/AI_news_sentiment.csv", index=False)
 ```
 
 ```{python}
-AI_sentiment_news_df = pd.read_csv("data/AI_news_sentiment.csv")
+AI_sentiment_news_df = pd.read_csv("datasets/AI_news_sentiment.csv")
 AI_sentiment_news_df.head()
 ```
 
@@ -676,8 +686,8 @@ AI_sentiment_df.head()
 
 ```{python}
 # Match date range to your sentiment dataset
-start_date = pd.to_datetime(AI_combined_news_df["DateOnly"]).min() - pd.Timedelta(days=1)
-end_date = pd.to_datetime(AI_combined_news_df["DateOnly"]).max()
+start_date = pd.to_datetime(AI_sentiment_df["DateOnly"]).min() - pd.Timedelta(days=1)
+end_date = pd.to_datetime(AI_sentiment_df["DateOnly"]).max()
 
 def fetch_and_save_stock_data(ticker_list, start_date, end_date, save_dir="data/ai_prices"):
     """
@@ -705,9 +715,9 @@ def fetch_and_save_stock_data(ticker_list, start_date, end_date, save_dir="data/
 # price_files = glob.glob("data/ai_prices/*.csv")
 # price_dfs = [pd.read_csv(f) for f in price_files]
 # AI_combined_price_df = pd.concat(price_dfs, ignore_index=True)
-# AI_combined_price_df.to_csv("data/AI_top10_price_snapshot.csv", index=False)
+# AI_combined_price_df.to_csv("datasets/AI_top10_price_snapshot.csv", index=False)
 
-AI_stock_prices = pd.read_csv("data/AI_top10_price_snapshot.csv")
+AI_stock_prices = pd.read_csv("datasets/AI_top10_price_snapshot.csv")
 AI_stock_prices.head()
 ```
 
