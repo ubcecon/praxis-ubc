@@ -1,6 +1,7 @@
 ---
 title: SOCI 415 Network Analysis - KINMATRIX Dataset
-date: '2025-06-27'
+author: prAxIs UBC Team <br> _Alex Ronczewski_
+date: '2025-08-24'
 description: Using the KINMATRIX Dataset to explore network analysis for SOCI 415
 categories:
   - Python
@@ -29,7 +30,7 @@ The countries in the dataset are the United Kingdom, Germany, Poland, Italy, Swe
 
 We will begin by looking at broader patterns across different countries. This will serve as an introduction into the dataset and will be a foundation for more focused analysis later on. First we import all the necessary Python libraries for data manipulation, network analysis, and visualization. This will allow us to get results for each country. The output of this cell will be a list of countries in the data. 
 
-Import libraries and the data
+Import Libraries and the Data:
 ```{python}
 #Import libraries
 import pandas as pd
@@ -48,7 +49,7 @@ from pyvis.network import Network
 import re
 import matplotlib.cm as cm
 
-file_path = r'C:\Users\alexr\OneDrive\Desktop\WORK\Summer2025\temp\ZA8825_v1-0-0.dta' #change here once we know how to present the notebook, or change here for a different path
+file_path = r'ZA8825_v1-0-0.dta' #path
 df = pd.read_stata(file_path)
 
 #Print country codes
@@ -138,7 +139,7 @@ for country, data in graphs.items():
     print()
 ```
 
-The results are interesting we can see that the smallest family networks are in Germany (16.33 nodes per anchor) and the largest are in the United States (22.72 nodes per anchor). We can also see that there are more women than men in most countries espcially in the US 2,992 compared to 1,956. 
+The results are interesting we can see that the smallest family networks are in Germany (16.33 nodes per anchor) and the largest are in the United States (22.72 nodes per anchor). We can also see that there are more women than men in most countries espcially in the US (2,992 women compared to 1,956 men). 
 
 #### 1.3 Pyvis Visualization for Norway
 
@@ -194,7 +195,7 @@ print(f"Total edges: {G_Norway.number_of_edges()}")
 print(f"Anchor nodes labeled: {len(anchor_nodes_norway)}")
 ```
 
-### 2. Across countries Density by Age and Gender
+### 2. Density by Age and Gender Across Countries 
 
 This code block constructs kinship network graphs for each country in the KINMATRIX dataset and then analyzes how the number of nodes in the family networks vary by age and gender within each country. This analysis helps reveal patterns and differences in family network structure across demographic groups and between countries, providing insight into how kinship connectivity varies by age and gender in different countries.
 
@@ -217,8 +218,7 @@ for country, anc_cou_value in country_map.items():
         kin_node = f"{row['anc_id']}_{row.get('kin_nam', 'unknown')}_{idx}"
         G_filtered.add_node(kin_node, relation=row.get('kin_rel1', None))
         G_filtered.add_edge(row['anc_id'], kin_node, relation=row.get('kin_rel1', None))
-    
-    # Store only the graph
+
     graphs[country] = G_filtered
 
 def analyze_family_degree_by_demographics(G_filtered):
@@ -236,7 +236,7 @@ def analyze_family_degree_by_demographics(G_filtered):
         gender = G_filtered.nodes[anchor_id].get('gender')
 
         if age is not None:
-            age_group = age // 10 * 10  # e.g., 27 -> 20s
+            age_group = age // 10 * 10  
             degree_by_age.setdefault(age_group, []).append(deg)
         if gender is not None:
             degree_by_gender.setdefault(gender, []).append(deg)
@@ -249,7 +249,7 @@ def analyze_family_degree_by_demographics(G_filtered):
     for gender, degrees in degree_by_gender.items():
         print(f"  Gender {gender}: Mean Degree = {np.mean(degrees):.2f}, Count = {len(degrees)}")
 
-# Use this updated function for each country's graph:
+#Show results
 for country in country_map:
     if country in graphs:
         print(f"\n--- {country} ---")
@@ -334,7 +334,6 @@ relationship_colors = {
 }
 
 def extract_relation(rel_str):
-    """Extracts the last relationship keyword from the string using word boundaries."""
     if not isinstance(rel_str, str):
         return 'other'
     rel_str = rel_str.lower()
@@ -344,7 +343,7 @@ def extract_relation(rel_str):
     # Find all matching relationship keywords with word boundaries and return the last one
     found_relations = []
     
-    # Sort relationship keys by length (longest first) to prioritize longer matches
+    # Sort relationship keys by length
     sorted_keys = sorted(relationship_colors.keys(), key=len, reverse=True)
     
     for key in sorted_keys:
@@ -372,12 +371,12 @@ anchor_nodes = list(filtered_df['anc_id'].unique())
 for i, anchor in enumerate(anchor_nodes, 1):
     anchor_to_label[anchor] = f"Anchor-{i}"
 
-# Add anchor nodes (individuals) with clean labels
+# Add anchor nodes with clean labels
 for idx, row in filtered_df.iterrows():
     net.add_node(row['anc_id'],
-                 label=anchor_to_label[row['anc_id']],  # Clean "Anchor-X" label
+                 label=anchor_to_label[row['anc_id']],  
                  color='lightblue',  
-                 size=15,  # Larger size for anchor nodes
+                 size=15,  
                  title=f"Age: {row['anc_age']}<br>Gender: {row['anc_gnd']}")
 
 # Add kin nodes and edges with relationship-based coloring
@@ -405,7 +404,7 @@ net.show('family_structure_network.html')
 
 patches = [mpatches.Patch(color=color, label=relation) for relation, color in relationship_colors.items()]
 
-# Plot the legend of family relations
+# Plot the legend of family relations in the cell output
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.legend(handles=patches, loc='center', frameon=False, fontsize=10)
 ax.axis('off')
@@ -481,7 +480,7 @@ def get_node_gender_and_color(row, is_anchor=True):
     colors = {'male': 'purple', 'female': 'yellow', 'unknown': 'green'} 
     
     if is_anchor:
-        # For anchor nodes - check the gender field more thoroughly
+        # For anchor nodes
         gender_field = str(row.get('anc_gnd', '')).lower().strip()
         
         # Handle various gender field formats
@@ -590,7 +589,7 @@ The KINMATRIX Dataset is not just limited to information about family relations,
 
 ### 5.1 Health and Education Variables
 
-When doing any analysis it's important to be familiar with the varaibles. In this case we are looking at Health and Education which are **anc_hea** and **anc_eduall**. Below we will print out all possible values these variables can take and the count of responces for each.
+When doing any analysis it's important to be familiar with the varaibles. In this case we are looking at Health and Education which are `anc_hea` and `anc_eduall`. Below we will print out all possible values these variables can take and the count of responces for each.
 
 ```{python}
 print("All possible values in 'anc_hea':")
@@ -600,11 +599,11 @@ print("All possible values in 'anc_eduall':")
 print(df['anc_eduall'].value_counts(dropna=False))
 ```
 
-**anc_hea**: This variable which stands for the anchor person's self-rated health. The possible values represent subjective categories ranging from very good to very bad health. We can see most people in the dataset are in good health with few in Bad or Very Bad health. 
+`anc_hea`: This variable which stands for the anchor person's self-rated health. The possible values represent subjective categories ranging from Very Good to Very Bad health. We can see most people in the dataset are in good health with few in Bad or Very Bad health. 
 
-**anc_eduall**: This variable represents the anchor person’s overall level of education, classified into three levels and an option for non-response. We can see most people in the dataset have high education. We will find out about why later on.  
+`anc_eduall`: This variable represents the anchor person’s overall level of education, classified into three levels and an option for non-response. We can see most people in the dataset have high education. We will find out about why later on.  
 
-The way in which we will define healthy is if the respondant says his health is either "Very Good" or "Good." As for edcuation we will only look at the "High Responce."
+The way in which we will define healthy is if the respondant says his health is either "Very Good" or "Good." As for edcuation we will define some who is educated if they answered the "High Responce."
 
 The Code block below will look through all countries and find most and least educated and most and least healthy. 
 ```{python}
@@ -668,15 +667,15 @@ We can see that the finding may be suprising for most people. The United States 
 
 The reason for these findings are the sampling methodoly used by the Researchers. In the [Methods Report](https://www.demographic-research.org/volumes/vol51/25/51-25.pdf), we can find that the KINMATRIX researchers explicitly acknowledge that their data shows "Substantial underrepresentation of lower-educated people in all countries" and "No accurate representation of country differences across intermediate and higher education levels" (8). This is inflating the higher education percentages across the countries in our dataset. Because of the nature of education this bias towards higher education also "extends also to their parental background" (14) and further. 
 
-Another reason for this is bias is the manner in which the data was collected. The key reason is that the researchers did not do random sampling, but rather quota sampling from Dynata access panels which hosted an online survey. This method lead to the exclusion of people without internet/computer and there was no mobile access. This is a known limitation of web-based, non-probability sampling that affects social surveys and the researchers are aware of it.  
+Another reason for this is bias is the manner in which the data was collected. The key reason is that the researchers did not do random sampling, but rather quota sampling from Dynata access panels which hosted an online survey. This method may lead to the exclusion of people without internet/computer and there was no mobile access. This is a known limitation of web-based, non-probability sampling that affects social surveys and the researchers are aware of it.  
 
-As for the health section the bias is less clear here, but the health results show similar patterns because higher-educated people are both more likely to report good health AND more likely to participate in online surveys, creating a "double selection" effect. 
+As for the health section the bias is less clear here, but the health results show similar patterns because higher-educated people are both more likely to report good health and more likely to participate in online surveys, creating a "double selection" effect. 
 
 # 6.0 Family size vs Politics in USA and Poland 
 
 You might have heard in politics and online that right-wing politics is family oriented and conservatives have larger families with more children. This is a common claim but is there empirical evidence to back it up?
 
-In the United States research states that claim that right-leaning individuals tend to have larger families and more children than their left-leaning counterparts, with evidence spanning multiple decades and geographic regions. Republican leaning high-school seniors from 1989-2019 desired more children than their Democrat leaning peers. 
+In the United States researchers have found that right-leaning individuals tend to have larger families and more children than their left-leaning counterparts, with evidence spanning multiple decades and geographic regions. Republican leaning high-school seniors from 1989-2019 desired more children than their Democrat leaning peers. 
 
 As for actual statistics of childbirth between Republican and Democrat states. Analysis of U.S. birth rates reveals that 100 conservative adults raise 208 children on average, compared to 147 for democrats this is a 41% gap which is very significant. Post-2016, Republican-majority counties saw 7,000 more births than expected, while Democratic counties had 38,000 fewer. 
 
@@ -687,12 +686,14 @@ There is substantial evidence to conclude that Republican states should have lar
 The way in which KINMATRIX categories US states is in regions. The regions are New England, South Atlantic, Mid-Atlantic, East South Central, East North Central, Pacific, West South Central, Mountain, and West North Central. Based on these regions and the Cook Partisan Voting Index (PVI). 
 
 The Democrat regions are: 
+
 * New England (CT, MA, ME, NH, RI, VT)',
 * Pacific (AK, CA, HI, OR, WA)',
 * Mid-Atlantic (NJ, NY, DE, PA)',
 * East North Central (IL, IN, MI, OH, WI)' 
 
 The Republican Regions are: 
+
 * East South Central (AL, KY, MS, TN)',
 * West South Central (AR, LA, OK, TX)',
 * West North Central (IA, KS, MN, MO, NE, ND, SD)',
@@ -1250,7 +1251,7 @@ for col, label in metrics:
 
 If we look at the variables of Education, Employment, and Health we can gather which are the richest and healthiest voivodeships. The simplest is employment which we can compare to the ![Map of Employment in Poland and Polish cities](media/registered_unemployed_persons_and_unemployment_rate-02.png) This map is from 2017 and from the Polish census we can see that the lowest unemployment rates are in areas with large cities like the Mazowieckie (Warsaw), Malopolskie (Krakow) and Pomorskie (Gdansk) voivodeships. This makes sense as major cities bring opportunities. 
 
-Now let's compare it to our KINMATRIX Data do these findings carry over. Our three most employed voivodeship's are: Zachodnio-Pomorskie with 86.5%, Wielkopolskie with 81.8% and Dolnoslaskie with 81.5%. Our three least employed are Opolskie with 71.4% Lubuskie with 69.5% and Kujawsko-Pomorskie with 66.29%. Even with the far smaller sample size these findings seem to be in-line with the census data and with development/economic theory. The voivodeship's with the lowest employment all lack big cities Opole, Lublin and Bydgoszcz are all far smaller than Szczecin, Poznan, and Wroclaw. 
+Now let's compare it to our KINMATRIX data, do these findings carry over? Our three most employed voivodeship's are: Zachodnio-Pomorskie with 86.5%, Wielkopolskie with 81.8% and Dolnoslaskie with 81.5%. Our three least employed are Opolskie with 71.4% Lubelskie with 69.5% and Kujawsko-Pomorskie with 66.29%. Even with the far smaller sample size these findings seem to be in-line with the census data and with development/economic theory. The voivodeship's with the lowest employment all lack big cities Opole, Lublin and Bydgoszcz are all far smaller than Szczecin, Poznan, and Wroclaw. 
 
 # 8.0 Parental Seperations 
 
@@ -1288,8 +1289,8 @@ for country, code in country_map.items():
     
     # Parental separation calculation
     sep_counts = country_df['par_sep'].value_counts(dropna=True)
-    separated = sep_counts.get('1. Yes', 0)  # Assuming '1. Yes' indicates separation
-    # Exclude 'Prefer not to answer' from total if it exists
+    separated = sep_counts.get('1. Yes', 0)  
+    # Exclude 'Prefer not to answer' from total 
     valid_responses = sep_counts.drop('-2. Prefer not to answer', errors='ignore').sum()
     sep_pct = separated / valid_responses if valid_responses > 0 else 0
     separation_results[country] = sep_pct
@@ -1317,7 +1318,6 @@ right_leaning_voivodeships = [
     '9. Podkarpackie', '4. Lubelskie', '10. Podlaskie', '13. Swietokrzyskie'
 ]
 
-# Ensure poland_df comes from the correct key
 poland_df = country_dfs['3. Poland'].copy()
 
 # Assign the group using anc_regpl
@@ -1349,9 +1349,9 @@ for group, pct in sep_results.items():
 
 We can see that there is no difference between left and right leaning regions with the Left-leaning regions have a seperation percentage of 66.69% and the right leaning regions having one of 69.57%. So the cause is not political leaning. Let us also repeat this analysis for the United States.   
 
-USA Analysis of Political allegiance 
+USA Analysis of Political Allegiance 
 ```{python}
-#American Regions
+#American Regions from before
 democrat_regions = [
     '5. New England (CT, MA, ME, NH, RI, VT)',
     '6. Pacific (AK, CA, HI, OR, WA)',
@@ -1395,7 +1395,7 @@ The pattern is different in the United States we can see that Democrat regions h
 
 **Note**: Religion questions were deliberately excluded from European KINMATRIX surveys, so we can not use it for our analysis of the European countries. They were only included for the United States which makes it perfect for this analysis. 
 
-We have three religious variables in the KINMATRIX Dataset. anc_rel1, anc_rel2, and anc_rel3. 
+We have three religious variables in the KINMATRIX Dataset: `anc_rel1`, `anc_rel2`, and `anc_rel3`. 
 Like with all variables, let's look at all the levels this variable can take. 
 ```{python}
 print("Unique values for anc_rel1 (Religious dummy):")
@@ -1409,15 +1409,16 @@ print(df['anc_rel3'].dropna().unique())
 ```
 
 From the output we can see that:
-* anc_rel1 is a dummy variable for if the person is religious.
-* anc_rel2 is a qualitative variable for which religion the person believe in.
-* anc_rel3 is a variable for the frequency or attendace (how devout the person is).
+
+* `anc_rel1` is a dummy variable for if the person is religious.
+* `anc_rel2` is a qualitative variable for which religion the person believe in.
+* `anc_rel3` is a variable for the frequency or attendace (how devout the person is).
 
 ```{python}
 def sep_rate(df):
     counts = df['par_sep'].value_counts(dropna=True)
     separated = counts.get('1. Yes', 0)
-    # Exclude 'Prefer not to answer' from total if it exists
+    # Exclude 'Prefer not to answer' from total
     valid = counts.drop('-2. Prefer not to answer', errors='ignore').sum()
     return (100 * separated / valid) if valid > 0 else 0
 
@@ -1452,15 +1453,16 @@ for group in ['Democrat','Republican']:
     print()
 ```
 
-As we expected republican regions are more relgious with 53% compared to 43% reporting that they are relgious and they also attend relgious services more often 14.7% instead of 11.7%. 
+As we expected Republican regions are more relgious with 53% of the respondents report that they are relgious, compared to 43% in Democrat regions. Respondents from Republican regions also attend relgious services more often (14.7% vs 11.7%). 
 
-What is suprising is that it seems that relgious families have a significant higher percentage of parental seperation for both democrat and republican leaning regions. 
+What is suprising is that it seems that relgious families have a significant higher percentage of parental seperation for both Democrat and Republican leaning regions. 
 
 ## 8.1 Discussion 
 
-The findings in this section are suprising. In small groups discuss these findings, some potential discussion topics are:
-* Cross-national variation: Poland and Italy—often seen as more traditional and Christian countries—show the highest parental separation rates in this dataset, defying expectations based on cultural stereotypes.
-* Poland has no difference in parental seperation based on political regions, but the United States does why is that? 
+The findings in this section are surprising. Please discuss these findings in your group. Here are some possible topics for discussion:
+
+* Cross-national variation: Poland and Italy, which are often seen as more traditional and Christian countries show the highest parental separation rates in this dataset. 
+* Poland has no difference in parental seperation based on political regions, but the United States does. Why is that?
 * How do we interpret the finding that within the US, 'religious' families (by self-report) have higher parental separation than non-religious ones? Does anyone have any ideas as to why?
 
 # 9.0 Non-Straight nodes across the countries and regions. 
@@ -1550,7 +1552,8 @@ print(f"Most heterosexual region: {most_hetero_region[0]} ({most_hetero_region[1
 print(f"Most non-heterosexual region: {least_hetero_region[0]} ({100 - least_hetero_region[1]*100:.2f}%)")
 
 ```
-We can again consult our map of the Polish Voivodeships ![Map of Polish voivodeships](media/wojewodstwa.png). Opole is the smallest and least populated voivodeship (province) of Poland. The province's name derives from that of the region's capital and largest city, Opole. Students should already be familiar with Pomerania (Pomorskie) as we have already used and discussed this voievodeship in this notebook. Pomorskie is in the north of Poland on the Baltic sea with the largest city being Gdansk which is a large port along with Gdynia in the region. 
+
+We can again consult our map of the Polish Voivodeships. ![Map of Polish voivodeships](media/wojewodstwa.png) Opole is the smallest and least populated voivodeship (province) of Poland. The province's name derives from that of the region's capital and largest city, Opole. Students should already be familiar with Pomerania (Pomorskie) as we have already used and discussed this voievodeship in this notebook. Pomorskie is in the north of Poland on the Baltic sea with the largest city being Gdansk which is a large port along with Gdynia in the region. 
 
 
 Let's now look at the findings in for Denmark:
@@ -1587,7 +1590,7 @@ As for the most non-heterosexual region it is Nordjylland which is the north of 
 
 For the next section students will be tasked with working hands on with networks and performing the same data gathering as the researchers at KINMATRIX. Turn to the person next to you and on a piece of paper or a computer program like MSPaint draw their family network. Ask questions about family relation, age, gender and other demographic variables like education. Help each other and if you need an example look at the Pyvis visualizations. 
 
-**NOTE** We can maybe add the website for students to build their own ego-centric networks. This is a maybe for now, but I think I can do it. 
+Alternatively students can plot their own family networks on our [Custom Ego-Network Build Website](https://alexr951.github.io/EgoNetworkApp/). 
 
 # 11.0 Citations
 
