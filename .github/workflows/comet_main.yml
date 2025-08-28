@@ -57,12 +57,12 @@ jobs:
         run: |
           find source-notebooks/project/docs -type f \( -name "*.html" -o -name "*.md" \) -delete
 
-        #Update fix-comet.yml to main 
+        #Ref for Branch
       - name: Checkout datasets
         uses: actions/checkout@v3
         with:
           repository: ubcecon/praxis-ubc
-          ref: main
+          ref: Website-edits-alexr
           path: datasets
 
         # Add file extensions of data and model files once all are on the main branch
@@ -80,10 +80,17 @@ jobs:
             --include '*.jpg' \
             --include '*.gif' \
             --include '*.svg' \
+            --include '*.csv' \
+            --include '*.txt' \
+            --include '*.npy' \
+            --include '*.py' \
+            --include '*.pt' \
+            --include '*.pth' \
+            --include '*.webp' \
             --exclude '*' \
             source-notebooks/project/docs/ final-notebooks/docs/
 
-          for dir in AMNE-376 ECON-227 HIST-414 intro_to_cnn intro_to_convolution SOCI-280 SOCI-415 text_analysis; do
+          for dir in AMNE-376 ECON-227 hist_workshop intro_to_cnns intro_to_convolutions intro_to_deep_learning intro_to_transformers SOCI-280 SOCI-415 text_analysis; do
             section=$(echo "$dir" | cut -d'_' -f2- | tr '[:upper:]' '[:lower:]')
             dataset_dir="datasets/project/docs/$dir/datasets_${section}"
            
@@ -126,23 +133,54 @@ jobs:
           echo "Contents of final-notebooks directory:" 
           tree final-notebooks
 
-  # Change all fix-comet.yml to main 
-  sync-notebooks:
-    name: 🔁 Sync notebooks to praxis-notebooks branch
+  Render notebooks:
     runs-on: ubuntu-latest
     needs: prepare-notebooks
-    if: github.event_name == 'workflow_dispatch'
     steps:
-      - name: Checkout main branch
-        uses: actions/checkout@v4
-        with:
-          ref: main 
-          fetch-depth: 0
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
       - name: Download prepared notebooks
         uses: actions/download-artifact@v4
         with:
           name: notebooks
+          path: final-notebooks
+
+      - name: Set up Quarto
+        uses: quarto-dev/quarto-actions/setup@v2
+
+      - name: Render Quarto notebooks (excluding plan files)
+        run: |
+          cd final-notebooks
+          find . -name "*.qmd" -type f -not -name "*plan*" | while read file; do
+            echo "Rendering: $file"
+            quarto render "$file"
+          done
+
+      - name: Upload rendered notebooks
+        uses: actions/upload-artifact@v4
+        with:
+          name: rendered-notebooks
+          path: final-notebooks
+          if-no-files-found: error
+
+  # Ref for branch Change
+  sync-notebooks:
+    name: 🔁 Sync notebooks to praxis-notebooks branch
+    runs-on: ubuntu-latest
+    needs: render-notebooks
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+        with:
+          ref: Website-edits-alexr 
+          fetch-depth: 0
+
+      - name: Download prepared notebooks
+        uses: actions/download-artifact@v4
+        with:
+          name: rendered-notebooks
           path: final-notebooks
 
       - name: Configure Git
@@ -172,7 +210,7 @@ jobs:
             This PR updates the praxis-notebooks branch with the latest notebook content from the main branch.
           
             **Changes included:**
-            - Updated notebook files
+            - Updated notebook files rendered to .ipynb
             - Latest datasets
             - Media files and resources
           
