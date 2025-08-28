@@ -111,7 +111,7 @@ To do this, we are using the `import` statement which allows us to access the fu
 **Important**: If you don't have the required packages installed, you can install them by uncommenting (i.e. removing the "#") and running the following command in a code cell:
 
 ```{python}
-# !pip install pandas numpy torch scikit-learn matplotlib seaborn datar datasets transformers nltk ipywidgets ipython scipy kaggle detoxify
+# !pip install pandas numpy torch scikit-learn matplotlib seaborn datar datasets transformers nltk ipywidgets ipython scipy kaggle detoxify tf-keras
 ```
 
 ```{python}
@@ -149,15 +149,52 @@ from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 from scipy.stats import chi2_contingency
 ```
 
+Note that our data needs to be pulled off of the internet for us to use first. For this, we will need two seperate API keys one for Kagle, and one for GitHub. Let' first get the Kaggle API key.
+ 
+### 1) [Kaggle API Setup](https://www.kaggle.com/docs/api)
+ 
+1. Go to [https://www.kaggle.com](https://www.kaggle.com) and log in.
+2. Click on your profile picture (top right) → **"Account"** and click settings.
+3. Scroll down to the **"API"** section → click **"Create New API Token"**.
+4. This will download a file called `kaggle.json`
+ 
+####  Next Steps:
+1. In your Jupyter environment (e.g. JupyterHub):
+2. Click on the **file browser panel**.
+3. Press **new folder** and create a new folder called `kaggle`.
+4. Navigate to the `kaggle` folder inside your project directory.
+5. **Upload** the `kaggle.json` file (you downloaded it from Kaggle earlier).
+6. Your folder structure should now look like this:
+ 
+```
+/your-project/
+├── kaggle/
+│   └── kaggle.json
+├── soci_270_bert.ipynb
+```
+ 
+> Once this is done, the Kaggle API will work normally in your script.
+
+```{python}
+import os, json
+from pathlib import Path
+
+# Open the SOCI-280/kaggle folder 
+kaggle_json = Path("kaggle/kaggle.json")
+
+# Load and export to env vars
+with open(kaggle_json, "r") as f:
+    creds = json.load(f)
+
+os.environ["KAGGLE_USERNAME"] = creds["username"] 
+os.environ["KAGGLE_KEY"]      = creds["key"]
+
+print("Kaggle credentials set from:", kaggle_json.resolve())
+```
+
 ```{python}
 from data.data_pulling import create_disinformation_dataset
 ```
-
-Now that we have successfully accessed all of the functions we need to carry out our disinformation investigation, we can start to look into the data we are working with. We are going to be using the `pandas` library, which is a popular tool to read and handle data. Note that our data needs to be pulled off of the internet for us to use first. For this, we will need two seperate API keys, one for Kaggle, and one for GitHub.
-
-Follow the setup instructions here:
-1) https://www.kaggle.com/docs/api (read only the paragraphs under `authentication`)
-2) For GitHub, create a new API key here: https://github.com/settings/tokens. When pulling data, you'll be prompted to enter your credentials (GitHub username, and GitHub PAT instead of password)
 
 Once that's done, run the code below to pull and generate our dataset:
 
