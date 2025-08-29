@@ -127,25 +127,7 @@ jobs:
   render-notebooks:
     runs-on: ubuntu-latest
     needs: prepare-notebooks
-    defaults:
-      run:
-        shell: bash -el {0}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Setup Miniconda with environment.yml
-        uses: conda-incubator/setup-miniconda@v3
-        with:
-          miniforge-version: latest  # Uses conda-forge by default
-          activate-environment: quarto-render
-          environment-file: meta/building/environment_final_condensed.yml
-          python-version: 3.11
-          use-mamba: true
-          auto-activate-base: false
-          channels: conda-forge  # Explicitly set to avoid defaults
-
-
       - name: Download prepared notebooks
         uses: actions/download-artifact@v4
         with:
@@ -155,24 +137,14 @@ jobs:
       - name: Set up Quarto
         uses: quarto-dev/quarto-actions/setup@v2
 
-      - name: Verify environment setup
-        run: |
-          conda info
-          conda list
-          python --version
-          python -c "import torch; print(f'PyTorch version: {torch.__version__}')"
-          python -c "import transformers; print(f'Transformers version: {transformers.__version__}')"
-          quarto check jupyter
-
-      - name: Render Quarto notebooks to ipynb (excluding plan files)
+      - name: Convert QMD to IPYNB (excluding plan files)
         run: |
           cd final-notebooks
           find . -name "*.qmd" -type f -not -name "*plan*" | while read file; do
-            echo "Rendering: $file to .ipynb"
-            quarto render "$file" --to ipynb
+            quarto convert "$file"
           done
 
-      - name: Upload rendered notebooks
+      - name: Upload converted notebooks
         uses: actions/upload-artifact@v4
         with:
           name: rendered-notebooks
