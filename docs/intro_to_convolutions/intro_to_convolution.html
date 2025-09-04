@@ -6,10 +6,11 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="author" content="Kaiyan Zhang, prAxIs UBC Team">
-<meta name="dcterms.date" content="2025-07-24">
+<meta name="author" content="prAxIs UBC Team  Kaiyan Zhang">
+<meta name="dcterms.date" content="2025-07-22">
+<meta name="description" content="This notebook provides an intuitive explanation of convolution and its application in multiple fields with some simple examples.">
 
-<title>Praxis - Mostly Harmless Convolutions</title>
+<title>Praxis - Introduction to Convolutions</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -262,7 +263,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#additional-resources" id="toc-additional-resources" class="nav-link active" data-scroll-target="#additional-resources">Additional Resources</a></li>
+  <li><a href="#why-convolutions" id="toc-why-convolutions" class="nav-link active" data-scroll-target="#why-convolutions">Why Convolutions?</a></li>
+  <li><a href="#how-does-convolution-work" id="toc-how-does-convolution-work" class="nav-link" data-scroll-target="#how-does-convolution-work">How Does Convolution Work?</a></li>
+  <li><a href="#key-takeaways" id="toc-key-takeaways" class="nav-link" data-scroll-target="#key-takeaways">Key takeaways:</a></li>
+  <li><a href="#glossary" id="toc-glossary" class="nav-link" data-scroll-target="#glossary">Glossary</a></li>
+  <li><a href="#additional-resources" id="toc-additional-resources" class="nav-link" data-scroll-target="#additional-resources">Additional Resources</a></li>
   <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
   </ul>
 <div class="toc-actions"><div><i class="bi bi-github"></i></div><div class="action-links"><p><a href="https://github.com/ubcecon/praxis-ubc/issues/new" class="toc-action">Report an issue</a></p></div></div><div class="quarto-alternate-formats"><h2>Other Formats</h2><ul><li><a href="intro_to_convolution.ipynb" download="intro_to_convolution.ipynb"><i class="bi bi-journal-code"></i>Jupyter</a></li></ul></div></nav>
@@ -272,15 +277,19 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Mostly Harmless Convolutions</h1>
+<h1 class="title">Introduction to Convolutions</h1>
   <div class="quarto-categories">
     <div class="quarto-category">Python</div>
-    <div class="quarto-category">convolutional neural networks</div>
-    <div class="quarto-category">machine learning</div>
-    <div class="quarto-category">convolutions</div>
+    <div class="quarto-category">Convolution</div>
+    <div class="quarto-category">Computer Vision</div>
   </div>
   </div>
 
+<div>
+  <div class="description">
+    This notebook provides an intuitive explanation of convolution and its application in multiple fields with some simple examples.
+  </div>
+</div>
 
 
 <div class="quarto-title-meta">
@@ -288,14 +297,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <div>
     <div class="quarto-title-meta-heading">Author</div>
     <div class="quarto-title-meta-contents">
-             <p><em>Kaiyan Zhang, prAxIs UBC Team</em> </p>
+             <p>prAxIs UBC Team <br><em>Kaiyan Zhang</em> </p>
           </div>
   </div>
     
     <div>
     <div class="quarto-title-meta-heading">Published</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">24 July 2025</p>
+      <p class="date">22 July 2025</p>
     </div>
   </div>
   
@@ -305,25 +314,21 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 </header>
 
-<p><strong>Before you begin: Install the dependencies that you don’t have by running the code cell below.</strong></p>
-<div class="cell" data-execution_count="1">
-<details>
-<summary>Code</summary>
-<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># !pip install opencv-python</span></span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="co"># !pip install numpy</span></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co"># !pip install matplotlib</span></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="co"># !pip install pandas</span></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="co"># !pip install scikit-learn</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
-</div>
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
 <p><img src="media/convolution-operation-diagram.png" class="img-fluid figure-img"></p>
-<figcaption class="figure-caption">A visualization of convolution operation</figcaption>
+<figcaption class="figure-caption"><em>Figure&nbsp;1.</em> An example of convolution operation (Created by the author)</figcaption>
 </figure>
 </div>
-<section id="why-convolutions" class="level4">
-<h4 class="anchored" data-anchor-id="why-convolutions">Why Convolutions?</h4>
+<p>Before you start, make sure you have the required libraries installed, if not, simply <strong>uncomment the lines below (remove the #)</strong> and run the cell to install them:</p>
+<div class="cell" data-execution_count="1">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># !pip install opencv-python numpy matplotlib pandas scikit-learn</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
+<section id="why-convolutions" class="level3">
+<h3 class="anchored" data-anchor-id="why-convolutions">Why Convolutions?</h3>
 <p>Mathematically speaking, <strong>Convolution</strong> is an operation that combines two functions to produce a third function, which has a variety of applications in signal processing, image analysis and more. While this may sound complex, we can minimize the math behind it and explain it in a less harmful and vivid way.</p>
 <p>Let’s begin by imagining a simple scenario: you took a picture of a cute dog, and you want to apply a filter to it so that it looks more vibrant and colorful. Now that you input the image into a computer, how does a computer “see” it? The computer would see the image as a grid of numbers, where the combination of 3 numbers (R, G, B) in a grid represents the color of a pixel, and with all the colored pixels combined, it forms the image. Given the numeric nature of a computer image, we say that the image is digitalized.</p>
 <p>Here, let’s read in the image into Python using <code>OpenCV</code> and display it using <code>matplotlib</code>:</p>
@@ -337,20 +342,23 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Read the image in BGR format</span></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>doge_bgr <span class="op">=</span> cv2.imread(<span class="st">'data/Original_Doge_meme.jpg'</span>)</span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>doge_rgb <span class="op">=</span> cv2.cvtColor(doge_bgr, cv2.COLOR_BGR2RGB)</span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Display the image using matplotlib</span></span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>plt.figure(figsize<span class="op">=</span>(<span class="dv">4</span>, <span class="dv">4</span>))</span>
-<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>plt.imshow(doge_rgb)</span>
-<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>plt.axis(<span class="st">'off'</span>)  </span>
-<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>plt.title(<span class="st">'Input Image'</span>)</span>
-<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Note this is the default input format of Python OpenCV</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>doge_bgr <span class="op">=</span> cv2.imread(<span class="st">'data/Original_Doge_meme.jpg'</span>)</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Therefore we need to convert the color mapping to RGB</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>doge_rgb <span class="op">=</span> cv2.cvtColor(doge_bgr, cv2.COLOR_BGR2RGB)</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a><span class="co"># Display the image using matplotlib</span></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>plt.figure(figsize<span class="op">=</span>(<span class="dv">4</span>, <span class="dv">4</span>))</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>plt.imshow(doge_rgb)</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>plt.axis(<span class="st">'off'</span>)  </span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>plt.title(<span class="st">'Input Image </span><span class="ch">\n</span><span class="st"> Sato (2010)."Kabosu the Shiba Inu"'</span>)</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
 <p>The image doesn’t look like numbers, does it? In fact, if we zoom in close enough, we can clearly see that the image is made up of pixels. But we still don’t see the numbers, this is because the numerical information is decoded by the computer and displayed as a colored pixel. However, we can easily convert the image into a numerical representation.</p>
-<p>For demonstration purpose, I rescale the image to a 10 <span class="math inline">\(\times\)</span> 10 grid, where within each cell, the tuple represents the RGB values (0-255) of each pixel. Note that compressing images to a smaller size is always easier comparing to enhancing images to a larger size, as compression can be done by going through the image pixel by pixel and averaging the color values in each cell, while enhancement usually requires more complex operations. This gives us a hint on why convolution is important.</p>
+<p>For demonstration purpose, the image is rescaled to a 10 <span class="math inline">\(\times\)</span> 10 grid, where within each cell, the numbers represents the R, G, B values (0-255) of each pixel.</p>
+<p>Note that compressing images to a smaller size is always easier comparing to enhancing images to a larger size, as compression can be done by going through the image pixel by pixel and averaging the color values in each cell, while enhancement usually requires more complex operations. This gives us a hint on why convolution is important.</p>
 <div class="cell" data-execution_count="3">
 <details>
 <summary>Code</summary>
@@ -386,8 +394,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </details>
 </div>
 <p>The image has become a little abstract. Can you still identify the original image out of it?</p>
-<p>While the resized image looked significantly different, it still contains the necessary information, and same ideas also transits to larger images. That is, all images can be represented as a grid of numbers, where the 3 numbers in each cell corresponds to the color of a pixel. Computers can’t see colors like we do, the way they see colors is as if they were mixing colors using a palette that only has red, green and blue (<strong>RGB</strong>), where each color has an “amount” of intensity between 0 and 255. With the 3 values for red, green and blue, computers can create any color we see in the world.</p>
-<p>Back to the dog picture, it is easy to see that resizing the image to a smaller grid loses a lot of details, especially the rich color that makes the image vibrant. If we want to keep the complete color information alternatively, we can plot out the distribution of the RGB values and frequencies in the image using a histogram. While this gives us a good idea of the color distribution, it does not tell us much about the spatial relationships between the pixels.</p>
+<p>While the resized image looked significantly different, it still contains the necessary information, and same ideas also applies to larger images. That is, all images can be represented as a grid of numbers, where the 3 numbers in each cell corresponds to the color of a pixel. Computers can’t see colors like we do, the way they see colors is as if they were mixing colors using a palette that only has red, green and blue (<strong>RGB</strong>), where each color has an “amount” of intensity between 0 and 255. With the 3 values for red, green and blue, computers can create any color we see in the world.</p>
+<p>Back to the dog picture, it is easy to see that resizing the image to a smaller grid loses a lot of details, especially the rich color that makes the image vibrant. If we want to keep the complete color information, alternatively, we can plot out the distribution of the RGB values and frequencies in the image using a histogram. While this gives us a good idea of the color distribution, it does not tell us much about the spatial relationships between the pixels.</p>
 <div class="cell" data-execution_count="4">
 <details>
 <summary>Code</summary>
@@ -417,72 +425,57 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Can you still identify the original image out of it?</p>
 <p>The example above shows us what images are like in the eyes of a computer. Computers do not understand images in the same way that humans do, they can only see them as a collection of numbers. It thus make sense that we need to apply some math to these numbers to either <strong>change the image</strong> or <strong>extract some useful information</strong> from it, and that’s where convolution comes in.</p>
 </section>
-<section id="how-does-convolution-work" class="level4">
-<h4 class="anchored" data-anchor-id="how-does-convolution-work">How Does Convolution Work?</h4>
+<section id="how-does-convolution-work" class="level3">
+<h3 class="anchored" data-anchor-id="how-does-convolution-work">How Does Convolution Work?</h3>
 <p>Before we dive into the application of it, let’s first understand how convolution operate on an image in a more intuitive way:</p>
-<p>Imagine you are copying a painting, you first made a draft of the same size against the original painting and now you want to color it. Other than making your painting a 100% identical copy, you want to add some personal touch to it, so you decide to use a brush with a specific pattern to color the draft. Wherever you apply the brush, it will color the region it touches with a brighter color than the original painting, and your color your draft from left to right, top to bottom, until the whole draft is colored with the brush. You end up with a new painting that is similar to the original one, but with a different style.</p>
+<p>Think of copying a painting by first sketching its outline at the same size. To add your own flair, you use a patterned brush: wherever the brush touches, it brightens the paint. You move this brush methodically across your sketch, from left to right, top to bottom so every spot is stamped with the pattern, tweaking the original image into something familiar yet distinctly styled.</p>
 <p>Here, the brush you used is called a <strong>kernel</strong> in the context of convolution, and the process of applying the brush is what we call <strong>convolution operation</strong>. We would define the kernel as a small matrix of numbers that represents the pattern of the brush, and the convolution operation as the process of transforming the original image by applying the kernel to it.</p>
 <p>Here is a gif illustrating how our filter (the kernel) will work on the image mathematically. You can see it as the small brush that slides over the image, operating on a small region of the image at a time, and eventually producing a new image that was completely transformed by the filter.</p>
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
 <p><img src="media/sharpener_kernel.gif" class="img-fluid figure-img"></p>
-<figcaption class="figure-caption">Convolution Example</figcaption>
+<figcaption class="figure-caption"><em>Figure&nbsp;2.</em> Visual explanation of sharpening filter (Michael Plotke, Wikipedia, 2013)</figcaption>
 </figure>
 </div>
 <p>Now, let’s return to the example of the cute dog picture. What we are going to apply is a brush called <strong>sharpening filter</strong>, it is a 3 <span class="math inline">\(\times\)</span> 3 matrix that looks like this:</p>
-<p><span class="math display">\[\text{Sharpening Filter} = \begin{bmatrix}
+<p><span class="math display">\[
+\text{Sharpening Filter} = \begin{bmatrix}
 0 &amp;-1 &amp; 0 \\
 -1 &amp; 5 &amp; -1 \\
 0 &amp; -1 &amp; 0
-\end{bmatrix}\]</span> <strong>Don’t panic</strong> as we are not going to do any math here, we will just let computer do the math for us. The only thing you need to know is that this kernel will enhance the edges of the image, making it look sharper and more defined. In fact, if you take a closer look at the kernel, you will see that it has a positive value in the center and negative values around it, and it has 0 values on the corners. This exactly looks like a brush that enhances the center of a region while reducing the intensity of the surrounding pixels, which is exactly what we want to achieve with the filter.</p>
+\end{bmatrix}
+\]</span></p>
+<p>Don’t panic as we are not going to do any math here, we will just let computer do the math for us. The only thing you need to know is that this kernel will enhance the edges of the image, making it look sharper and more defined. For better understanding, let’s visualize it to see what this kernel look like in grey-scale:</p>
 <div class="cell" data-execution_count="5">
 <details>
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Define the sharpening filter</span></span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>kernel <span class="op">=</span> np.array([</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    [ <span class="dv">0</span>, <span class="op">-</span><span class="dv">1</span>,  <span class="dv">0</span>],</span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    [<span class="op">-</span><span class="dv">1</span>,  <span class="dv">5</span>, <span class="op">-</span><span class="dv">1</span>],</span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    [ <span class="dv">0</span>, <span class="op">-</span><span class="dv">1</span>,  <span class="dv">0</span>]</span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>], dtype<span class="op">=</span>np.float32)</span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Apply the kernel to the color image using filter2D.</span></span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>filtered <span class="op">=</span> cv2.filter2D(doge_rgb, ddepth<span class="op">=-</span><span class="dv">1</span>, kernel<span class="op">=</span>kernel)</span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>filtered <span class="op">=</span> np.clip(filtered, <span class="dv">0</span>, <span class="dv">255</span>).astype(np.uint8)</span>
-<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Display the original and filtered images side by side</span></span>
-<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>fig, (ax1, ax2) <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">4</span>))</span>
-<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Input</span></span>
-<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>ax1.imshow(doge_rgb)</span>
-<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>ax1.set_title(<span class="st">"Input Image"</span>)</span>
-<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>ax1.axis(<span class="st">"off"</span>)</span>
-<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a><span class="co"># Output</span></span>
-<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>ax2.imshow(filtered)</span>
-<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>ax2.set_title(<span class="st">"Filtered Image (Sharper &amp; More Vibrant)"</span>)</span>
-<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>ax2.axis(<span class="st">"off"</span>)</span>
-<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
-<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>sharp_kernel <span class="op">=</span> np.array([</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    [ <span class="dv">0</span>, <span class="op">-</span><span class="dv">1</span>,  <span class="dv">0</span>],</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    [<span class="op">-</span><span class="dv">1</span>,  <span class="dv">5</span>, <span class="op">-</span><span class="dv">1</span>],</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    [ <span class="dv">0</span>, <span class="op">-</span><span class="dv">1</span>,  <span class="dv">0</span>]</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>], dtype<span class="op">=</span>np.float32)</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">4</span>, <span class="dv">4</span>))</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Display with true gray-scale between kernel's min and max</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>im <span class="op">=</span> ax.imshow(sharp_kernel, cmap<span class="op">=</span><span class="st">'gray_r'</span>,</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>               vmin<span class="op">=</span>sharp_kernel.<span class="bu">min</span>(), vmax<span class="op">=</span>sharp_kernel.<span class="bu">max</span>())</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>ax.set_title(<span class="st">'Sharpening Kernel'</span>)</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>ax.axis(<span class="st">'off'</span>)</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
-<p>The difference is quite obvious now. You can clearly see that the sharpened image (R) has more contrast and the edges are more defined, making it look more vibrant and colorful. This is the power of convolution, it allows us to apply filters to images and transform them in a way that is not possible with simple pixel manipulation. Similarly, we can blur an image quite easily, for which the “brush” we are going to use looks like this</p>
-<p><span class="math display">\[\text{Box Blur Filter} = \begin{bmatrix}
-\frac{1}{9} &amp;\frac{1}{9} &amp; \frac{1}{9} \\
-\frac{1}{9} &amp; \frac{1}{9} &amp; \frac{1}{9} \\
-\frac{1}{9} &amp; \frac{1}{9} &amp; \frac{1}{9}
-\end{bmatrix}
-\]</span></p>
-<p>Let’s see what it will make.</p>
+<p>If you take a closer look at the kernel, you will see that it has a positive value in the center and negative values around it, and it has 0 values on the corners. This exactly looks like a brush that enhances the center of a region while reducing the intensity of the surrounding pixels, which is exactly what we want to achieve with the filter.</p>
 <div class="cell" data-execution_count="6">
 <details>
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Define the box blur filter</span></span>
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Define the sharpening filter</span></span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>kernel <span class="op">=</span> np.array([</span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    [<span class="dv">1</span><span class="op">/</span><span class="dv">9</span>, <span class="dv">1</span><span class="op">/</span><span class="dv">9</span>, <span class="dv">1</span><span class="op">/</span><span class="dv">9</span>],</span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    [<span class="dv">1</span><span class="op">/</span><span class="dv">9</span>, <span class="dv">1</span><span class="op">/</span><span class="dv">9</span>, <span class="dv">1</span><span class="op">/</span><span class="dv">9</span>],</span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    [<span class="dv">1</span><span class="op">/</span><span class="dv">9</span>, <span class="dv">1</span><span class="op">/</span><span class="dv">9</span>, <span class="dv">1</span><span class="op">/</span><span class="dv">9</span>]</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    [ <span class="dv">0</span>, <span class="op">-</span><span class="dv">1</span>,  <span class="dv">0</span>],</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    [<span class="op">-</span><span class="dv">1</span>,  <span class="dv">5</span>, <span class="op">-</span><span class="dv">1</span>],</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    [ <span class="dv">0</span>, <span class="op">-</span><span class="dv">1</span>,  <span class="dv">0</span>]</span>
 <span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>], dtype<span class="op">=</span>np.float32)</span>
 <span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Apply the kernel to the color image using filter2D.</span></span>
@@ -495,21 +488,100 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Input</span></span>
 <span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>ax1.imshow(doge_rgb)</span>
-<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>ax1.set_title(<span class="st">"Input Image"</span>)</span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>ax1.set_title(<span class="st">'Input Image </span><span class="ch">\n</span><span class="st"> Sato (2010)."Kabosu the Shiba Inu"'</span>)</span>
 <span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a>ax1.axis(<span class="st">"off"</span>)</span>
 <span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a><span class="co"># Output</span></span>
 <span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a>ax2.imshow(filtered)</span>
-<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a>ax2.set_title(<span class="st">"Filtered Image (Blurred)"</span>)</span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a>ax2.set_title(<span class="st">"Filtered Image (Sharper &amp; More Vibrant)"</span>)</span>
 <span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a>ax2.axis(<span class="st">"off"</span>)</span>
 <span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
 <span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
+<p>The difference is quite obvious now. You can clearly see that the sharpened image (R) has more contrast and the edges are more defined, making it look more vibrant and colorful. This is the power of convolution, it allows us to apply filters to images and transform them in a way that is not possible with simple pixel manipulation. Similarly, we can blur an image quite easily, for which the “brush” we are going to use looks like this</p>
+<p><span class="math display">\[\text{Box Blur Filter} = \begin{bmatrix}
+\frac{1}{9} &amp;\frac{1}{9} &amp; \frac{1}{9} \\
+\frac{1}{9} &amp; \frac{1}{9} &amp; \frac{1}{9} \\
+\frac{1}{9} &amp; \frac{1}{9} &amp; \frac{1}{9}
+\end{bmatrix}
+\]</span></p>
+<p>Visually, this kernel is a filter that looks like:</p>
+<div class="cell" data-execution_count="7">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>id_kernel <span class="op">=</span> np.array([</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  [ <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>],</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  [ <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>],</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>  [ <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>]</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>])</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>blur_kernel <span class="op">=</span> np.array([</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>    [<span class="dv">1</span><span class="op">/</span><span class="dv">9</span>, <span class="dv">1</span><span class="op">/</span><span class="dv">9</span>, <span class="dv">1</span><span class="op">/</span><span class="dv">9</span>],</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>    [<span class="dv">1</span><span class="op">/</span><span class="dv">9</span>, <span class="dv">1</span><span class="op">/</span><span class="dv">9</span>, <span class="dv">1</span><span class="op">/</span><span class="dv">9</span>],</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>    [<span class="dv">1</span><span class="op">/</span><span class="dv">9</span>, <span class="dv">1</span><span class="op">/</span><span class="dv">9</span>, <span class="dv">1</span><span class="op">/</span><span class="dv">9</span>]</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>], dtype<span class="op">=</span>np.float32)</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">4</span>))</span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> ax, kernel, title <span class="kw">in</span> <span class="bu">zip</span>(axes, [id_kernel, blur_kernel],</span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>                             [<span class="st">'Input Image'</span>, <span class="st">'Box Blur Kernel'</span>]):</span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Show actual values in gray-scale</span></span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>    im <span class="op">=</span> ax.imshow(kernel, cmap<span class="op">=</span><span class="st">'gray_r'</span>, vmin<span class="op">=</span><span class="dv">0</span>, vmax<span class="op">=</span><span class="dv">1</span>)</span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>    ax.set_title(title)</span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>    ax.axis(<span class="st">'off'</span>)</span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Draw horizontal and vertical boundary lines at half‐integer positions</span></span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">1</span>, kernel.shape[<span class="dv">0</span>]):</span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a>        ax.axhline(i <span class="op">-</span> <span class="fl">.5</span>, color<span class="op">=</span><span class="st">'white'</span>, linewidth<span class="op">=</span><span class="fl">1.5</span>, zorder<span class="op">=</span><span class="dv">1</span>)</span>
+<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>        ax.axvline(i <span class="op">-</span> <span class="fl">.5</span>, color<span class="op">=</span><span class="st">'white'</span>, linewidth<span class="op">=</span><span class="fl">1.5</span>, zorder<span class="op">=</span><span class="dv">1</span>)</span>
+<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
+<p>Let’s see what it will make on our input image.</p>
+<div class="cell" data-execution_count="8">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Define the box blur filter</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>kernel <span class="op">=</span> np.array([</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    [<span class="dv">1</span><span class="op">/</span><span class="dv">9</span>, <span class="dv">1</span><span class="op">/</span><span class="dv">9</span>, <span class="dv">1</span><span class="op">/</span><span class="dv">9</span>],</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    [<span class="dv">1</span><span class="op">/</span><span class="dv">9</span>, <span class="dv">1</span><span class="op">/</span><span class="dv">9</span>, <span class="dv">1</span><span class="op">/</span><span class="dv">9</span>],</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>    [<span class="dv">1</span><span class="op">/</span><span class="dv">9</span>, <span class="dv">1</span><span class="op">/</span><span class="dv">9</span>, <span class="dv">1</span><span class="op">/</span><span class="dv">9</span>]</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>], dtype<span class="op">=</span>np.float32)</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Apply the kernel to the color image using filter2D.</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>filtered <span class="op">=</span> cv2.filter2D(doge_rgb, ddepth<span class="op">=-</span><span class="dv">1</span>, kernel<span class="op">=</span>kernel)</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>filtered <span class="op">=</span> np.clip(filtered, <span class="dv">0</span>, <span class="dv">255</span>).astype(np.uint8)</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Display the original and filtered images side by side</span></span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>fig, (ax1, ax2) <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">4</span>))</span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Input</span></span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>ax1.imshow(doge_rgb)</span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>ax1.set_title(<span class="st">'Input Image</span><span class="ch">\n</span><span class="st"> Sato (2010)."Kabosu the Shiba Inu"'</span>)</span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>ax1.axis(<span class="st">"off"</span>)</span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a><span class="co"># Output</span></span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a>ax2.imshow(filtered)</span>
+<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a>ax2.set_title(<span class="st">"Filtered Image (Blurred)"</span>)</span>
+<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a>ax2.axis(<span class="st">"off"</span>)</span>
+<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
 <p>It worked as we expected, now the dog image becomes more blurry.</p>
 <p>However, convolution on image is not limited to filtering, it can also be used to <strong>extract features</strong> from the image. For example, we can use a kernel to detect edges, lines and texts in images, we can even use specific kernels to detect specific shapes or patterns in images, such as a kernel that detects anything that looks like a dog. As you can imagine, this is a very powerful tool in many applications, in fact, you most likely have already used it in your daily life. For example, when you use a photo editing app to apply a filter to your picture, the app is using convolution. When you use a search engine to search do image searches, the search engine is using convolution to extract features from the images and match them with your search query. Let’s say, the thing you are trying to find is eyes, the gif below shows how a convolution kernel detects “eyes” in an image:</p>
-<p><img src="media/eye_detection_kernel.gif" alt="A visualization of convolution operation that detects a feature" width="600"></p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="media/eye_detection_kernel.gif" class="img-fluid figure-img"></p>
+<figcaption class="figure-caption"><em>Figure&nbsp;3.</em> Eye detection kernel (Neuromatch Academy, 2025)</figcaption>
+</figure>
+</div>
 <p>This is a very simple example, and it is implemented exactly the same way as we did with the sharpening filter. The only difference is that to extract a specific features, we need to use a “brush” designed to detect that feature, which usually requires some knowledge of the feature we want to extract. For example, if we want to detect eyes in the painting, we would need our “brush” to understand what eyes look like and what typical colors they have. This could be way too complicated for a single “brush”, so we often use multiple brushes to detect different features when it comes to the task of feature extraction.</p>
 <p>To demonstrate how convolution extracts a specific feature from an image, let’s take a look at a different “art tool”. Let’s say this time you don’t want to color the painting differently, but rather you want to sketch a line art based on the original painting. You would use a fineliner pen that detects the edges of a painting and draw a line along them. In the eyes of a computer, these are the tools it is going to use:</p>
 <p><span class="math display">\[\text{Horizontal Sobel} = \begin{bmatrix}
@@ -524,136 +596,166 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 -1 &amp; -2 &amp; -1
 \end{bmatrix}
 \]</span></p>
-<p>Still, <strong>don’t panic</strong>, we won’t do any math in this notebook. All you need to know is these two kernels together are called <strong>Sobel filter</strong>, and what they do is highlighting the edges in the image, making them more visible. If you take a closer look at the kernels, you will see that the first one has positive values on the left and negative values on the right, while the second one has positive values on the top and negative values on the bottom. This pattern intuitively tells us that the first “pen” will scan through the image horizontally and extract the horizontal edges, while the second “pen” will scan through the image vertically and extract the vertical edges.</p>
-<p>Let’s now look at a different example and see what happens when we apply the Sobel filter.</p>
-<div class="cell" data-execution_count="7">
+<p>Still, don’t panic, we won’t do any math in this notebook. All you need to know is these two kernels together are called <strong>Sobel filter</strong>, and what they do is highlighting the edges in the image, making them more visible. We can also visualize them as follows:</p>
+<div class="cell" data-execution_count="9">
 <details>
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Generate a greyscale version of the image</span></span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>hill_bgr <span class="op">=</span> cv2.imread(<span class="st">'data/xiangbishan.jpg'</span>)</span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>hill_rgb <span class="op">=</span> cv2.cvtColor(hill_bgr, cv2.COLOR_BGR2RGB)</span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>hill_gray <span class="op">=</span> cv2.cvtColor(hill_bgr, cv2.COLOR_BGR2GRAY)</span>
-<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Define the Sobel filter kernel</span></span>
-<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>sb_kernel_h <span class="op">=</span> np.array([</span>
-<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>    [ <span class="dv">1</span>, <span class="dv">0</span>, <span class="op">-</span><span class="dv">1</span>],</span>
-<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>    [ <span class="dv">2</span>, <span class="dv">0</span>, <span class="op">-</span><span class="dv">2</span>],</span>
-<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>    [ <span class="dv">1</span>, <span class="dv">0</span>, <span class="op">-</span><span class="dv">1</span>]</span>
-<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>], dtype<span class="op">=</span>np.float32)</span>
-<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>sb_kernel_v <span class="op">=</span> np.array([</span>
-<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>    [ <span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">1</span>],</span>
-<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>    [ <span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>],</span>
-<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>    [<span class="op">-</span><span class="dv">1</span>, <span class="op">-</span><span class="dv">2</span>, <span class="op">-</span><span class="dv">1</span>]], dtype<span class="op">=</span>np.float32)</span>
-<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a><span class="co"># Apply the kernel to the color image using filter2D.</span></span>
-<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>horiz <span class="op">=</span> cv2.filter2D(hill_gray, <span class="op">-</span><span class="dv">1</span>, sb_kernel_h)</span>
-<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a>vert <span class="op">=</span> cv2.filter2D(hill_gray, <span class="op">-</span><span class="dv">1</span>, sb_kernel_v)</span>
-<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>combined <span class="op">=</span> cv2.convertScaleAbs(np.sqrt(vert.astype(np.float32)<span class="op">**</span><span class="dv">2</span> <span class="op">+</span> horiz.astype(np.float32)<span class="op">**</span><span class="dv">2</span>))</span>
-<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a><span class="co"># Display the original and filtered images side by side</span></span>
-<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a>fig, (ax1, ax2) <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">5</span>))</span>
-<span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-30"><a href="#cb7-30" aria-hidden="true" tabindex="-1"></a><span class="co"># Input</span></span>
-<span id="cb7-31"><a href="#cb7-31" aria-hidden="true" tabindex="-1"></a>ax1.imshow(hill_rgb)</span>
-<span id="cb7-32"><a href="#cb7-32" aria-hidden="true" tabindex="-1"></a>ax1.set_title(<span class="st">"Input Image"</span>)</span>
-<span id="cb7-33"><a href="#cb7-33" aria-hidden="true" tabindex="-1"></a>ax1.axis(<span class="st">"off"</span>)</span>
-<span id="cb7-34"><a href="#cb7-34" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-35"><a href="#cb7-35" aria-hidden="true" tabindex="-1"></a><span class="co"># Output</span></span>
-<span id="cb7-36"><a href="#cb7-36" aria-hidden="true" tabindex="-1"></a>ax2.imshow(combined, cmap <span class="op">=</span> <span class="st">'gray'</span>)</span>
-<span id="cb7-37"><a href="#cb7-37" aria-hidden="true" tabindex="-1"></a>ax2.set_title(<span class="st">"Filtered Image (Edges Highlighted)"</span>)</span>
-<span id="cb7-38"><a href="#cb7-38" aria-hidden="true" tabindex="-1"></a>ax2.axis(<span class="st">"off"</span>)</span>
-<span id="cb7-39"><a href="#cb7-39" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-40"><a href="#cb7-40" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
-<span id="cb7-41"><a href="#cb7-41" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>h_kernel <span class="op">=</span> np.array([</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>    [ <span class="dv">1</span>, <span class="dv">0</span>, <span class="op">-</span><span class="dv">1</span>],</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>    [ <span class="dv">2</span>, <span class="dv">0</span>, <span class="op">-</span><span class="dv">2</span>],</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    [ <span class="dv">1</span>, <span class="dv">0</span>, <span class="op">-</span><span class="dv">1</span>]</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>])</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>v_kernel <span class="op">=</span> np.array([</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>    [ <span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">1</span>],</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>    [ <span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>],</span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>    [ <span class="op">-</span><span class="dv">1</span>, <span class="op">-</span><span class="dv">2</span>, <span class="op">-</span><span class="dv">1</span>]</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>])</span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Plot the kernels</span></span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">4</span>))</span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> ax, kernel, title <span class="kw">in</span> <span class="bu">zip</span>(axes, [np.<span class="bu">abs</span>(h_kernel), np.<span class="bu">abs</span>(v_kernel)],</span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>                             [<span class="st">'Horizontal Kernel'</span>, <span class="st">'Vertical Kernel'</span>]):</span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Show actual values in gray-scale</span></span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>    im <span class="op">=</span> ax.imshow(kernel, cmap<span class="op">=</span><span class="st">'gray_r'</span>, vmin<span class="op">=</span><span class="dv">0</span>, vmax<span class="op">=</span><span class="dv">2</span>)</span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>    ax.set_title(title)</span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a>    ax.axis(<span class="st">'off'</span>)</span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
+<p>If you take a closer look at the kernels, you will see that the first one has positive values on the left and negative values on the right, while the second one has positive values on the top and negative values on the bottom. This pattern intuitively tells us that the first “pen” will scan through the image horizontally and extract the horizontal edges, while the second “pen” will scan through the image vertically and extract the vertical edges.</p>
+<p>Let’s now look at a different example and see what happens when we apply the Sobel filter.</p>
+<div class="cell" data-execution_count="10">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Generate a greyscale version of the image</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>hill_bgr <span class="op">=</span> cv2.imread(<span class="st">'data/xiangbishan.jpg'</span>)</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>hill_rgb <span class="op">=</span> cv2.cvtColor(hill_bgr, cv2.COLOR_BGR2RGB)</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>hill_gray <span class="op">=</span> cv2.cvtColor(hill_bgr, cv2.COLOR_BGR2GRAY)</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Define the Sobel filter kernel</span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>sb_kernel_h <span class="op">=</span> np.array([</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>    [ <span class="dv">1</span>, <span class="dv">0</span>, <span class="op">-</span><span class="dv">1</span>],</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>    [ <span class="dv">2</span>, <span class="dv">0</span>, <span class="op">-</span><span class="dv">2</span>],</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>    [ <span class="dv">1</span>, <span class="dv">0</span>, <span class="op">-</span><span class="dv">1</span>]</span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>], dtype<span class="op">=</span>np.float32)</span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>sb_kernel_v <span class="op">=</span> np.array([</span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>    [ <span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">1</span>],</span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>    [ <span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>],</span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>    [<span class="op">-</span><span class="dv">1</span>, <span class="op">-</span><span class="dv">2</span>, <span class="op">-</span><span class="dv">1</span>]], dtype<span class="op">=</span>np.float32)</span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a><span class="co"># Apply the kernel to the color image using filter2D.</span></span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>horiz <span class="op">=</span> cv2.filter2D(hill_gray, <span class="op">-</span><span class="dv">1</span>, sb_kernel_h)</span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>vert <span class="op">=</span> cv2.filter2D(hill_gray, <span class="op">-</span><span class="dv">1</span>, sb_kernel_v)</span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a>combined <span class="op">=</span> cv2.convertScaleAbs(np.sqrt(vert.astype(np.float32)<span class="op">**</span><span class="dv">2</span> <span class="op">+</span> horiz.astype(np.float32)<span class="op">**</span><span class="dv">2</span>))</span>
+<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a><span class="co"># Display the original and filtered images side by side</span></span>
+<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a>fig, (ax1, ax2) <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">5</span>))</span>
+<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-30"><a href="#cb10-30" aria-hidden="true" tabindex="-1"></a><span class="co"># Input</span></span>
+<span id="cb10-31"><a href="#cb10-31" aria-hidden="true" tabindex="-1"></a>ax1.imshow(hill_rgb)</span>
+<span id="cb10-32"><a href="#cb10-32" aria-hidden="true" tabindex="-1"></a>ax1.set_title(<span class="st">'Input Image </span><span class="ch">\n</span><span class="st"> xiquinhosilva (2018). "Elephant Trunk Hill"'</span>)</span>
+<span id="cb10-33"><a href="#cb10-33" aria-hidden="true" tabindex="-1"></a>ax1.axis(<span class="st">"off"</span>)</span>
+<span id="cb10-34"><a href="#cb10-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-35"><a href="#cb10-35" aria-hidden="true" tabindex="-1"></a><span class="co"># Output</span></span>
+<span id="cb10-36"><a href="#cb10-36" aria-hidden="true" tabindex="-1"></a>ax2.imshow(combined, cmap <span class="op">=</span> <span class="st">'gray'</span>)</span>
+<span id="cb10-37"><a href="#cb10-37" aria-hidden="true" tabindex="-1"></a>ax2.set_title(<span class="st">"Filtered Image (Edges Highlighted)"</span>)</span>
+<span id="cb10-38"><a href="#cb10-38" aria-hidden="true" tabindex="-1"></a>ax2.axis(<span class="st">"off"</span>)</span>
+<span id="cb10-39"><a href="#cb10-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-40"><a href="#cb10-40" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb10-41"><a href="#cb10-41" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
 <p>As we can see in the example above, the Sobel filter detects the edges in the image and highlights them like a fineliner pen. This is a very useful technique in image processing, as it allows us to extract features from the image that can be used for further analysis or classification. Let’s do more explorations with the example above:</p>
-<div class="cell" data-execution_count="8">
+<div class="cell" data-execution_count="11">
 <details>
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Compute the magnitude and orientation of the gradient.</span></span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="co"># To put it simpler, they represents the length and direction of the edges at each pixel.</span></span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="co"># For those who are familiar with pythagorean theorem, the magnitude is exactly the length of the"long edge" calculated with pythagorean theorem.</span></span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>magnitude <span class="op">=</span> np.sqrt(vert.astype(np.float32)<span class="op">**</span><span class="dv">2</span> <span class="op">+</span> horiz.astype(np.float32)<span class="op">**</span><span class="dv">2</span>)</span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>orientation <span class="op">=</span> np.arctan2(vert.astype(np.float32), horiz.astype(np.float32))</span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Generate an edge binary map</span></span>
-<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>mag_norm <span class="op">=</span> cv2.normalize(magnitude, <span class="va">None</span>, <span class="dv">0</span>,<span class="dv">255</span>, cv2.NORM_MINMAX).astype(np.uint8)</span>
-<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>_, edge_binary <span class="op">=</span> cv2.threshold(mag_norm, <span class="dv">50</span>, <span class="dv">255</span>, cv2.THRESH_BINARY)</span>
-<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Create the Contour plot</span></span>
-<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>contours, _ <span class="op">=</span> cv2.findContours(edge_binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)</span>
-<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>contour_img <span class="op">=</span> hill_rgb.copy()</span>
-<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>cv2.drawContours(contour_img, contours, <span class="op">-</span><span class="dv">1</span>, (<span class="dv">255</span>,<span class="dv">0</span>,<span class="dv">0</span>), <span class="dv">1</span>)</span>
-<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Create an edge density heatmap</span></span>
-<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>block <span class="op">=</span> <span class="dv">32</span></span>
-<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>h, w <span class="op">=</span> edge_binary.shape</span>
-<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>int_img <span class="op">=</span> cv2.integral(edge_binary)</span>
-<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>heatmap <span class="op">=</span> np.zeros_like(edge_binary, dtype<span class="op">=</span>np.float32)</span>
-<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> y <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">0</span>, h <span class="op">-</span> block <span class="op">+</span> <span class="dv">1</span>):</span>
-<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> x <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">0</span>, w <span class="op">-</span> block <span class="op">+</span> <span class="dv">1</span>):</span>
-<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a>        y1, x1 <span class="op">=</span> y,       x</span>
-<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a>        y2, x2 <span class="op">=</span> y <span class="op">+</span> block, x <span class="op">+</span> block</span>
-<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a>        total <span class="op">=</span> (int_img[y2, x2]</span>
-<span id="cb8-28"><a href="#cb8-28" aria-hidden="true" tabindex="-1"></a>               <span class="op">-</span> int_img[y1, x2]</span>
-<span id="cb8-29"><a href="#cb8-29" aria-hidden="true" tabindex="-1"></a>               <span class="op">-</span> int_img[y2, x1]</span>
-<span id="cb8-30"><a href="#cb8-30" aria-hidden="true" tabindex="-1"></a>               <span class="op">+</span> int_img[y1, x1])</span>
-<span id="cb8-31"><a href="#cb8-31" aria-hidden="true" tabindex="-1"></a>        <span class="co"># center the block’s density back into the heatmap</span></span>
-<span id="cb8-32"><a href="#cb8-32" aria-hidden="true" tabindex="-1"></a>        heatmap[y <span class="op">+</span> block<span class="op">//</span><span class="dv">2</span>, x <span class="op">+</span> block<span class="op">//</span><span class="dv">2</span>] <span class="op">=</span> total</span>
-<span id="cb8-33"><a href="#cb8-33" aria-hidden="true" tabindex="-1"></a>        </span>
-<span id="cb8-34"><a href="#cb8-34" aria-hidden="true" tabindex="-1"></a>heatmap <span class="op">=</span> cv2.normalize(heatmap, <span class="va">None</span>, <span class="dv">0</span>,<span class="dv">255</span>, cv2.NORM_MINMAX).astype(np.uint8)</span>
-<span id="cb8-35"><a href="#cb8-35" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-36"><a href="#cb8-36" aria-hidden="true" tabindex="-1"></a><span class="co"># Plot out the visualizations</span></span>
-<span id="cb8-37"><a href="#cb8-37" aria-hidden="true" tabindex="-1"></a>fig, axs <span class="op">=</span> plt.subplots(<span class="dv">2</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">5</span>))</span>
-<span id="cb8-38"><a href="#cb8-38" aria-hidden="true" tabindex="-1"></a>ax1, ax2, ax3, ax4 <span class="op">=</span> axs.flatten()</span>
-<span id="cb8-39"><a href="#cb8-39" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-40"><a href="#cb8-40" aria-hidden="true" tabindex="-1"></a><span class="co"># Original Image</span></span>
-<span id="cb8-41"><a href="#cb8-41" aria-hidden="true" tabindex="-1"></a>ax1.imshow(hill_rgb)</span>
-<span id="cb8-42"><a href="#cb8-42" aria-hidden="true" tabindex="-1"></a>ax1.set_title(<span class="st">"Input Image"</span>)</span>
-<span id="cb8-43"><a href="#cb8-43" aria-hidden="true" tabindex="-1"></a>ax1.axis(<span class="st">"off"</span>)</span>
-<span id="cb8-44"><a href="#cb8-44" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-45"><a href="#cb8-45" aria-hidden="true" tabindex="-1"></a><span class="co"># Contours on Original Image</span></span>
-<span id="cb8-46"><a href="#cb8-46" aria-hidden="true" tabindex="-1"></a>ax2.imshow(contour_img)</span>
-<span id="cb8-47"><a href="#cb8-47" aria-hidden="true" tabindex="-1"></a>ax2.set_title(<span class="st">"Contours on Original Image"</span>)</span>
-<span id="cb8-48"><a href="#cb8-48" aria-hidden="true" tabindex="-1"></a>ax2.axis(<span class="st">"off"</span>)</span>
-<span id="cb8-49"><a href="#cb8-49" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-50"><a href="#cb8-50" aria-hidden="true" tabindex="-1"></a><span class="co"># Edge Density Heatmap</span></span>
-<span id="cb8-51"><a href="#cb8-51" aria-hidden="true" tabindex="-1"></a>ax3.imshow(heatmap, cmap<span class="op">=</span><span class="st">"hot"</span>)</span>
-<span id="cb8-52"><a href="#cb8-52" aria-hidden="true" tabindex="-1"></a>ax3.set_title(<span class="st">"Edge Density Heatmap"</span>)</span>
-<span id="cb8-53"><a href="#cb8-53" aria-hidden="true" tabindex="-1"></a>ax3.axis(<span class="st">"off"</span>)</span>
-<span id="cb8-54"><a href="#cb8-54" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-55"><a href="#cb8-55" aria-hidden="true" tabindex="-1"></a><span class="co"># Edge Orientation Histogram</span></span>
-<span id="cb8-56"><a href="#cb8-56" aria-hidden="true" tabindex="-1"></a>angles_deg <span class="op">=</span> np.degrees(orientation[magnitude <span class="op">&gt;</span> <span class="dv">50</span>].flatten())</span>
-<span id="cb8-57"><a href="#cb8-57" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-58"><a href="#cb8-58" aria-hidden="true" tabindex="-1"></a>ax4.hist(angles_deg, bins<span class="op">=</span><span class="dv">36</span>, <span class="bu">range</span><span class="op">=</span>(<span class="dv">0</span>, <span class="dv">90</span>), color<span class="op">=</span><span class="st">'purple'</span>)</span>
-<span id="cb8-59"><a href="#cb8-59" aria-hidden="true" tabindex="-1"></a>ax4.set_title(<span class="st">"Edge Orientation Histogram"</span>)</span>
-<span id="cb8-60"><a href="#cb8-60" aria-hidden="true" tabindex="-1"></a>ax4.set_xlabel(<span class="st">"Angle (degrees)"</span>)</span>
-<span id="cb8-61"><a href="#cb8-61" aria-hidden="true" tabindex="-1"></a>ax4.set_ylabel(<span class="st">"Frequency"</span>)</span>
-<span id="cb8-62"><a href="#cb8-62" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-63"><a href="#cb8-63" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-64"><a href="#cb8-64" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
-<span id="cb8-65"><a href="#cb8-65" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Compute the magnitude and orientation of the gradient.</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="co"># To put it simpler, they represents the length and direction of the edges at each pixel.</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="co"># For those who are familiar with pythagorean theorem, the magnitude is exactly the length of the"long edge" calculated with pythagorean theorem.</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>magnitude <span class="op">=</span> np.sqrt(vert.astype(np.float32)<span class="op">**</span><span class="dv">2</span> <span class="op">+</span> horiz.astype(np.float32)<span class="op">**</span><span class="dv">2</span>)</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>orientation <span class="op">=</span> np.arctan2(vert.astype(np.float32), horiz.astype(np.float32))</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Generate an edge binary map</span></span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>mag_norm <span class="op">=</span> cv2.normalize(magnitude, <span class="va">None</span>, <span class="dv">0</span>,<span class="dv">255</span>, cv2.NORM_MINMAX).astype(np.uint8)</span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>_, edge_binary <span class="op">=</span> cv2.threshold(mag_norm, <span class="dv">50</span>, <span class="dv">255</span>, cv2.THRESH_BINARY)</span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Create the Contour plot</span></span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a>contours, _ <span class="op">=</span> cv2.findContours(edge_binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)</span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a>contour_img <span class="op">=</span> hill_rgb.copy()</span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>cv2.drawContours(contour_img, contours, <span class="op">-</span><span class="dv">1</span>, (<span class="dv">255</span>,<span class="dv">0</span>,<span class="dv">0</span>), <span class="dv">1</span>)</span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Create an edge density heatmap</span></span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a>block <span class="op">=</span> <span class="dv">32</span></span>
+<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a>h, w <span class="op">=</span> edge_binary.shape</span>
+<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a>int_img <span class="op">=</span> cv2.integral(edge_binary)</span>
+<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-21"><a href="#cb11-21" aria-hidden="true" tabindex="-1"></a>heatmap <span class="op">=</span> np.zeros_like(edge_binary, dtype<span class="op">=</span>np.float32)</span>
+<span id="cb11-22"><a href="#cb11-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-23"><a href="#cb11-23" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> y <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">0</span>, h <span class="op">-</span> block <span class="op">+</span> <span class="dv">1</span>):</span>
+<span id="cb11-24"><a href="#cb11-24" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> x <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">0</span>, w <span class="op">-</span> block <span class="op">+</span> <span class="dv">1</span>):</span>
+<span id="cb11-25"><a href="#cb11-25" aria-hidden="true" tabindex="-1"></a>        y1, x1 <span class="op">=</span> y,       x</span>
+<span id="cb11-26"><a href="#cb11-26" aria-hidden="true" tabindex="-1"></a>        y2, x2 <span class="op">=</span> y <span class="op">+</span> block, x <span class="op">+</span> block</span>
+<span id="cb11-27"><a href="#cb11-27" aria-hidden="true" tabindex="-1"></a>        total <span class="op">=</span> (int_img[y2, x2]</span>
+<span id="cb11-28"><a href="#cb11-28" aria-hidden="true" tabindex="-1"></a>               <span class="op">-</span> int_img[y1, x2]</span>
+<span id="cb11-29"><a href="#cb11-29" aria-hidden="true" tabindex="-1"></a>               <span class="op">-</span> int_img[y2, x1]</span>
+<span id="cb11-30"><a href="#cb11-30" aria-hidden="true" tabindex="-1"></a>               <span class="op">+</span> int_img[y1, x1])</span>
+<span id="cb11-31"><a href="#cb11-31" aria-hidden="true" tabindex="-1"></a>        <span class="co"># center the block’s density back into the heatmap</span></span>
+<span id="cb11-32"><a href="#cb11-32" aria-hidden="true" tabindex="-1"></a>        heatmap[y <span class="op">+</span> block<span class="op">//</span><span class="dv">2</span>, x <span class="op">+</span> block<span class="op">//</span><span class="dv">2</span>] <span class="op">=</span> total</span>
+<span id="cb11-33"><a href="#cb11-33" aria-hidden="true" tabindex="-1"></a>        </span>
+<span id="cb11-34"><a href="#cb11-34" aria-hidden="true" tabindex="-1"></a>heatmap <span class="op">=</span> cv2.normalize(heatmap, <span class="va">None</span>, <span class="dv">0</span>,<span class="dv">255</span>, cv2.NORM_MINMAX).astype(np.uint8)</span>
+<span id="cb11-35"><a href="#cb11-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-36"><a href="#cb11-36" aria-hidden="true" tabindex="-1"></a><span class="co"># Plot out the visualizations</span></span>
+<span id="cb11-37"><a href="#cb11-37" aria-hidden="true" tabindex="-1"></a>fig, axs <span class="op">=</span> plt.subplots(<span class="dv">2</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">5</span>))</span>
+<span id="cb11-38"><a href="#cb11-38" aria-hidden="true" tabindex="-1"></a>ax1, ax2, ax3, ax4 <span class="op">=</span> axs.flatten()</span>
+<span id="cb11-39"><a href="#cb11-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-40"><a href="#cb11-40" aria-hidden="true" tabindex="-1"></a><span class="co"># Original Image</span></span>
+<span id="cb11-41"><a href="#cb11-41" aria-hidden="true" tabindex="-1"></a>ax1.imshow(hill_rgb)</span>
+<span id="cb11-42"><a href="#cb11-42" aria-hidden="true" tabindex="-1"></a>ax1.set_title(<span class="st">"Input Image"</span>)</span>
+<span id="cb11-43"><a href="#cb11-43" aria-hidden="true" tabindex="-1"></a>ax1.axis(<span class="st">"off"</span>)</span>
+<span id="cb11-44"><a href="#cb11-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-45"><a href="#cb11-45" aria-hidden="true" tabindex="-1"></a><span class="co"># Contours on Original Image</span></span>
+<span id="cb11-46"><a href="#cb11-46" aria-hidden="true" tabindex="-1"></a>ax2.imshow(contour_img)</span>
+<span id="cb11-47"><a href="#cb11-47" aria-hidden="true" tabindex="-1"></a>ax2.set_title(<span class="st">"Contours on Original Image"</span>)</span>
+<span id="cb11-48"><a href="#cb11-48" aria-hidden="true" tabindex="-1"></a>ax2.axis(<span class="st">"off"</span>)</span>
+<span id="cb11-49"><a href="#cb11-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-50"><a href="#cb11-50" aria-hidden="true" tabindex="-1"></a><span class="co"># Edge Density Heatmap</span></span>
+<span id="cb11-51"><a href="#cb11-51" aria-hidden="true" tabindex="-1"></a>ax3.imshow(heatmap, cmap<span class="op">=</span><span class="st">"hot"</span>)</span>
+<span id="cb11-52"><a href="#cb11-52" aria-hidden="true" tabindex="-1"></a>ax3.set_title(<span class="st">"Edge Density Heatmap"</span>)</span>
+<span id="cb11-53"><a href="#cb11-53" aria-hidden="true" tabindex="-1"></a>ax3.axis(<span class="st">"off"</span>)</span>
+<span id="cb11-54"><a href="#cb11-54" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-55"><a href="#cb11-55" aria-hidden="true" tabindex="-1"></a><span class="co"># Edge Orientation Histogram</span></span>
+<span id="cb11-56"><a href="#cb11-56" aria-hidden="true" tabindex="-1"></a>angles_deg <span class="op">=</span> np.degrees(orientation[magnitude <span class="op">&gt;</span> <span class="dv">50</span>].flatten())</span>
+<span id="cb11-57"><a href="#cb11-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-58"><a href="#cb11-58" aria-hidden="true" tabindex="-1"></a>ax4.hist(angles_deg, bins<span class="op">=</span><span class="dv">36</span>, <span class="bu">range</span><span class="op">=</span>(<span class="dv">0</span>, <span class="dv">90</span>), color<span class="op">=</span><span class="st">'purple'</span>)</span>
+<span id="cb11-59"><a href="#cb11-59" aria-hidden="true" tabindex="-1"></a>ax4.set_title(<span class="st">"Edge Orientation Histogram"</span>)</span>
+<span id="cb11-60"><a href="#cb11-60" aria-hidden="true" tabindex="-1"></a>ax4.set_xlabel(<span class="st">"Angle (degrees)"</span>)</span>
+<span id="cb11-61"><a href="#cb11-61" aria-hidden="true" tabindex="-1"></a>ax4.set_ylabel(<span class="st">"Frequency"</span>)</span>
+<span id="cb11-62"><a href="#cb11-62" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-63"><a href="#cb11-63" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-64"><a href="#cb11-64" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb11-65"><a href="#cb11-65" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
-<p>Here, we have generated three other visualizations based on the extracted edge data.</p>
+<p>Here, we have generated three visualizations based on the extracted edge data.</p>
 <ul>
-<li>The first visualization is a Contour Map on the original image. It circles contours from the image that are distinguishable from others. In many cases, this implies the circled regions have different visual patterns or belong to different objects, which is very useful in tasks such as image recognition.</li>
-<li>The second visualization is the Edge Density Heatmap that assigns corresponding heat values to regions on the image based on the density distribution of the edges. The lighter the color, the higher the edge density of the region. This helps us to understand which area of the image carries the most information that may be of interest to us.</li>
-<li>The third visualization is a histogram showing the distribution of edge orientations. edge orientation is the direction of the edge in the graph, expressed as the angle between the edge and the x-axis (horizontal line). Understanding the distribution of edge orientation can help us better recognize the graphical features of objects in an image for tasks such as classification. For example, based on this image featuring a hill and a water surface, we now know that the edges of these two objects typically have either a horizontal or vertical orientation.</li>
+<li>The first visualization is a <strong>Contour Map</strong> on the original image. It circles contours from the image that are distinguishable from others. In many cases, this implies the circled regions have different visual patterns or belong to different objects, which is very useful in tasks such as image recognition.</li>
+<li>The second visualization is the <strong>Edge Density Heatmap</strong> that assigns corresponding heat values to regions on the image based on the density distribution of the edges. The lighter the color, the higher the edge density of the region. This helps us to understand which area of the image carries the most information that may be of interest to us.</li>
+<li>The third visualization is a histogram showing the distribution of <strong>edge orientations</strong>. edge orientation is the direction of the edge in the graph, expressed as the angle between the edge and the x-axis (horizontal line). Understanding the distribution of edge orientation can help us better recognize the graphical features of objects in an image for tasks such as classification. For example, based on this image featuring a hill and a water surface, we now know that the edges of these two objects typically have either a horizontal or vertical orientation.</li>
 </ul>
-<p>The examples above demonstrated the power of convolution in both image processing and image analysis, and more importantly, convolution is very efficient, as it is easy for computers to understand and process, and can be applied to images of any size without losing any information. This is why convolution has become a fundamental operation in computer vision and image processing.</p>
-<p>But as you have probably aware, implementing convolution from scratch can be quite tedious, especially when we need to perform more specific tasks such as detecting texts or some specific shapes. To protect the brains of computer scientists, a more advanced, adaptable and efficient way of applying convolution has been developed, which is called <strong>Convolutional Neural Networks (CNNs)</strong>, and we will discuss it in the next notebook, hopefully in a way that also protects your brain.</p>
+<p>The examples above demonstrated the power of convolution in both image processing and image analysis, and more importantly, convolution is very efficient, as it is easy for computers to understand and process, and can be applied to images of any size without losing information. This is why convolution has become a fundamental operation in computer vision and image processing.</p>
+<p>But as you are probably aware, implementing convolution from scratch can be quite tedious, especially when we need to perform more specific tasks such as detecting texts or some specific shapes. A more advanced, adaptable and efficient way of applying convolution has been developed, which is called <strong>Convolutional Neural Network (CNN)</strong>, and we will discuss it in the next notebook.</p>
 </section>
-<section id="key-takeaways-from-this-notebook" class="level4">
-<h4 class="anchored" data-anchor-id="key-takeaways-from-this-notebook">Key takeaways from this Notebook:</h4>
+<section id="key-takeaways" class="level3">
+<h3 class="anchored" data-anchor-id="key-takeaways">Key takeaways:</h3>
 <ol type="1">
 <li>Computers see images as grids of numbers, where each grid cell contains the RGB values of a pixel. With the spatial relationships and the color information, computers can understand images without losing information.</li>
 <li><strong>Convolution</strong> is an operation that applies a filter (kernel) to an image, transforming it in a way that enhances certain features or extracts useful information. It is like using a brush to color a painting or a pen to sketch a line art.</li>
@@ -661,19 +763,29 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li>Convolution is a powerful tool that can be used in many applications, such as photo editing, image search and feature extraction. It is efficient and can be applied to images of any size without losing information.</li>
 </ol>
 </section>
+<section id="glossary" class="level3">
+<h3 class="anchored" data-anchor-id="glossary">Glossary</h3>
+<ul>
+<li><strong>Computer Vision</strong>: Computer vision is a field of artificial intelligence that enables computers to “see” and interpret images and videos in a way that is similar to human vision.</li>
+<li><strong>Convolution</strong>: Convolution is an operation that applies a filter (kernel) to an image, transforming it in a way that enhances certain features or extracts useful information. It is like using a brush to color a painting or a pen to sketch a line art.</li>
+<li><strong>Kernel/Filter/Mask</strong>: A convolution kernel, also known as a filter or mask, is a small matrix (array of numbers) used in image processing and computer vision to perform operations like blurring, sharpening, edge detection, and more.</li>
+</ul>
+</section>
 <section id="additional-resources" class="level3">
 <h3 class="anchored" data-anchor-id="additional-resources">Additional Resources</h3>
 <ul>
-<li><a href="https://www.youtube.com/watch?v=KuXjwB4LzSA">3Blue1Brown: But what is a convolution?</a> A mathematical introductory video to convolution with rich visualized explanations. This may be particularly helpful to those who want to dig deeper in the mathematical perspective and were not panic when they saw the matrices show up in this notebook (I’m really sorry if that made you nervous).</li>
+<li><strong>3Blue1Brown.</strong> (2018, August 15). <em>But what is a convolution?</em> [Video]. YouTube. <a href="https://www.youtube.com/watch?v=KuXjwB4LzSA">https://www.youtube.com/watch?v=KuXjwB4LzSA</a> This video graphically explains the mathematical operation of convolution.</li>
 </ul>
+<hr>
 </section>
 <section id="references" class="level3">
 <h3 class="anchored" data-anchor-id="references">References</h3>
 <ul>
-<li>Wikipedia. Convolution。 Retrieved June&nbsp;18,&nbsp;2025, from <a href="https://en.wikipedia.org/wiki/Convolution" class="uri">https://en.wikipedia.org/wiki/Convolution</a></li>
-<li>Neuromatch Academy. Computational Neuroscience. Tutorial 2: Convolutional Neural Networks. Retrieved June&nbsp;18,&nbsp;2025, from <a href="https://compneuro.neuromatch.io/tutorials/intro.html" class="uri">https://compneuro.neuromatch.io/tutorials/intro.html</a></li>
-<li>GeeksForGeeks. Types of Convolution Kernels <a href="https://www.geeksforgeeks.org/deep-learning/types-of-convolution-kernels" class="uri">https://www.geeksforgeeks.org/deep-learning/types-of-convolution-kernels</a></li>
-<li>OpenCV. Image Processing in OpenCV <a href="https://docs.opencv.org/4.x/d2/d96/tutorial_py_table_of_contents_imgproc.html" class="uri">https://docs.opencv.org/4.x/d2/d96/tutorial_py_table_of_contents_imgproc.html</a></li>
+<li><p>Wikipedia contributors. (2025, June&nbsp;18). <em>Convolution</em>. In <em>Wikipedia, The Free Encyclopedia</em>. Retrieved June&nbsp;18,&nbsp;2025, from <a href="https://en.wikipedia.org/wiki/Convolution">https://en.wikipedia.org/wiki/Convolution</a></p></li>
+<li><p>Sato, A. (2010, September 13). Kabosu the Shiba Inu (“Doge”) [Photograph]. Flickr. This photo is cited and used under   <a href="https://creativecommons.org/licenses/by-sa/2.0/">https://creativecommons.org/licenses/by-sa/2.0/</a></p></li>
+<li><p>xiquinhosilva. (2018, June 14), Elephant Trunk Hill [Photograph]. Flickr. This photo is cited and used under   <a href="https://creativecommons.org/licenses/by-sa/2.0/">https://creativecommons.org/licenses/by-sa/2.0/</a></p></li>
+<li><p>GeeksforGeeks. (n.d.). <em>Types of Convolution Kernels</em>. Retrieved July&nbsp;16,&nbsp;2025, from <a href="https://www.geeksforgeeks.org/deep-learning/types-of-convolution-kernels">https://www.geeksforgeeks.org/deep-learning/types-of-convolution-kernels</a></p></li>
+<li><p>OpenCV.org. (n.d.). <em>Image Processing in OpenCV</em>. Retrieved July&nbsp;16,&nbsp;2025, from <a href="https://docs.opencv.org/4.x/d2/d96/tutorial_py_table_of_contents_imgproc.html">https://docs.opencv.org/4.x/d2/d96/tutorial_py_table_of_contents_imgproc.html</a></p></li>
 </ul>
 
 

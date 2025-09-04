@@ -6,10 +6,11 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="author" content="Kaiyan Zhang, prAxIs UBC Team">
+<meta name="author" content="Praxis UBC Team   Kaiyan Zhang">
 <meta name="dcterms.date" content="2025-07-24">
+<meta name="description" content="This notebook provides an introduction to Convolutional Neural Networks (CNNs), their architecture, and their applications. It includes a hands-on example of building and training a CNN classifier using the CIFAR-10 dataset.">
 
-<title>Praxis - Mostly Harmless Convolutional Neural Networks (CNNs)</title>
+<title>Praxis - Introduction to Convolutional Neural Networks (CNNs)</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -262,10 +263,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#what-are-neural-networks" id="toc-what-are-neural-networks" class="nav-link active" data-scroll-target="#what-are-neural-networks">What are Neural Networks?</a></li>
-  <li><a href="#an-intuitive-understanding-of-convolutional-neural-networks-cnns" id="toc-an-intuitive-understanding-of-convolutional-neural-networks-cnns" class="nav-link" data-scroll-target="#an-intuitive-understanding-of-convolutional-neural-networks-cnns">An Intuitive Understanding of Convolutional Neural Networks (CNNs)</a></li>
-  <li><a href="#optional-build-our-own-cnn-classifier-an-example-using-cifar-10-dataset" id="toc-optional-build-our-own-cnn-classifier-an-example-using-cifar-10-dataset" class="nav-link" data-scroll-target="#optional-build-our-own-cnn-classifier-an-example-using-cifar-10-dataset">(Optional) Build Our Own CNN Classifier: An Example Using CIFAR-10 Dataset</a></li>
-  <li><a href="#key-takeaways-from-this-part" id="toc-key-takeaways-from-this-part" class="nav-link" data-scroll-target="#key-takeaways-from-this-part">Key takeaways from this part:</a></li>
+  <li><a href="#what-are-neural-networks" id="toc-what-are-neural-networks" class="nav-link active" data-scroll-target="#what-are-neural-networks">1. What are Neural Networks?</a></li>
+  <li><a href="#an-intuitive-understanding-of-convolutional-neural-networks-cnns" id="toc-an-intuitive-understanding-of-convolutional-neural-networks-cnns" class="nav-link" data-scroll-target="#an-intuitive-understanding-of-convolutional-neural-networks-cnns">2. An Intuitive Understanding of Convolutional Neural Networks (CNNs)</a></li>
+  <li><a href="#cnn-example-classifying-handwritten-digits" id="toc-cnn-example-classifying-handwritten-digits" class="nav-link" data-scroll-target="#cnn-example-classifying-handwritten-digits">3. CNN Example: Classifying Handwritten Digits</a></li>
+  <li><a href="#optional-build-our-own-cnn-classifier-an-example-using-cifar-10-dataset" id="toc-optional-build-our-own-cnn-classifier-an-example-using-cifar-10-dataset" class="nav-link" data-scroll-target="#optional-build-our-own-cnn-classifier-an-example-using-cifar-10-dataset">4. (Optional) Build Our Own CNN Classifier: An Example Using CIFAR-10 Dataset</a></li>
+  <li><a href="#key-takeaways" id="toc-key-takeaways" class="nav-link" data-scroll-target="#key-takeaways">Key takeaways:</a></li>
+  <li><a href="#glossary" id="toc-glossary" class="nav-link" data-scroll-target="#glossary">Glossary</a></li>
   <li><a href="#additional-resources" id="toc-additional-resources" class="nav-link" data-scroll-target="#additional-resources">Additional Resources</a></li>
   <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
   </ul>
@@ -276,7 +279,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Mostly Harmless Convolutional Neural Networks (CNNs)</h1>
+<h1 class="title">Introduction to Convolutional Neural Networks (CNNs)</h1>
   <div class="quarto-categories">
     <div class="quarto-category">Python</div>
     <div class="quarto-category">convolutional neural networks</div>
@@ -285,6 +288,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   </div>
   </div>
 
+<div>
+  <div class="description">
+    This notebook provides an introduction to Convolutional Neural Networks (CNNs), their architecture, and their applications. It includes a hands-on example of building and training a CNN classifier using the CIFAR-10 dataset.
+  </div>
+</div>
 
 
 <div class="quarto-title-meta">
@@ -292,7 +300,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <div>
     <div class="quarto-title-meta-heading">Author</div>
     <div class="quarto-title-meta-contents">
-             <p><em>Kaiyan Zhang, prAxIs UBC Team</em> </p>
+             <p>Praxis UBC Team <br> <em>Kaiyan Zhang</em> </p>
           </div>
   </div>
     
@@ -309,42 +317,47 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 </header>
 
-<p><strong>Before you begin: Install the dependencies that you don’t have by running the code cell below.</strong></p>
+<div class="callout callout-style-default callout-warning callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Warning
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>This notebook may require using a GPU and a system with over 24GB of RAM to run efficiently. Running it on a system with limited resources may result in long processing times or potential memory issues.</p>
+</div>
+</div>
+<p>Before you start, make sure you have the required libraries installed, if not, simply <strong>uncomment the lines below (remove the #)</strong> and run the cell to install them:</p>
 <div class="cell" data-execution_count="1">
 <details>
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># !pip install opencv-python</span></span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="co"># !pip install numpy</span></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co"># !pip install matplotlib</span></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="co"># !pip install pandas</span></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="co"># !pip install scikit-learn</span></span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="co"># !pip install seaborn</span></span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co"># !pip install datasets</span></span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="co"># !pip install torch</span></span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="co"># !pip install tqdm</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># !pip install opencv-python numpy matplotlib pandas scikit-learn seaborn datasets torch tqdm</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
-<p><img src="media/CNN_example.jpg" alt="A visual explanation of CNN" width="800"></p>
+<p><img src="images/CNN_example.jpg" alt="A visual explanation of CNN" width="800"></p>
 <section id="what-are-neural-networks" class="level3">
-<h3 class="anchored" data-anchor-id="what-are-neural-networks">What are Neural Networks?</h3>
+<h3 class="anchored" data-anchor-id="what-are-neural-networks">1. What are Neural Networks?</h3>
 <p>What is the first thing that comes to your mind when you hear the word “<strong>neural network</strong>”? If you are thinking about the human brain and neurons, you are not wrong. In fact, the term “neural network” is inspired by the way how human brain and nervous systems work, where neurons are connected to each other and communicate with each other to process information.</p>
 <p>In the context of <strong>machine learning</strong>, a neural network, or more precisely, an <strong>artificial neural network (ANN)</strong> is defined as “a program, or model, that makes decisions in a manner similar to the human brain, by using processes that mimic the way biological neurons work together to identify phenomena, weigh options and arrive at conclusions”.</p>
 <p>The definition seems way too formal and scientific, but we can easily translate it into daily language. Think of taking a closed-book multiple choice exam (Oops, gross). Your brain calls on a team of “experts”, one for course facts, another for what you remember about the professor’s hints in class, another for gut instincts, etc. When you read a question, each expert gives you a confidence score. You weight each score by how much you trust that expert, then add them up. The answer with the highest total “trust <span class="math inline">\(\times\)</span> confidence” wins. After the exam, you see which answers were wrong and adjust those trust weights (trust the right experts more, the wrong ones less), and prepare for the next exam based on this experience. This exactly how a neural network makes decisions and learns via its <strong>feedback loop</strong>. Neural networks are following a similar thought and learning process as you and me, and this is why they are flexible and powerful, being able to handle complex, abstract tasks and evolve on their own, <strong>like an intelligent creature</strong>.</p>
 <p>While the core idea is not complex, you may want to master some bluffing terms to translate the professional discussions. In the example above, the “experts” you consulted in your mind are called <strong>neurons</strong>; the key clues you noticed when reading question are called <strong>features</strong>; your understanding of exam question is called the <strong>input layer</strong>; your thought process rounds are called <strong>hidden layers</strong>; your chosen answer is reflected as the <strong>output layer</strong>; the mind map that connects all the “experts” and input features is <strong>architecture</strong>; and each exam attempt with the review of feedback is called a <strong>training epoch</strong>. See, they are really not that deep! You now can also talk about it as an expert.</p>
 </section>
 <section id="an-intuitive-understanding-of-convolutional-neural-networks-cnns" class="level3">
-<h3 class="anchored" data-anchor-id="an-intuitive-understanding-of-convolutional-neural-networks-cnns">An Intuitive Understanding of Convolutional Neural Networks (CNNs)</h3>
+<h3 class="anchored" data-anchor-id="an-intuitive-understanding-of-convolutional-neural-networks-cnns">2. An Intuitive Understanding of Convolutional Neural Networks (CNNs)</h3>
 <p>Now that we understood what is an artificial neural network, let’s dive into the real topic here: What’s unique about <strong>convolutional neural networks (CNNs)</strong> and why they are revolutionary to computer vision and image processing?</p>
 <p>Let’s start by discussing the unique point of CNNs. Imagine you are reading a bird guide and trying to learn the characteristics of a night heron and a grey heron so that you can easily distinguish between the two in the field, what would you do? I believe you would naturally try to observe the birds piece by piece: first comparing the features of the juveniles and adults, then noting how they look both in flight and on land. Gradually, your brain forms a complete comparison: the night heron has a shorter beak, a shorter neck, striking red eyes, and dark blue plumage as an adult; while the grey heron has a longer beak, a longer neck, yellow eyes, and wears grey color plumage.</p>
 <p align="center">
 </p><figure style="display:inline-block; margin:10px;" class="figure">
-<img src="media/night_heron.jpg" alt="A night heron" width="300" class="figure-img">
+<img src="images/night_heron.jpg" alt="A night heron" width="300" class="figure-img">
 <figcaption style="text-align:center;" class="figure-caption">
 Night heron in a bird guide
 </figcaption>
 </figure>
 <figure style="display:inline-block; margin:10px;" class="figure">
-<img src="media/grey_heron.jpg" alt="A grey herom" width="370" class="figure-img">
+<img src="images/grey_heron.jpg" alt="A grey herom" width="370" class="figure-img">
 <figcaption style="text-align:center;" class="figure-caption">
 Grey heron in a bird guide
 </figcaption>
@@ -354,8 +367,11 @@ Grey heron in a bird guide
 <p>Let’s recall some basic concepts of convolution and see how they are applied in the CNNs, typically within the convolutional layer. Here, the <strong>inputs</strong> are images, and they are interpreted by a computer as grids of numbers. The <strong>kernels</strong> (also called filters) are still the “brushes” you apply on the input image to extract certain features, but in a CNN, there are usually multiple distinct kernels applied at the same time to extract and map different features. After different features are extracted, they will be pooled together with another kernel and produce a summarized output to be passed into the <strong>fully-connected layer</strong> for classification or other tasks.</p>
 <p>While the principles behind the architectures are complicated, many python libraries now offer easy ways to implement these architectures. In a word, with a labeled image dataset, you can also train a CNN classifier yourself. Let’s try out an example together.</p>
 </section>
+<section id="cnn-example-classifying-handwritten-digits" class="level3">
+<h3 class="anchored" data-anchor-id="cnn-example-classifying-handwritten-digits">3. CNN Example: Classifying Handwritten Digits</h3>
+</section>
 <section id="optional-build-our-own-cnn-classifier-an-example-using-cifar-10-dataset" class="level3">
-<h3 class="anchored" data-anchor-id="optional-build-our-own-cnn-classifier-an-example-using-cifar-10-dataset">(Optional) Build Our Own CNN Classifier: An Example Using CIFAR-10 Dataset</h3>
+<h3 class="anchored" data-anchor-id="optional-build-our-own-cnn-classifier-an-example-using-cifar-10-dataset">4. (Optional) Build Our Own CNN Classifier: An Example Using CIFAR-10 Dataset</h3>
 <p>Classifying is central in the application of CNNs, so let’s try building a classifier using CNN and see how it works with an example. Let’s say, we want to train a model (the “expert”) that identify and distinguish between some daily objects, such as cars, planes, cat, dogs, etc. We first need to find a dataset that contains images of these objects with labels. <strong>This is usually hard as we wouldn’t always have clean, labelled datasets of a specific topic</strong>. But luckily, we have many datasets for daily objects.</p>
 <p>The dataset we are using here is <a href="https://www.cs.toronto.edu/~kriz/cifar.html">CIFAR-10</a>, it is a widely used practice dataset for beginners to image processing that consists of 60000 32 <span class="math inline">\(\times\)</span> 32 colour images in 10 classes, with 6000 images per class. There are 50000 training images and 10000 test images. Let’s first load the dataset and see what it’s like.</p>
 <section id="step-1-data-preprocessing" class="level4">
@@ -387,12 +403,11 @@ Grey heron in a bird guide
 <details>
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># let's view the image (it's very small)</span></span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>sample <span class="op">=</span> dataset_train[<span class="dv">0</span>][<span class="st">'img'</span>]</span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>plt.imshow(sample)</span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>plt.axis(<span class="st">'off'</span>)</span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>sample <span class="op">=</span> dataset_train[<span class="dv">0</span>][<span class="st">'img'</span>]</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>plt.imshow(sample)</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>plt.axis(<span class="st">'off'</span>)</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
 <p>Can you see what the image is about? Can you imagine how computers understands it?</p>
@@ -505,7 +520,7 @@ Grey heron in a bird guide
 <h4 class="anchored" data-anchor-id="step-2-training-the-cnn-classifier">Step 2: Training the CNN Classifier</h4>
 <p>After carefully processing both the training and the test data, we finally came to a stage where we can train our own CNN classifier. The first thing we need to do is to decide which <strong>architecture</strong> we want to use for the model.</p>
 <p>Architecture determines the way how a CNN integrate and learn from the features it extracted, and thus largely determines the performance of a model. Throughout the years, there have been several hugely successful CNN architectures, which we won’t be able to discuss in detail. Here, I will only demonstrate the architecture of <strong>LeNet-5</strong>: It reads images in a sequence that starts with a partial and combines the partials into a comprehensive one. Intuitively, the learning process of this architecture can be thought as learning to write a new character: You learn to write each stroke first, and then follow the structure of the character to put those strokes together into a complete character.</p>
-<p><img src="media/lenet5.png" alt="A visual comparison of two neural networks" width="700"></p>
+<p><img src="images/lenet5.png" alt="A visual comparison of two neural networks" width="700"></p>
 <div class="cell" data-execution_count="9">
 <details>
 <summary>Code</summary>
@@ -659,7 +674,7 @@ Grey heron in a bird guide
 <div class="cell" data-execution_count="13">
 <details>
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>plt.figure(figsize<span class="op">=</span>(<span class="dv">12</span>,<span class="dv">5</span>))</span>
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>plt.figure(figsize<span class="op">=</span>(<span class="dv">8</span>,<span class="dv">4</span>))</span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Plot Loss</span></span>
 <span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>plt.subplot(<span class="dv">1</span>,<span class="dv">2</span>,<span class="dv">1</span>)</span>
@@ -688,14 +703,14 @@ Grey heron in a bird guide
 <details>
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co"># save to file</span></span>
-<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>torch.save(model, <span class="st">'data/cnn.pt'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>torch.save(model, <span class="st">'cnn.pt'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
 <div class="cell" data-execution_count="15">
 <details>
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co"># load from file and switch to inference mode</span></span>
-<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> torch.load(<span class="st">'data/cnn.pt'</span>, weights_only<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> torch.load(<span class="st">'cnn.pt'</span>, weights_only<span class="op">=</span><span class="va">False</span>)</span>
 <span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>model.<span class="bu">eval</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
@@ -781,7 +796,7 @@ Grey heron in a bird guide
 <span id="cb19-25"><a href="#cb19-25" aria-hidden="true" tabindex="-1"></a>    num_filters <span class="op">=</span> fmap.shape[<span class="dv">1</span>]</span>
 <span id="cb19-26"><a href="#cb19-26" aria-hidden="true" tabindex="-1"></a>    cols <span class="op">=</span> <span class="dv">6</span></span>
 <span id="cb19-27"><a href="#cb19-27" aria-hidden="true" tabindex="-1"></a>    rows <span class="op">=</span> <span class="bu">min</span>((num_filters <span class="op">+</span> cols <span class="op">-</span> <span class="dv">1</span>) <span class="op">//</span> cols, <span class="dv">4</span>)</span>
-<span id="cb19-28"><a href="#cb19-28" aria-hidden="true" tabindex="-1"></a>    fig, axes <span class="op">=</span> plt.subplots(rows, cols, figsize<span class="op">=</span>(cols<span class="op">*</span><span class="dv">2</span>, rows<span class="op">*</span><span class="dv">2</span>))</span>
+<span id="cb19-28"><a href="#cb19-28" aria-hidden="true" tabindex="-1"></a>    fig, axes <span class="op">=</span> plt.subplots(rows, cols, figsize<span class="op">=</span>(cols<span class="op">*</span><span class="fl">1.2</span>, rows<span class="op">*</span><span class="fl">1.2</span>))</span>
 <span id="cb19-29"><a href="#cb19-29" aria-hidden="true" tabindex="-1"></a>    fig.suptitle(<span class="ss">f'Feature maps from </span><span class="sc">{</span>name<span class="sc">}</span><span class="ss">'</span>, fontsize<span class="op">=</span><span class="dv">16</span>)</span>
 <span id="cb19-30"><a href="#cb19-30" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(rows <span class="op">*</span> cols):</span>
 <span id="cb19-31"><a href="#cb19-31" aria-hidden="true" tabindex="-1"></a>        r, c <span class="op">=</span> <span class="bu">divmod</span>(i, cols)</span>
@@ -798,14 +813,17 @@ Grey heron in a bird guide
 <p>This technology is also reshaping some humanities and social science research. For example, in archaeology, CNNs are being used to categorize, complete, and translate broken clay tablets and cuneiform texts; in art history, CNNs are being used to study the pigments and materials used in paintings, as well as the expressions and gestures of the figures in them; and in anthropology, CNNs are being used to distinguish between human races and complex kinships. It is for this reason that we are here to introduce it to you! I hope you enjoyed the class and got something different out of it!</p>
 </section>
 </section>
-<section id="key-takeaways-from-this-part" class="level3">
-<h3 class="anchored" data-anchor-id="key-takeaways-from-this-part">Key takeaways from this part:</h3>
+<section id="key-takeaways" class="level3">
+<h3 class="anchored" data-anchor-id="key-takeaways">Key takeaways:</h3>
 <ol type="1">
 <li><strong>Artificial Neural Networks (ANNs)</strong> are programs or models that make decisions in a similar manner to the thought process of a human brain.</li>
 <li><strong>Convolutional Neural Networks (CNNs)</strong> differ from other neural networks in the <strong>convolutional layer</strong> that allows them to understand features from image input in a more efficient way.</li>
 <li><strong>Architectures</strong> are central in neural networks as they determine the ways how a model learn from the input features and thereby determine the model performance.</li>
 <li>Machine Learning and CNNs are fun and practical in the field of humanities and social sciences!</li>
 </ol>
+</section>
+<section id="glossary" class="level3">
+<h3 class="anchored" data-anchor-id="glossary">Glossary</h3>
 </section>
 <section id="additional-resources" class="level3">
 <h3 class="anchored" data-anchor-id="additional-resources">Additional Resources</h3>
@@ -816,12 +834,12 @@ Grey heron in a bird guide
 </section>
 <section id="references" class="level3">
 <h3 class="anchored" data-anchor-id="references">References</h3>
-<ul>
+<ol type="1">
 <li>Pinecone. Embedding Methods for Image Search. <a href="https://www.pinecone.io/learn/series/image-search" class="uri">https://www.pinecone.io/learn/series/image-search</a></li>
 <li>IBM. What is a neural network? <a href="https://www.ibm.com/think/topics/neural-networks" class="uri">https://www.ibm.com/think/topics/neural-networks</a></li>
 <li>IBM. What are convolutional neural networks? <a href="https://www.ibm.com/think/topics/convolutional-neural-networks" class="uri">https://www.ibm.com/think/topics/convolutional-neural-networks</a></li>
 <li>Convolutional Neural Network From Scratch. <a href="https://medium.com/latinxinai/convolutional-neural-network-from-scratch-6b1c856e1c07" class="uri">https://medium.com/latinxinai/convolutional-neural-network-from-scratch-6b1c856e1c07</a></li>
-</ul>
+</ol>
 
 
 </section>
