@@ -1,11 +1,14 @@
 ---
 title: Embedding Driven Text Analysis of Crease's Stance Towards Chinese Immigrants
-date: '2025-08-04'
+date: 2025-08-04
+image: data/embedding_visualization.png
 author: prAxIs UBC Team <br> _Kaiyan Zhang, Irene Berezin, Alex Ronczewski_
-description: This notebook aims to demonstrate how machine learning can assist with historical research. 
+description: This notebook aims to demonstrate how machine learning can assist with historical and other humanity research.
+categories:
   - Python
-  - Word Embeddings
-  - Sentiment Analysis
+  - word embeddings
+  - sentiment analysis
+  - HIST 414
 format:
   html:
     code-fold: true
@@ -16,21 +19,33 @@ format:
         display_name: Python
         language: python3
         name: python3
-jupyter: python3
 ---
 
+
 ### Library Loading
+
+```{python}
+# !pip install pandas numpy umap-learn matplotlib seaborn plotly nltk spacy scikit-learn scipy transformers torch tqdm --upgrade
+```
+
+```{python}
+# import nltk; nltk.download('punkt'); nltk.download('stopwords'); nltk.download('punkt_tab')
+# !python -m spacy download en_core_web_sm
+```
 
 ```{python}
 # This cell loads the necessary libraries for executing the notebook.
 import pandas as pd
 import numpy as np
 import re
+import pickle
 import umap
 import textwrap
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 import seaborn as sns
+from IPython.display import HTML
+from plotly import io as pio
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -49,6 +64,21 @@ from typing import Dict, Any, Union
 
 ### Introduction
 
+Many of you will have, by now, interacted with AI via chatbots. But that format serves to obscure:
+
+1. the decades of development of ML and NLP techniques that led to this moment, and
+2. the analytical uses of AI, specifically in our case for text analysis in the social sciences and humanities.
+
+In this workshop we will explore, at a very high level, how AI is changing the way historians (and others) can process and analyze text. Specifically, we will:
+
+1. Demonstrate how AI has improved the ability to extract machine-readable text from images of historical text (what is known as Optical Character Recognition, or OCR).
+2. We will discuss how models trained on large amounts of domain-specific text allows for richer representations of text and the potential for deeper interpretation, compared to previous techniques.
+3. We will briefly explore how natural language prompts (such as what you put into chatbots), when used in an analytic pipeline, has enabled new approaches to text analysis that we've never seen before.
+
+This is meant as a very high-level overview of these techniques. For those completely new to text analysis, this is meant to demonstrate that AI is not (just) a chatbot: it is used to analyze text to enable insights, building on decades of work developing text analysis methods for the social sciences and humanities. For those who are aware of computational text analysis techniques, this workshop is meant to to bring you up to date on how AI is changing the text analysis landscape.
+
+Importantly, you will not come away from this workshop knowing the math behind these techniques, nor how to implement them yourselves. That would require weeks (if not months) of instruction. Instead, our goal is to give you a peak behind the AI curtain and spark your curiosity to learn more. At the very least, we hope to cover some important vocabulary so you know how to begin that learning. And ultimately, we want you to have a bit more understanding of what is happening behind the scenes when you enter a prompt into a chatbot and get back a cheery, but sometimes wrong, response.
+
 #### Overview of Historical Background
 
 ***The 1884 Chinese Regulation Act*** in British Columbia is widely regarded as one of the most notorious discriminatory provincial laws targeting Chinese immigration, it was challenged and ultimately declared unconstitutional in the 1885 case of ***R v. Wing Chong*** by the judge Henry Pering Pellew Crease. The Justice Crease found the legislation to be unconstitutional on economic grounds; infringing on federal authority over immigration, trade, commerce, treaty-making, and taxation. 
@@ -61,7 +91,7 @@ The central figure in the ruling, *Henry Pering Pellew Crease*, came from a weal
 
 In previous years, students expressed interest Crease's opinion on the 1884 Chinese regulation act, given that the regulation act was strongly condemned and ultimately struck down by Crease. However, this seems at odds with Crease's position on Chinese immigrants.
 
-This raises an interesting question: **Did Judge Crease strike down the act because of genuine anti-racism concerns, or because he saw the Chinese immigrant labor force as a valuable asset for growing the Canadian economy?**
+This raises an interesting question: **Did Judge Crease strike down the act because of genuine anti-discrimination concerns, or because he saw the Chinese immigrant labor force as a valuable asset for growing the Canadian economy?**
 
 #### Objective
 
@@ -78,6 +108,7 @@ This raises an interesting question: **Did Judge Crease strike down the act beca
 Legal text analysis is itself a complex task, as legal documents are often lengthy, dense, formal, and filled with specialized terminology. They are also often written in neutral or passive voice, making it difficult to discern the author's personal opinions or biases, it poses unique challenges for historians and legal scholars alike, which also challenged the usual methods of natural language processing (NLP).
 
 Mining insights from such texts requires sophisticated techniques to extract meaningful information and identify patterns. We need the technique to be able to:
+
 * **Understand legal vocabulary**: Legal texts often contain specialized terminology and complex sentence structures, the technique should be able to handle legal jargon and formal language.
 * **Identify contextual semantics**: Legal texts often involve nuanced meanings and interpretations, so the technique should be able to capture the context and semantics of legal language.
 * **Handle ambiguity**: Legal texts can be ambiguous, with multiple interpretations possible, the technique should be able to handle ambiguity and provide insights into different interpretations.
@@ -125,24 +156,23 @@ Below is a brief overview of early and modern OCR techniques:
 
 
 - **Early OCR (Pattern Matching):**
-
-    - Compared each character image to a library of fonts and shapes.
-    - Worked well for clean, printed text.
-    - Struggled with handwriting, unusual fonts, or degraded scans.
+  - Compared each character image to a library of fonts and shapes.
+  - Worked well for clean, printed text.
+  - Struggled with handwriting, unusual fonts, or degraded scans.
 
 - **Modern OCR (Intelligent Recognition):**
-
-    - Uses AI to "read" text more like a human.
-    - Analyzes shapes, context, and layout.
-    - Handles messy, handwritten, or complex documents much better.
+  - Uses AI to "read" text more like a human.
+  - Analyzes shapes, context, and layout.
+  - Handles messy, handwritten, or complex documents much better.
 
 After testing several tools, we found that modern, AI-based OCR methods produced the most accurate results for our historical documents.
 
 #### Data Overview
 
 After OCR, we obtained a `.csv` file containing the text and metadata of the documents. Note that we removed the direct quotes of the *1884 Chinese Regulation Act* in Crease's ruling, as they don't reflect his own language. The structure of the data is as follows:
-| Column Name                   | Description                                              |
-| ----------------------------- | -------------------------------------------------------- |
+
+| Column Name                 | Description                                              |
+| --------------------------- | -------------------------------------------------------- |
 | filename                    | Name of the file containing the document text.           |
 | author                      | Author of the document (e.g., "Crease", "Begbie").       |
 | type                        | Document type (e.g., "case", "report").                  |
@@ -185,10 +215,8 @@ This process typically involves a sequence of steps:
 1. **Tokenization**: Breaking text into analyzable units (words, subwords, or sentences). 
 2. **Preprocessing**: Cleaning and normalizing text (lowercasing, removing OCR noise, handling archaic spelling). 
 3. **Vectorization**: Converting tokens or texts into numerical vectors. 
-
     - Simple count-based approaches (TF-IDF) capture term importance across documents. 
     - Modern contextual methods (BERT, Legal‑BERT) produce dense embeddings that capture usage-dependent semantics.
-
 4. **Modeling and Comparison**: Applying algorithms to those vectors. Examples include cosine similarity for semantic closeness, UMAP for visualization, and zero‑shot classification.
 5. **Aggregation and Interpretation**: Aggregating sentence- or snippet-level outputs to produce document- or author-level summaries (mean stance vectors, topic distributions), followed by careful human interpretation.
 
@@ -463,15 +491,26 @@ grouped_texts['sentence_tokens'] = grouped_texts['sentence_tokens'].apply(
 ```
 
 ```{python}
-# Embed the words in each group
-grouped_texts['word_embeddings'] = grouped_texts['sentence_tokens'].apply(
-    lambda x: embed_words(x)
-    )
+# # Embed the words in each group
+# grouped_texts['word_embeddings'] = grouped_texts['sentence_tokens'].apply(
+#     lambda x: embed_words(x)
+#     )
+
+# # Save the grouped_texts DataFrame to a pkl file for future use
+# grouped_texts.to_pickle("data/word_embeddings.pkl")
+```
+
+```{python}
 
 # Compute the number of unique words in each group
 grouped_texts['num_unique_words'] = grouped_texts['word_tokens'].apply(lambda x: len(set(x)))
 
 grouped_texts.head()
+```
+
+```{python}
+# Load the grouped_texts DataFrame from CSV
+grouped_texts = pd.read_pickle("data/word_embeddings.pkl")
 ```
 
 We created word embeddings of all tokens in each group, respectively. The word embeddings are stored in a dictionary format, where each key is a word and the value is its corresponding embedding vector.
@@ -703,13 +742,23 @@ for auth, num in n_snippet.items():
 ```
 
 ```{python}
-# Create embeddings
-embeddings_dict = {'Crease': [], 'Begbie': [], 'Act 1884': []}
+# # Create embeddings
+# embeddings_dict = {'Crease': [], 'Begbie': [], 'Act 1884': []}
 
-for auth, snippets in act_snippets.items():
-    for snip in snippets:
-        v = embed_text(snip, focus_token=keywords, window=15)
-        embeddings_dict[auth].append(v) 
+# for auth, snippets in act_snippets.items():
+#     for snip in snippets:
+#         v = embed_text(snip, focus_token=keywords, window=15)
+#         embeddings_dict[auth].append(v) 
+
+# # Save the embeddings dictionary to a pickle file
+# with open("data/case_snippet_embeddings.pkl", "wb") as f:
+#     pickle.dump(embeddings_dict, f)
+```
+
+```{python}
+# read in the embeddings dictionary
+with open("data/case_snippet_embeddings.pkl", "rb") as f:
+    embeddings_dict = pickle.load(f)
 ```
 
 #### Measuring Stance Similarity
@@ -789,6 +838,8 @@ def wrap_text(text, width=60):
 ```
 
 ```{python}
+pio.renderers.default = "plotly_mimetype+notebook_connected"
+
 umap_df = pd.DataFrame(proj, columns=['UMAP 1', 'UMAP 2'])
 umap_df['Author'] = labels
 umap_df['Text'] = [snip for auth in act_snippets for snip in act_snippets[auth]]
@@ -1495,6 +1546,9 @@ color_map = {'Crease': '#1f77b4', 'Begbie': '#d62728', 'Act 1884': '#2ca02c'}
 
 def plot_topic_vs_stance(df, topic='labor', authors=None, color_map=None, show_regression=True,
                          width=800, height=800):
+    
+    pio.renderers.default = "plotly_mimetype+notebook_connected"
+
     df = df.copy()
 
     # Prepare text wrapping if needed
