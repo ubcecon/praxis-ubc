@@ -17,11 +17,9 @@ jobs:
             cat lint_output.txt
           fi
 
-
       - name: Build Docker image
         run: |
           docker build -t my-app-image:latest -f ./meta/building/.dockerfile .
-
 
       - name: Extract web content
         run: |
@@ -32,7 +30,6 @@ jobs:
          
           echo "Web content directory contents:"
           ls -la ./web-content
-
 
       - name: Upload files as artifacts
         uses: actions/upload-artifact@v4
@@ -52,17 +49,16 @@ jobs:
         with:
           path: source-notebooks
 
-
       - name: Remove rendered files
         run: |
           find source-notebooks/project/docs -type f \( -name "*.html" -o -name "*.md" \) -delete
 
-        #Update fix-comet.yml to main 
+        #Ref for Branch
       - name: Checkout datasets
         uses: actions/checkout@v3
         with:
           repository: ubcecon/praxis-ubc
-          ref: fix-comet.yml 
+          ref: main
           path: datasets
 
         # Add file extensions of data and model files once all are on the main branch
@@ -80,10 +76,16 @@ jobs:
             --include '*.jpg' \
             --include '*.gif' \
             --include '*.svg' \
+            --include '*.csv' \
+            --include '*.txt' \
+            --include '*.npy' \
+            --include '*.py' \
+            --include '*.pth' \
+            --include '*.webp' \
             --exclude '*' \
             source-notebooks/project/docs/ final-notebooks/docs/
 
-          for dir in AMNE-376 ECON-227 HIST-414 intro_to_cnn intro_to_convolution SOCI-280 SOCI-415 text_analysis; do
+          for dir in AMNE-376 ECON-227 hist_workshop intro_to_cnns intro_to_convolutions intro_to_deep_learning intro_to_transformers SOCI-280 SOCI-415 text_analysis; do
             section=$(echo "$dir" | cut -d'_' -f2- | tr '[:upper:]' '[:lower:]')
             dataset_dir="datasets/project/docs/$dir/datasets_${section}"
            
@@ -95,9 +97,7 @@ jobs:
             fi
           done
 
-
           echo "dir=$(pwd)/final-notebooks" >> $GITHUB_OUTPUT
-
 
       - name: Create master ZIP of all notebooks
         run: |
@@ -105,13 +105,11 @@ jobs:
           zip -r ../all-notebooks.zip docs
           echo "Created all-notebooks.zip with all notebook categories"
 
-
       - name: Upload notebooks artifact
         uses: actions/upload-artifact@v4
         with:
           name: notebooks
           path: ${{ steps.prep.outputs.dir }}
-
 
       - name: Upload ZIP artifact
         uses: actions/upload-artifact@v4
@@ -120,29 +118,55 @@ jobs:
           path: all-notebooks.zip
           if-no-files-found: error
 
-
       - name: Print directory structure
         run: |
           echo "Contents of final-notebooks directory:" 
           tree final-notebooks
 
-  # Change all fix-comet.yml to main 
+  render-notebooks:
+    runs-on: ubuntu-latest
+    needs: prepare-notebooks
+    steps:
+      - name: Download prepared notebooks
+        uses: actions/download-artifact@v4
+        with:
+          name: notebooks
+          path: final-notebooks
+
+      - name: Set up Quarto
+        uses: quarto-dev/quarto-actions/setup@v2
+
+      - name: Convert QMD to IPYNB (excluding plan files)
+        run: |
+          cd final-notebooks
+          find . -name "*.qmd" -type f -not -name "*plan*" | while read file; do
+            quarto convert "$file"
+          done
+
+      - name: Upload converted notebooks
+        uses: actions/upload-artifact@v4
+        with:
+          name: rendered-notebooks
+          path: final-notebooks
+          if-no-files-found: error
+
+  # Ref for branch Change
   sync-notebooks:
     name: 🔁 Sync notebooks to praxis-notebooks branch
     runs-on: ubuntu-latest
-    needs: prepare-notebooks
+    needs: render-notebooks
     if: github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout main branch
         uses: actions/checkout@v4
         with:
-          ref: fix-comet.yml 
+          ref: main 
           fetch-depth: 0
 
       - name: Download prepared notebooks
         uses: actions/download-artifact@v4
         with:
-          name: notebooks
+          name: rendered-notebooks
           path: final-notebooks
 
       - name: Configure Git
@@ -172,7 +196,7 @@ jobs:
             This PR updates the praxis-notebooks branch with the latest notebook content from the main branch.
           
             **Changes included:**
-            - Updated notebook files
+            - Updated notebook files rendered to .ipynb
             - Latest datasets
             - Media files and resources
           
@@ -188,19 +212,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
           name: site
           path: site-content
 
-
       - name: Print directory structure
         run: |
           echo "Contents of site-content directory:"
           ls -la site-content
-
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
