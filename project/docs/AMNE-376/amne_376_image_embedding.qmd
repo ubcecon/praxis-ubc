@@ -106,7 +106,7 @@ from data.zip_extractor import ZipExtractor
 # Don't change this cell
 # Define the source path and the destination
 sources = ["example_images.zip", "richter_kouroi_complete_front_only.zip"]
-dest = "../data/"
+dest = "data/"
 for src in sources:
     extractor = ZipExtractor(src, dest)
     extractor.extract_all()
@@ -133,7 +133,7 @@ However, for monochrome images, there is only one colour channel, the grayscale.
 Let's start with a three-view of the New York Kouros, here we read in the images and present them together.
 ```{python}
 # Define the folder path where the images are stored
-image_path = '../data/example_images' 
+image_path = 'data/example_images' 
 
 fig, axes = plt.subplots(1, 3, figsize=(8, 5))
 
@@ -265,7 +265,7 @@ We note that the word "6" could represent the beads in the beadwork worn by the 
 
 As you may have realized, the visual word frequency distributions of different images are not exactly the same, so how can we determine if these images are similar? More importantly, what can we use as a criterion to categorize different images based on visual words? Here, we will use something called **cosine similarity** to make a measurement.
 <!-- ```{=html}
-<iframe src="../data/cosine_demo.html" width="600" height="600" style="border:none;"></iframe>
+<iframe src="data/cosine_demo.html" width="600" height="600" style="border:none;"></iframe>
 ``` -->
 ```{python}
 #| echo: false
@@ -408,7 +408,7 @@ As you can see, the pairwise cosine similarities are all very high, even though 
 However, would this also work for photos of different objects? Let's find out by calculating the cosine similarity between existing images and another Kouros currently exhibited in the Piraeus Archaeological Museum.
 ```{python}
 # Define a new image to compare with the existing ones
-new_image_path = '../data/richter_kouroi_complete_front_only/page312_img01_photo4.jpg'
+new_image_path = 'data/richter_kouroi_complete_front_only/page312_img01_photo4.jpg'
 new_image_label = 'A Kouros from Athens' # Suppose this is a new artifact we just discovered
 
 img_new = cv2.imread(new_image_path, cv2.IMREAD_GRAYSCALE)
@@ -443,7 +443,7 @@ plt.show()
 By looking at the results, we see that it has a lower but still relatively high cosine similarity to the previous images, albeit with different textures and poses. Although computers do not understand what "Kouroi" are simply by collecting visual words, they can still see the similarity! To support this view, let's look at an example that is also a standing figure, but from a different culture (China, Sanxingdui). If our conjecture is correct, its cosine similarity to the previous images will decrease significantly.
 ```{python}
 # Define a new image to compare with the existing ones
-new_image_path2 = '../data/example_images/sanxingdui.jpeg'
+new_image_path2 = 'data/example_images/sanxingdui.jpeg'
 new_image_label2 = 'A Bronze Figure from Sanxingdui' # Suppose this is a new artifact we just discovered
 
 img_new2 = cv2.imread(new_image_path2, cv2.IMREAD_GRAYSCALE)
@@ -514,7 +514,7 @@ This is how an actual image **Convolved** with the filter:
 ```{python}
 
 # Load the image as grayscale
-img_path = "../data/example_images/page300_img01_photo8.jpg"
+img_path = "data/example_images/page300_img01_photo8.jpg"
 image = Image.open(img_path).convert('L')
 img_array = np.array(image)
 
@@ -712,7 +712,7 @@ For the rest of the notebook, we will use a small selection of photographs from 
 ```{python}
 # Read in the metadata CSV file
 # Note that we are only going to investigate a subset of the full dataset
-df = pd.read_csv('../data/complete_sculpture_dataset_labeled.csv')
+df = pd.read_csv('data/complete_sculpture_dataset_labeled.csv')
 
 df = df.drop(columns = 'page')
 
@@ -760,7 +760,7 @@ bar_plot(df, 'era', 'material')
 To get a direct idea of the general characteristics of this subset of photographs, we read the photographs from the image directory and show the first 4 images in this dataset.
 ```{python}
 # Read in the images as a list 
-data_dir = Path("../data/richter_kouroi_complete_front_only")
+data_dir = Path("data/richter_kouroi_complete_front_only")
 image_paths = sorted(data_dir.glob("*.jpg"))
 
 images = []
@@ -863,58 +863,58 @@ model = ConvNextV2Model.from_pretrained("facebook/convnextv2-base-22k-224")
 _ = model.to(device)
 
 # Define the image directory for later use
-image_directory = "../data/richter_kouroi_complete_front_only"
+image_directory = "data/richter_kouroi_complete_front_only"
 ```
 
 ```{python}
-#| eval: false
-batch_size = 16
-embeddings = []
-valid_filenames = []
+# #| eval: false
+# batch_size = 16
+# embeddings = []
+# valid_filenames = []
 
-filenames = df['filename'].tolist()
+# filenames = df['filename'].tolist()
 
-for i in tqdm(range(0, len(filenames), batch_size), desc="Processing Images in Batches"):
-    batch_filenames = filenames[i : i + batch_size]
-    images = []
-    for filename in batch_filenames:
-        path = os.path.join(image_directory, filename)
-        try:
-            img = Image.open(path).convert("RGB")
-            images.append(img)
-        except FileNotFoundError:
-            print(f"Missing: {path}")
-        except Exception as e:
-            print(f"Error with {filename}: {e}")
+# for i in tqdm(range(0, len(filenames), batch_size), desc="Processing Images in Batches"):
+#     batch_filenames = filenames[i : i + batch_size]
+#     images = []
+#     for filename in batch_filenames:
+#         path = os.path.join(image_directory, filename)
+#         try:
+#             img = Image.open(path).convert("RGB")
+#             images.append(img)
+#         except FileNotFoundError:
+#             print(f"Missing: {path}")
+#         except Exception as e:
+#             print(f"Error with {filename}: {e}")
 
-    if not images:
-        continue
+#     if not images:
+#         continue
 
-    # Prepare inputs
-    inputs = processor(images=images, return_tensors="pt")
-    pixel_values = inputs["pixel_values"].to(device)
+#     # Prepare inputs
+#     inputs = processor(images=images, return_tensors="pt")
+#     pixel_values = inputs["pixel_values"].to(device)
 
-    # Forward through feature extractor
-    with torch.no_grad():
-        outputs = model(pixel_values)   
-    # Global average pool
-    if isinstance(outputs, torch.Tensor):
-        hidden = outputs           
-    else:
-        hidden = outputs.last_hidden_state 
+#     # Forward through feature extractor
+#     with torch.no_grad():
+#         outputs = model(pixel_values)   
+#     # Global average pool
+#     if isinstance(outputs, torch.Tensor):
+#         hidden = outputs           
+#     else:
+#         hidden = outputs.last_hidden_state 
 
-    batch_emb = hidden.mean(dim=(2, 3)).cpu().numpy()
+#     batch_emb = hidden.mean(dim=(2, 3)).cpu().numpy()
 
-    embeddings.extend(batch_emb)   
+#     embeddings.extend(batch_emb)   
     
-embeddings = np.stack(embeddings, axis=0) 
+# embeddings = np.stack(embeddings, axis=0) 
 
-np.save('../data/embeddings/convnextv2_image_embeddings.npy', embeddings)
+# np.save('data/embeddings/convnextv2_image_embeddings.npy', embeddings)
 ```
 
 ```{python}
 # Load embeddings from the saved file
-embeddings = np.load('../data/embeddings/convnextv2_image_embeddings.npy')
+embeddings = np.load('data/embeddings/convnextv2_image_embeddings.npy')
 
 print(embeddings)
 
@@ -935,7 +935,7 @@ Here, we will use plotly to create interactive visualizations, feel free to play
 pio.renderers.default = "plotly_mimetype+notebook_connected"
 
 # load metadata
-df = pd.read_csv('../data/complete_sculpture_dataset_labeled.csv')   
+df = pd.read_csv('data/complete_sculpture_dataset_labeled.csv')   
 
 # PCA to 2 components
 pca = PCA(n_components=2)
@@ -1285,40 +1285,40 @@ model = Classifier(
 Here, after setting up the new model, we will define the training loop and train the model. Please note that this process may take some time, especially when running on devices without a GPU. This also suggests that the high computational power requirement is a drawback when using CNNs for classification.
 
 ```{python}
-#| eval: false
-# Set up the loss function and optimizer
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.head.parameters(), lr=1e-4, weight_decay=0.01)
-epochs = 20  
+# #| eval: false
+# # Set up the loss function and optimizer
+# criterion = nn.CrossEntropyLoss()
+# optimizer = optim.Adam(model.head.parameters(), lr=1e-4, weight_decay=0.01)
+# epochs = 20  
 
-for epoch in range(1, epochs+1):
-    model.train()
-    total_loss = 0
-    for batch in tqdm(train_loader, desc=f"Epoch {epoch}/{epochs}"):
-        inputs, labels = batch
-        # move to device
-        inputs = {k:v.to(device) for k,v in inputs.items()}
-        labels = labels.to(device)
+# for epoch in range(1, epochs+1):
+#     model.train()
+#     total_loss = 0
+#     for batch in tqdm(train_loader, desc=f"Epoch {epoch}/{epochs}"):
+#         inputs, labels = batch
+#         # move to device
+#         inputs = {k:v.to(device) for k,v in inputs.items()}
+#         labels = labels.to(device)
 
-        optimizer.zero_grad()
-        logits = model(**inputs)
-        loss   = criterion(logits, labels)
-        loss.backward()
-        optimizer.step()
+#         optimizer.zero_grad()
+#         logits = model(**inputs)
+#         loss   = criterion(logits, labels)
+#         loss.backward()
+#         optimizer.step()
 
-        total_loss += loss.item() * labels.size(0)
+#         total_loss += loss.item() * labels.size(0)
 
-    avg_loss = total_loss / len(train_ds)
-    print(f" Epoch {epoch} avg loss: {avg_loss:.4f}")
+#     avg_loss = total_loss / len(train_ds)
+#     print(f" Epoch {epoch} avg loss: {avg_loss:.4f}")
 
-torch.save(model.state_dict(), "../data/models/mlp_model.pth")
+# torch.save(model.state_dict(), "data/models/mlp_model.pth")
 ```
 
 After training, we set the model to evaluation mode and assessed the classification quality by printing the confusion matrix and classification report. It is clear that the accuracy does improve with the MLP architecture. However, we still lacked samples of materials other than bronze and marble, which undoubtedly harmed the quality of our training. 
 
 ```{python}
 # load the trained model
-model.load_state_dict(torch.load("../data/models/mlp_model.pth"))
+model.load_state_dict(torch.load("data/models/mlp_model.pth"))
 model.to(device)  # move to the right device 
 
 # Run one pass over your data in eval mode
@@ -1350,7 +1350,7 @@ Now, let's imagine a scenario where we find a new Kouros, but we are not sure wh
 
 ```{python}
 # Define a new image to compare with the existing ones
-new_artifact_path = '../data/example_images/NAMA_3938_Aristodikos_Kouros.jpeg'
+new_artifact_path = 'data/example_images/NAMA_3938_Aristodikos_Kouros.jpeg'
 new_artifact_label = 'A Kouros from Athens' # Suppose this is a new artifact we just discovered
 
 art_new = cv2.imread(new_artifact_path, cv2.IMREAD_GRAYSCALE)
@@ -1405,7 +1405,7 @@ model = Classifier(
     backbone_name="facebook/convnextv2-base-22k-224",
     num_classes=len(MAT2IDX)
 ).to(device)
-model.load_state_dict(torch.load("../data/models/mlp_model.pth"))
+model.load_state_dict(torch.load("data/models/mlp_model.pth"))
 model.to(device) 
 
 # Resize the model to an appropriate size
