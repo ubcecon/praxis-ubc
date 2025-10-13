@@ -1,7 +1,7 @@
 ---
 title: "Network Analysis: CBDB Dataset"
 author: prAxIs UBC Team <br> _Alex Ronczewski_
-date: '2025-08-24'
+date: '2025-10-13'
 image: media/degree_centrality.png
 description: Using Network Analysis to Analyze The China Biographical Dataset
 categories:
@@ -29,7 +29,7 @@ The CBDB dataset is considerably more extensive and complex than the KINMATRIX d
 
 **Learning Objectives:** In this notebook students will learn about:
 
-* Gain and increased understanding of general network analysis in Python and how to manipulate data
+* Gain an increased understanding of general network analysis in Python and how to manipulate data
 * Apply community detection algorithms to identify subgroups in historical networks
 * Calculate and interpret multiple centrality measures to identify influential historical figures
 * Analyze gender differences in network positions using statistical methods
@@ -55,6 +55,7 @@ from pyvis.network import Network
 from scipy import stats
 import seaborn as sns
 from collections import OrderedDict
+from tabulate import tabulate
 ```
 
 Now that we have all of the libraries loaded in for our analysis we can load our data. The dataset is a .db file; it is a database. The CBDB data is extensive and has lots of variables within it, in order to access them we have to choose a table from our .db file. A table is a structured collection of data organized in rows and columns, similar to a spreadsheet. Each table contains records (rows), and every record has fields (columns). This is different from the KINMATRIX dataset which used a .dta file. The main difference students should be aware of is that we will have to select the table before selecting the variables. In the KINMATRIX data we could just list all variables from the start. For .db files there is one more step. 
@@ -408,8 +409,14 @@ def macro_stats(G_sub, partition, community_id):
 #Print:
 stats_20 = macro_stats(G_sub, partition, 20)
 stats_125 = macro_stats(G_sub, partition, 125)
-print("Community 20 macro stats:", stats_20)
-print("Community 125 macro stats:", stats_125)
+
+community_stats = [
+    ['20'] + [stats_20[k] for k in stats_20],
+    ['125'] + [stats_125[k] for k in stats_125]
+]
+
+headers = ['Community'] + list(stats_20.keys())
+print(tabulate(community_stats, headers=headers, tablefmt='fancy_grid', floatfmt=".6f"))
 ```
 
 We now have more quantifiable metrics for our visualizations. Let's continue our analysis with finding which dynasties these communities are primarily from. Every node in this dataset is a real person in Chinese history so it will be very interesting to "put a face to the name."
@@ -806,43 +813,7 @@ Finally Li Zhao is from Raoyang, compared to the other two Raoyang is less histo
 
 Intuitively from the KINMATRIX dataset we would image that women could act as bridges in these large family networks. An example of this would be a strategic marriage, but is this the case? We will look at the data and try to understand if that is the case. 
 
-This cell explores the BIOG_MAIN table structure to find the gender field and loads a sample to understand the data structure. In order to identify if women act as bridges we need the gender information.
-
-```{python}
-def explore_biog_main():
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    
-    # Explore table structure
-    cursor.execute("PRAGMA table_info(BIOG_MAIN)")
-    columns = cursor.fetchall()
-    #print("BIOG_MAIN table columns:")
-    for col in columns:
-        print(f"  {col[1]} ({col[1]})")
-    
-    # Test for common gender field names
-    gender_fields = ['c_female', 'c_sex', 'c_gender', 'female', 'sex', 'gender']
-    gender_field = None
-    
-    for field in gender_fields:
-        try:
-            test_query = f"SELECT {field} FROM BIOG_MAIN LIMIT 5"
-            cursor.execute(test_query)
-            results = cursor.fetchall()
-            print(f"\nFound field '{field}' with sample values: {[r[0] for r in results]}")
-            gender_field = field
-            break
-        except:
-            continue
-        
-    conn.close()
-    return gender_field
-
-# Run the function
-gender_field = explore_biog_main()
-```
-
-The variable we are going to use is **c_female,** it is an indicator variable which takes the values of 0 or 1; where 1 means the node is female. 
+This cell explores the BIOG_MAIN table structure to find the gender field and loads a sample to understand the data structure. In order to identify if women act as bridges we need the gender information. The variable we are going to use is **c_female,** it is an indicator variable which takes the values of 0 or 1; where 1 means the node is female. 
 
 We will now load the data from before, but with the gender variable and rebuild the network. 
 ```{python}
@@ -1243,6 +1214,7 @@ ordered_dynasties = ["Pre-Tang", "Tang", "Five Dynasties/10 Kingdoms", "Song", "
 
 def analyze_dynasty_metrics_selected(dynasty_graphs, ordered_dynasties):
     results = {}
+    table_data = []
     for dyn_name in ordered_dynasties:
         G = dynasty_graphs.get(dyn_name)
         if G is None:
@@ -1257,12 +1229,21 @@ def analyze_dynasty_metrics_selected(dynasty_graphs, ordered_dynasties):
         # Graph density
         density = nx.density(G)
 
-        # Clustering coefficient (average)
+        # Clustering coefficient 
         avg_clust = nx.average_clustering(G)
 
         # Community detection: modularity
         communities = list(nx.community.greedy_modularity_communities(G))
         modularity = nx.community.modularity(G, communities)
+
+        table_data.append([
+            dyn_name,
+            f"{avg_deg_cent:.6f}",      
+            f"{avg_degree:.2f}",
+            f"{density:.8f}",           
+            f"{avg_clust:.4f}",
+            f"{modularity:.4f}"
+        ])
 
         results[dyn_name] = {
             "avg_degree_centrality": avg_deg_cent,
@@ -1271,11 +1252,12 @@ def analyze_dynasty_metrics_selected(dynasty_graphs, ordered_dynasties):
             "avg_clustering_coefficient": avg_clust,
             "modularity": modularity
         }
-        print(f"{dyn_name}: Avg Degree Centrality={avg_deg_cent:.4f}, Avg Degree={avg_degree:.2f}, "
-              f"Density={density:.6f}, Avg Clust Coeff={avg_clust:.4f}, Modularity={modularity:.4f}")
+    # Print the table
+    headers = ["Dynasty", "Avg Degree Centrality", "Avg Degree", "Density", "Avg Clust Coeff", "Modularity"]
+    print(tabulate(table_data, headers=headers, tablefmt="github"))
     return results
 
-#Run the function
+# Run the function
 dynasty_metrics_selected = analyze_dynasty_metrics_selected(dynasty_graphs, ordered_dynasties)
 ```
 
