@@ -9,13 +9,13 @@ COPY ./meta/building/renv.lock ./project ./
 
 RUN mkdir output
 
-# Quarto render all documents EXCEPT the problematic one
+# Quarto render all documents (will skip the excluded QMD)
 RUN quarto render --output-dir /app/output
 
-# Copy your pre-rendered HTML file directly (overwriting any static version), can add more here
-COPY ./project/_site/docs/SOCI-415/soci_415_network_analysis.html /app/output/docs/SOCI-415/soci_415_network_analysis.html
+# Copy your pre-rendered HTML file to the output
+COPY ./project/docs/SOCI-415/soci_415_network_analysis.html /app/output/docs/SOCI-415/
 
-# Final Stage (Added this so it can be ran locally and tested properly)
+# Final Stage
 FROM nginx:alpine
 COPY --from=builder /app/output /usr/share/nginx/html
 EXPOSE 80
