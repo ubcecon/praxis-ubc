@@ -4,13 +4,21 @@ FROM jlgraves/comet-test:test AS builder
 
 WORKDIR /app
 
+# Install Python dependencies just for the test notebook right now
+RUN python3 -m pip install --no-cache-dir \
+    networkx \
+    matplotlib \
+    seaborn \
+    pandas \
+    numpy
+
 # Copy files from Github
 COPY ./meta/building/renv.lock ./project ./
 
 RUN mkdir output
 
 # Quarto render all our documents
-RUN quarto render --output-dir /app/output  # Absolute path
+RUN quarto render --output-dir /app/output
 
 # Final Stage (Added this so it can be ran locally and tested properly)
 FROM nginx:alpine
