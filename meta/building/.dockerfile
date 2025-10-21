@@ -17,6 +17,7 @@ RUN quarto render --output-dir /app/output
 # Copy pre-rendered HTML file
 COPY ./project/docs/SOCI-415/soci_415_network_analysis.html /app/output/docs/SOCI-415/
 
+#Final Stage on lightweight linux
 FROM nginx:alpine
 COPY --from=builder /app/output /usr/share/nginx/html
 EXPOSE 80
