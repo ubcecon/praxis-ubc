@@ -141,16 +141,13 @@ jobs:
 
       - name: Convert QMD to IPYNB (excluding plan files)
         run: |
-          cd final-notebooks
-          find . -name "*.qmd" -type f -not -name "*plan*" | while read file; do
-            quarto convert "$file"
-          done
+          cp meta/scripts/ipynb-title.lua final-notebooks/
 
-      #ordering here maybe before render
-      - name: Fix notebook metadata cells
-        run: |
           cd final-notebooks
-          python ../meta/scripts/fix-notebook-metadata.py
+    
+          find . -name "*.qmd" -type f -not -name "*plan*" | while read file; do
+            quarto convert "$file" --filters ipynb-title.lua
+          done
 
       - name: Upload converted notebooks
         uses: actions/upload-artifact@v4
