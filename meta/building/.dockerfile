@@ -6,6 +6,11 @@ WORKDIR /app
 
 # Copy files from Github
 COPY ./meta/building/renv.lock ./project ./
+# Copy Lua filter 
+COPY ./meta/scripts/ipynb-title.lua ./
+RUN find project -type f -name "*.qmd" -exec dirname {} \; | sort -u | while read dir; do \
+      cp ipynb-title.lua "$dir/"; \
+    done
 
 RUN mkdir output
 
