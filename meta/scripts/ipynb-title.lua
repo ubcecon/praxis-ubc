@@ -1,149 +1,75 @@
--- Purpose: Fix the ugly .ipynb bugged rendering of titles in the comet_main.yml
---
--- Usage: Add to all .qmd  header's:
---   format:
---     ipynb:
---       filters:
---        - ipynb-title.lua
+-- Clean up raw YAML cell in converted .ipynb files
+-- Extracts only title, author, and date - removes all other metadata
 
--- Global storage for metadata
-local metadata = {}
-
--- Meta function: Extracts title, author, and date from YAML
-function Meta(meta)
-  -- Extract title
-  if meta.title then
-    metadata.title = pandoc.utils.stringify(meta.title)
-  end
-  
-  -- Extract and process author(s)
-  if meta.author then
-    if type(meta.author) == "table" then
-      -- Handle multiple authors or structured format
-      local authors = {}
-      for _, author in ipairs(meta.author) do
-        if type(author) == "table" and author.name then
-          table.insert(authors, pandoc.utils.stringify(author.name))
-        else
-          table.insert(authors, pandoc.utils.stringify(author))
-        end
-      end
-      if #authors > 0 then
-        metadata.author = table.concat(authors, ", ")
-      end
-    else
-      -- Single author
-      metadata.author = pandoc.utils.stringify(meta.author)
-    end
-    
-    -- Clean up author string (remove HTML tags, markdown formatting, extra spaces)
-    if metadata.author then
-      metadata.author = metadata.author:gsub("<[Bb][Rr]%s*/?>", " ")  -- Remove <br> tags
-      metadata.author = metadata.author:gsub("_", "")                  -- Remove underscores
-      metadata.author = metadata.author:gsub("%*", "")                 -- Remove asterisks
-      metadata.author = metadata.author:gsub("%s+", " ")               -- Normalize spaces
-      metadata.author = metadata.author:gsub("^%s+", "")               -- Trim leading
-      metadata.author = metadata.author:gsub("%s+$", "")               -- Trim trailing
-    end
-  end
-  
-  -- Extract date
-  if meta.date then
-    metadata.date = pandoc.utils.stringify(meta.date)
-  end
-  
-  return meta
-end
-
--- Helper: Create formatted header blocks
-local function create_formatted_header()
-  local blocks = {}
-  
-  -- Add title as level 1 heading
-  if metadata.title then
-    table.insert(blocks, pandoc.Header(1, pandoc.Inlines(metadata.title)))
-  end
-  
-  -- Create author and date line
-  local info_elements = {}
-  
-  if metadata.author then
-    table.insert(info_elements, pandoc.Str(metadata.author))
-  end
-  
-  if metadata.date then
-    if #info_elements > 0 then
-      table.insert(info_elements, pandoc.Space())
-      table.insert(info_elements, pandoc.Str("•"))
-      table.insert(info_elements, pandoc.Space())
-    end
-    table.insert(info_elements, pandoc.Str(metadata.date))
-  end
-  
-  if #info_elements > 0 then
-    table.insert(blocks, pandoc.Para(info_elements))
-  end
-  
-  -- Add horizontal rule separator
-  if #blocks > 0 then
-    table.insert(blocks, pandoc.HorizontalRule())
-  end
-  
-  return blocks
-end
-
--- Helper: Check if block is YAML frontmatter
-local function is_yaml_frontmatter(block)
-  if block.t ~= "RawBlock" then
-    return false
-  end
-  
-  local text = block.text:gsub("^%s+", ""):gsub("%s+$", "")
-  
-  -- Check for YAML pattern: starts with ---, has key:value pairs, ends with ---
-  return text:match("^%-%-%-") and 
-         text:match("%-%-%-[%s\n]*$") and 
-         text:match("%w+:%s*[^%\n%\r]+")
-end
-
--- Pandoc function: Main document processor
-function Pandoc(doc)
+function RawBlock(elem)
   -- Only process ipynb format
   if FORMAT ~= "ipynb" then
-    return doc
+    return elem
   end
   
-  local new_blocks = {}
-  local found_yaml = false
-  local inserted_header = false
+  local text = elem.text
   
-  -- Process each block
-  for i, block in ipairs(doc.blocks) do
-    if is_yaml_frontmatter(block) then
-      -- Remove YAML frontmatter block
-      found_yaml = true
-    else
-      -- Insert formatted header before first content block
-      if found_yaml and not inserted_header then
-        local header_blocks = create_formatted_header()
-        for _, hblock in ipairs(header_blocks) do
-          table.insert(new_blocks, hblock)
-        end
-        inserted_header = true
-      end
-      
-      -- Keep the current block
-      table.insert(new_blocks, block)
-    end
+  -- Check if this is YAML frontmatter (starts with ---, has title:)
+  if not (text:match("^%s*%-%-%-") and text:match("title:")) then
+    return elem
   end
   
-  -- Handle case where YAML is the last block
-  if found_yaml and not inserted_header then
-    local header_blocks = create_formatted_header()
-    for _, hblock in ipairs(header_blocks) do
-      table.insert(new_blocks, hblock)
-    end
+  -- Extract title
+  local title = text:match("title:%s*[\"']([^\"']+)[\"']")
+  if not title then
+    title = text:match("title:%s*([^\n]+)")
   end
   
-  return pandoc.Pandoc(new_blocks, doc.meta)
+  -- Extract author (may span multiple lines or have HTML)
+  local author = text:match("author:%s*([^\n]+)")
+  
+  -- Extract date
+  local date = text:match("date:%s*[\"']([^\"']+)[\"']")
+  if not date then
+    date = text:match("date:%s*([^\n]+)")
+  end
+  
+  -- Clean up extracted values
+  if title then
+    title = title:gsub("^%s+", ""):gsub("%s+$", "")
+  end
+  
+  if author then
+    -- Remove HTML tags like <br>, <br/>, etc.
+    author = author:gsub("<br[^>]*>", " ")
+    author = author:gsub("<BR[^>]*>", " ")
+    -- Remove underscores (markdown italic markers)
+    author = author:gsub("_", "")
+    -- Remove asterisks
+    author = author:gsub("%*", "")
+    -- Clean up spaces
+    author = author:gsub("%s+", " ")
+    author = author:gsub("^%s+", ""):gsub("%s+$", "")
+  end
+  
+  if date then
+    date = date:gsub("^%s+", ""):gsub("%s+$", "")
+    date = date:gsub("'", "")
+  end
+  
+  -- Build the new YAML content with ONLY title, author, date
+  local lines = {"---"}
+  
+  if title then
+    table.insert(lines, 'title: "' .. title .. '"')
+  end
+  
+  if author then
+    table.insert(lines, 'author: "' .. author .. '"')
+  end
+  
+  if date then
+    table.insert(lines, 'date: "' .. date .. '"')
+  end
+  
+  table.insert(lines, "---")
+  
+  -- Join lines and return as new RawBlock
+  local new_text = table.concat(lines, "\n")
+  return pandoc.RawBlock(elem.format, new_text)
 end
