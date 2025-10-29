@@ -1,8 +1,10 @@
+-- ipynb-title.lua
 -- Quarto QMD to IPYNB Title Formatter
 -- 
--- Purpose: Fix broken .ipynb output in the title cell
+-- Purpose: Removes ugly raw YAML frontmatter from converted Jupyter notebooks
+--          and replaces it with a clean, formatted title, author, and date
 --
--- Usage: Add to all .qmd headers
+-- Usage: Add to your .qmd YAML header:
 --   format:
 --     ipynb:
 --       filters:
@@ -67,3 +69,85 @@ local function create_formatted_header()
   end
   
   -- Create author and date line
+  local info_elements = {}
+  
+  if metadata.author then
+    table.insert(info_elements, pandoc.Str(metadata.author))
+  end
+  
+  if metadata.date then
+    if #info_elements > 0 then
+      table.insert(info_elements, pandoc.Space())
+      table.insert(info_elements, pandoc.Str("•"))
+      table.insert(info_elements, pandoc.Space())
+    end
+    table.insert(info_elements, pandoc.Str(metadata.date))
+  end
+  
+  if #info_elements > 0 then
+    table.insert(blocks, pandoc.Para(info_elements))
+  end
+  
+  -- Add horizontal rule separator
+  if #blocks > 0 then
+    table.insert(blocks, pandoc.HorizontalRule())
+  end
+  
+  return blocks
+end
+
+-- Helper: Check if block is YAML frontmatter
+local function is_yaml_frontmatter(block)
+  if block.t ~= "RawBlock" then
+    return false
+  end
+  
+  local text = block.text:gsub("^%s+", ""):gsub("%s+$", "")
+  
+  -- Check for YAML pattern: starts with ---, has key:value pairs, ends with ---
+  return text:match("^%-%-%-") and 
+         text:match("%-%-%-[%s\n]*$") and 
+         text:match("%w+:%s*[^%\n%\r]+")
+end
+
+-- Pandoc function: Main document processor
+function Pandoc(doc)
+  -- Only process ipynb format
+  if FORMAT ~= "ipynb" then
+    return doc
+  end
+  
+  local new_blocks = {}
+  local found_yaml = false
+  local inserted_header = false
+  
+  -- Process each block
+  for i, block in ipairs(doc.blocks) do
+    if is_yaml_frontmatter(block) then
+      -- Remove YAML frontmatter block
+      found_yaml = true
+    else
+      -- Insert formatted header before first content block
+      if found_yaml and not inserted_header then
+        local header_blocks = create_formatted_header()
+        for _, hblock in ipairs(header_blocks) do
+          table.insert(new_blocks, hblock)
+        end
+        inserted_header = true
+      end
+      
+      -- Keep the current block
+      table.insert(new_blocks, block)
+    end
+  end
+  
+  -- Handle case where YAML is the last block
+  if found_yaml and not inserted_header then
+    local header_blocks = create_formatted_header()
+    for _, hblock in ipairs(header_blocks) do
+      table.insert(new_blocks, hblock)
+    end
+  end
+  
+  return pandoc.Pandoc(new_blocks, doc.meta)
+end
