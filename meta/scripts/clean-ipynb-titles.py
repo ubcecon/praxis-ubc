@@ -4,7 +4,11 @@ import json
 import sys
 import re
 from pathlib import Path
-import yaml
+
+try:
+    import yaml  # Optional; falls back to regex if unavailable
+except Exception:
+    yaml = None
 
 
 def clean_notebook(ipynb_path):
@@ -42,18 +46,22 @@ def clean_notebook(ipynb_path):
         
         print(f"Processing: {ipynb_path}")
         
-        # Extract the inner YAML text and the remainder of the cell
         yaml_part = yaml_block_match.group(1)
         rest_of_content = source[yaml_block_match.end():]
         
         # Parse YAML properly to handle multi-line values and complex structures
-        try:
-            yaml_data = yaml.safe_load(yaml_part)
-            if not isinstance(yaml_data, dict):
-                yaml_data = {}
-        except yaml.YAMLError:
-            print(f"Warning: {ipynb_path} - invalid YAML, falling back to regex parsing")
-            yaml_data = {}
+        yaml_data = {}
+        if yaml is not None:
+            try:
+                parsed_yaml = yaml.safe_load(yaml_part) or {}
+                if isinstance(parsed_yaml, dict):
+                    yaml_data = parsed_yaml
+            except yaml.YAMLError:
+                print(f"Warning: {ipynb_path} - invalid YAML, falling back to regex parsing")
+            except Exception:
+                print(f"Warning: {ipynb_path} - unexpected error parsing YAML, falling back to regex parsing")
+        else:
+            print(f"Info: {ipynb_path} - PyYAML not installed, using regex parsing")
         
         # Extract values with fallback to regex if YAML parsing fails
         def get_field(field_name):
@@ -107,7 +115,7 @@ def clean_notebook(ipynb_path):
         with open(ipynb_path, 'w', encoding='utf-8') as f:
             json.dump(nb, f, indent=2, ensure_ascii=False)
         
-        print(f"  ✓ Cleaned successfully")
+        print(f"    Cleaned successfully")
         print(f"    Title: {title}")
         print(f"    Author: {author}")
         print(f"    Date: {date}")
