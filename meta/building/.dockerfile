@@ -6,8 +6,16 @@ WORKDIR /app
 
 COPY ./meta/building/renv.lock ./project ./
 
-# Remove the original QMD that we have a .html for
+#Removes the rendered .qmd's 
 RUN rm -f ./docs/SOCI-415/soci_415_network_analysis.qmd
+RUN rm -f ./docs/SOCI-415/kinmatrix.qmd
+RUN rm -f ./docs/SOCI-415/cbdb_dataset.qmd
+RUN rm -f ./docs/ECON-227/llm_distributions.qmd
+RUN rm -f ./docs/hist_workshop/text_embeddings_workshop.qmd
+RUN rm -f ./docs/intro_to_cnns/intro_to_cnn.qmd
+RUN rm -f ./docs/intro_to_convolution/intro_to_convolution.qmd
+RUN rm -f ./docs/intro_to_deep_learning/intro_to_fundamental_ML.qmd
+
 
 RUN mkdir output
 
@@ -16,6 +24,13 @@ RUN quarto render --output-dir /app/output
 
 # Copy pre-rendered HTML file
 COPY ./project/docs/SOCI-415/soci_415_network_analysis.html /app/output/docs/SOCI-415/
+COPY ./project/docs/SOCI-415/kinmatrix.html /app/output/docs/SOCI-415/
+COPY ./project/docs/SOCI-415/cbdb_dataset.html /app/output/docs/SOCI-415/
+COPY ./project/docs/ECON-227/llm_distributions.html /app/output/docs/ECON-227/
+COPY ./project/docs/hist_workshop/text_embeddings_workshop.html /app/output/docs/hist_workshop/
+COPY ./project/docs/intro_to_cnns/intro_to_cnn.html /app/output/docs/intro_to_cnns/
+COPY ./docs/intro_to_convolution/intro_to_convolution.html /app/output/docs/intro_to_convolution/
+COPY ./docs/intro_to_deep_learning/intro_to_fundamental_ML.html /app/output/docs/intro_to_deep_learning/
 
 #Final Stage on lightweight linux
 FROM nginx:alpine
