@@ -139,19 +139,28 @@ jobs:
       - name: Set up Quarto
         uses: quarto-dev/quarto-actions/setup@v2
 
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
 
-      - name: Copy Lua filter to all notebook directories
+      - name: Convert QMD to IPYNB and clean titles
         run: |
-          # Copy the filter script to each directory that contains .qmd files
-          find final-notebooks -type f -name "*.qmd" -exec dirname {} \; | sort -u | while read dir; do
-            cp meta/scripts/ipynb-title.lua "$dir/"
-          done
-
-      - name: Convert QMD to IPYNB (excluding lesson plan files)
-        run: |
+          cp meta/scripts/clean-ipynb-titles.py final-notebooks/
+        
           cd final-notebooks
           find . -name "*.qmd" -type f -not -name "*plan*" | while read file; do
+            echo "Converting: $file"
             quarto convert "$file"
+          
+            ipynb_file="${file%.qmd}.ipynb"
+          
+            if [ -f "$ipynb_file" ]; then
+              echo "  Cleaning: $ipynb_file"
+              python clean-ipynb-titles.py "$ipynb_file"
+            else
+              echo "  Warning: $ipynb_file not created"
+            fi
           done
 
       - name: Upload converted notebooks
