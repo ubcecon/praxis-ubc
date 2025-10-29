@@ -1,8 +1,4 @@
-#!/usr/bin/env python3
-# clean-ipynb-titles.py
-# Post-processes converted .ipynb files to clean up YAML frontmatter
-# Extracts ONLY title, author, and date - removes all other metadata
-
+#Fix .ipynb titles from comet_main.yml render
 import json
 import sys
 import re
