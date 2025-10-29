@@ -29,8 +29,8 @@ COPY ./project/docs/SOCI-415/cbdb_dataset.html /app/output/docs/SOCI-415/
 COPY ./project/docs/ECON-227/llm_distributions.html /app/output/docs/ECON-227/
 COPY ./project/docs/hist_workshop/text_embeddings_workshop.html /app/output/docs/hist_workshop/
 COPY ./project/docs/intro_to_cnns/intro_to_cnn.html /app/output/docs/intro_to_cnns/
-COPY ./docs/intro_to_convolution/intro_to_convolutions.html /app/output/docs/intro_to_convolutions/
-COPY ./docs/intro_to_deep_learning/intro_to_fundamental_ML.html /app/output/docs/intro_to_deep_learning/
+COPY ./project/docs/intro_to_convolution/intro_to_convolutions.html /app/output/docs/intro_to_convolutions/
+COPY ./project/docs/intro_to_deep_learning/intro_to_fundamental_ML.html /app/output/docs/intro_to_deep_learning/
 
 #Final Stage on lightweight linux
 FROM nginx:alpine
