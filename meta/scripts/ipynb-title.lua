@@ -1,10 +1,6 @@
--- ipynb-title.lua
--- Quarto QMD to IPYNB Title Formatter
--- 
--- Purpose: Removes ugly raw YAML frontmatter from converted Jupyter notebooks
---          and replaces it with a clean, formatted title, author, and date
+-- Purpose: Fix the ugly .ipynb bugged rendering of titles in the comet_main.yml
 --
--- Usage: Add to your .qmd YAML header:
+-- Usage: Add to all .qmd  header's:
 --   format:
 --     ipynb:
 --       filters:
