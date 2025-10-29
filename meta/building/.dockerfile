@@ -7,10 +7,9 @@ WORKDIR /app
 # Copy files from Github
 COPY ./meta/building/renv.lock ./project ./
 
-RUN mkdir output
-
-# Quarto render all our documents
-RUN quarto render --output-dir /app/output  # Absolute path
+# Quarto render only HTML (skip ipynb format)
+RUN quarto render --to html --output-dir /app/output
+# used to be: RUN quarto render --output-dir /app/output  # Absolute path
 
 # Final Stage (Added this so it can be ran locally and tested properly)
 FROM nginx:alpine
