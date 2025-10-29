@@ -1,3 +1,5 @@
+# Fixes rendering of .ipynb headers and title
+
 import json
 import sys
 import re
@@ -5,7 +7,7 @@ from pathlib import Path
 
 
 def clean_notebook(ipynb_path):
-    """Replace the first YAML cell with clean formatted title/author/date."""
+    """Replace YAML frontmatter with formatted title, keep rest of cell."""
     
     try:
         # Read the notebook
@@ -37,18 +39,32 @@ def clean_notebook(ipynb_path):
         
         print(f"Processing: {ipynb_path}")
         
+        # Find where YAML ends (look for "name: python3" followed by "---")
+        # This is the end marker for the YAML frontmatter
+        yaml_end_pattern = r'name:\s*python3\s*\n---\n'
+        yaml_end_match = re.search(yaml_end_pattern, source)
+        
+        if not yaml_end_match:
+            print(f"Warning: Could not find YAML end marker (name: python3 + ---)")
+            return
+        
+        # Split content: YAML part and everything after
+        yaml_end_pos = yaml_end_match.end()
+        yaml_part = source[:yaml_end_pos]
+        rest_of_content = source[yaml_end_pos:]  # Everything after YAML
+        
         # Extract title (handle quotes)
-        title_match = re.search(r'title:\s*"([^"]+)"', source)
+        title_match = re.search(r'title:\s*"([^"]+)"', yaml_part)
         if not title_match:
-            title_match = re.search(r"title:\s*'([^']+)'", source)
+            title_match = re.search(r"title:\s*'([^']+)'", yaml_part)
         
         # Extract author
-        author_match = re.search(r'author:\s*([^\n]+)', source)
+        author_match = re.search(r'author:\s*([^\n]+)', yaml_part)
         
         # Extract date (handle quotes)
-        date_match = re.search(r"date:\s*'([^']+)'", source)
+        date_match = re.search(r"date:\s*'([^']+)'", yaml_part)
         if not date_match:
-            date_match = re.search(r'date:\s*"([^"]+)"', source)
+            date_match = re.search(r'date:\s*"([^"]+)"', yaml_part)
         
         # Get the values
         title = title_match.group(1).strip() if title_match else "Untitled"
@@ -65,21 +81,23 @@ def clean_notebook(ipynb_path):
         if date:
             date = date.strip("'\"")
         
-        # Build new formatted content (NOT YAML, just plain text)
-        # Format: Title on first line, Author, Date on second line
+        # Build new content: formatted title/author/date + rest of original content
         new_content = f"# {title}\n\n"
         
         if author and date:
-            new_content += f"{author}, {date}"
+            new_content += f"{author}, {date}\n\n"
         elif author:
-            new_content += author
+            new_content += f"{author}\n\n"
         elif date:
-            new_content += date
+            new_content += f"{date}\n\n"
         
-        # Replace ONLY the first cell with new content
+        # Add back all the content that was AFTER the YAML
+        new_content += rest_of_content
+        
+        # Replace the first cell with new content
         nb['cells'][0]['source'] = new_content
         
-        # Write back the notebook (all other cells unchanged)
+        # Write back the notebook
         with open(ipynb_path, 'w', encoding='utf-8') as f:
             json.dump(nb, f, indent=2, ensure_ascii=False)
         
@@ -87,6 +105,7 @@ def clean_notebook(ipynb_path):
         print(f"    Title: {title}")
         print(f"    Author: {author}")
         print(f"    Date: {date}")
+        print(f"    Preserved {len(rest_of_content)} characters of content after YAML")
         
     except Exception as e:
         print(f"Error processing {ipynb_path}: {e}")
