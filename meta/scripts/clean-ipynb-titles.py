@@ -32,44 +32,33 @@ def clean_notebook(ipynb_path):
         if isinstance(source, list):
             source = ''.join(source)
         
-        # Only process if it looks like YAML (starts with --- and has title:)
-        if not (source.strip().startswith('---') and 'title:' in source):
-            print(f"Info: {ipynb_path} - first cell doesn't have YAML, skipping")
+        # Look for a YAML frontmatter block delimited by lines with only '---'
+        # Use multiline/DOTALL so nested/indented keys (like kernelspec.name) don't stop detection
+        yaml_block_pattern = r'^\s*---\s*\n(.*?)\n^\s*---\s*\n?'
+        yaml_block_match = re.search(yaml_block_pattern, source, flags=re.S | re.M)
+        if not yaml_block_match:
+            print(f"Info: {ipynb_path} - first cell doesn't have YAML frontmatter, skipping")
             return
         
         print(f"Processing: {ipynb_path}")
         
-        # Find where YAML ends (look for "name: python3" followed by "---")
-        # This is the end marker for the YAML frontmatter
-        yaml_end_pattern = r'name:\s*python3\s*\n---\n'
-        yaml_end_match = re.search(yaml_end_pattern, source)
+        # Extract the inner YAML text and the remainder of the cell
+        yaml_part = yaml_block_match.group(1)
+        rest_of_content = source[yaml_block_match.end():]
         
-        if not yaml_end_match:
-            print(f"Warning: Could not find YAML end marker (name: python3 + ---)")
-            return
+        # Helper to extract a field value (handles quoted and unquoted values)
+        def extract_field(field_name):
+            # Match either: field: "value"  OR field: 'value' OR field: value (until EOL)
+            pat = rf'^\s*{re.escape(field_name)}:\s*(?:"([^"]*)"|\'([^\']*)\'|([^\n]*))\s*$'
+            m = re.search(pat, yaml_part, flags=re.M)
+            if not m:
+                return ""
+            return (m.group(1) or m.group(2) or m.group(3) or "").strip()
         
-        # Split content: YAML part and everything after
-        yaml_end_pos = yaml_end_match.end()
-        yaml_part = source[:yaml_end_pos]
-        rest_of_content = source[yaml_end_pos:]  # Everything after YAML
-        
-        # Extract title (handle quotes)
-        title_match = re.search(r'title:\s*"([^"]+)"', yaml_part)
-        if not title_match:
-            title_match = re.search(r"title:\s*'([^']+)'", yaml_part)
-        
-        # Extract author
-        author_match = re.search(r'author:\s*([^\n]+)', yaml_part)
-        
-        # Extract date (handle quotes)
-        date_match = re.search(r"date:\s*'([^']+)'", yaml_part)
-        if not date_match:
-            date_match = re.search(r'date:\s*"([^"]+)"', yaml_part)
-        
-        # Get the values
-        title = title_match.group(1).strip() if title_match else "Untitled"
-        author = author_match.group(1).strip() if author_match else ""
-        date = date_match.group(1).strip() if date_match else ""
+        # Extract values
+        title = extract_field('title') or "Untitled"
+        author = extract_field('author')
+        date = extract_field('date')
         
         # Clean up author (remove HTML tags, underscores, asterisks)
         if author:
@@ -94,8 +83,8 @@ def clean_notebook(ipynb_path):
         # Add back all the content that was AFTER the YAML
         new_content += rest_of_content
         
-        # Replace the first cell with new content
-        nb['cells'][0]['source'] = new_content
+        # Replace the first cell with new content; store as list of lines to match typical nbformat
+        nb['cells'][0]['source'] = new_content.splitlines(keepends=True)
         
         # Write back the notebook
         with open(ipynb_path, 'w', encoding='utf-8') as f:
