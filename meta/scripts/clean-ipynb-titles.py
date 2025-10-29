@@ -4,6 +4,7 @@ import json
 import sys
 import re
 from pathlib import Path
+import yaml
 
 
 def clean_notebook(ipynb_path):
@@ -33,7 +34,6 @@ def clean_notebook(ipynb_path):
             source = ''.join(source)
         
         # Look for a YAML frontmatter block delimited by lines with only '---'
-        # Use multiline/DOTALL so nested/indented keys (like kernelspec.name) don't stop detection
         yaml_block_pattern = r'^\s*---\s*\n(.*?)\n^\s*---\s*\n?'
         yaml_block_match = re.search(yaml_block_pattern, source, flags=re.S | re.M)
         if not yaml_block_match:
@@ -46,24 +46,41 @@ def clean_notebook(ipynb_path):
         yaml_part = yaml_block_match.group(1)
         rest_of_content = source[yaml_block_match.end():]
         
-        # Helper to extract a field value (handles quoted and unquoted values)
-        def extract_field(field_name):
-            # Match either: field: "value"  OR field: 'value' OR field: value (until EOL)
+        # Parse YAML properly to handle multi-line values and complex structures
+        try:
+            yaml_data = yaml.safe_load(yaml_part)
+            if not isinstance(yaml_data, dict):
+                yaml_data = {}
+        except yaml.YAMLError:
+            print(f"Warning: {ipynb_path} - invalid YAML, falling back to regex parsing")
+            yaml_data = {}
+        
+        # Extract values with fallback to regex if YAML parsing fails
+        def get_field(field_name):
+            if yaml_data and field_name in yaml_data:
+                return str(yaml_data[field_name]).strip()
+            
+            # Fallback: regex for simple field: value patterns
             pat = rf'^\s*{re.escape(field_name)}:\s*(?:"([^"]*)"|\'([^\']*)\'|([^\n]*))\s*$'
             m = re.search(pat, yaml_part, flags=re.M)
-            if not m:
-                return ""
-            return (m.group(1) or m.group(2) or m.group(3) or "").strip()
+            if m:
+                return (m.group(1) or m.group(2) or m.group(3) or "").strip()
+            return ""
         
         # Extract values
-        title = extract_field('title') or "Untitled"
-        author = extract_field('author')
-        date = extract_field('date')
+        title = get_field('title') or "Untitled"
+        author = get_field('author')
+        date = get_field('date')
         
-        # Clean up author (remove HTML tags, underscores, asterisks)
+        # Clean up title (remove quotes)
+        title = title.strip('"\'')
+        
+        # Clean up author (remove HTML tags, but preserve formatting)
         if author:
+            author = author.strip('"\'')
+            # Convert <br> tags to spaces but preserve other formatting
             author = re.sub(r'<br[^>]*>', ' ', author, flags=re.IGNORECASE)
-            author = author.replace('_', '').replace('*', '')
+            # Clean up extra whitespace
             author = re.sub(r'\s+', ' ', author).strip()
         
         # Clean up date
