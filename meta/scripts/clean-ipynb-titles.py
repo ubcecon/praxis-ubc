@@ -1,4 +1,3 @@
-#Fix .ipynb titles from comet_main.yml render
 import json
 import sys
 import re
@@ -6,7 +5,7 @@ from pathlib import Path
 
 
 def clean_notebook(ipynb_path):
-    """Clean the first cell of a Jupyter notebook if it contains YAML frontmatter."""
+    """Replace the first YAML cell with clean formatted title/author/date."""
     
     try:
         # Read the notebook
@@ -14,88 +13,73 @@ def clean_notebook(ipynb_path):
             nb = json.load(f)
         
         # Check if notebook has cells
-        if not nb.get('cells'):
+        if not nb.get('cells') or len(nb['cells']) == 0:
             print(f"Warning: {ipynb_path} has no cells")
             return
         
-        # Get the first cell
+        # Get the first cell ONLY
         first_cell = nb['cells'][0]
         
-        # Check if first cell is markdown (YAML frontmatter appears as 'markdown' cell type)
+        # Only process if it's a markdown cell
         if first_cell.get('cell_type') != 'markdown':
-            print(f"Info: {ipynb_path} - first cell is not 'markdown' type, skipping")
+            print(f"Info: {ipynb_path} - first cell is not markdown, skipping")
             return
         
-        # Get the source content (can be a list or string)
+        # Get the source content
         source = first_cell.get('source', [])
         if isinstance(source, list):
             source = ''.join(source)
         
-        # Check if it contains YAML frontmatter (starts with --- and has title:)
+        # Only process if it looks like YAML (starts with --- and has title:)
         if not (source.strip().startswith('---') and 'title:' in source):
-            print(f"Info: {ipynb_path} - first cell doesn't look like YAML frontmatter")
+            print(f"Info: {ipynb_path} - first cell doesn't have YAML, skipping")
             return
         
         print(f"Processing: {ipynb_path}")
         
-        # Extract title, author, date using regex
-        # Handle quoted titles
+        # Extract title (handle quotes)
         title_match = re.search(r'title:\s*"([^"]+)"', source)
         if not title_match:
             title_match = re.search(r"title:\s*'([^']+)'", source)
-        if not title_match:
-            title_match = re.search(r'title:\s*([^\n]+)', source)
         
-        # Extract author (may have HTML tags)
+        # Extract author
         author_match = re.search(r'author:\s*([^\n]+)', source)
         
-        # Extract date (handle quoted dates)
+        # Extract date (handle quotes)
         date_match = re.search(r"date:\s*'([^']+)'", source)
         if not date_match:
             date_match = re.search(r'date:\s*"([^"]+)"', source)
-        if not date_match:
-            date_match = re.search(r'date:\s*([^\n]+)', source)
         
-        # Extract and clean values
-        title = title_match.group(1).strip() if title_match else None
-        author = author_match.group(1).strip() if author_match else None
-        date = date_match.group(1).strip() if date_match else None
+        # Get the values
+        title = title_match.group(1).strip() if title_match else "Untitled"
+        author = author_match.group(1).strip() if author_match else ""
+        date = date_match.group(1).strip() if date_match else ""
         
-        # Clean up author (remove HTML tags, markdown formatting)
+        # Clean up author (remove HTML tags, underscores, asterisks)
         if author:
-            # Remove <br>, <br/>, <br />, etc.
             author = re.sub(r'<br[^>]*>', ' ', author, flags=re.IGNORECASE)
-            # Remove underscores (markdown italics)
-            author = author.replace('_', '')
-            # Remove asterisks (markdown bold)
-            author = author.replace('*', '')
-            # Normalize whitespace
+            author = author.replace('_', '').replace('*', '')
             author = re.sub(r'\s+', ' ', author).strip()
         
-        # Clean up date (remove quotes if any remain)
+        # Clean up date
         if date:
             date = date.strip("'\"")
         
-        # Build new clean YAML with ONLY title, author, date
-        new_lines = [
-            '---\n',
-        ]
+        # Build new formatted content (NOT YAML, just plain text)
+        # Format: Title on first line, Author, Date on second line
+        new_content = f"# {title}\n\n"
         
-        if title:
-            new_lines.append(f'title: "{title}"\n')
+        if author and date:
+            new_content += f"{author}, {date}"
+        elif author:
+            new_content += author
+        elif date:
+            new_content += date
         
-        if author:
-            new_lines.append(f'author: "{author}"\n')
+        # Replace ONLY the first cell with new content
+        nb['cells'][0]['source'] = new_content
         
-        if date:
-            new_lines.append(f'date: "{date}"\n')
-        
-        new_lines.append('---\n')
-        
-        # Replace the first cell's source
-        nb['cells'][0]['source'] = new_lines
-        
-        # Write the modified notebook back
+        # Write back the notebook (all other cells unchanged)
         with open(ipynb_path, 'w', encoding='utf-8') as f:
             json.dump(nb, f, indent=2, ensure_ascii=False)
         
@@ -104,9 +88,6 @@ def clean_notebook(ipynb_path):
         print(f"    Author: {author}")
         print(f"    Date: {date}")
         
-    except json.JSONDecodeError as e:
-        print(f"Error: {ipynb_path} is not valid JSON: {e}")
-        sys.exit(1)
     except Exception as e:
         print(f"Error processing {ipynb_path}: {e}")
         import traceback
