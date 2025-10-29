@@ -12,7 +12,7 @@ RUN rm -f ./docs/SOCI-415/kinmatrix.qmd
 RUN rm -f ./docs/SOCI-415/cbdb_dataset.qmd
 RUN rm -f ./docs/ECON-227/llm_distributions.qmd
 RUN rm -f ./docs/hist_workshop/text_embeddings_workshop.qmd
-RUN rm -f ./docs/intro_to_cnns/intro_to_cnn.qmd
+#RUN rm -f ./docs/intro_to_cnns/intro_to_cnn.qmd
 RUN rm -f ./docs/intro_to_convolution/intro_to_convolution.qmd
 RUN rm -f ./docs/intro_to_deep_learning/intro_to_fundamental_ML.qmd
 
