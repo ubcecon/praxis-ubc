@@ -1,0 +1,60 @@
+# %% 
+# Set Up
+
+import pandas as pd
+#import numpy as np
+import os
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
+print(f"Current working directory: {os.getcwd()}")
+
+DIRECTORY = '../../../aea_data/econlitData/'
+OUTPUT_DIRECTORY = "../../datasets/econlit/"
+
+FILE = '../../../aea_data/econlitData/econlit_data_1969.txt'
+
+
+# %%
+# Load the data
+
+data = pd.read_csv(FILE, sep = "\t", dtype= pd.StringDtype())
+
+names = ['Accession Number', 
+         'ISSN', 
+         'Journal Title', 
+         "Volume/Issue", 
+         "Cover Date", 
+         "Publication Year", 
+         "Author", 
+         "Title", 
+         "JEL Codes (1991)", 
+         "JEL Codes (1969)", 
+         "Abstract", 
+         "Affiliation"]
+
+data.columns = names
+print(data.head())
+
+data = pd.DataFrame(columns = names)
+
+
+
+# %%
+
+for filename in os.listdir(DIRECTORY):
+    file_path = os.path.join(DIRECTORY, filename)
+    print(f"Processing file: {filename}")
+    new_data = pd.read_csv(file_path, sep="\t", dtype=pd.StringDtype())
+    new_data.columns = names
+    print(new_data.describe())
+    data = pd.concat([data,new_data])
+
+data.describe()
+
+# TODO:
+#<ipython-input-3-d7dd2d896a38>:9: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+#  data = pd.concat([data,new_data])
+
+# %%
+
+data.to_csv(os.path.join(OUTPUT_DIRECTORY, "econlit_data.csv"))
