@@ -36,7 +36,9 @@ Before you start, make sure you have the required libraries installed, if not, *
 #     holidays \
 #     plotly \
 #     ipywidgets \
-#     scikit-learn
+#     scikit-learn \
+#     matplotlib \
+#     seaborn
 # !pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cpu --quiet
 ```
 
@@ -390,11 +392,11 @@ def process_sentiment(news_df):
     grouped = news_df.groupby(["DateOnly", "Sentiment"]).size().unstack(fill_value=0)
     grouped = grouped.reindex(columns=["POSITIVE", "NEGATIVE"], fill_value=0)
     # Calculate a rolling 7-day total of positive headlines
-    grouped["7day_avg_positive"] = grouped["POSITIVE"].rolling(window=7, min_periods=1).sum()
+    grouped["7day_sum_positive"] = grouped["POSITIVE"].rolling(window=7, min_periods=1).sum()
     # Calculate a rolling 7-day total of negative headlines
-    grouped["7day_avg_negative"] = grouped["NEGATIVE"].rolling(window=7, min_periods=1).sum()
+    grouped["7day_sum_negative"] = grouped["NEGATIVE"].rolling(window=7, min_periods=1).sum()
     # Calculate the percentage of positive headlines each day (out of total positive + negative)
-    grouped["7day_pct_positive"] = grouped["POSITIVE"] / (grouped["POSITIVE"] + grouped["NEGATIVE"])
+    grouped["daily_pct_positive"] = grouped["POSITIVE"] / (grouped["POSITIVE"] + grouped["NEGATIVE"])
 
     return grouped.reset_index()
 ```
@@ -422,7 +424,7 @@ for i, row in news_df.iterrows():
         print(f"Title: {row['Title']}\nSentiment: {row['Sentiment']}\n")
 ```
 
-Let's summarize the sentiment results by date. For each day we count the number of positive and negative headlines, then calculate 7-day moving averages and the daily percentage of positive news. This gives us a quick overview of news sentiment trends over time.
+Let's summarize the sentiment results by date. For each day we count the number of positive and negative headlines, then calculate 7-day rolling sums and the daily percentage of positive news. This gives us a quick overview of news sentiment trends over time.
 
 ```{python}
 sentiment_df = process_sentiment(news_df)       # Summarize daily sentiment statistics
@@ -441,7 +443,7 @@ This table lets us track how optimism or pessimism is **building up over time**,
 ####  Why is this useful?
 
 - We know that in the last 100 news stories about NVIDIA 24 have been positive and 5 have been negative. 
-- If the `7day_pct_positive` is rising, the overall tone of news is getting more optimistic.
+- If the `daily_pct_positive` is rising, the overall tone of news is getting more optimistic.
 - If it's dropping, it could mean public or investor concern is growing.
 - We can later plot this and compare it against stock price to see if sentiment influences market behavior.
 
@@ -479,7 +481,7 @@ def combine_data(sent_df, stock_df):
 
     return (
         pd.merge(sent_df, stock_df, on="DateOnly", how="inner")
-          .assign(lagged_sentiment=lambda df: df["7day_pct_positive"].shift(1))
+          .assign(lagged_sentiment=lambda df: df["daily_pct_positive"].shift(1))
     )
 
 
@@ -664,18 +666,18 @@ def AI_process_sentiment(news_df):
     grouped = grouped.sort_values(["Ticker", "DateOnly"])
 
     # 7-day rolling sums by ticker
-    grouped["7day_avg_positive"] = (
+    grouped["7day_sum_positive"] = (
         grouped.groupby("Ticker")["POSITIVE"]
         .transform(lambda x: x.rolling(window=7, min_periods=1).sum())
     )
-    grouped["7day_avg_negative"] = (
+    grouped["7day_sum_negative"] = (
         grouped.groupby("Ticker")["NEGATIVE"]
         .transform(lambda x: x.rolling(window=7, min_periods=1).sum())
     )
 
     # Compute % positive
-    grouped["7day_pct_positive"] = grouped["7day_avg_positive"] / (
-        grouped["7day_avg_positive"] + grouped["7day_avg_negative"]
+    grouped["7day_pct_positive"] = grouped["7day_sum_positive"] / (
+        grouped["7day_sum_positive"] + grouped["7day_sum_negative"]
     )
 
     return grouped[["DateOnly", "Ticker", "7day_pct_positive"]]
