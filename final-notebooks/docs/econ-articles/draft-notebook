@@ -1,1 +1,626 @@
 # Expecting to write something similiar to [COMET notebook](https://comet.arts.ubc.ca/docs/4_Advanced/advanced_ollama_llm/fine_tuning_llm.html). 
+# Adapted from the link above.
+# All tentative and open to feedback.
+
+---
+title: Fine-Tuning Large Language Models 
+date: November 2025
+authors: <i>COMET Team</i></br>; prAxIs team; Irene Berezin
+description: 'An introduction to fine-tuning LLMs using economic articles, in Python.'
+categories:
+  - python
+  - fine-tuning
+  - sentiment-analysis
+  - LLMs
+  - AI
+format:
+  html: default
+  ipynb:
+    jupyter:
+      kernelspec:
+        display_name: Python
+        language: python3
+        name: python3
+---
+
+
+***
+This notebook provides an introduction to fine-tuning a large-language model (LLM) for the purpose of analyzing the content and composition of thousands of economic articles. 
+
+## 0. Prerequisites 
+
+### 0.1 Prior Knowledge
+
+- A basic understanding of coding in Python. 
+### 0.2 Hardware/Software requirements
+
+- **This notebook requires access to NVIDIA GPU, with at least 12 gigabites of VRAM. Additionally, you will need at least 12 gigabites of RAM.** If you are running on a Mac, or your computer doesn't meet the above requirements, consider running this notebook using [google collab](https://colab.research.google.com/). 
+
+<div class="alert alert-block alert-warning">
+<b>Warning:</b> For the reason outlined above, this notebook <b>cannot be run on Sygyzy</b>, which limits students to two gigabites of memory. See the installation instructions for installing locally on how to run this notebook directly on your computer.
+</div>
+
+- Conda/miniconda installed on your device.
+- If not on Collab, either a local instance of jupyterlab, or an IDE.
+
+## 1. Understanding LLMs and Fine-Tuning
+
+This section gives a introductory, high-level overview of large language models and how they work.  
+
+### 1.1 What is a LLM?
+
+In short, a **Large language model (LLM)** is any deep learning model that can comprehend and generate human text $^{[2]}$. In other words, an LLM is a sophisticated artificial intelligence program designed to understand and generate text based on the input it receives. One such example that you may be familiar with is ChatGPT. This is one of many, many language models available for use on the internet. Other notable examples include LLama (Facebook), and Bard (Google). An LLM learns from vast amounts of text data to improve its ability to understand and respond effectively, similarly to a human. 
+
+
+LLMs are a subset of a wider class of models called **natural language processing models (NLPs)**, computational models designed to understand and interpret human language in order to perform tasks such as text classification, transcription, translation, and more $^{[3]}$. A **Neural Network** is a computational model that works similar to how the human brain functions. Neural networks consist of layers of interconnected nodes, called neurons, that process information (speech, text, images, etc). These networks are trained to learn patterns and relationships in data, making them capable of tasks like image and speech recognition, natural language processing (chatgpt), as well as Generative Adversarial Networks, which generate images from textual prompts $^{[4]}$. 
+
+### 1.2 How does a LLM work?
+
+Sure, giving ChatGPT a prompt and watching it produce an output is interesting, but have you ever wondered *how* it can do that? In this section, we introduce the basic mechanisms behind large language models powered by generative transformers (GPTs). What makes models such as ChatGPT, Gemini, and LLama so much better than older NLP models is the use of a **transformer architecture** (the "T" in ChatGPT), which allows them to *understand* prompts and generate human-like text. The transformer architecture is a type of neural network that is able to learn context and meaning of a given input text by tracking relationships within the input text $^{[5]}$. 
+
+**1) Vector embedding of input text:** First, the model converts each word in the input sequence into a vector representation known as a token embedding. We won't go into detail as to how this is done; for that, you can consult the [notebook on vector embeddings here.]()
+Additionally, since transformers do not inherently understand the order of tokens, positional encodings are added, which allow the model to understand where each word is relative to other words in the input text. 
+
+**2) Attention Mechanism:** First outlined in the landmark research paper "Attention is all you need"$^{[6]}$ by Google in 2017, the attention mechanism or attention block allows the model to focus in on different parts of the input text and calculate how much *attention* it should pay to every word by comparing it to each other word in the input text. The result is a weighted combination of words' value vectors, reflecting their relevance. This allows the model to prioritize important words and capture meaningful relationships in the sequence, effectively understanding the context and meaning of a text $^{[7]}$ $^{[8]}$. For instance, in the phrase "*The quick brown fox jumps over the lazy...*", the attention mechanism would allow the model to place more emphasis on the words "fox", 'quick" and "brown", and less emphasis on the word "the".
+
+![](transformer.png)
+
+**3) Multi-layer perceptron/feed-forward network:** The multi-layer perceptron, also called a feed-forward network, transforms complex representations of input data by processing it through layers of interconnected "neurons". This transformation helps the network make predictions, classify data, or generate meaningful outputs, using a process called forward propagation. $^{[9]}$. Essentially, it allows the model to map input data to desired outputs effectively. You can think of the feed-forward network as asking a series of questions to the each word in the input sequence $^{[10]}$. For instance, returning to the previous example of *"The quick brown fox jumps over the lazy..."*, the word "fox" could be asked the question "*are you a noun?*" and it's vector embedding would be updated accordingly. 
+
+This process is then repeated a number of times: the resulting vectors are parsed through the attention mechanism, and then back into the feed forward network. Each layer's output becomes the input for the next layer, gradually refining the data. The final layer, which corresponds to the last feed-forward network, produces the network’s prediction. For text generation tasks, this would be take the form of a probability distribution $^{[10]}$.
+
+**4) Unembedding matrix:** The last step multiplies the very last vector in the result of the feed-forward network by a special matrix called the *unembedding matrix*. The result of this multiplication results in a new matrix, for which each entry corresponds to each word in the english language. The values within this vector correspond to the respective probabilities of each word being the correct "next" word $^{[10]}$ $^{[11]}$. 
+
+### 1.3 Weights, Weight Matrices, and Fine-tuning
+
+**Weights:** Weights are parameters within a neural network that are learned during the training process. They determine the strength and direction of the connections in the network $^{[12]}$. Intially, weights are set randomly; during training, the weights are adjusted to minimize the error between the predicted output and the actual output, by minimizing a loss function. This process is known as *gradient descent* $^{[10]}$ $^{[13]}$.
+
+**Weight matrices** are structured collections of weights arranged in matrix form. They represent the connections between layers in a neural network. The operation of passing inputs through the network involves matrix multiplication: the input vector is multiplied by the weight matrix to produce the output vector for the next layer $^{[14]}$.
+
+In the attention mechanism, each word in the input sequence is transformed into three different vectors: the query vector (used to search for relevant information from other words in the sequence), the key vector (represents the words in the sequence and is used to match with query vectors), and the value vector (holds the actual information of the words in the sequence and is used to generate the output of the attention mechanism), using separate weight matrices $^{[14]}$. For example, if the input is a sequence of words represented as vectors, the queries, keys, and values are computed as:
+
+$$Q=W_{Q}(X), K=W_{K}(X), V=W_{V}(X)$$
+
+where $W_{Q}$​, $W_{K}$​, and $W_{V}$​ are weight matrices $^{[14]}$ $^{[15]}$. These vectors are used to calculate attention scores, which determine how much focus each word should give to every other word in the sequence.
+
+![](attention_mechanism.png)
+
+
+**Fine-tuning** is the process of updating the key, query and value matrices to reflect new data $^{[16]}$. Because the weight matrices contain both the original, general weights and the new adjustments from the fine-tuning process, fine-tuning allows the model to retain the broad, general knowledge from the pre-training phase while specializing in the a new task, such as sentiment analysis, customer feedback, etc. 
+
+### 1.4 Bidirectional VS left-right encoding models
+
+Model LLMs can be grouped into two categories: Those that have bidirectional encoders, and left-right encoders. Left-right encoder models are models that process text sequentially, at any given point in the encoded text sequence, the model can only use information from the current and previous tokens, not future tokens $^{[17]}$. For instance, when processing the text "The quick brown fox jumps over the lazy dog", a left-right encoder processing the word "fox" would only have access to the words "the", "quick" and "brown" when assigning how much attention should be paid to the word "fox".
+
+Bidirectional encoder models, on the other hand, process the input sequence in both directions, from start to end and from end to start. This allows the model to take into account both the left and right context of each token simultaneously $^{[18]}$. This makes bidirectional encoder models particularly strong at sentiment analysis tasks, as they are better able to capture the sentiment assigned to each given word $^{[19]}$. 
+
+**For this reason, if you wish to use large language models for sentiment analysis, it's recommended you use bi-directional encoder models for both greater accuracy and faster training speeds.**
+
+Some popular models include:
+
+- [Finbert](https://huggingface.co/ProsusAI/finbert) (For analyzing financial sentiment)
+- [RoBERTa](https://huggingface.co/docs/transformers/en/model_doc/roberta)
+- [BERT](https://huggingface.co/google-bert/bert-base-uncased)
+- [distilBERT](https://huggingface.co/distilbert/distilbert-base-uncased) 
+
+We will be using BERT for this notebook.
+
+### 1.4 Self tests
+
+#### 1.4.1  Self-test 1
+
+In the phrase "*The quick brown fox jumps over the lazy...*", a left-right encoding model reading the word "fox" would have access to the words _____ when determining the word's ____. 
+
+Assign your answer to an object called `answer_1` as a string in the cell below. For instance, if I were to pick the non-existent option "Z", I would enter `answer_1 = "Z"`. 
+
+- A) "jumps", "over", "the", and "lazy". Relevance.
+- B) "The", "quick", "brown", "jumps", "over", "the", and "lazy". Vector embedding.
+- C) "The", "quick", and "brown", Vector embedding.
+- D) "jumps", "over", "the", and "lazy". Vector embedding.
+- E) "The", "quick", and "brown", Relevance.
+- F) "The", "quick", "brown", "jumps", "over", "the", and "lazy". Relevance.
+
+
+```{python}
+#input your answer here
+```
+
+```{python}
+import hashlib
+from hashlib import sha256
+
+h=hashlib.new("SHA256")
+h.update(answer_1.encode())
+if str(h.hexdigest()) == "a9f51566bd6705f7ea6ad54bb9deb449f795582d6529a0e22207b8981233ec58":
+    print("correct! \U0001f600")
+else: print("incorrect, recall the the difference between left-right and bidirectional encoder models.")
+```
+
+```{python}
+correct = "C"
+h=hashlib.new("SHA256")
+h.update(correct.encode())
+h.hexdigest()
+```
+
+#### 1.4.2 Self Test 2
+
+Suppose an LLM was given the following text and tasked to perform sentiment analysis: "It's a beautiful sunny day outside". It's first take would be to **embed** each word. Which of the following is a reasonable embedding for the word "sunny"?
+
+- A) isjfk29ndlsavbm4_2u3n
+- B) " sun-ny "
+- C) <3820.2, 38573.6, 1826.2, 23.3, ... 4958.3>
+- D) 🌞
+
+Assign your answer to an object called `answer_2` as a string in the cell below. For instance, if I were to pick the non-existent option "Z", I would enter `answer_2 = "Z"`. 
+
+```{python}
+#input your answer here
+```
+
+```{python}
+import hashlib
+from hashlib import sha256
+
+h=hashlib.new("SHA256")
+h.update(answer_2.encode())
+if str(h.hexdigest()) == '6b23c0d5f35d1b11f9b683f0b0a617355deb11277d91ae091d399c655b87940d':
+    print("correct! \U0001f600")
+else: print("incorrect, recall that embeddings have both magnitude and direction.")
+```
+
+## 2. Setting up
+Before we begin, we'll need to create a new python environment for our required libraries, as well as install CUDA. 
+
+### 2.1 Creating an envrionment
+
+**Skip this step if you are using Google Collab.**
+
+Let's first create a python environment, using conda.
+
+1) Make sure you have miniconda installed, and open up the miniconda prompt.
+
+2) In the miniconda prompt, enter `conda create -n llm_finetuning jupyter`. This will create a new environment called llm_finetuning, with jupyter installed.
+
+3) Next, activate the environment by typing `conda activate llm_finetuning`. 
+
+### 2.2 Installing CUDA
+
+We'll now need to install CUDA. CUDA is a parallel computing platform that allows computers with NVIDIA GPUs to harness their GPUs for tasks other than graphics rendering (NVIDIA, 2024). This is essential for running LLMs, which require loading in massive amounts of data simultaneously. **For this reason, if you do not have access to an NVIDIA GPU, you will not be able to run this notebook.** 
+
+Head to [CUDA toolkit 12.1](https://developer.nvidia.com/cuda-12-1-0-download-archive) and follow the on-screen prompts to install it. **Note that pytorch requires this specific version of CUDA. If you have a different version already installed, you may need to uninstall it using `conda remove cuda` or using the windows app installation menu.**
+
+### 2.3 Installing required librarie
+
+We can now install the required libraries.
+
+1) The first library we'll need to install is pytorch: pytorch is an open-source deep learning framework for building deep learning models (NVIDIA, 2024). You can install pytorch using `conda install pytorch torchvision torchaudio pytorch-cuda=12.1 -c pytorch -c nvidia`.
+
+2) Additionally, we'll need to install the transformers library. The transformers library is an open-source framework for deep-learning models, which provides access to useful APIs and pre-trained models (Huggingface, 2024). At the same time, we will install the datasets, accelerate, peft, optimum and bitsandbytes libraries. We can install them using:
+
+```{python}
+!pip install transformers datasets accelerate peft optimum bitsandbytes
+!pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+
+!pip install transformers datasets accelerate peft optimum bitsandbytes
+
+!pip install huggingface_hub
+
+!pip install -U sentence-transformers
+
+!pip install bertopic umap-learn
+
+!pip install kaleido wordcloud protobuf
+
+!pip install spacy
+!python -m spacy download en_core_web_sm
+
+!pip uninstall -y hdbscan
+!pip install git+https://github.com/scikit-learn-contrib/hdbscan@master#egg=hdbscan
+```
+
+The datasets library is a library that provides access to useful datasets for training LLMs. The other libraries are extensions of the transformers library that provide support for faster training and quantization. 
+
+3) Lastly, we'll install the huggingface login library, which will allow us to use gated models uploaded to huggingface, as well as upload our own fine-tuned model. You can install it using:
+
+```{python}
+!pip install huggingface_hub
+```
+
+4) Finally, we'll need to restart our kernel, so that it recognizes the installed libraries. if you are in VSCode, you can do so by pressing "restart" at the top of the screen. If you are in jupyterlab, you can do so by pressing the "restart the kernel" button at the top left of your screen. 
+
+### 2.4 Logging into huggingface
+
+We'll now log into huggingface directly in this notebook, which will allow us to use BERT, as well as upload our own fine-tuned model. 
+
+1) If you haven't already, create an account at https://huggingface.co/join.
+
+2) Once your account is created, navigate to `settings (located at the top right corner of your screen) > Access Tokens > +Create new token`. Give your token a name, and select, under user permissions:
+
+- Read access to contents of all repos under your personal namespace
+- Read access to contents of all public gated repos you can access
+- Write access to contents/settings of all repos under your personal namespace
+
+Lastly, press `create` and copy your token. Save it somewhere, such as in a notepad. 
+
+3) We can now log into huggingface, directly in this notebook. Run the following command, and input your token:
+
+```{python}
+from huggingface_hub import login
+login()
+```
+
+### 2.5 Creating a huggingface model card
+
+After we train our model, we'd like to be able to save it on huggingface and call it directly from there. 
+
+1) In Hugginface, navigate to the top-right corner of your screen and press the circular account icon.
+
+2) Press `new model` and create a model card.
+
+3) Copy the model ID of the model card by pressing "copy model name to clipboard".
+
+## 3. Fine-tuning BERT on a given dataset
+
+As our LLM example, we'll use BERT. BERT is an open-source large language model created by Google. We are going to install more packages, including BERTopic- a package to categorize topics covered by the articles.
+```{python}
+# importing stuff
+import os
+import sys
+import json
+import random
+import datetime
+import dill
+import torch
+import numpy as np
+import matplotlib.pyplot as plt
+from torch.utils.data import Dataset, DataLoader
+from transformers import RobertaTokenizer, RobertaForMaskedLM
+from datasets import load_dataset
+from collections import defaultdict
+import spacy
+from tqdm import tqdm
+
+# BERTopic & sentence-transformers
+from bertopic import BERTopic
+from sentence_transformers import SentenceTransformer, models
+from sklearn.feature_extraction.text import CountVectorizer
+from umap import UMAP
+```
+
+### 3.1 Loading in the dataset
+
+We'll fine-tune this model on the economic articles dataset, a cross-sectional dataset containing thousands of articles from top economics journals over six decades.
+**Our goal is to fine-tune a model by training it on a collection of journal articles to analyze how the discipline of economics has evolved over time.**
+
+Let's start by taking a look at the dataset:
+
+```{python}
+from datasets import load_dataset
+dataset = load_dataset('econ_articles_dataset') # Replace with whatever the article file is titled.
+```
+
+Now that we've loaded in the dataset, let's take a closer look at it:
+
+```{python}
+dataset
+```
+
+We can see that the dataset contains 2 splits: One for training, and one for testing, each with 1000 rows. Let's preview the hundredth row in the training set:
+
+```{python}
+dataset['train'][100]
+```
+
+We can see that it contains a movie review, as well as a corresponding label. A label of 0 corresponds to a negative review, and a label of 1 corresponds to a positive review. 
+
+### 3.2 Defining tokenizer and metrics functions
+
+Let's define some functions required for the LLM to process and evaluate our dataset.
+
+#### 3.2.1 Tokenizer function
+
+The first function is the tokenizer function, designed to tokenize our data, ie, convert each movie review into tokens.
+
+Inputs:
+
+- examples: A dictionary containing the text data that needs to be tokenized. 
+- tokenizer: An instance of AutoTokenizer from the Huggingface library. This tokenizer is used to convert text into tokens that can be - processed by a transformer model.
+
+Operation: The tokenizer is applied to the text data in examples['text']. The text is tokenized with the following parameters:
+
+- padding="max_length": Adjusts the length of the text data to a uniform size by adding extra tokens. Pads the sequences to the maximum length specified by max_length (512 tokens). 
+- truncation=True: Truncates the sequences to ensure they are no longer than max_length.
+- max_length=512: Sets the maximum length of the tokenized sequences to 512 tokens.
+- SEEDs: Generates random numbers to "test".
+
+Output:
+
+- A dictionary containing the tokenized text, ready for input into a transformer model.
+
+```{python}
+SEED1 = 6548
+SEED2 = 3091
+MAX_LENGTH = 128
+BASE_DIR = "output/bert"
+VERSION = "1.2"
+
+random.seed(SEED1)
+np.random.seed(SEED2)
+torch.manual_seed(SEED1)
+
+```
+
+#### 3.2.2 Computing accuracy function
+
+This function calculates the accuracy of the model's predictions.
+
+Input: eval_pred: A tuple containing two elements:
+
+- logits: The unstandardized predictions from the model, ie, the labels assigned to the movie reviews *by the model*.
+- labels: The *true* labels for the data, ie, the labels assigned to the movie reviews *by humans*, contained within the dataset.
+
+Operation:
+
+- The logits are converted to standardized predictions using a mathematical function called argmax.
+- The accuracy is computed by comparing the predictions to the true labels and calculating the mean of correct predictions.
+
+Output:
+- A dictionary with a single key-value pair: {"accuracy": accuracy}, where accuracy is the computed accuracy of the model's predictions.
+
+```{python}
+def compute_metrics(eval_pred: Any) -> Dict[str, float]:
+    logits, labels = eval_pred
+    predictions = np.argmax(logits, axis=-1)
+    accuracy = np.mean(predictions == labels)
+    return {"accuracy": accuracy}
+
+#Computes accuracy metrics from evaluation predictions.
+    #Args:
+        #eval_pred (Any): A tuple containing logits and labels.
+    #Returns:
+        #Dict[str, float]: A dictionary with accuracy metrics.
+```
+
+Then, we set up a logging system to save our data.
+
+```{python}
+def set_up_logger(log_dir):
+    os.makedirs(log_dir, exist_ok=True)
+    logger = logging.getLogger("train_logger")
+    logger.setLevel(logging.DEBUG)
+    fh = logging.FileHandler(os.path.join(log_dir, "train.log"))
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    fh.setFormatter(formatter)
+    logger.addHandler(fh)
+    logger.addHandler(logging.StreamHandler(sys.stdout))
+    return logger
+
+logger = set_up_logger(BASE_DIR)
+```
+
+
+### 3.3 Configuring BERT
+
+We'll now configure the model in order to fine-tune it. This involves the following steps:
+
+1) Specifying the model ID (in this notebook, we use BERT. You can use other LLMs.)
+
+2) Tokenizing the  dataset and inserting padding tokens
+
+3) Quantizing the model using bitsandbytes
+
+#### 3.3.1 Specifying the Model ID, tokenizing, and padding
+
+```{python}
+class EconlitDataset(Dataset):
+    def __init__(self, dataset, max_length, tokenizer, mlm_probability=0.15):
+        self.dataset = dataset
+        self.max_length = max_length
+        self.tokenizer = tokenizer
+        self.mlm_probability = mlm_probability
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, idx):
+        item = self.dataset[idx]
+        text = str(item.get("Abstract", ""))
+
+        encoding = self.tokenizer(
+            text,
+            max_length=self.max_length,
+            padding="max_length",
+            truncation=True,
+            return_tensors="pt"
+        )
+
+        input_ids = encoding["input_ids"].squeeze(0)
+        attention_mask = encoding["attention_mask"].squeeze(0)
+
+        labels = input_ids.clone()
+        probability_matrix = torch.full(labels.shape, self.mlm_probability)
+
+        special_tokens_mask = self.tokenizer.get_special_tokens_mask(
+            input_ids.tolist(), already_has_special_tokens=True
+        )
+        special_tokens_mask = torch.tensor(special_tokens_mask, dtype=torch.bool)
+        probability_matrix.masked_fill_(special_tokens_mask, value=0.0)
+
+        masked_indices = torch.bernoulli(probability_matrix).bool()
+        labels[~masked_indices] = -100 
+
+        return {
+            "input_ids": input_ids,
+            "attention_mask": attention_mask,
+            "labels": labels,
+        }
+```
+
+#### 3.3.2 Loading  
+
+Let's now load our model, and prepare it for training:
+
+- **model = AutoModelForSequenceClassification.from_pretrained(...):** This loads our model into our notebook, while specifying it's quantization and usage for sequence classification.
+- **model.gradient_checkpointing_enable():** This function enables gradient checkpointing for the model. Gradient checkpointing is a technique to reduce memory usage during training. 
+- **prepare_model_for_kbit_training:** This function prepares the model for training with quantization. 
+
+```{python}
+logger.info("# Loading Data. #")
+logger.info(f"Working Directory: {os.getcwd()}")
+
+data_path = "final_datasets/econlit/final_datasets.py"
+
+test = load_dataset(path = data_path, name = "econlit", split = "test", trust_remote_code=True)
+train = load_dataset(path = data_path, name = "econlit", split = "train", trust_remote_code=True)
+validate = load_dataset(path = data_path, name = "econlit", split = "validation", trust_remote_code=True)
+```
+
+### 3.4 Training arguments
+
+Additionally, we'll need to set our training arguments. These arguments tell the trainer how exactly to train the model. There are many training arguments, and a full list can be found [here](https://huggingface.co/docs/transformers/en/main_classes/trainer#transformers.TrainingArguments). All of these, except the first, are optional, but help reduce training time.
+
+<div class="alert alert-block alert-warning">
+output_dir="yourname/yourmodel" is required and saves the trained model to your huggingface account. <b>Make sure you specify the correct output directory, which is the model name of the model card we created at the start of this notebook.
+</div>
+
+```{python}
+logger.debug(f"Data path: {data_path}")
+
+logger.info("Tokenizing Data.")
+
+tokenizer = RobertaTokenizer.from_pretrained("FacebookAI/roberta-base")
+
+training_dataset_1 = EconlitDataset(train, MAX_LENGTH, tokenizer)
+validation_dataset_1 = EconlitDataset(validate, MAX_LENGTH, tokenizer)
+testing_dataset_1 = EconlitDataset(test, MAX_LENGTH, tokenizer)
+
+logger.info("Data Description:")
+logger.info(f"Number of training samples: {len(training_dataset_1)}")
+logger.info(f"Number of validation samples: {len(validation_dataset_1)}")
+logger.info(f"Number of testing samples: {len(testing_dataset_1)}")
+
+from transformers import RobertaForMaskedLM
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+model = RobertaForMaskedLM.from_pretrained("roberta-base")
+model.to(device)
+
+logger.info(f"Model loaded and moved to device: {device}")
+```
+
+### 3.5 Creating a trainer instance and training the model
+
+Let's create a instance of the trainer which we'll use to train the model. Additionally, we'll specify a padding object that will handle the padding of the input sequences, using the tokenizer. 
+
+```{python}
+from torch.optim import AdamW
+
+LEARNING_RATE = 2e-5
+optimizer = AdamW(model.parameters(), lr=LEARNING_RATE)
+)
+```
+
+### 3.6 Training the model
+
+Finally, we can train our model on the dataset. We'll run the `trainer.train` command, which will iteratively train our model on the training set and evaluate it on the validation set. It will do so three times, each time using the previous trained version on the testing and validations sets.
+
+Note that the code below may take a long time to run, depending on your computer capabilities. On a GeForce RTX 3090 with 24 GB of VRAM, training time was 50 minutes. 
+
+```{python}
+EPOCHS = 3  
+
+for epoch in range(EPOCHS):
+    logger.info(f"Starting epoch {epoch + 1}/{EPOCHS}")
+    train_mlm(model, train_loader, optimizer, device, epoch + 1
+
+```
+
+Once the code below has run, you'll see the model's accuracy metrics on both the training and testing set, which should progressively increase with each cycle (epoch). 
+
+Here, we've only ran training for three epochs. Often times, particularly if you want to actually use your model for inference, you may need to train it over more cycles. You may ask *"How do I know when to stop training the model?"* It's important to note that running the model over 400 epochs will not increase accuracy. In fact, it may lead to a decrease in accuracy, by *overfitting* the model on the training set. Imagine studying for an exam: **overfitting** a model can be thought of as memorizing the solution to each practice question in the practice final instead of understanding the material. You might be great at solving questions from the practice final, but chances are, you'll do terrible on the exam! Instead, aim to stop training when the accuracy values for the training and validation sets are equal. 
+
+Additionally, if the model's accuracy on the training set is already nearly 100%, you're unlikely to get any significant improvements in accuracy by continually running training cycles. If you have a low validation accuracy, you may need to change your training arguments or avoid quantizing the default model. 
+
+This code will provide evaluation metrics of the model's accuracy on the validation set.
+
+# 3.7 Saving the model
+Now it is time to make sure we save our model to ensure we don't lose any progress.
+
+# saving model
+```{python}
+save_dir = f"{BASE_DIR}/models/roberta_mlm_v{VERSION}"
+os.makedirs(save_dir, exist_ok=True)
+
+model.save_pretrained(save_dir)
+tokenizer.save_pretrained(save_dir)
+
+logger.info(f"Saved model and tokenizer to {save_dir}")
+```
+
+
+# 3.8 Using ROBERTA
+ROBERTA is an optimized form of BERT, which we will now load and test.
+# roberta 
+```{python}
+from sentence_transformers import SentenceTransformer, models
+
+model_path = f"{BASE_DIR}/models/roberta_mlm_v{VERSION}"
+
+word_embedding_model = models.Transformer(model_path, max_seq_length=512)
+pooling_model = models.Pooling(word_embedding_model.get_word_embedding_dimension())
+custom_sentence_model = SentenceTransformer(modules=[word_embedding_model, pooling_model])
+```
+
+# testing
+```{python}
+import json
+
+docs = []
+file_path = "final_datasets/econlit/train/econlit_train.jsonl"
+
+with open(file_path, 'r', encoding='utf-8') as f:
+    for line in f:
+        entry = json.loads(line)
+        abstract = entry.get('Abstract', '')
+        if abstract:
+            docs.append(abstract)
+
+print(f"Loaded {len(docs)} abstracts.")
+```
+
+# 3.9 Using Spacy
+Spacy is a natural-language processing library we will use for BERTopic.
+
+# spacy 
+```{python}
+import spacy
+
+nlp = spacy.load("en_core_web_sm")
+
+def lemmatize(doc):
+    return " ".join([token.lemma_ for token in nlp(doc)])
+
+docs_cleaned = [lemmatize(doc) for doc in docs]
+```
+
+# 4.0 Deploying BERTopic
+BERTopic is a form of BERT that classifies datasets by their similarlity to each other, which can be bunched into "topics".
+# bertopic
+```{python}
+from bertopic import BERTopic
+
+topic_model = BERTopic(embedding_model=custom_sentence_model, verbose=True)
+topics, probs = topic_model.fit_transform(docs_cleaned)
+```
+
+# 4.1 Visualization
+This is the fun part! We are going to visualize the most prominent topics in the dataset. Do you observe any visual patterns?
+# visualization of topics
+```{python}
+fig = topic_model.visualize_topics()
+fig.show()
+```
+
+# NEXT: use nltk for preprocessing, then BERTopic
+# GOAL: reduce redundancy of words with similar roots (e.g. immigrants, immigrant)
