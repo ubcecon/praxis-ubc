@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="prAxIs UBC Team   Alex Ronczewski">
-<meta name="dcterms.date" content="2025-08-24">
+<meta name="dcterms.date" content="2025-10-13">
 <meta name="description" content="Using the KINMATRIX Dataset to explore network analysis for SOCI 415">
 
 <title>Praxis - Network Analysis: KINMATRIX Dataset</title>
@@ -257,7 +257,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul>
   <li><a href="#prerequisites" id="toc-prerequisites" class="nav-link active" data-scroll-target="#prerequisites">Prerequisites</a>
   <ul class="collapse">
-  <li><a href="#kinmatrix-data-description" id="toc-kinmatrix-data-description" class="nav-link" data-scroll-target="#kinmatrix-data-description">KINMATRIX DATA DESCRIPTION</a>
+  <li><a href="#kinmatrix-data-description" id="toc-kinmatrix-data-description" class="nav-link" data-scroll-target="#kinmatrix-data-description">KINMATRIX DATA DESCRIPTION</a></li>
+  <li><a href="#downloading-the-data" id="toc-downloading-the-data" class="nav-link" data-scroll-target="#downloading-the-data">Downloading the Data</a>
   <ul class="collapse">
   <li><a href="#part-1.-broader-patterns-across-countries" id="toc-part-1.-broader-patterns-across-countries" class="nav-link" data-scroll-target="#part-1.-broader-patterns-across-countries">Part 1. Broader Patterns Across Countries</a></li>
   <li><a href="#density-by-age-and-gender-across-countries" id="toc-density-by-age-and-gender-across-countries" class="nav-link" data-scroll-target="#density-by-age-and-gender-across-countries">2. Density by Age and Gender Across Countries</a></li>
@@ -327,7 +328,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <div>
     <div class="quarto-title-meta-heading">Published</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">24 August 2025</p>
+      <p class="date">13 October 2025</p>
     </div>
   </div>
   
@@ -344,45 +345,50 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 class="anchored" data-anchor-id="kinmatrix-data-description">KINMATRIX DATA DESCRIPTION</h2>
 <p>The KINMATRIX dataset represents families as ego-centric networks of younger adults aged 25 to 35, collecting extensive data about both nuclear and extended kin across ten countries. The data include over 12,000 anchor respondents and more than 252,000 anchor-kin dyads, encompassing a wide range of relatives such as parents, siblings, grandparents, aunts, uncles, cousins, and complex kin (e.g., step- and half-relatives).</p>
 <p>Anchor respondents refer to the ones directly sampled from. These anchors filled out the survey about their families and kin meaning that they will always be at the center of these family networks.</p>
-<p>The countries in the dataset are the United Kingdom, Germany, Poland, Italy, Sweeden, Denmark, Finland, Norway, the Netherlands and the USA.</p>
+<p>The countries in the dataset are the United Kingdom, Germany, Poland, Italy, Sweden, Denmark, Finland, Norway, the Netherlands and the USA.</p>
+</section>
+<section id="downloading-the-data" class="level2">
+<h2 class="anchored" data-anchor-id="downloading-the-data">Downloading the Data</h2>
+<p>Students will have to download the data for legal reasons and then place them into the notebook’s working directory.</p>
+<p>First navigate to <a href="https://kinmatrix.eu/data/">The KINMATRIX Data page</a> from there click on the <strong>large red Data download button</strong>. You will need to make an account on GESIS. Once you have created the account on the right-hand side there is a panel with different download options. Press <strong>Datasets</strong> and select <strong>ZA8825_v1-0-0.dta (Dataset) 112.56 MB</strong>, make sure it is the .dta version.</p>
+<p>This will start a download, once it is completed copy the file and paste it into the datasets folder in the same directory as the notebook. There will already be one file there called latest.db make sure it is in the same folder.</p>
 <section id="part-1.-broader-patterns-across-countries" class="level3">
 <h3 class="anchored" data-anchor-id="part-1.-broader-patterns-across-countries">Part 1. Broader Patterns Across Countries</h3>
 <p>We will begin by looking at broader patterns across different countries. This will serve as an introduction into the dataset and will be a foundation for more focused analysis later on. First we import all the necessary Python libraries for data manipulation, network analysis, and visualization. This will allow us to get results for each country. The output of this cell will be a list of countries in the data.</p>
 <p>Import Libraries and the Data:</p>
 <div class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co">#Import libraries</span></span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt </span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.patches <span class="im">as</span> mpatches </span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> networkx <span class="im">as</span> nx </span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd </span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> geopandas <span class="im">as</span> gpd</span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> contextily <span class="im">as</span> ctx</span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> mpl_toolkits.axes_grid1.inset_locator <span class="im">import</span> inset_axes</span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> community <span class="im">as</span> community_louvain</span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> random</span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> plotly.graph_objects <span class="im">as</span> go</span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pyvis.network <span class="im">import</span> Network</span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> re</span>
-<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.cm <span class="im">as</span> cm</span>
-<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>file_path <span class="op">=</span> <span class="vs">r'ZA8825_v1-0-0.dta'</span> <span class="co">#path</span></span>
-<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> pd.read_stata(file_path)</span>
-<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a><span class="co">#Print country codes</span></span>
-<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(df[<span class="st">'anc_cou'</span>].unique())</span>
-<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a><span class="co">#Make a list of countries</span></span>
-<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>country_dfs <span class="op">=</span> {}</span>
-<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> country <span class="kw">in</span> df[<span class="st">'anc_cou'</span>].unique():</span>
-<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>    country_dfs[country] <span class="op">=</span> df[df[<span class="st">'anc_cou'</span>] <span class="op">==</span> country]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt </span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.patches <span class="im">as</span> mpatches </span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> networkx <span class="im">as</span> nx </span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd </span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> geopandas <span class="im">as</span> gpd</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> contextily <span class="im">as</span> ctx</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> mpl_toolkits.axes_grid1.inset_locator <span class="im">import</span> inset_axes</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> community <span class="im">as</span> community_louvain</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> random</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> plotly.graph_objects <span class="im">as</span> go</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pyvis.network <span class="im">import</span> Network</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> re</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.cm <span class="im">as</span> cm</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>file_path <span class="op">=</span> <span class="vs">r'datasets\ZA8825_v1-0-0.dta'</span> <span class="co">#path for the dataset</span></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> pd.read_stata(file_path)</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a><span class="co">#Print country codes</span></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(df[<span class="st">'anc_cou'</span>].unique())</span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a><span class="co">#Make a list of countries</span></span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>country_dfs <span class="op">=</span> {}</span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> country <span class="kw">in</span> df[<span class="st">'anc_cou'</span>].unique():</span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>    country_dfs[country] <span class="op">=</span> df[df[<span class="st">'anc_cou'</span>] <span class="op">==</span> country]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <section id="make-it-a-network" class="level4">
 <h4 class="anchored" data-anchor-id="make-it-a-network">1.1 Make it a Network</h4>
 <p>Here, we systematically construct a kinship network for each country in the dataset using the NetworkX Python package. For each country, we filter the data, create a new graph, and add nodes representing anchor individuals and their kin. Then we draw edges between the nodes. Finally, we print out the number of nodes and edges for each country’s network, providing a quick overview of network size and complexity across the dataset.</p>
 <div class="cell" data-execution_count="2">
-<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co">#Set up a dictionary of countries</span></span>
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Set up a dictionary of countries</span></span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>country_map <span class="op">=</span> {</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">'UK'</span>: <span class="st">'1. UK'</span>,</span>
 <span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">'Germany'</span>: <span class="st">'2. Germany'</span>,</span>
@@ -426,7 +432,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb2-42"><a href="#cb2-42" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  Number of edges: </span><span class="sc">{</span>G_filtered<span class="sc">.</span>number_of_edges()<span class="sc">}</span><span class="ss">"</span>)</span>
 <span id="cb2-43"><a href="#cb2-43" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p>We can see that the Kinmatrix dataset has a wide range of networks ranging from smaller countries like Norway and Denmark (~3000 Nodes) to expansive networks like the United States with 118,702 nodes. This is a good overview, but it does not really give any information on the nature of the networks, their size, family relations and other interesting statistics.</p>
+<p>We can see that the KINMATRIX dataset has a wide range of networks ranging from smaller countries like Norway and Denmark (~3000 Nodes) to expansive networks like the United States with 118,702 nodes. This is a good overview, but it does not really give any information on the nature of the networks, their size, family relations and other interesting statistics.</p>
 </section>
 <section id="finding-summary-statistics-across-the-countries" class="level4">
 <h4 class="anchored" data-anchor-id="finding-summary-statistics-across-the-countries">1.2 Finding summary statistics across the countries</h4>
@@ -757,8 +763,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h1>3.3 In class discussion from the family structures visualization</h1>
 <p>Students will look at the visualization on their browser and in small groups of 3-4 will discuss how the findings from this dataset can be linked to theories in studied frameworks from the course. After about 10 minutes of discussion groups will state their most interesting or best interpretation that they found, some possible examples are listed below for the Social Exchange Framework, and the Feminist Framework.</p>
 <p><strong>Social Exchange Framework</strong> Family ties exist as a exchange of resources so each edge between the nodes means there is some form of exchange, this could range from such as support, care, or obligation. The color-coding of relationships (e.g., blue for father, pink for mother) visually distinguishes different types of exchanges, allowing analysis of who is connected to whom and what kinds of resources or support might flow along those ties. For example, a node with many blue (father) and pink (mother) connections might receive more parental support, while green (brother) or purple (sister) ties could represent sibling exchanges.</p>
-<p><strong>Feminist Framework</strong></p>
-<p>The feminist framework examines gender roles, power imbalances, and the ways traditional family structures reinforce gender inequality. For example we can link the centrality or marginalization of female roles (e.g., mothers, daughters, sisters) compared to male roles (fathers, sons, brothers) to patriarchal structures of modern western society.</p>
+<p><strong>Feminist Framework</strong> The feminist framework examines gender roles, power imbalances, and the ways traditional family structures reinforce gender inequality. For example we can link the centrality or marginalization of female roles (e.g., mothers, daughters, sisters) compared to male roles (fathers, sons, brothers) to patriarchal structures of modern western society.</p>
 </section>
 <section id="visualization-of-gender" class="level1">
 <h1>4.0 Visualization of Gender</h1>
@@ -904,7 +909,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"All possible values in 'anc_eduall':"</span>)</span>
 <span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(df[<span class="st">'anc_eduall'</span>].value_counts(dropna<span class="op">=</span><span class="va">False</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p><code>anc_hea</code>: This variable which stands for the anchor person’s self-rated health. The possible values represent subjective categories ranging from Very Good to Very Bad health. We can see most people in the dataset are in good health with few in Bad or Very Bad health.</p>
+<p><code>anc_hea</code>: This variable which stands for the anchor person’s self-rated health. The possible values represent subjective categories ranging from Very Good to Very Bad health. We can see most people in the dataset are in Good health with few in Bad or Very Bad health.</p>
 <p><code>anc_eduall</code>: This variable represents the anchor person’s overall level of education, classified into three levels and an option for non-response. We can see most people in the dataset have high education. We will find out about why later on.</p>
 <p>The way in which we will define healthy is if the respondent says his health is either “Very Good” or “Good.” As for education we will define some who is educated if they answered the “High Response.”</p>
 <p>The Code block below will look through all countries and find most and least educated and most and least healthy.</p>
@@ -966,8 +971,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 <p>We can see that the finding may be surprising for most people. The United States being the most educated and Germany being the least does seem strange at first glace, but these findings are correct according to the data.</p>
 <p>The reason for these findings are the sampling methodoly used by the Researchers. In the <a href="https://www.demographic-research.org/volumes/vol51/25/51-25.pdf">Methods Report</a>, we can find that the KINMATRIX researchers explicitly acknowledge that their data shows “Substantial under-representation of lower-educated people in all countries” and “No accurate representation of country differences across intermediate and higher education levels” (8). This is inflating the higher education percentages across the countries in our dataset. Because of the nature of education this bias towards higher education also “extends also to their parental background” (14) and further.</p>
-<p>Another reason for this is bias is the manner in which the data was collected. The key reason is that the researchers did not do random sampling, but rather quota sampling from Dynata access panels which hosted an online survey. This method may lead to the exclusion of people without internet/computer and there was no mobile access. This is a known limitation of web-based, non-probability sampling that affects social surveys and the researchers are aware of it.</p>
-<p>As for the health section the bias is less clear here, but the health results show similar patterns because higher-educated people are both more likely to report good health and more likely to participate in online surveys, creating a “double selection” effect.</p>
+<p>Another reason for this is bias is the manner in which the data was collected. The key reason is that the researchers did not do random sampling, but rather quota sampling from Dynata access panels which hosted an online survey. This method may lead to the exclusion of people without the internet and a computer as there was no mobile access. This is a known limitation of web-based, non-probability sampling that affects social surveys and the researchers are aware of it.</p>
+<p>As for the health section the bias is less clear here, but the health results show similar patterns because higher-educated people are both more likely to report Good health and more likely to participate in online surveys, creating a “double selection” effect.</p>
 </section>
 </section>
 <section id="family-size-vs-politics-in-usa-and-poland" class="level1">
@@ -1064,38 +1069,37 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb13-66"><a href="#cb13-66" aria-hidden="true" tabindex="-1"></a>    kin_counts <span class="op">=</span> group_data.groupby(<span class="st">'anc_id'</span>).size()</span>
 <span id="cb13-67"><a href="#cb13-67" aria-hidden="true" tabindex="-1"></a>    avg_kin <span class="op">=</span> kin_counts.mean() <span class="cf">if</span> <span class="kw">not</span> kin_counts.empty <span class="cf">else</span> <span class="dv">0</span></span>
 <span id="cb13-68"><a href="#cb13-68" aria-hidden="true" tabindex="-1"></a>    </span>
-<span id="cb13-69"><a href="#cb13-69" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Use the normalized relation column instead of string matching on kin_typ</span></span>
-<span id="cb13-70"><a href="#cb13-70" aria-hidden="true" tabindex="-1"></a>    children <span class="op">=</span> group_data[group_data[<span class="st">'relation'</span>].isin([<span class="st">'son'</span>, <span class="st">'daughter'</span>])]</span>
-<span id="cb13-71"><a href="#cb13-71" aria-hidden="true" tabindex="-1"></a>    children_count <span class="op">=</span> children.groupby(<span class="st">'anc_id'</span>).size()</span>
-<span id="cb13-72"><a href="#cb13-72" aria-hidden="true" tabindex="-1"></a>    avg_children <span class="op">=</span> children_count.mean() <span class="cf">if</span> <span class="kw">not</span> children_count.empty <span class="cf">else</span> <span class="dv">0</span></span>
-<span id="cb13-73"><a href="#cb13-73" aria-hidden="true" tabindex="-1"></a>    </span>
-<span id="cb13-74"><a href="#cb13-74" aria-hidden="true" tabindex="-1"></a>    cluster_sizes <span class="op">=</span> kin_counts <span class="op">+</span> <span class="dv">1</span>  <span class="co"># Anchor + kin count</span></span>
-<span id="cb13-75"><a href="#cb13-75" aria-hidden="true" tabindex="-1"></a>    avg_cluster_size <span class="op">=</span> cluster_sizes.mean() <span class="cf">if</span> <span class="kw">not</span> cluster_sizes.empty <span class="cf">else</span> <span class="dv">0</span></span>
-<span id="cb13-76"><a href="#cb13-76" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> avg_kin, avg_children, avg_cluster_size</span>
-<span id="cb13-77"><a href="#cb13-77" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-78"><a href="#cb13-78" aria-hidden="true" tabindex="-1"></a><span class="co"># Calculate results</span></span>
-<span id="cb13-79"><a href="#cb13-79" aria-hidden="true" tabindex="-1"></a>results <span class="op">=</span> {}</span>
-<span id="cb13-80"><a href="#cb13-80" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> group <span class="kw">in</span> [<span class="st">'Republican'</span>, <span class="st">'Democrat'</span>]:</span>
-<span id="cb13-81"><a href="#cb13-81" aria-hidden="true" tabindex="-1"></a>    group_data <span class="op">=</span> us_data[us_data[<span class="st">'state_group'</span>] <span class="op">==</span> group]</span>
-<span id="cb13-82"><a href="#cb13-82" aria-hidden="true" tabindex="-1"></a>    avg_kin, avg_children, avg_cluster_size <span class="op">=</span> calculate_metrics(group_data)</span>
-<span id="cb13-83"><a href="#cb13-83" aria-hidden="true" tabindex="-1"></a>    results[group] <span class="op">=</span> {</span>
-<span id="cb13-84"><a href="#cb13-84" aria-hidden="true" tabindex="-1"></a>        <span class="st">'avg_kin_per_anchor'</span>: avg_kin,</span>
-<span id="cb13-85"><a href="#cb13-85" aria-hidden="true" tabindex="-1"></a>        <span class="st">'avg_children_per_anchor'</span>: avg_children,</span>
-<span id="cb13-86"><a href="#cb13-86" aria-hidden="true" tabindex="-1"></a>        <span class="st">'avg_cluster_size'</span>: avg_cluster_size</span>
-<span id="cb13-87"><a href="#cb13-87" aria-hidden="true" tabindex="-1"></a>    }</span>
-<span id="cb13-88"><a href="#cb13-88" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-89"><a href="#cb13-89" aria-hidden="true" tabindex="-1"></a><span class="co"># Overall in the US</span></span>
-<span id="cb13-90"><a href="#cb13-90" aria-hidden="true" tabindex="-1"></a>avg_kin, avg_children, avg_cluster_size <span class="op">=</span> calculate_metrics(us_data)</span>
-<span id="cb13-91"><a href="#cb13-91" aria-hidden="true" tabindex="-1"></a>results[<span class="st">'Overall US'</span>] <span class="op">=</span> {</span>
-<span id="cb13-92"><a href="#cb13-92" aria-hidden="true" tabindex="-1"></a>    <span class="st">'avg_kin_per_anchor'</span>: avg_kin,</span>
-<span id="cb13-93"><a href="#cb13-93" aria-hidden="true" tabindex="-1"></a>    <span class="st">'avg_children_per_anchor'</span>: avg_children,</span>
-<span id="cb13-94"><a href="#cb13-94" aria-hidden="true" tabindex="-1"></a>    <span class="st">'avg_cluster_size'</span>: avg_cluster_size</span>
-<span id="cb13-95"><a href="#cb13-95" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb13-96"><a href="#cb13-96" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-97"><a href="#cb13-97" aria-hidden="true" tabindex="-1"></a><span class="co"># print results</span></span>
-<span id="cb13-98"><a href="#cb13-98" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> group, metrics <span class="kw">in</span> results.items():</span>
-<span id="cb13-99"><a href="#cb13-99" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>group<span class="sc">}</span><span class="ss"> Regions:"</span>)</span>
-<span id="cb13-100"><a href="#cb13-100" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  Avg kin per anchor: </span><span class="sc">{</span>metrics[<span class="st">'avg_kin_per_anchor'</span>]<span class="sc">:.2f}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb13-69"><a href="#cb13-69" aria-hidden="true" tabindex="-1"></a>    children <span class="op">=</span> group_data[group_data[<span class="st">'relation'</span>].isin([<span class="st">'son'</span>, <span class="st">'daughter'</span>])]</span>
+<span id="cb13-70"><a href="#cb13-70" aria-hidden="true" tabindex="-1"></a>    children_count <span class="op">=</span> children.groupby(<span class="st">'anc_id'</span>).size()</span>
+<span id="cb13-71"><a href="#cb13-71" aria-hidden="true" tabindex="-1"></a>    avg_children <span class="op">=</span> children_count.mean() <span class="cf">if</span> <span class="kw">not</span> children_count.empty <span class="cf">else</span> <span class="dv">0</span></span>
+<span id="cb13-72"><a href="#cb13-72" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb13-73"><a href="#cb13-73" aria-hidden="true" tabindex="-1"></a>    cluster_sizes <span class="op">=</span> kin_counts <span class="op">+</span> <span class="dv">1</span>  <span class="co"># Anchor + kin count</span></span>
+<span id="cb13-74"><a href="#cb13-74" aria-hidden="true" tabindex="-1"></a>    avg_cluster_size <span class="op">=</span> cluster_sizes.mean() <span class="cf">if</span> <span class="kw">not</span> cluster_sizes.empty <span class="cf">else</span> <span class="dv">0</span></span>
+<span id="cb13-75"><a href="#cb13-75" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> avg_kin, avg_children, avg_cluster_size</span>
+<span id="cb13-76"><a href="#cb13-76" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-77"><a href="#cb13-77" aria-hidden="true" tabindex="-1"></a><span class="co"># Calculate results</span></span>
+<span id="cb13-78"><a href="#cb13-78" aria-hidden="true" tabindex="-1"></a>results <span class="op">=</span> {}</span>
+<span id="cb13-79"><a href="#cb13-79" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> group <span class="kw">in</span> [<span class="st">'Republican'</span>, <span class="st">'Democrat'</span>]:</span>
+<span id="cb13-80"><a href="#cb13-80" aria-hidden="true" tabindex="-1"></a>    group_data <span class="op">=</span> us_data[us_data[<span class="st">'state_group'</span>] <span class="op">==</span> group]</span>
+<span id="cb13-81"><a href="#cb13-81" aria-hidden="true" tabindex="-1"></a>    avg_kin, avg_children, avg_cluster_size <span class="op">=</span> calculate_metrics(group_data)</span>
+<span id="cb13-82"><a href="#cb13-82" aria-hidden="true" tabindex="-1"></a>    results[group] <span class="op">=</span> {</span>
+<span id="cb13-83"><a href="#cb13-83" aria-hidden="true" tabindex="-1"></a>        <span class="st">'avg_kin_per_anchor'</span>: avg_kin,</span>
+<span id="cb13-84"><a href="#cb13-84" aria-hidden="true" tabindex="-1"></a>        <span class="st">'avg_children_per_anchor'</span>: avg_children,</span>
+<span id="cb13-85"><a href="#cb13-85" aria-hidden="true" tabindex="-1"></a>        <span class="st">'avg_cluster_size'</span>: avg_cluster_size</span>
+<span id="cb13-86"><a href="#cb13-86" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb13-87"><a href="#cb13-87" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-88"><a href="#cb13-88" aria-hidden="true" tabindex="-1"></a><span class="co"># Overall in the US</span></span>
+<span id="cb13-89"><a href="#cb13-89" aria-hidden="true" tabindex="-1"></a>avg_kin, avg_children, avg_cluster_size <span class="op">=</span> calculate_metrics(us_data)</span>
+<span id="cb13-90"><a href="#cb13-90" aria-hidden="true" tabindex="-1"></a>results[<span class="st">'Overall US'</span>] <span class="op">=</span> {</span>
+<span id="cb13-91"><a href="#cb13-91" aria-hidden="true" tabindex="-1"></a>    <span class="st">'avg_kin_per_anchor'</span>: avg_kin,</span>
+<span id="cb13-92"><a href="#cb13-92" aria-hidden="true" tabindex="-1"></a>    <span class="st">'avg_children_per_anchor'</span>: avg_children,</span>
+<span id="cb13-93"><a href="#cb13-93" aria-hidden="true" tabindex="-1"></a>    <span class="st">'avg_cluster_size'</span>: avg_cluster_size</span>
+<span id="cb13-94"><a href="#cb13-94" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb13-95"><a href="#cb13-95" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-96"><a href="#cb13-96" aria-hidden="true" tabindex="-1"></a><span class="co"># print results</span></span>
+<span id="cb13-97"><a href="#cb13-97" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> group, metrics <span class="kw">in</span> results.items():</span>
+<span id="cb13-98"><a href="#cb13-98" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>group<span class="sc">}</span><span class="ss"> Regions:"</span>)</span>
+<span id="cb13-99"><a href="#cb13-99" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  Avg kin per anchor: </span><span class="sc">{</span>metrics[<span class="st">'avg_kin_per_anchor'</span>]<span class="sc">:.2f}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>The main findings are consistent with the theory discussed above. From the KINMATRIX data of the 118,702 Nodes in the United States. Republican regions on average have larger families of 23.91 versus 22.33 in Democrat regions. This is a difference of 1.58.</p>
 </section>
@@ -1225,57 +1229,58 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>We will first do our <span class="math inline">\(t\)</span>-test for the United States.</p>
 <div class="cell" data-execution_count="15">
 <div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> scipy <span class="im">import</span> stats <span class="co">#library with statistical functions like t-test</span></span>
-<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Extract US data from country_dfs and make a proper copy</span></span>
-<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>us_data <span class="op">=</span> country_dfs[<span class="st">'10. USA'</span>].copy()</span>
-<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Map region names to political lean</span></span>
-<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>democrat_regions <span class="op">=</span> [</span>
-<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">'5. New England (CT, MA, ME, NH, RI, VT)'</span>,</span>
-<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">'6. Pacific (AK, CA, HI, OR, WA)'</span>,</span>
-<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>    <span class="st">'3. Mid-Atlantic (NJ, NY, DE, PA)'</span>,</span>
-<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>    <span class="st">'1. East North Central (IL, IN, MI, OH, WI)'</span></span>
-<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a>]</span>
-<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a>republican_regions <span class="op">=</span> [</span>
-<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a>    <span class="st">'2. East South Central (AL, KY, MS, TN)'</span>,</span>
-<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a>    <span class="st">'9. West South Central (AR, LA, OK, TX)'</span>,</span>
-<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a>    <span class="st">'8. West North Central (IA, KS, MN, MO, NE, ND, SD)'</span>,</span>
-<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a>    <span class="st">'4. Mountain (AZ, CO, ID, MT, NV, NM, UT, WY)'</span>,</span>
-<span id="cb15-18"><a href="#cb15-18" aria-hidden="true" tabindex="-1"></a>    <span class="st">'7. South Atlantic (FL, GA, MD, NC, SC, VA, WV, DC)'</span></span>
-<span id="cb15-19"><a href="#cb15-19" aria-hidden="true" tabindex="-1"></a>]</span>
-<span id="cb15-20"><a href="#cb15-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-21"><a href="#cb15-21" aria-hidden="true" tabindex="-1"></a><span class="co"># Assign group based on region</span></span>
-<span id="cb15-22"><a href="#cb15-22" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> assign_state_group(region):</span>
-<span id="cb15-23"><a href="#cb15-23" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> region <span class="kw">in</span> democrat_regions:</span>
-<span id="cb15-24"><a href="#cb15-24" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="st">'Democrat'</span></span>
-<span id="cb15-25"><a href="#cb15-25" aria-hidden="true" tabindex="-1"></a>    <span class="cf">elif</span> region <span class="kw">in</span> republican_regions:</span>
-<span id="cb15-26"><a href="#cb15-26" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="st">'Republican'</span></span>
-<span id="cb15-27"><a href="#cb15-27" aria-hidden="true" tabindex="-1"></a>    <span class="cf">else</span>:</span>
-<span id="cb15-28"><a href="#cb15-28" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="st">'Other'</span></span>
-<span id="cb15-29"><a href="#cb15-29" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-30"><a href="#cb15-30" aria-hidden="true" tabindex="-1"></a><span class="co"># Apply transformation</span></span>
-<span id="cb15-31"><a href="#cb15-31" aria-hidden="true" tabindex="-1"></a>us_data[<span class="st">'state_group'</span>] <span class="op">=</span> us_data[<span class="st">'anc_regus'</span>].<span class="bu">apply</span>(assign_state_group)</span>
-<span id="cb15-32"><a href="#cb15-32" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-33"><a href="#cb15-33" aria-hidden="true" tabindex="-1"></a><span class="co"># Calculate kin counts per anchor for each political group</span></span>
-<span id="cb15-34"><a href="#cb15-34" aria-hidden="true" tabindex="-1"></a>republican_kin_counts <span class="op">=</span> us_data[us_data[<span class="st">'state_group'</span>] <span class="op">==</span> <span class="st">'Republican'</span>].groupby(<span class="st">'anc_id'</span>).size()</span>
-<span id="cb15-35"><a href="#cb15-35" aria-hidden="true" tabindex="-1"></a>democrat_kin_counts <span class="op">=</span> us_data[us_data[<span class="st">'state_group'</span>] <span class="op">==</span> <span class="st">'Democrat'</span>].groupby(<span class="st">'anc_id'</span>).size()</span>
-<span id="cb15-36"><a href="#cb15-36" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-37"><a href="#cb15-37" aria-hidden="true" tabindex="-1"></a><span class="co"># Perform t-test for US data</span></span>
-<span id="cb15-38"><a href="#cb15-38" aria-hidden="true" tabindex="-1"></a>us_t_stat, us_p_value <span class="op">=</span> stats.ttest_ind(republican_kin_counts, democrat_kin_counts)</span>
-<span id="cb15-39"><a href="#cb15-39" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-40"><a href="#cb15-40" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Republican regions - Sample size: </span><span class="sc">{</span><span class="bu">len</span>(republican_kin_counts)<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb15-41"><a href="#cb15-41" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Republican regions - Mean kin per anchor: </span><span class="sc">{</span>republican_kin_counts<span class="sc">.</span>mean()<span class="sc">:.2f}</span><span class="ss">"</span>)</span>
-<span id="cb15-42"><a href="#cb15-42" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Republican regions - Std deviation: </span><span class="sc">{</span>republican_kin_counts<span class="sc">.</span>std()<span class="sc">:.2f}</span><span class="ss">"</span>)</span>
-<span id="cb15-43"><a href="#cb15-43" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>()</span>
-<span id="cb15-44"><a href="#cb15-44" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Democrat regions - Sample size: </span><span class="sc">{</span><span class="bu">len</span>(democrat_kin_counts)<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb15-45"><a href="#cb15-45" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Democrat regions - Mean kin per anchor: </span><span class="sc">{</span>democrat_kin_counts<span class="sc">.</span>mean()<span class="sc">:.2f}</span><span class="ss">"</span>)</span>
-<span id="cb15-46"><a href="#cb15-46" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Democrat regions - Std deviation: </span><span class="sc">{</span>democrat_kin_counts<span class="sc">.</span>std()<span class="sc">:.2f}</span><span class="ss">"</span>)</span>
-<span id="cb15-47"><a href="#cb15-47" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>()</span>
-<span id="cb15-48"><a href="#cb15-48" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"T-statistic: </span><span class="sc">{</span>us_t_stat<span class="sc">:.4f}</span><span class="ss">"</span>)</span>
-<span id="cb15-49"><a href="#cb15-49" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"P-value: </span><span class="sc">{</span>us_p_value<span class="sc">:.6f}</span><span class="ss">"</span>)</span>
-<span id="cb15-50"><a href="#cb15-50" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Significant at α=0.05: </span><span class="sc">{</span><span class="st">'Yes'</span> <span class="cf">if</span> us_p_value <span class="op">&lt;</span> <span class="fl">0.05</span> <span class="cf">else</span> <span class="st">'No'</span><span class="sc">}</span><span class="ss">"</span>) <span class="co"># main findings to be easy for students</span></span>
-<span id="cb15-51"><a href="#cb15-51" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Significant at α=0.01: </span><span class="sc">{</span><span class="st">'Yes'</span> <span class="cf">if</span> us_p_value <span class="op">&lt;</span> <span class="fl">0.01</span> <span class="cf">else</span> <span class="st">'No'</span><span class="sc">}</span><span class="ss">"</span>) <span class="co"># main findings to be easy for students</span></span>
-<span id="cb15-52"><a href="#cb15-52" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Extract US data from country_dfs and make a proper copy</span></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>us_data <span class="op">=</span> country_dfs[<span class="st">'10. USA'</span>].copy()</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Map region names to political lean</span></span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>democrat_regions <span class="op">=</span> [</span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">'5. New England (CT, MA, ME, NH, RI, VT)'</span>,</span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>    <span class="st">'6. Pacific (AK, CA, HI, OR, WA)'</span>,</span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>    <span class="st">'3. Mid-Atlantic (NJ, NY, DE, PA)'</span>,</span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a>    <span class="st">'1. East North Central (IL, IN, MI, OH, WI)'</span></span>
+<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a>]</span>
+<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a>republican_regions <span class="op">=</span> [</span>
+<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a>    <span class="st">'2. East South Central (AL, KY, MS, TN)'</span>,</span>
+<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a>    <span class="st">'9. West South Central (AR, LA, OK, TX)'</span>,</span>
+<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a>    <span class="st">'8. West North Central (IA, KS, MN, MO, NE, ND, SD)'</span>,</span>
+<span id="cb15-18"><a href="#cb15-18" aria-hidden="true" tabindex="-1"></a>    <span class="st">'4. Mountain (AZ, CO, ID, MT, NV, NM, UT, WY)'</span>,</span>
+<span id="cb15-19"><a href="#cb15-19" aria-hidden="true" tabindex="-1"></a>    <span class="st">'7. South Atlantic (FL, GA, MD, NC, SC, VA, WV, DC)'</span></span>
+<span id="cb15-20"><a href="#cb15-20" aria-hidden="true" tabindex="-1"></a>]</span>
+<span id="cb15-21"><a href="#cb15-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-22"><a href="#cb15-22" aria-hidden="true" tabindex="-1"></a><span class="co"># Assign group based on region</span></span>
+<span id="cb15-23"><a href="#cb15-23" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> assign_state_group(region):</span>
+<span id="cb15-24"><a href="#cb15-24" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> region <span class="kw">in</span> democrat_regions:</span>
+<span id="cb15-25"><a href="#cb15-25" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="st">'Democrat'</span></span>
+<span id="cb15-26"><a href="#cb15-26" aria-hidden="true" tabindex="-1"></a>    <span class="cf">elif</span> region <span class="kw">in</span> republican_regions:</span>
+<span id="cb15-27"><a href="#cb15-27" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="st">'Republican'</span></span>
+<span id="cb15-28"><a href="#cb15-28" aria-hidden="true" tabindex="-1"></a>    <span class="cf">else</span>:</span>
+<span id="cb15-29"><a href="#cb15-29" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="st">'Other'</span></span>
+<span id="cb15-30"><a href="#cb15-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-31"><a href="#cb15-31" aria-hidden="true" tabindex="-1"></a><span class="co"># Apply transformation</span></span>
+<span id="cb15-32"><a href="#cb15-32" aria-hidden="true" tabindex="-1"></a>us_data[<span class="st">'state_group'</span>] <span class="op">=</span> us_data[<span class="st">'anc_regus'</span>].<span class="bu">apply</span>(assign_state_group)</span>
+<span id="cb15-33"><a href="#cb15-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-34"><a href="#cb15-34" aria-hidden="true" tabindex="-1"></a><span class="co"># Calculate kin counts per anchor for each political group</span></span>
+<span id="cb15-35"><a href="#cb15-35" aria-hidden="true" tabindex="-1"></a>republican_kin_counts <span class="op">=</span> us_data[us_data[<span class="st">'state_group'</span>] <span class="op">==</span> <span class="st">'Republican'</span>].groupby(<span class="st">'anc_id'</span>).size()</span>
+<span id="cb15-36"><a href="#cb15-36" aria-hidden="true" tabindex="-1"></a>democrat_kin_counts <span class="op">=</span> us_data[us_data[<span class="st">'state_group'</span>] <span class="op">==</span> <span class="st">'Democrat'</span>].groupby(<span class="st">'anc_id'</span>).size()</span>
+<span id="cb15-37"><a href="#cb15-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-38"><a href="#cb15-38" aria-hidden="true" tabindex="-1"></a><span class="co"># Perform t-test for US data</span></span>
+<span id="cb15-39"><a href="#cb15-39" aria-hidden="true" tabindex="-1"></a>us_t_stat, us_p_value <span class="op">=</span> stats.ttest_ind(republican_kin_counts, democrat_kin_counts)</span>
+<span id="cb15-40"><a href="#cb15-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-41"><a href="#cb15-41" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Republican regions - Sample size: </span><span class="sc">{</span><span class="bu">len</span>(republican_kin_counts)<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb15-42"><a href="#cb15-42" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Republican regions - Mean kin per anchor: </span><span class="sc">{</span>republican_kin_counts<span class="sc">.</span>mean()<span class="sc">:.2f}</span><span class="ss">"</span>)</span>
+<span id="cb15-43"><a href="#cb15-43" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Republican regions - Std deviation: </span><span class="sc">{</span>republican_kin_counts<span class="sc">.</span>std()<span class="sc">:.2f}</span><span class="ss">"</span>)</span>
+<span id="cb15-44"><a href="#cb15-44" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>()</span>
+<span id="cb15-45"><a href="#cb15-45" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Democrat regions - Sample size: </span><span class="sc">{</span><span class="bu">len</span>(democrat_kin_counts)<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb15-46"><a href="#cb15-46" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Democrat regions - Mean kin per anchor: </span><span class="sc">{</span>democrat_kin_counts<span class="sc">.</span>mean()<span class="sc">:.2f}</span><span class="ss">"</span>)</span>
+<span id="cb15-47"><a href="#cb15-47" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Democrat regions - Std deviation: </span><span class="sc">{</span>democrat_kin_counts<span class="sc">.</span>std()<span class="sc">:.2f}</span><span class="ss">"</span>)</span>
+<span id="cb15-48"><a href="#cb15-48" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>()</span>
+<span id="cb15-49"><a href="#cb15-49" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"T-statistic: </span><span class="sc">{</span>us_t_stat<span class="sc">:.4f}</span><span class="ss">"</span>)</span>
+<span id="cb15-50"><a href="#cb15-50" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"P-value: </span><span class="sc">{</span>us_p_value<span class="sc">:.6f}</span><span class="ss">"</span>)</span>
+<span id="cb15-51"><a href="#cb15-51" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Significant at α=0.05: </span><span class="sc">{</span><span class="st">'Yes'</span> <span class="cf">if</span> us_p_value <span class="op">&lt;</span> <span class="fl">0.05</span> <span class="cf">else</span> <span class="st">'No'</span><span class="sc">}</span><span class="ss">"</span>) <span class="co"># main findings to be easy for students</span></span>
+<span id="cb15-52"><a href="#cb15-52" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Significant at α=0.01: </span><span class="sc">{</span><span class="st">'Yes'</span> <span class="cf">if</span> us_p_value <span class="op">&lt;</span> <span class="fl">0.01</span> <span class="cf">else</span> <span class="st">'No'</span><span class="sc">}</span><span class="ss">"</span>) <span class="co"># main findings to be easy for students</span></span>
+<span id="cb15-53"><a href="#cb15-53" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>We find that for the United States both the Democrat and Republican leaning regions have a large sample size and our findings are significant at both 95% and 99% Confidence Intervals meaning that they are likely not caused by random coincidence.</p>
 <p>Let’s see if this trend continues in Poland.</p>
@@ -1564,7 +1569,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="parental-seperations" class="level1">
 <h1>8.0 Parental Seperations</h1>
-<p>Let’s look at the Parental Seperation Variable.</p>
+<p>Let’s continue our analysis by looking at the Parental Seperation Variable and seeing if we can infer any trends or interesting findings like before.</p>
 <div class="cell" data-execution_count="21">
 <div class="sourceCode cell-code" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Unique values for parental separation (par_sep):"</span>)</span>
 <span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(df[<span class="st">'par_sep'</span>].dropna().unique())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -1649,7 +1654,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb23-33"><a href="#cb23-33" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> group, pct <span class="kw">in</span> sep_results.items():</span>
 <span id="cb23-34"><a href="#cb23-34" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>group<span class="sc">}</span><span class="ss">: </span><span class="sc">{</span>pct<span class="sc">:.2%}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p>We can see that there is no difference between left and right leaning regions with the Left-leaning regions have a seperation percentage of 66.69% and the right leaning regions having one of 69.57%. So the cause is not political leaning. Let us also repeat this analysis for the United States.</p>
+<p>We can see that there is no difference between left and right leaning regions with the Left-leaning regions having a seperation percentage of 66.69% and the right leaning regions having one of 69.57%. So the cause is not political leaning. Let us also repeat this analysis for the United States.</p>
 <p>USA Analysis of Political Allegiance</p>
 <div class="cell" data-execution_count="24">
 <div class="sourceCode cell-code" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="co">#American Regions from before</span></span>
@@ -1848,7 +1853,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </figure>
 </div>
 <p>Opole is the smallest and least populated voivodeship (province) of Poland. The province’s name derives from that of the region’s capital and largest city, Opole. Students should already be familiar with Pomerania (Pomorskie) as we have already used and discussed this voievodeship in this notebook. Pomorskie is in the north of Poland on the Baltic sea with the largest city being Gdansk which is a large port along with Gdynia in the region.</p>
-<p>Let’s now look at the findings in for Denmark:</p>
+<p>Let’s now look at the findings for Denmark:</p>
 <div class="cell" data-execution_count="30">
 <div class="sourceCode cell-code" id="cb30"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="co"># For Denmark: similar approach</span></span>
 <span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>denmark_df <span class="op">=</span> df[df[<span class="st">'anc_cou'</span>] <span class="op">==</span> <span class="st">'6. Denmark'</span>]</span>

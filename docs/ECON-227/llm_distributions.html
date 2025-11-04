@@ -323,8 +323,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="co">#     holidays \</span></span>
 <span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="co">#     plotly \</span></span>
 <span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="co">#     ipywidgets \</span></span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="co">#     scikit-learn</span></span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="co"># !pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cpu --quiet</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="co">#     scikit-learn \</span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="co">#     matplotlib \</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="co">#     seaborn</span></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="co"># !pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cpu --quiet</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p><strong>Important:</strong> Run this cell to load the libraries we need for running this notebook.</p>
 <div class="cell" data-execution_count="2">
@@ -653,11 +655,11 @@ P(w_t \mid w_1, w_2, \ldots, w_{t-1})
 <span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>    grouped <span class="op">=</span> news_df.groupby([<span class="st">"DateOnly"</span>, <span class="st">"Sentiment"</span>]).size().unstack(fill_value<span class="op">=</span><span class="dv">0</span>)</span>
 <span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>    grouped <span class="op">=</span> grouped.reindex(columns<span class="op">=</span>[<span class="st">"POSITIVE"</span>, <span class="st">"NEGATIVE"</span>], fill_value<span class="op">=</span><span class="dv">0</span>)</span>
 <span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Calculate a rolling 7-day total of positive headlines</span></span>
-<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>    grouped[<span class="st">"7day_avg_positive"</span>] <span class="op">=</span> grouped[<span class="st">"POSITIVE"</span>].rolling(window<span class="op">=</span><span class="dv">7</span>, min_periods<span class="op">=</span><span class="dv">1</span>).<span class="bu">sum</span>()</span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>    grouped[<span class="st">"7day_sum_positive"</span>] <span class="op">=</span> grouped[<span class="st">"POSITIVE"</span>].rolling(window<span class="op">=</span><span class="dv">7</span>, min_periods<span class="op">=</span><span class="dv">1</span>).<span class="bu">sum</span>()</span>
 <span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Calculate a rolling 7-day total of negative headlines</span></span>
-<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a>    grouped[<span class="st">"7day_avg_negative"</span>] <span class="op">=</span> grouped[<span class="st">"NEGATIVE"</span>].rolling(window<span class="op">=</span><span class="dv">7</span>, min_periods<span class="op">=</span><span class="dv">1</span>).<span class="bu">sum</span>()</span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a>    grouped[<span class="st">"7day_sum_negative"</span>] <span class="op">=</span> grouped[<span class="st">"NEGATIVE"</span>].rolling(window<span class="op">=</span><span class="dv">7</span>, min_periods<span class="op">=</span><span class="dv">1</span>).<span class="bu">sum</span>()</span>
 <span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Calculate the percentage of positive headlines each day (out of total positive + negative)</span></span>
-<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a>    grouped[<span class="st">"7day_pct_positive"</span>] <span class="op">=</span> grouped[<span class="st">"POSITIVE"</span>] <span class="op">/</span> (grouped[<span class="st">"POSITIVE"</span>] <span class="op">+</span> grouped[<span class="st">"NEGATIVE"</span>])</span>
+<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a>    grouped[<span class="st">"daily_pct_positive"</span>] <span class="op">=</span> grouped[<span class="st">"POSITIVE"</span>] <span class="op">/</span> (grouped[<span class="st">"POSITIVE"</span>] <span class="op">+</span> grouped[<span class="st">"NEGATIVE"</span>])</span>
 <span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> grouped.reset_index()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
@@ -680,7 +682,7 @@ P(w_t \mid w_1, w_2, \ldots, w_{t-1})
 <span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> i <span class="op">&lt;</span> <span class="dv">5</span>:</span>
 <span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"Title: </span><span class="sc">{</span>row[<span class="st">'Title'</span>]<span class="sc">}</span><span class="ch">\n</span><span class="ss">Sentiment: </span><span class="sc">{</span>row[<span class="st">'Sentiment'</span>]<span class="sc">}</span><span class="ch">\n</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p>Let’s summarize the sentiment results by date. For each day we count the number of positive and negative headlines, then calculate 7-day moving averages and the daily percentage of positive news. This gives us a quick overview of news sentiment trends over time.</p>
+<p>Let’s summarize the sentiment results by date. For each day we count the number of positive and negative headlines, then calculate 7-day rolling sums and the daily percentage of positive news. This gives us a quick overview of news sentiment trends over time.</p>
 <div class="cell" data-execution_count="13">
 <div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>sentiment_df <span class="op">=</span> process_sentiment(news_df)       <span class="co"># Summarize daily sentiment statistics</span></span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>sentiment_df.head()                             <span class="co"># Display the first 5 rows of the dataframe</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -697,7 +699,7 @@ This table lets us track how optimism or pessimism is <strong>building up over t
 <h4 class="anchored" data-anchor-id="why-is-this-useful">Why is this useful?</h4>
 <ul>
 <li>We know that in the last 100 news stories about NVIDIA 24 have been positive and 5 have been negative.</li>
-<li>If the <code>7day_pct_positive</code> is rising, the overall tone of news is getting more optimistic.</li>
+<li>If the <code>daily_pct_positive</code> is rising, the overall tone of news is getting more optimistic.</li>
 <li>If it’s dropping, it could mean public or investor concern is growing.</li>
 <li>We can later plot this and compare it against stock price to see if sentiment influences market behavior.</li>
 </ul>
@@ -735,7 +737,7 @@ This table lets us track how optimism or pessimism is <strong>building up over t
 <span id="cb14-25"><a href="#cb14-25" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb14-26"><a href="#cb14-26" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> (</span>
 <span id="cb14-27"><a href="#cb14-27" aria-hidden="true" tabindex="-1"></a>        pd.merge(sent_df, stock_df, on<span class="op">=</span><span class="st">"DateOnly"</span>, how<span class="op">=</span><span class="st">"inner"</span>)</span>
-<span id="cb14-28"><a href="#cb14-28" aria-hidden="true" tabindex="-1"></a>          .assign(lagged_sentiment<span class="op">=</span><span class="kw">lambda</span> df: df[<span class="st">"7day_pct_positive"</span>].shift(<span class="dv">1</span>))</span>
+<span id="cb14-28"><a href="#cb14-28" aria-hidden="true" tabindex="-1"></a>          .assign(lagged_sentiment<span class="op">=</span><span class="kw">lambda</span> df: df[<span class="st">"daily_pct_positive"</span>].shift(<span class="dv">1</span>))</span>
 <span id="cb14-29"><a href="#cb14-29" aria-hidden="true" tabindex="-1"></a>    )</span>
 <span id="cb14-30"><a href="#cb14-30" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb14-31"><a href="#cb14-31" aria-hidden="true" tabindex="-1"></a></span>
@@ -895,18 +897,18 @@ This table lets us track how optimism or pessimism is <strong>building up over t
 <span id="cb20-20"><a href="#cb20-20" aria-hidden="true" tabindex="-1"></a>    grouped <span class="op">=</span> grouped.sort_values([<span class="st">"Ticker"</span>, <span class="st">"DateOnly"</span>])</span>
 <span id="cb20-21"><a href="#cb20-21" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb20-22"><a href="#cb20-22" aria-hidden="true" tabindex="-1"></a>    <span class="co"># 7-day rolling sums by ticker</span></span>
-<span id="cb20-23"><a href="#cb20-23" aria-hidden="true" tabindex="-1"></a>    grouped[<span class="st">"7day_avg_positive"</span>] <span class="op">=</span> (</span>
+<span id="cb20-23"><a href="#cb20-23" aria-hidden="true" tabindex="-1"></a>    grouped[<span class="st">"7day_sum_positive"</span>] <span class="op">=</span> (</span>
 <span id="cb20-24"><a href="#cb20-24" aria-hidden="true" tabindex="-1"></a>        grouped.groupby(<span class="st">"Ticker"</span>)[<span class="st">"POSITIVE"</span>]</span>
 <span id="cb20-25"><a href="#cb20-25" aria-hidden="true" tabindex="-1"></a>        .transform(<span class="kw">lambda</span> x: x.rolling(window<span class="op">=</span><span class="dv">7</span>, min_periods<span class="op">=</span><span class="dv">1</span>).<span class="bu">sum</span>())</span>
 <span id="cb20-26"><a href="#cb20-26" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb20-27"><a href="#cb20-27" aria-hidden="true" tabindex="-1"></a>    grouped[<span class="st">"7day_avg_negative"</span>] <span class="op">=</span> (</span>
+<span id="cb20-27"><a href="#cb20-27" aria-hidden="true" tabindex="-1"></a>    grouped[<span class="st">"7day_sum_negative"</span>] <span class="op">=</span> (</span>
 <span id="cb20-28"><a href="#cb20-28" aria-hidden="true" tabindex="-1"></a>        grouped.groupby(<span class="st">"Ticker"</span>)[<span class="st">"NEGATIVE"</span>]</span>
 <span id="cb20-29"><a href="#cb20-29" aria-hidden="true" tabindex="-1"></a>        .transform(<span class="kw">lambda</span> x: x.rolling(window<span class="op">=</span><span class="dv">7</span>, min_periods<span class="op">=</span><span class="dv">1</span>).<span class="bu">sum</span>())</span>
 <span id="cb20-30"><a href="#cb20-30" aria-hidden="true" tabindex="-1"></a>    )</span>
 <span id="cb20-31"><a href="#cb20-31" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb20-32"><a href="#cb20-32" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Compute % positive</span></span>
-<span id="cb20-33"><a href="#cb20-33" aria-hidden="true" tabindex="-1"></a>    grouped[<span class="st">"7day_pct_positive"</span>] <span class="op">=</span> grouped[<span class="st">"7day_avg_positive"</span>] <span class="op">/</span> (</span>
-<span id="cb20-34"><a href="#cb20-34" aria-hidden="true" tabindex="-1"></a>        grouped[<span class="st">"7day_avg_positive"</span>] <span class="op">+</span> grouped[<span class="st">"7day_avg_negative"</span>]</span>
+<span id="cb20-33"><a href="#cb20-33" aria-hidden="true" tabindex="-1"></a>    grouped[<span class="st">"7day_pct_positive"</span>] <span class="op">=</span> grouped[<span class="st">"7day_sum_positive"</span>] <span class="op">/</span> (</span>
+<span id="cb20-34"><a href="#cb20-34" aria-hidden="true" tabindex="-1"></a>        grouped[<span class="st">"7day_sum_positive"</span>] <span class="op">+</span> grouped[<span class="st">"7day_sum_negative"</span>]</span>
 <span id="cb20-35"><a href="#cb20-35" aria-hidden="true" tabindex="-1"></a>    )</span>
 <span id="cb20-36"><a href="#cb20-36" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb20-37"><a href="#cb20-37" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> grouped[[<span class="st">"DateOnly"</span>, <span class="st">"Ticker"</span>, <span class="st">"7day_pct_positive"</span>]]</span>
