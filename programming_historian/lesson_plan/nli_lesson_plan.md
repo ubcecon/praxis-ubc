@@ -1,115 +1,52 @@
-# Programming Historian English Language Lesson Template
+# Lesson Plan: Zero-Shot Natural Language Inference (NLI) on Historical Texts
 
-This file can be used as a template for writing your lesson. It includes information and guidelines on formatting which supplement but do not replace the author's guidelines (/en/author-guidelines)
+## Objective
 
-## Some Important Reminders:
+This lesson is aiming to demonstrate how to use zero-shot natural language inference (NLI) models to assist in analyzing and interpreting historical texts. We will conduct a case study using a small corpus of legal documents about cases involving early Chinese immigrants in British Columbia, Canada, to illustrate how NLI can help historians draw inferences and gain insights from historical data.
 
-*	Tutorials should not exceed 8,000 words (including code).
-*	Keep your tone formal but accessible.
-*	Talk to your reader in the second person (you).
-*	Adopt a widely-used version of English (British, Canadian, Indian, South African etc).
-*	The piece of writing is a "tutorial" or a "lesson" and not an "article".
-*  Adopt open source principles
-*  Write for a global audience
-*  Write sustainably
+## Dataset/Corpus
 
-# Lesson Metadata
+The dataset consists of rulings, acts, and commission reports from Canadian legal archives, specifically focusing on cases involving early Chinese immigrants in British Columbia. The documents are in English and date back to the late 19th and early 20th centuries. 
 
-**Delete everything above this line when ready to submit your lesson**.
+The central document for our case study is the "Chinese Regulation Act, 1884" and the related legal cases "Regina v. Wing Chong (1885)" and "Regina v. Mee Wah (1885)". Additional documents include commission reports and rulings that provide context and details about the legal environment of the time. 
 
----
-title: YOUR TITLE HERE  
-collection: lessons  
-layout: lesson  
-authors:
-- FORENAME SURNAME 1
-- FORENAME SURNAME 2, etc
----
+The PDF versions of these documents can be found in the Canadian Legal Information Institute (CanLII) archives, and we have pre-processed them into plain text for analysis. 
 
-# A Table of Contents
+## Tools and Libraries
 
-Include the following short code to automatically generate a table of contents for your lesson (mandatory).
+We will use Python 3.12 as our programming language and Jupyter as our primary development environment. Supporting Python scripts may also be used to carry pre-defined functions or classes that are too cumbersome to include directly in the lesson.
 
-{% include toc.html %}
+The following libraries will be utilized:
+- `transformers` from Hugging Face for accessing pre-trained NLI models.
+- `torch` for tensor computations and model inference.
+- `numpy` for numerical operations.
+- `scikit-learn` for additional machine learning utilities.
+- `pandas` for data manipulation and organization.
+- `nltk` for text processing and tokenization.
+- `matplotlib` and `seaborn` for data visualization.
 
---
+## Model Choice
 
-## Some Markdown Formatting Examples:
+For the purpose of this lesson, we will have to use a pre-trained zero-shot NLI model, for which we will use the models available in the Hugging Face that are: 1) Open-source, 2) fine-tuned for NLI tasks, and 3) capable of handling English text, preferably also legal English text, effectively. 
 
-# First Level Heading
-## Second Level Heading
-### Third Level Heading
-#### Fourth Level Heading
+The justification for using a zero-shot model is that it allows us to perform inference without the need for task-specific training data, which is particularly useful when dealing with historical texts where labeled data may be scarce or non-existent. This approach enables historians to leverage advanced NLP techniques without extensive computational resources or expertise in model training, it is also cost-effective in terms of time and resources, if only unlabeled data is available.
 
+## Lesson Structure
 
-### Font Formatting
-**bold text**
-*italic text*
-`reserved words` (eg "for loop", or "myData.csv")
+1. **Introduction**: We will begin by briefly introducing the concept of Natural Language Inference (NLI) and its relevance to historical text analysis. We will discuss the challenges historians face when interpreting historical documents and how NLI can assist in drawing inferences from such texts. We will also provide a background overview of our case study and why we see it as a suitable example for applying NLI techniques.
 
-### Links
+2. **Suggested Prior Skills**: In this section, we will outline the necessary skills and knowledge that students should have before starting the lesson. This includes basic Python programming, familiarity with Jupyter notebooks, some basic knowledge of NLP, and computational text analysis. We will also provide links to resources for students to acquire these skills if they do not already possess them.
 
-Create [a link to *Programming Historian*](/) using the format in this sentence. Ensure linked phrases are semantically meaningful. Do not link terms that are meaningful only to sighted users such as "click here".
+3. **Lesson Setup**: In this section, we will introduce two ways to set up the lesson environment: using Google Colab for a cloud-based solution and setting up a local environment with Anaconda. We will provide step-by-step instructions for both methods, including installing necessary libraries and configuring the environment.
 
-### Inserting Images:
+4. **Data Preparation**: This section will introduce the process of loading and preparing the historical text data for analysis, including a short subsection on the OCR process we used to convert scanned documents into machine-readable text. We will cover text cleaning, tokenization, and formatting the data for input into the NLI model.
 
-Copy this short-code to insert an image. Replace words in all caps with your image information (eg, Figure1.jpg). Captions should include sequential image numbering (eg "Figure 1: ..."). 
+5. **Fundamentals of NLI**: Here, we will explain the core concepts of Natural Language Inference in detail, including definitions of entailment, contradiction, and neutrality. We will discuss how NLI models work, the architecture of transformer-based models, and the significance of zero-shot learning in this context.
 
-{% include figure.html filename="IMAGE-FILENAME" caption="CAPTION TO IMAGE" %}
+6. **Zero-Shot NLI with Pre-trained Models**: In this section, we will discuss how to use pre-trained zero-shot NLI models to perform inference on our corpus of historical texts. We will also cover how to choose appropriate models for the specific task of analyzing historical documents, and how to access these models from various libraries and platforms.
 
-### Alerts and Warnings
+7. **Prompt Engineering for NLI**: This section will focus on the importance of prompt engineering in zero-shot NLI tasks. We will provide guidelines and best practices for crafting effective labels and hypotheses that can help improve the performance of NLI models when analyzing historical texts. We will also include examples of well-constructed prompts relevant to our case study.
 
-If you want to include an aside or a warning to readers, you can set it apart from the main text:
+8. **Interpretation of Results**: Here, we will provide guidance on how to interpret the outputs of the NLI model, including understanding confidence scores and the implications of different inference results. We will discuss how to critically evaluate the model's predictions in the context of our case study.
 
-<div class="alert alert-warning">
- Be sure that you follow directions carefully!
-</div>
-
-It will appear in a coloured box and can be useful for drawing attention to particular warnings.
-
-### A Sample Unordered List
-
-* Here is an item
-* Here is another item
-* Here is the final item
-
-### A Sample Ordered List
-
-1. Here is an item
-2. Here is another item
-3. Here is the final item
-
-### A Sample Table
-
-<div class="table-wrapper" markdown="block">
-
-| Heading 1 | Heading 2 | Heading 3 |
-| --------- | --------- | --------- |
-| Row 1, column 1 | Row 1, column 2 | Row 1, column 3|
-| Row 2, column 1 | Row 2, column 2 | Row 2, column 3|
-| Row 3, column 1 | Row 3, column 2 | Row 3, column 3|
-</div>
-Table 1: This table contains...
-
-### Referencing
-
-*	Links rather than endnotes may be appropriate in most cases.
-*	Ensure linked phrases are semantically meaningful. Do not link terms that are meaningful only to sighted users such as "click here".
-*	All traditionally published and academic literature should be end-noted rather than linked.
-*	If you are writing an "analysis" tutorial, you must refer to published scholarly literature.
-*	Endnote superscripts should be outside the final punctuation like this.[^1] Not inside like this[^1].
-*	Use the "Notes and Bibliography" system found in the [The Chicago Manual of Style, 17th Edition](https://www.chicagomanualofstyle.org/tools_citationguide/citation-guide-1.html) for endnotes.
-
-#### An End Note:
-
-This is some text.[^1]
-This is some more text.[^2]
-
-##### Endnotes
-[^1]: Properly formatted citation using Chicago Manual of Style
-[^2]: Properly formatted citation using Chicago Manual of Style
-
-
-# Further Questions?
-
-Your assigned editor or the managing editor would be happy to answer any questions you may have.
+9. **Conclusion and Further Resources**: In the final section, we will summarize the key takeaways from the case study and provide additional resources for students who wish to explore NLI and historical text analysis further. This may include links to research papers, tutorials, and datasets for further practice. A glossary of key terms used throughout the lesson will also be provided for reference.
