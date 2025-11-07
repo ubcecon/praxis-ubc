@@ -1,8 +1,16 @@
 # Lesson Plan: Zero-Shot Natural Language Inference (NLI) on Historical Texts
 
+*Praxis UBC Team<br>Kaiyan Zhang, Irene Berezin, Alex Ronczewski, Krishaant Pathmanathan*
+
+November, 2025
+
 ## Objective
 
-This lesson is aiming to demonstrate how to use zero-shot natural language inference (NLI) models to assist in analyzing and interpreting historical texts. We will conduct a case study using a small corpus of legal documents about cases involving early Chinese immigrants in British Columbia, Canada, to illustrate how NLI can help historians draw inferences and gain insights from historical data.
+This lesson is aiming to demonstrate how to use zero-shot natural language inference (NLI) models to assist in analyzing and interpreting historical texts. We consider NLI as a powerful tool for historians to draw inferences from historical documents, enabling them to uncover relationships, contradictions, and implications within the texts without requiring extensive labeled datasets for training. 
+
+We will conduct a case study using a small corpus of legal documents about cases involving early Chinese immigrants in British Columbia, Canada, to illustrate how NLI can help historians draw inferences and gain insights from historical data. This case study will also highlight the challenges and considerations when applying NLI models to historical texts, such as dealing with archaic language, OCR errors, and contextual understanding.
+
+In general, this lesson will fill in a gap in the existing resources on Programming Historian by providing a practical guide on using NLI for historical text analysis, which skills may also be applicable to other domains of digital humanities research. We therefore hope this lesson will enrich the resources available to historians and digital humanists interested in leveraging NLP techniques for their research, and promote the adoption of advanced AI tools in the field of history.
 
 ## Dataset/Corpus
 
