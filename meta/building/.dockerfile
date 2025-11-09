@@ -12,10 +12,11 @@ RUN rm -f ./docs/SOCI-415/kinmatrix.qmd
 RUN rm -f ./docs/SOCI-415/cbdb_dataset.qmd
 RUN rm -f ./docs/ECON-227/llm_distributions.qmd
 RUN rm -f ./docs/hist_workshop/text_embeddings_workshop.qmd
-#RUN rm -f ./docs/intro_to_cnns/intro_to_cnn.qmd
+RUN rm -f ./docs/intro_to_cnns/intro_to_cnn.qmd
 RUN rm -f ./docs/intro_to_convolutions/intro_to_convolution.qmd
 RUN rm -f ./docs/intro_to_deep_learning/intro_to_fundamental_ML.qmd
-
+RUN rm -f ./docs/AMNE-376/amne_376_image_embedding.qmd
+RUN rm -f ./docs/SOCI-280/soci_280_bert.qmd
 
 RUN mkdir output
 
@@ -28,9 +29,11 @@ COPY ./project/docs/SOCI-415/kinmatrix.html /app/output/docs/SOCI-415/
 COPY ./project/docs/SOCI-415/cbdb_dataset.html /app/output/docs/SOCI-415/
 COPY ./project/docs/ECON-227/llm_distributions.html /app/output/docs/ECON-227/
 COPY ./project/docs/hist_workshop/text_embeddings_workshop.html /app/output/docs/hist_workshop/
-#COPY ./project/docs/intro_to_cnns/intro_to_cnn.html /app/output/docs/intro_to_cnns/
+COPY ./project/docs/intro_to_cnns/intro_to_cnn.html /app/output/docs/intro_to_cnns/
 COPY ./project/docs/intro_to_convolutions/intro_to_convolution.html /app/output/docs/intro_to_convolutions/
 COPY ./project/docs/intro_to_deep_learning/intro_to_fundamental_ML.html /app/output/docs/intro_to_deep_learning/
+COPY ./project/docs/AMNE-376/amne_376_image_embedding.html /app/output/docs/AMNE-376/
+COPY ./project/docs/SOCI-280/soci_280_bert.html /app/output/docs/SOCI-280/
 
 #Final Stage on lightweight linux
 FROM nginx:alpine
