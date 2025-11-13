@@ -1,7 +1,7 @@
 ---
 title: "Network Analysis: CBDB Dataset"
 author: prAxIs UBC Team <br> _Alex Ronczewski_
-date: '2025-08-24'
+date: '2025-10-13'
 image: media/degree_centrality.png
 description: Using Network Analysis to Analyze The China Biographical Dataset
 categories:
@@ -29,9 +29,18 @@ format:
 * SOCI 415 Network Analysis Intro Notebook
 * Kinmatrix Dataset Notebook
 
-The China Biographical Database is a freely accessible relational database with biographical information about approximately 641,568 individuals as of August 2024, currently mainly from the 7th through 19th centuries. It was developed as a collaborative project between scholars at Harvard University, Academia Sinica, and Peking University. The data is useful for statistical, social network, and spatial analysis as well as serving as a biographical reference for Chinese History. 
+The China Biographical Database is a freely accessible relational database with biographical information about approximately **641,568 individuals** as of August 2024, currently mainly from the 7th through 19th centuries. It was developed as a collaborative project between scholars at Harvard University, Academia Sinica, and Peking University. The data is useful for statistical, social network, and spatial analysis as well as serving as a biographical reference for Chinese History. It enables quantitative exploration of real Chinese history. 
 
-This dataset has many variables and is far more complex than the KINMATRIX Dataset we have used before, the dataset is far larger and contains more traditional networks as opposed to KINMATRIX's ego networks. If you wish to read more about the structure of the dataset you can follow the link [Structure of CBDB](https://projects.iq.harvard.edu/cbdb/structure-cbdb). 
+The CBDB dataset is considerably more extensive and complex than the KINMATRIX dataset from the previous notebook. The KINMATRIX dataset we used previously contained ego-centric networks - networks centered around specific individuals showing their personal connections. CBDB represents a sociocentric network - a complete network showing connections among all members of a social system. This change allows for more complex and realistic studies of network structure like community detection, and macro-social patterns. If you wish to read more about the structure of the dataset you can follow the link [Structure of CBDB](https://projects.iq.harvard.edu/cbdb/structure-cbdb). This dataset will be ideal for more realistic family network exploration.  
+
+**Learning Objectives:** In this notebook students will learn about:
+
+* Gain an increased understanding of general network analysis in Python and how to manipulate data
+* Apply community detection algorithms to identify subgroups in historical networks
+* Calculate and interpret multiple centrality measures to identify influential historical figures
+* Analyze gender differences in network positions using statistical methods
+* Examine temporal changes in network structure across Chinese dynasties
+* Connect network analysis findings to broader sociological theories about social structure and power
 
 # 1.0 Data Loading and Intro
 
@@ -52,9 +61,10 @@ from pyvis.network import Network
 from scipy import stats
 import seaborn as sns
 from collections import OrderedDict
+from tabulate import tabulate
 ```
 
-Now that we have all of the libraries loaded in for our analysis we can load our data. The dataset is a .db file meaning it is a database. The CBDB data is extensive and has lots of variables within it, in order to access them we have to choose a table from our .db file. A table is a structured collection of data organized in rows and columns, similar to a spreadsheet. Each table contains records (rows), and every record has fields (columns). 
+Now that we have all of the libraries loaded in for our analysis we can load our data. The dataset is a .db file; it is a database. The CBDB data is extensive and has lots of variables within it, in order to access them we have to choose a table from our .db file. A table is a structured collection of data organized in rows and columns, similar to a spreadsheet. Each table contains records (rows), and every record has fields (columns). This is different from the KINMATRIX dataset which used a .dta file. The main difference students should be aware of is that we will have to select the table before selecting the variables. In the KINMATRIX data we could just list all variables from the start. For .db files there is one more step. 
 
 Display all of the tables in the dataset .db file. 
 ```{python}
@@ -71,7 +81,8 @@ print("Tables in database:", tables)
 conn.close()
 ```
 
-The output of the cell above is a list of all of the tables in the dataset and we can see that the list is extensive. The one we are most intested in is called KIN_DATA. It contains the necessary information to construct our network. We will now load the table. The output of this cell will be all of the variables within the table 'KIN_DATA.'
+The output of the cell above is a list of all of the tables in the dataset and we can see that the list is extensive. The one we are most intested in is called KIN_DATA. Inside of this table we have information on node (Person ID), and edges (Kin Code). These variables will serve as the foundation for our analysis. We will now load the table. The output of this cell will be all of the variables within the table 'KIN_DATA.'
+
 ```{python}
 # Connect to the database
 conn = sqlite3.connect(db_path)
@@ -84,7 +95,8 @@ print(df.head())
 conn.close()
 ```
 
-We can see from the output that the dataset contains both English and Chinese data so we will have to be careful to select the English language variables. We have now loaded the correct data and just like with the KINMATRIX Dataset we will build a NetworkX Graph and print the number of nodes and edges. 
+We can see from the output that the table contains both English and Chinese variables so we will have to be careful to select the English language variables. We have now loaded the correct data and just like with the KINMATRIX Dataset we will build a NetworkX Graph and print the number of nodes and edges. Using the Person ID and Kin ID vairables we will create a graph with nodes and edges. 
+
 ```{python}
 # Create an empty graph
 G = nx.Graph()
@@ -100,19 +112,21 @@ print(f"Number of nodes: {G.number_of_nodes()}")
 print(f"Number of edges: {G.number_of_edges()}")
 ```
 
-We have over 278,000 nodes and a similar amount of edges. This is a far bigger dataset than we have previously used. The is a very extensive dataset where one of these networks is larger than all of the networks for the KINMATRIX Dataset. 
+We have over 278,000 nodes and a similar amount of edges. This is a far bigger dataset than we have previously used. This is a very extensive dataset where one of these networks is larger than all of the networks for the KINMATRIX Dataset. 
 
-We already ran into computational problem when analyzing the KINMATRIX Dataset so we will have to be careful. We can not visualize the full network and all complex calculations like centrality will take a long time. 
+::: {.callout-note}
+The size of the network presents use with both amazing opportunities and challenges. We can study macro-level patterns impossible to see in smaller networks, but we must be very careful when choosing analytical methods to not run into computational problems. Because of this we will not be able to visualize this full network, later in the notebook we will find a way to visualize smaller subsets analogous to countries and regions in the KINMATRIX Dataset. 
+:::
 
 # 2.0 Louvain and Community Clusters
 
-The first thing we will do for our analysis is look for are smaller sub-groups. This is analysis we could not do for the KINMATRIX Dataset as it was an ego-centric network. This is very popular technique in network analysis as it helps uncover hidden group structure in very expansive and complex networks. 
+The first thing we will do for our analysis is look for are smaller sub-groups. This is analysis we could not do for the KINMATRIX Dataset as it was an ego-centric network. This is very popular technique in network analysis as it helps uncover hidden group structure in very expansive and complex networks. Sociologists have long recognized that large social systems organize into meaningful subgroups and being familiar with this analysis is a major benefit. The reasons for this clustering is often less aparant and knowledge of the data or in this case Chinese History is necessary. Reasons for clustering can range from geographical (remote comunities behind natural barriers), temporal (individiuals from the same time period or dynasty), status/social rank or in the case of UBC students similar interests (clubs) or majors. 
 
 In our case large networks (like the CBDB) can be overwhelming and computationally intensive to study. Unlike the KINMATRIX dataset where the data was naturally divided into countries and provinces there are far less clear subgroups in this dataset. By identifying clusters, sociologists can summarize, visualize, and understand the major subgroups and their relationships, making the network more interpretable. To preform this community analysis we will need to introduce some more terminology.    
 
 **Cohesive subgroups** in network analysis refer to clusters of nodes within a network that are more *densely connected to each other than to the rest of the network*. These subgroups indicate areas of high interaction or strong relationships within the larger network. Identifying cohesive subgroups helps in understanding the structure and dynamics of the network, such as how information or influence flows within and between these groups. The process of finding cohesive subgroups within networks is called **cohesive group analysis**.
 
-A **clique** is a subset of nodes within a graph where every node is directly connected to every other node in the subset. This means that in a clique, all possible edges between the nodes are present, making it a maximally connected subgraph. All nodes are that are by themselves are inherently a clique (a 1-clique)
+A **clique** is a subset of nodes within a graph where every node is directly connected to every other node in the subset. This means that in a clique, all possible edges between the nodes are present, making it a maximally connected subgraph. All nodes are that are by themselves are inherently a clique (a 1-clique). While cliques represent perfect connection (everyone connected to everyone), real social groups rarely achieve this ideal.
 
 Let's see what this look like on an example network before moving towards our real data. 
 
@@ -160,7 +174,7 @@ nx.draw(G_cliques_example, ax=axes[1], pos=pos, with_labels=True, edgecolors="bl
 nx.draw(G_cliques_example, ax=axes[2], pos=pos, with_labels=True, edgecolors="black", node_color = clique_3, node_size=800)
 ```
 
-Nodes can also be in multiple cliques. 
+It is also important to note that nodes can also be in multiple cliques. Just like in real life you can be in multiple social groups or clubs. It might be of interest to see which nodes are in the most cliques and we will do this by coloring our node with different shades of green. 
 ```{python}
 #Create our example graph
 G_cliques_example = nx.Graph()
@@ -207,9 +221,20 @@ A **cluster** (also known as a community) is a set of nodes in a graph that are 
 
 Before diving into community detection, we first need to understand modularity. **Modulaity** is a numerical measure for the community structure of a graph: it compares the density of edges within the communities of a network to the density of edges between communities. A positive modularity value suggests a strong community structure, while values closer to zero or negative indicate that the divisions are no better than random.
 
-The Louvain algorithm is a community detection method in networks that aims to optimize modularity. By optimizing modularity, the Louvain algorithm effectively uncovers natural divisions in the network where connections are dense within clusters and sparse between them, thus identifying meaningful community structures.
+The Louvain algorithm is a community detection method in networks that aims to optimize modularity. By optimizing modularity, the Louvain algorithm effectively uncovers natural divisions in the network where connections are dense within clusters and sparse between them, thus identifying meaningful community structures. This algorithm mimics how social groups might naturally form and dissolve over time.
 
-First, each node is assigned to its own community, and nodes are then iteratively moved to neighboring communities if it increases the modularity. In the second phase, the algorithm creates a new network where each community from the first phase is treated as a single node, and the process is repeated. This hierarchical approach continues until no further modularity improvements can be made, resulting in a final set of communities that maximize modularity. 
+A less techical description of this algorithm's logic:
+
+1. Each node initially forms their own 'community'
+2. People 'join' neighboring communities if it improves overall modularity
+3. Sub-groups that emerged are treated as single nodes
+4. Process repeats until no further improvements possible
+
+The result is a final set of communities that maximize modularity in the network. 
+
+::: {.callout-note}
+It is worth knowing that because of the nature of the Louvain Algorithm everytime it is ran it might lead to a slightly different outcomes espcially in expansive networks like the CBDB we are using. Variations in the processing order of nodes can lead to different results with each run, it's modularity-optimizing approach can fail to detect small communities or create poorly connected groups.
+:::
 
 Let's first try running the Louvain Algorithm on a random graph to demonstrate how it works before running it on our real data. 
 ```{python}
@@ -235,11 +260,11 @@ plt.show()
 
 We can see by the node coloring that by optimizing modularity the Louvain Algorithm has found smaller subgroups within our random network. Now we can try it on our real data. 
 
-##  2.2 Louvain Run on Real Data
+##  2.2 Louvain Run on our Real Data
 
 As with before we will set a random seed so that the analysis is reproducible. We will also print out average community size along with the size of the largest and smallest communities. We will also print the top 10 largest communities and their sizes. 
 
-We will also be working with the largest connected component for this analysis. 
+We will also be working with the largest connected component for this analysis as using the whole network will be too computationally intensive.  
 
 ```{python}
 #Set a seed for reproducability of our results
@@ -264,7 +289,6 @@ G_sub = G.subgraph(largest_cc).copy()
 print(f"Largest connected component nodes: {G_sub.number_of_nodes()}")
 
 # Run Louvain Community Detection
-print("Running Louvain algorithm...")
 partition = community_louvain.best_partition(G_sub)
 
 # Community Analysis Output
@@ -305,7 +329,7 @@ plt.show()
 
 From the visualization we can see most communities are around 200 - 400 nodes in size. 
 
-Lets look at two of these communities in more detail, we will look at one average sized one and one large one. 
+Lets look at two of these communities in more detail, we will look at one average sized one and one large one. We can compare these communities to the ones in the KINMATRIX Dataset. Pay attention and look for differences. 
 
 The two we will use are: 
 
@@ -351,13 +375,13 @@ We will again use a PyVis visualization, just like with the KINMATRIX Visualizat
 
 ## 2.3 Macro Stats and Dynasties
 
-To get a better understanding of our communities we will look at some summary statistics. Let's briefly define what these macro statistics will be: 
+To get a better understanding of our communities we will look at some summary statistics. Let's briefly define what these summary statistics will be: 
 
 * Diameter: The longest shortest path between any two nodes in the network or component. This is a way to measure how "wide" our network is. 
 * Average Path Length: The average number of steps along the shortest paths for all possible pairs of nodes in the graph
 * Average Clustering: The likelihood that any two neighbors of a node are also connected to each other. Higher values mean people in the community tend to form "groups".
 
-We will also look at degree centrality, density and number of nodes. 
+We will also look at degree centrality, density and number of nodes. These will allow us to quantitavely describe our communities.
 ```{python}
 np.random.seed(1)
 
@@ -391,11 +415,17 @@ def macro_stats(G_sub, partition, community_id):
 #Print:
 stats_20 = macro_stats(G_sub, partition, 20)
 stats_125 = macro_stats(G_sub, partition, 125)
-print("Community 50 macro stats:", stats_20)
-print("Community 125 macro stats:", stats_125)
+
+community_stats = [
+    ['20'] + [stats_20[k] for k in stats_20],
+    ['125'] + [stats_125[k] for k in stats_125]
+]
+
+headers = ['Community'] + list(stats_20.keys())
+print(tabulate(community_stats, headers=headers, tablefmt='fancy_grid', floatfmt=".6f"))
 ```
 
-We now have more quantifiable metrics for our visualizations. Let's continue our analysis with finding which dynasties these communities are primarily from.
+We now have more quantifiable metrics for our visualizations. Let's continue our analysis with finding which dynasties these communities are primarily from. Every node in this dataset is a real person in Chinese history so it will be very interesting to see who these people are. 
 
 ```{python}
 np.random.seed(1)
@@ -436,9 +466,9 @@ print(df_dyn_20['c_dy'].value_counts().head(3))
 
 ```
 
-We can see that Community 125 is primarily from Dynasty 6, and Community 50 is primarily from Dynasty 15, but this does not tell us much we need to translate 6 and 15 into real dynasty names. These values represent names of real dynasties, but without the key this output does not mean anything.  
+We can see that Community 125 is primarily from Dynasty 6, and Community 20 is primarily from Dynasty 15, but this does not tell us much we need to translate 6 and 15 into real dynasty names. These values represent names of real dynasties, but without the key this output does not mean anything.  
 
-Lets now map these values to real dynasty names. 
+Lets now map these values to real dynasty names. We will do this by looking at the c_dynasty and c_dy variables which represents real dynasty names. 
 
 ```{python}
 np.random.seed(1)
@@ -520,7 +550,7 @@ def visualize_cbdb_community_gender(G_sub, partition, community_id, gender_dict,
 visualize_cbdb_community_gender(G_sub, partition, 125, gender_dict)
 ```
 
-We can see that most of the nodes are male especially the most central nodes, we will come back to this later, but think about why that is? Continuing on with the notion of centrality lets color the nodes in Community 20 with a color gradient where the nodes with the lowest degree centrality will be blue and the node with the highest will be red. This will serve as an intuitive method to visualize degree centrality.  
+We can see that most of the nodes are male, especially the most central nodes, we will come back to this later, but think about why that is? Continuing on with the notion of centrality lets color the nodes in Community 20 with a color gradient where the nodes with the lowest degree centrality will be blue and the node with the highest will be red. This will serve as an intuitive method to visualize degree centrality.  
 
 ```{python}
 np.random.seed(1)
@@ -560,6 +590,8 @@ def visualize_cbdb_community_degree(G_sub, partition, community_id, max_nodes=10
 visualize_cbdb_community_degree(G_sub, partition, 20)
 ```
 
+This is a very intuitive way to look at centrality, the most important nodes are yellow, orange and red. They are physically at the center of our network. In the next section we will try to define this centrality more formally.   
+
 ## 2.5 Visualization Discussion
 
 In small groups of 3-4 look at the visualizations from this dataset and compare them to our pyVis visualizations from the KINMATRIX Dataset. Try to be specific and use the terminology introduced in the introductory notebook. How are they similar and how are they different? 
@@ -568,8 +600,10 @@ In small groups of 3-4 look at the visualizations from this dataset and compare 
 
 We can see from our community visualization that some members are more central and connect different parts of the family network. In family analysis these would be considered important connectors. In order to examine them further we will use the measures of centrality we introduced in the first notebook. Centrality measures are quantitative metrics that identify the most important or influential nodes within a network, we will do this to try and identify key historical figures and try to reveal hidden connections.  
 
-**Note:**
-The cells below take a very long time to run, so I will leave it all commented and just have the output pasted below.  
+::: {.callout-warning}
+The cells below take a very long time to run, so we will leave it all commented and just have the output pasted below. They have to calculate the centrality for over 280,000 nodes individually. 
+:::
+
 ```{python}
 #print(f"Analyzing network with {G_sub.number_of_nodes():,} nodes and {G_sub.number_of_edges():,} edges")
 #degree_centrality = nx.degree_centrality(G_sub)
@@ -643,8 +677,6 @@ In order to find these key individuals we will use our three centrality measures
 #    print(f"Person {row['person_id']:>8}: {row['eigenvector_centrality']:.4f} (degree: {row['degree']:>3})")
 ```
 
-The cells above has a long run time (30mins so)
-
 Output:
 **Degree Centrality (Most Connected Family Members):**
 Person   3211.0: 147.0 connections (centrality: 0.0028)
@@ -698,7 +730,7 @@ Below are three graphs plotting our output for most central individuals.
 
 ![Eigenvector Centrality](media/eigenvector_centrality.png)
 
-Person 3211 emerges as the most connected individual with 147 kinship ties, nearly 50% more than the second-most connected person (Person 19244 with 95 connections). This level of connectivity suggests Person 3211 likely represents either a major family patriarch who lived an exceptionally long life, accumulated multiple marriages and offspring, or potentially a family line that was consolidated under a single record. Person 3211 dominates this measure with a score of 0.5228, more than double the second-highest individual (Person 9002 with 0.2929). This indicates that Person 3211 is not only highly connected but also connected to other highly connected families, representing the apex of elite Chinese society.
+Person 3211 emerges as the most connected individual with 147 kinship ties, nearly 50% more than the second-most connected person (Person 19244 with 95 connections). This level of connectivity suggests Person 3211 likely represents either a major family patriarch who lived an exceptionally long life, accumulated multiple marriages and offspring, or potentially a family line that was consolidated under a single record. He will most likely be a very important figure in Chinese History. Person 3211 dominates this measure with a score of 0.5228, more than double the second-highest individual (Person 9002 with 0.2929). This indicates that Person 3211 is not only highly connected but also connected to other highly connected families, representing the apex of elite Chinese society.
 
 Even more striking is Person 17267, who achieves a betweenness centrality of 0.1092 with only 4 direct connections. This individual represents what network analysts call a "critical bridge" - someone whose position in the network gives them disproportionate influence over information flow and family interactions. In historical Chinese context, such individuals likely played crucial roles connecting large families like an emperor or emperor's wife.
 
@@ -706,11 +738,11 @@ Even more striking is Person 17267, who achieves a betweenness centrality of 0.1
 
 Using our definitions of the three centrality measures we are using:
 
-* Degree Centrality: Measures how many direct connections a node (person) has. It's the family member with the most immediate kinship ties. 
+* Degree Centrality: Measures how many direct connections a node (person) has. It represents the family member with the most immediate kinship ties. 
 * Betweeness Centrality: Captures how often a node lies on the shortest path between other nodes. It identifies family members who act as bridges, connecting separate branches or generations.
 * Eigenvector Centality: Reflects not just the number of connections, but also the quality-being connected to other well-connected family members. High eigenvector centrality means the person is part of the core, influential family group for instance an emperor or very high ranking official. 
 
-Discuss in small groups of 3-4 people how these centrality measures exist in your own family and friendship networks. Think about how all three of these are present in your daily lives. For example do you have a friend who is really popular (high degree centrality), do you have a family member who acts as a link between two large families (high betweeness centrality). Try to link these definitions to real people.  
+Discuss in small groups of 3-4 people how these centrality measures exist in your own family and friendship networks. Think about how all three of these are present in your daily lives. For example do you have a friend who is really popular (high degree centrality), do you have a family member who acts as a link between two large families (high betweeness centrality). Try to link these definitions to real people, this will make the next sections more intuitive.   
 
 # 3.2 Looking at these key individuals
 
@@ -773,7 +805,7 @@ display(final_df)
 
 Now we have the information on our most key people. The people with the highest degree and eigenvector centrality were Zhao Tingmei and Li Zhao. 
 
-[Zhao Tingmei](https://en.wikipedia.org/wiki/Zhao_Tingmei) formally known as Prince Fudao, was an imperial prince of the Song dynasty. On the Wikipedia page it states that he had 15 offsprings so it makes sense that he is so integrated into the network. 
+[Zhao Tingmei](https://en.wikipedia.org/wiki/Zhao_Tingmei) formally known as Prince Fudao, was an imperial prince of the Song dynasty. On he had 15 offsprings so it makes sense that he is so integrated into the network. 
 
 The identity of Li Zhao is less clear, but he is most likely [King Li of Zhou](https://en.wikipedia.org/wiki/King_Li_of_Zhou).
 
@@ -781,9 +813,9 @@ As for our most prominent bridges they are:
 
 * [Li Fang](https://en.wikipedia.org/wiki/Li_Fang_(Song_dynasty))
 * [Li Yuan(Emperor Gaozu of Tang)](https://en.wikipedia.org/wiki/Emperor_Gaozu_of_Tang)
-* Li Yuanyi - I can not find information on him 
+* Li Yuanyi - We can not find information on them
 
-This is extermenly interesting as we can link all of these nodes to real people from ancient Chinese history. If we are interested in where they are from we can also find that using the dataset. 
+This is extermenly interesting as we can link all of these nodes to real people from Chinese history. If we are interested in where they are from we can also find that using the dataset. 
 
 For instance Zhao Tingmei and Li Fang are from Kaifeng. Kaifeng is a city in central China’s Henan province, just south of the Yellow River. The city was the Northern Song Dynasty capital from the 10th to 12th centuries.
 
@@ -795,43 +827,7 @@ Finally Li Zhao is from Raoyang, compared to the other two Raoyang is less histo
 
 Intuitively from the KINMATRIX dataset we would image that women could act as bridges in these large family networks. An example of this would be a strategic marriage, but is this the case? We will look at the data and try to understand if that is the case. 
 
-This cell explores the BIOG_MAIN table structure to find the gender field and loads a sample to understand the data structure. In order to identify if women act as bridges we need the gender information.
-
-```{python}
-def explore_biog_main():
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    
-    # Explore table structure
-    cursor.execute("PRAGMA table_info(BIOG_MAIN)")
-    columns = cursor.fetchall()
-    print("BIOG_MAIN table columns:")
-    for col in columns:
-        print(f"  {col[1]} ({col[1]})")
-    
-    # Test for common gender field names
-    gender_fields = ['c_female', 'c_sex', 'c_gender', 'female', 'sex', 'gender']
-    gender_field = None
-    
-    for field in gender_fields:
-        try:
-            test_query = f"SELECT {field} FROM BIOG_MAIN LIMIT 5"
-            cursor.execute(test_query)
-            results = cursor.fetchall()
-            print(f"\nFound field '{field}' with sample values: {[r[0] for r in results]}")
-            gender_field = field
-            break
-        except:
-            continue
-        
-    conn.close()
-    return gender_field
-
-# Run the function
-gender_field = explore_biog_main()
-```
-
-The variable we are going to use is **c_female,** it is an indicator variable which takes the values of 0 or 1; where 1 means the node is female. 
+This cell explores the BIOG_MAIN table structure to find the gender field and loads a sample to understand the data structure. In order to identify if women act as bridges we need the gender information. The variable we are going to use is **c_female,** it is an indicator variable which takes the values of 0 or 1; where 1 means the node is female. 
 
 We will now load the data from before, but with the gender variable and rebuild the network. 
 ```{python}
@@ -953,10 +949,9 @@ Gender distribution (0=male, 1=female):
 * 0    48869
 * 1     4123
 
-Name: count, dtype: int64
 Gender data coverage: 100.0% of network nodes
 
-We can see from the output that the majority of nodes are male which is something which we saw with the Pyvis visualization. This gender inconsistency makes sense as for historical records they are more likely to record men espeically for ones going back to the 7th century. In the largest component we are using only 7.8% of the nodes are female. This might not end up being an issue as it is possible for women to still be stronger bridges except for a few outlier men. 
+We can see from the output that the majority of nodes are male which is something we saw with the Pyvis visualization. This gender inconsistency makes sense as for historical records they are more likely to record men espeically for ones going back to the 7th century. In the largest component we are using only 7.8% of the nodes are female. This might not end up being an issue as it is possible for women to still be stronger bridges except for a few outlier men. We will now look at what percentage of men and women have a betweeneness centrality score over 0.001. 
 
 ```{python}
 #final_df['gender_label'] = final_df['gender'].map({0: 'Male', 1: 'Female'})
@@ -979,10 +974,10 @@ We can see from the output that the majority of nodes are male which is somethin
 
 Output:
 
-* Females with betweenness > 0.001: 101 / 4123 (2.45%)
-* Males with betweenness > 0.001: 4452 / 48869 (9.11%)
+* Females with betweenness centrality > 0.001: 101 / 4123 (2.45%)
+* Males with betweenness centrality> 0.001: 4452 / 48869 (9.11%)
 
-We can see that 9.11% percent of men pass our treshold of 0.001 while only 2.45% of women, so most of the main 'bridges' in our dataset are men. 
+We can see that 9.11% percent of men pass our treshold of 0.001 while only 2.45% of women, so most of the main 'bridges' in our dataset are men. We can repeat the analysis with a different betweeness centrality value. 
 
 ```{python}
 #final_df['gender_label'] = final_df['gender'].map({0: 'Male', 1: 'Female'})
@@ -1005,8 +1000,9 @@ We can see that 9.11% percent of men pass our treshold of 0.001 while only 2.45%
 ```
 
 Output:
-* Females with betweenness > 0.01: 5 / 4123 (0.12%)
-* Males with betweenness > 0.01: 205 / 48869 (0.42%)
+
+* Females with betweenness centrality > 0.01: 5 / 4123 (0.12%)
+* Males with betweenness centrality > 0.01: 205 / 48869 (0.42%)
 
 If we up our treshhold we can see that this does not change with 0.42% men compared to 0.12% women passing our treshhold of 0.01. This means that women in our dataset do not act as bridges more than men. Still let's look at the most prominent female bridges and like with the men link them to real historical figures. 
 
@@ -1030,11 +1026,7 @@ Top 10 Female Bridges in the Network:
 * Person 134070: Betweenness=0.009, Degree=3
 * Person 141996: Betweenness=0.008, Degree=15
 
-As with the best male connectors let's find the identies of the top 3 female bridges:
-
-* Person 141303: Betweenness=0.037, Degree=12
-* Person 93663: Betweenness=0.029, Degree=28
-* Person 17702: Betweenness=0.015, Degree=11
+As with the best male connectors we will continue with the first three and find their real identities. 
 
 ```{python}
 conn = sqlite3.connect(db_path)
@@ -1084,17 +1076,28 @@ display(final_df)
 
 The top women 'bridges' in our dataset are:
 
-* Wu Shi: who is the wife of [Emperor Gaozong of Song](https://en.wikipedia.org/wiki/Emperor_Gaozong_of_Song). It says in the data that she is from Qiantang which is a river near Shanghai. 
-* [Wu Zhao(Wu Zetian)](https://en.wikipedia.org/wiki/Wu_Zetian) who was empress of China from 660 to 705, ruling first through others and later in her own right. She ruled as empress through her husband Emperor Gaozong and later as empress dowager through her sons Emperors Zhongzong and Ruizong, from 660 to 690. She is from Wenshui which is  "a county in the west-central part of Shanxi Province, China."" 
+* Wu Shi: who is the wife of [Emperor Gaozong of Song](https://en.wikipedia.org/wiki/Emperor_Gaozong_of_Song). It says that she is from Qiantang which is a river near Shanghai. 
+* [Wu Zhao(Wu Zetian)](https://en.wikipedia.org/wiki/Wu_Zetian) who was empress of China from 660 to 705, ruling first through others and later in her own right. She ruled as empress through her husband Emperor Gaozong and later as empress dowager through her sons Emperors Zhongzong and Ruizong, from 660 to 690. She is from Wenshui which is  "a county in the west-central part of Shanxi Province, China." 
 * Cui Sui is most likely daugher of [Cui Ting Shi](https://en.wikipedia.org/wiki/Cui_Shi). She is from Qinghe which is "located in the south of Hebei province, China, bordering Shandong province to the east."
 
 # 5.0 Networks over time and Across Dynasties
 
-Next we will look at the dynasties over time and try to determine if there are quantifiable differences between the networks for each of these dynasties.
+Next we will look at the dynasties over time and try to determine if there are quantifiable differences between the networks for each of these dynasties. Static network analysis treats all relationships as simultaneous, but historical networks evolve continuously. Temporal analysis helps us understand how social structures change and why. This will be very interesting as this data covers over a thousand years of Chinese history so trying to quantity these changes is a formidable challenge. 
 
-To determine the dynasty we will use the `c_index_year` variable and if that does not exist as a substitute we will use `c_birthyear`. We have repeated this analysis with the `c_dynasty` variable the findings were nearly identical, but the code was more complicated so we have settled on this version.
+To determine the dynasty we will use the `c_index_year` variable and if that does not exist as a substitute we will use `c_birthyear`. We have repeated this analysis with the `c_dynasty` variable the findings were nearly identical, but the code was more complicated and this solution allowed for more detailed analysis so we have settled on this version.
 
-Load more data and define dynasties. 
+Again we will load more data and define our dynasties. The way we will define our dynasties are:
+
+* 618 CE (Tang founding): 
+* 907 CE (Tang collapse): 
+* 960 CE (Song founding): 
+* 1279 CE (Yuan conquest): 
+* 1368 CE (Ming founding): 
+* 1644 CE (Qing conquest): 
+* 1912 CE (Start of modern China): 
+
+These transition years are generally well agreed upon and each transition represents not just a change in rulers, but fundamental shifts in how elite networks formed, maintained themselves, and exercised power. It will be very interesting to see if these changes are noticable in the data. 
+
 ```{python}
 conn = sqlite3.connect(db_path)
 biog_df = pd.read_sql_query("""
@@ -1148,8 +1151,16 @@ biog_df['dynasty'] = pd.Categorical(
 #print(biog_df['dynasty'].value_counts(sort=False))
 ```
 
-Now we will filter by dynasties and create NetworkX objects for each dynasty. We will be able to see how many nodes and edges each dynasty has. 
+Before we dive into the preliminary findings it is worth considering why different dynasties might have different network formation and structure. There are many different factors, and an understanding of Chinese history is necessary, but some examples are: 
 
+* Family based networks based around royal families like in the Tang Dynasty
+* Networks made around educational achivements like in the Song and Ming Dynasty. 
+* Networks made around military structures
+* Lastly fragmented periods like the Five Dynasties and the Warring States Period will be much less cohesive and have lower modularity. 
+
+Open mobility periods produced more diverse networks with varied connection patterns as oppoised to closed elite periods where networks were much more exclusive, dense and isolated. 
+
+Now we will filter by dynasties and create NetworkX objects for each dynasty using the node and edge variables from before. We will be able to see how many nodes and edges each dynasty has. 
 ```{python}
 # Define custom dynasty order
 dynasty_order = [
@@ -1217,6 +1228,7 @@ ordered_dynasties = ["Pre-Tang", "Tang", "Five Dynasties/10 Kingdoms", "Song", "
 
 def analyze_dynasty_metrics_selected(dynasty_graphs, ordered_dynasties):
     results = {}
+    table_data = []
     for dyn_name in ordered_dynasties:
         G = dynasty_graphs.get(dyn_name)
         if G is None:
@@ -1231,12 +1243,21 @@ def analyze_dynasty_metrics_selected(dynasty_graphs, ordered_dynasties):
         # Graph density
         density = nx.density(G)
 
-        # Clustering coefficient (average)
+        # Clustering coefficient 
         avg_clust = nx.average_clustering(G)
 
         # Community detection: modularity
         communities = list(nx.community.greedy_modularity_communities(G))
         modularity = nx.community.modularity(G, communities)
+
+        table_data.append([
+            dyn_name,
+            f"{avg_deg_cent:.6f}",      
+            f"{avg_degree:.2f}",
+            f"{density:.8f}",           
+            f"{avg_clust:.4f}",
+            f"{modularity:.4f}"
+        ])
 
         results[dyn_name] = {
             "avg_degree_centrality": avg_deg_cent,
@@ -1245,17 +1266,23 @@ def analyze_dynasty_metrics_selected(dynasty_graphs, ordered_dynasties):
             "avg_clustering_coefficient": avg_clust,
             "modularity": modularity
         }
-        print(f"{dyn_name}: Avg Degree Centrality={avg_deg_cent:.4f}, Avg Degree={avg_degree:.2f}, "
-              f"Density={density:.6f}, Avg Clust Coeff={avg_clust:.4f}, Modularity={modularity:.4f}")
+    # Print the table
+    headers = ["Dynasty", "Avg Degree Centrality", "Avg Degree", "Density", "Avg Clust Coeff", "Modularity"]
+    print(tabulate(table_data, headers=headers, tablefmt="github"))
     return results
 
-#Run the function
+# Run the function
 dynasty_metrics_selected = analyze_dynasty_metrics_selected(dynasty_graphs, ordered_dynasties)
 ```
 
-From findings we will see that Degree Centrality and Density are very small these are expected because of the huge size of the network. We also have very high modularity near 1, as expected in a family network there are strong community structures. Song has the highest Average Degree for each node at 2.38 which is far more than the other dynasties. Let's continue with our analysis. 
+From findings we see that Degree Centrality and Density are very small these are expected because of the huge size of the network. We also have very high modularity near 1, as expected in a family network there are strong community structures. Song has the highest Average Degree for each node at 2.38 which is far more than the other dynasties.
 
-Degree Distribution Shape Analysis
+Let's look deeper as to why the Song Dynasty has such a different Average Degree. There are many factors, but some that stand out are the beginning of civil service examinations which allowed for dense networks of scholar-officials who worked and lived together. The Song dynasty was also a period of economic prosperity which allowed for larger elite populations than previous dynasties. The Song Dynasty also had very well preserved records. 
+
+Another dynasty of note in this analysis is the Yuan Dynasty which was a Mongolian-led imperial dynasty. The moderate connectivity can be indicative of the difficulty of integrating Mongol and Chinese elite networks. 
+
+Let's continue with our analysis by looking at the shape of degree distribution throughout our dynasties of interest. 
+
 ```{python}
 def analyze_degree_distributions(dynasty_graphs, ordered_dynasties):
     plt.figure(figsize=(15, 10))
@@ -1292,7 +1319,7 @@ def analyze_degree_distributions(dynasty_graphs, ordered_dynasties):
 analyze_degree_distributions(dynasty_graphs, ordered_dynasties)
 ```
 
-Our visualization is a histogram of the frequency of high degree nodes. All of them are similar except for the Ming Dynasty.
+Our visualization is a histogram of the frequency of high degree nodes. The log-scale histograms show the highly skewed nature of our networks - a few individuals with many connections, and many individuals with few connections. All of them are relatively similar except for the Ming Dynasty.
 
 There are many potential reasons for this, but one that stands out is the Ming Dynasties unique approach to scholar network formation and bureaucratic recruitment, which created a more centralized and hierarchical system compared to other Chinese dynasties. This very selective system created a different social network structure than previous dynasties. The Ming examination system produced a small core of connected scholars and officials who formed the adminstrative portion of the government. Unlike earlier dynasties where multiple pathways to office existed, the Ming system funneled nearly all political advancement through this single, narrow channel. This single channel was a series of exams which 2-3 million applicants would attempt per year with only about a thousand passing. This process lead to a social network which was more evenly connected than previous or future dynasties.  
 
@@ -1336,7 +1363,11 @@ def analyze_connected_components(dynasty_graphs, ordered_dynasties):
 component_results = analyze_connected_components(dynasty_graphs, ordered_dynasties)
 ```
 
-As expected the Pre-Tang dynasty is quite disconnected with many smaller clusters. The Song dynasty has the lowest fragmentation and the largest component meaning most of the network for this dynasty is one large component. The Yuan dynasty is also very fragmented which is suprising as it covered a large political period. The Ming dynasty has the most components by far but a minuscule largest connected cluster. In general dynasties before Yuan have quite low fragmentation compared to ones after Yuan. 
+As expected the Pre-Tang dynasty is quite disconnected with many smaller clusters. Here the high fragmentation reflects genuine political fragmentation. Multiple competing kingdoms produced separate elite networks with limited inter-kingdom marriages or alliances. The Song dynasty has the lowest fragmentation and the largest component meaning most of the network for this dynasty is one large component. This is inline with history as the dynasty was a period of political unity and economic prosperity. 
+
+The Yuan dynasty is also very fragmented which is suprising as it covered a large political period. As mentioned above this might show that the Mongol and Chinese elites did not merge well and maintined relatively seperate networks. Chinese families might have avoided marriage's with Mongol elites and vise-versa.  
+
+The Ming dynasty has the most components by far but a minuscule largest connected cluster. This might suggest that the examination system created many small, tight-knit groups rather than one massive interconnected network. This resembles modern professional networks where people have strong connections within their company/specialty but weaker connections across them. In general dynasties before Yuan have quite low fragmentation compared to ones after Yuan. 
 
 We will contunue with temporal patterning analysis to see if within these dynasties there were large changes throughout the years. 
 
@@ -1387,7 +1418,7 @@ def analyze_temporal_patterns(kin_df, biog_df, ordered_dynasties):
             
             # Print summary
             print(f"\n{dyn_name} Temporal Analysis ({min_year}-{max_year}):")
-            for metric in temporal_metrics[:20]:  # Show first 20 time periods (which is all)
+            for metric in temporal_metrics[:20]:  # Show first 20 time periods
                 print(f"  {metric['time_period']}: Avg Degree={metric['avg_degree']:.2f}, "
                       f"Density={metric['density']:.6f}, Clustering={metric['clustering']:.4f}")
     
@@ -1397,17 +1428,25 @@ def analyze_temporal_patterns(kin_df, biog_df, ordered_dynasties):
 temporal_results = analyze_temporal_patterns(kin_df, biog_df, ordered_dynasties)
 ```
 
-The findings here are quite interesting there seems to be quite a bit of variation inside of the dynasties. 
+The findings here are quite interesting there seems to be quite a bit of variation inside of the dynasties. By examining 50-year time bins within each dynasty, we can identify common patterns in how elite networks evolve over dynastic lifecycles: 
 
-* Pre-Tang: The clustering increases through the years which makes sense.
-* Tang: The average degre is quite stable with a slight spike in the middle. Clustering gradually increases from very low (0.0210) to peak at mid-period (0.0667), then drops similar to average degree. 
-* Five Dynasties/10 Kingdoms Temporal Analysis: Large drop in Average Degree, with a very large decrease in clustering from (0.0755 to 0.0106)
-* Song: Late Song becomes more clustered and somewhat denser compared to early Song.
-* Yuan: Large drop in average degree (1.94 to 1.59) and large decrease in clustering (0.1219 to 0.0221)
-* Ming: Very stable compared to other dynasties
-* Qing: Early Qing is more cohesive than late Qing except for a late density spike that is not accompanied by clustering. 
+* Pre-Tang: The clustering increases through the years which makes sense as this was a very politically divided period. Increasing clustering over time suggests gradual consolidation of initially fragmented regional elites. As political stability increased, families had more opportunities to form alliances.
+* Tang: The average degre is quite stable with a slight spike in the middle. Clustering gradually increases from very low (0.0210) to peak at mid-period (0.0667), then drops similar to average degree. The mid-dynasty clustering peak followed by decline mirrors the Tang's historical trajectory. An early expansion and consolidation, followed by the An Lushan Rebellion (755 CE) and subsequent fragmentation. Our network metrics capture this political crisis.
+* Five Dynasties/10 Kingdoms Temporal Analysis: Large drop in Average Degree, with a very large decrease in clustering from (0.0755 to 0.0106). This is a period marked by political instability, elite networks could not be maintained like in times of unity. 
+* Song: Late Song becomes more clustered and somewhat denser compared to early Song. Late Song's increased clustering and density reflects the dynasty's successful institutional consolidation; the networks strenghtening might reflect the examination system maturing and functioning better and better. 
+* Yuan: Large drop in average degree (1.94 to 1.59) and large decrease in clustering (0.1219 to 0.0221). The sharp decline from early to late Yuan suggests that initial Mongol-Chinese elite integration failed to sustain itself.
+* Ming: Very stable compared to other dynasties.  Remarkably stable metrics across time reflect the dynasty's successful institutional design. The examination system created consistent network formation patterns that persisted across centuries. This is extremely impressive. 
+* Qing: Early Qing is more cohesive than late Qing except for a late density spike that is not accompanied by clustering. The final density spike without clustering increase might reflect desperate attempts to maintain connections during political crisis, but this might be more speculation. 
 
-# 6.0 Citations
+These patterns demonstrate that political institutions profoundly shape social network evolution. Stable, examination-based systems (Song and Ming) produced networks that strengthened over time. Conquest dynasties faced ongoing integration challenges. Fragmented periods prevented stable network formation entirely. We can accurately look at the course of Chinese history through these network metrics. Not only is each node a specific individual, but the bigger picture is also present. 
+
+# 6.0 Conclusion
+
+We have successfully been able to characterize Chinese history and some very influential figures using the CBDB Dataset. We have looked at more both individuals and broader patterns across dynasties and centuries and most importantly been able to link these findings to real Chinese History. The techniques and elements used in this notebook demonstrate how large-scale network analysis methods can be used to uncover meaningful patterns in complex historical and social data through approaches such as community detection, centrality metrics, and temporal segmentation, we gained deeper insight into how elite families, political dynasties, and social roles shaped the connectivity and structure of networks over centuries.   
+
+Overall, network analysis provides powerful quantitative tools for looking at small scale relationships and general social structures. Whether applied to history, sociology (family networks), or other disciplines, the combination of network modeling and real life context allows researchers to ask better questions about how social systems function and evolve. The process is iterative; findings prompt new questions, methodologies improve, and insights deepen as data and theory interact. We hope that using a realistic dataset and asking difficult questions without clear answers can inspire some students to pursue and utilize network analysis in research to tackle these kinds of problems. 
+
+# 7.0 Citations
 
 Al-Taie, M. Z., & Kadry, S. (2017). *Python for graph and network analysis*. Springer. https://doi.org/10.1007/978-3-319-53004-8
 
