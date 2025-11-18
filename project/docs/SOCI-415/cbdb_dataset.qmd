@@ -8,8 +8,14 @@ categories:
   - Python
   - network analysis
   - SOCI 415
+execute:
+  eval: true
+  echo: true
+  output: true
 format:
-  html: default
+  html:
+    embed-resources: true
+    self-contained-math: true
   ipynb:
     jupyter:
       kernelspec:
@@ -427,21 +433,28 @@ np.random.seed(1)
 # Community 125
 personids_125 = [n for n, c in partition.items() if c == 125]
 conn = sqlite3.connect(db_path)
-ids_tuple_125 = tuple(int(pid) for pid in personids_125)
-query_125 = f'''
-    SELECT c_personid, c_dy FROM BIOG_MAIN
-    WHERE c_personid IN {ids_tuple_125}
-'''
-df_dyn_125 = pd.read_sql_query(query_125, conn)
+
+if personids_125:
+    query_125 = f'''
+        SELECT c_personid, c_dy FROM BIOG_MAIN
+        WHERE c_personid IN ({','.join(['?']*len(personids_125))})
+    '''
+    df_dyn_125 = pd.read_sql_query(query_125, conn, params=personids_125)
+else:
+    df_dyn_125 = pd.DataFrame(columns=['c_personid', 'c_dy'])
 
 # Community 20
 personids_20 = [n for n, c in partition.items() if c == 20]
-ids_tuple_20 = tuple(int(pid) for pid in personids_20)
-query_20 = f'''
-    SELECT c_personid, c_dy FROM BIOG_MAIN
-    WHERE c_personid IN {ids_tuple_20}
-'''
-df_dyn_20 = pd.read_sql_query(query_20, conn)
+
+if personids_20:
+    query_20 = f'''
+        SELECT c_personid, c_dy FROM BIOG_MAIN
+        WHERE c_personid IN ({','.join(['?']*len(personids_20))})
+    '''
+    df_dyn_20 = pd.read_sql_query(query_20, conn, params=personids_20)
+else:
+    df_dyn_20 = pd.DataFrame(columns=['c_personid', 'c_dy'])
+
 conn.close()
 
 # Show the most common dynasty codes
@@ -450,6 +463,7 @@ print(df_dyn_125['c_dy'].value_counts().head(3))
 
 print("Community 20 dominant dynasties:")
 print(df_dyn_20['c_dy'].value_counts().head(3))
+
 ```
 
 We can see that Community 125 is primarily from Dynasty 6, and Community 20 is primarily from Dynasty 15, but this does not tell us much we need to translate 6 and 15 into real dynasty names. These values represent names of real dynasties, but without the key this output does not mean anything.  
