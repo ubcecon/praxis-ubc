@@ -9,18 +9,22 @@ categories:
   - natural language processing
   - sentiment analysis
   - SOCI 280
+execute:
+  eval: true
+  echo: true
+  output: true
 format:
   html: 
+    embed-resources: true
+    self-contained-math: true 
     code-fold: true
     code-summary: "Show the code"
-
   ipynb:
     jupyter:
       kernelspec:
         display_name: Python
         language: python3
         name: python3
-
 ---
 
 ## Disinformation in the Information Age
@@ -924,9 +928,15 @@ We'll be repeating the same hypothesis test that we performed using our sentimen
 Here, we'll define a tweet *toxic* if it meets or exceeds a toxicity theshold of 0.5. 
 
 ```{python}
-texts = tweets_small['content'].tolist()
-results = model.predict(texts)
-toxicity_df = pd.DataFrame(results)
+texts = tweets_small['content'].fillna("").astype(str).tolist()
+batch_size = 64
+results = []
+for i in range(0, len(texts), batch_size):
+    batch = texts[i:i+batch_size]
+    batch_results = model.predict(batch)
+    batch_df = pd.DataFrame(batch_results)
+    results.append(batch_df)
+toxicity_df = pd.concat(results, ignore_index=True)
 tweets_small = tweets_small.join(toxicity_df)
 ```
 
