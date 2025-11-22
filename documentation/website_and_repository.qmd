@@ -1,7 +1,7 @@
 ---
 title: Understanding the Website and Repository
 author: Alex Ronczewski
-date: last-modified
+date: 2025-11-21
 number-sections: true
 version: 1.0
 ---
@@ -30,17 +30,18 @@ The repository uses:
 
 The key file paths are: 
 
-| File/Directory | Purpose |
-|---------------|---------|---------------|
-| `.github/workflows/comet_main.yml` | Automates Build & Deployment | 
-| `meta/building/.dockerfile` | Defines build environment | 
-| `meta/building/sub_new.dockerfile` | Base image configuration | 
-| `meta/scripts/clean_ipynb_titles.py` | Preprocesses notebook metadata used in comet_main.yml | 
-| `project/_quarto.yml` | Site configuration & navigation |
-| `project/docs/` | Content files (.qmd, .ipynb, .html, media and datasets) | 
-| `project/pages/index/` | Homepage & index pages |
-| `.gitignore` | Excludes files from version control | 
-| `.gitattributes` | Configures Git LFS |
+| File/Directory                         | Purpose                                         |
+|-----------------------------------------|-------------------------------------------------|
+| .github/workflows/comet_main.yml        | Automates Build & Deployment                    |
+| meta/building/.dockerfile               | Defines build environment                       |
+| meta/building/sub_new.dockerfile        | Base image configuration                        |
+| meta/scripts/clean_ipynb_titles.py      | Preprocesses notebook metadata used in comet_main.yml |
+| project/_quarto.yml                     | Site configuration & navigation                 |
+| project/docs/                           | Content files (.qmd, .ipynb, .html, media, datasets) |
+| project/pages/index/                    | Homepage & index pages                          |
+| .gitignore                              | Excludes files from version control             |
+| .gitattributes                          | Configures Git LFS                              |
+
 
 If you are working on purely notebooks and not on the repository or "backend" aspects of prAxIs then this the most important directory for you `project/docs/`. All of the notebooks, media and datasets which they run of are here under folders for each topic/class. 
 
@@ -50,11 +51,13 @@ Praxis uses Docker to containerize its development and computational environment
 
 #### sub_new.dockerfile
 
-This dockerfile builds on [rocker/tidyverse:4.2.2](https://hub.docker.com/layers/rocker/tidyverse/4.2.2/images/sha256-92e500308e613110491a6a6957096740c8665e7e89aeac261e5e3704c39b4cd3), this Docker image provides a Docker images for R and the Tidyverse collection of R packages, we build directly on top of this pre-existing Docker image. **sub_new.dockerfile**:
+This dockerfile builds on [rocker/tidyverse:4.2.2](https://hub.docker.com/layers/rocker/tidyverse/4.2.2/images/sha256-92e500308e613110491a6a6957096740c8665e7e89aeac261e5e3704c39b4cd3), this Docker image provides a Docker images for R and the Tidyverse collection of R packages, we build directly on top of this pre-existing Docker image. 
+
+Step by step **sub_new.dockerfile**:
 
 - Imports the rocker/tidyverse:4.2.2 base image
-- Creates a directory called **/app**
-- Install's system dependencies with specific versions numbers into **/app**. The dependencies have specific version numbers so that an update does not break the code. 
+- Creates a directory called `/app`
+- Install's system dependencies with specific versions numbers into `/app`. The dependencies have specific version numbers so that an update does not break the code. 
 - Install's Python, Quarto and necessary R Packages. All of these again with version numbers. 
 
 This base dockerfile is saved to [DockerHub](https://hub.docker.com/) as `jlgraves/comet-test:test` so it can be used for our main .dockerfile. 
@@ -69,7 +72,7 @@ This base dockerfile is saved to [DockerHub](https://hub.docker.com/) as `jlgrav
 
 Finally it starts from nginx:alpine base for minimal resource use. Alpine Linux is very lightweight so it is perfect for this use case.  It then copies the rendered HTML content into Nginx’s served directory and finally exposes port 80 and runs Nginx in foreground mode.
 
-It is important to note that all of the file path's in this section like `/app/output` don't exist on the repository and rather exist within the docker image's and can't be accessed and manipulated the sameway as path's in Windows File Explorer or the Github Repository. 
+It is important to note that all of the file path's in this section like `/app/output` don't exist on the repository and rather exist within the Docker image's and can't be accessed and manipulated the same way as path's in Windows File Explorer or the Github Repository. 
 
 ## 4. Quarto Configuration & Website Structure
 
@@ -83,7 +86,7 @@ Under **render:** _quarto.yml specifies which files and folders to include in th
 - "*.ipynb"
 - "*.r"
 
-These tags all include `* ` meaning that Quarto include files by pattern `media/*` means all files under folders called media/ are included and `*.qmd` means all .qmd files are included. When we use `!` it means we are ignoring these files, these files are .qmd's for which we have pre-rendered .html files already prepared. These are the same .qmd files which we ignored in the Dockerfile. For our .qmd and .ipynb files we also have tags under **execute**:
+These tags all include `*` meaning that Quarto include files by pattern `media/*` means all files under folders called media/ are included and `*.qmd` means all .qmd files are included. When we use `!` it means we are ignoring these files, these files are .qmd's for which we have pre-rendered .html files already prepared. These are the same .qmd files which we ignored in the Dockerfile. For our .qmd and .ipynb files we also have tags under **execute**:
 
 - eval: false means notebooks are not executed during site build.
 - keep-ipynb: false indicates not to keep output .ipynb files.
@@ -96,9 +99,9 @@ The next section of `project/_quarto.yml` corresponds to the websites appearance
  file: pages/index/index_SOCI280.qmd
 ```
 
-Which creates a button with "SOCI-280" written on it that redirects to the page pages/index/index_SOCI280.qmd which acts as a landing page for all of our SOCI-280 related notebooks and outline. 
+Which creates a button with "SOCI-280" written on it that redirects to the page: `pages/index/index_SOCI280.qmd` which acts as a landing page for all of our SOCI-280 related notebooks and outline. 
 
-Lower down we have the Launch prAxIs menu which consists of links for JupyterOpen, Syzygy, Google Collab, Local Download and the Github Repository. The links for JupyterOpen, Syzygy, and Google Collab pulls the praxis-notebooks branch of the repository and opens it in the online code editor. Finally we have the `format:` section where we select .css themes from **styles.css** and **comet_theme.scss**. 
+Lower down we have the Launch prAxIs menu which consists of links for JupyterOpen, Syzygy, Google Collab, Local Download and the Github Repository. The links for JupyterOpen, Syzygy, and Google Collab pulls the praxis-notebooks branch of the repository and opens it in the online code editor. Finally we have the `format:` section where we select **.css** themes from `styles.css` and `comet_theme.scss`. 
 
 ## 5. Navigation and Index Pages
 
@@ -125,9 +128,9 @@ This section is much longer so it will be subdivided into:
 ### 6.1 Explaining comet_main.yml
 
 **comet_main.yml** can be found under `.github/workflows/comet_main.yml` it is the most important file in the repository as it automates building, preparing, rendering, syncing, and deploying our notebooks to the website. This is a Github Actions workflow which can be manually activated at the [Actions: Build and Deploy section of the Github Repository](https://github.com/ubcecon/praxis-ubc/actions/workflows/comet_main.yml). 
-Many workflows trigger on pull request or commit, we only want to update the website when we are are sure the changes are correct and ready for deployment, so our workflow only triggers manually because of `workflow_dispatch:` not having any associated variable below it. 
+Many workflows trigger on pull request or commit, we only want to update the website when we are are sure the changes are correct and ready for deployment, so our workflow only triggers manually because of `workflow_dispatch:` does not have any associated variable below it. 
 
-We will go through each section and explain what each task does. 
+We will go through each section and explain what each job and related sub-job does. 
 
 #### The `Build` Job: 
 
@@ -135,7 +138,7 @@ We will go through each section and explain what each task does.
 Checks out the repository source code on the runner using the latest version of the GitHub Actions checkout.
 
 2. Lint Quarto Notebooks:
-Finds all Quarto Markdown (.qmd) files in `./project/docs/` and runs a Python linter script (`meta/testing/linter.py`) on each. Output is redirected to a file (lint_output.txt). If any lint warnings/errors occur, it sets the output variable linting_failed and prints the file contents for visibility. This is used to test if all of the .qmd files are working as intended. 
+Finds all Quarto Markdown (.qmd) files in `./project/docs/` and runs a Python linter script (`meta/testing/linter.py`) on each. Output is redirected to a file (**lint_output.txt**). If any lint warnings/errors occur, it sets the output variable linting_failed and prints the file contents for visibility. This is used to test if all of the .qmd files are working as intended. 
 
 3. Build Docker Image:
 Builds a Docker image tagged my-app-image:latest using the Dockerfile in `./meta/building/.dockerfile`. More information on the Dockerfiles can be found in 3. [Docker Build System](#3-docker-build-system). 
@@ -230,7 +233,7 @@ Sets the git user name and email for making commits as a GitHub Actions bot.
 - Copies new/updated notebook files from `final-notebooks/docs` to the repository root directory for commit.
 
 5. Create Pull Request:
-Uses the `peter-evans` action to create a pull request from a temporary branch (praxis-notebooks-update) to the `praxis-notebooks` branch (this is the branch that is pulled in _quarto.yml for the launch menu), containing the latest rendered notebooks and datasets. The PR includes a formatted body and commit title/message. The temporary sync branch is deleted after the PR is created.
+Uses the `peter-evans` action to create a pull request from a temporary branch (praxis-notebooks-update) to the `praxis-notebooks` branch (this is the branch that is pulled in `_quarto.yml` for the launch menu), containing the latest rendered notebooks and datasets. The PR includes a formatted body and commit title/message. The temporary sync branch is deleted after the PR is created.
 
 #### The `Deploy` Job:
 
@@ -248,11 +251,11 @@ Prints the contents of `site-content` for debugging/visibility.
 4. Deploy to GitHub Pages:
 Uses the `peaceiris` GitHub Pages action to publish everything in site-content to the gh-pages branch, making it available as a live static website or documentation site. This leads to a seperate `pages build and deployment` action being executed which updated the website at https://ubcecon.github.io/praxis-ubc/. 
 
-That is all of the jobs in **comet_main.yml**, before we move on to section 6.2 there are some minor remarks which can be helpful for editing the **comet_main.yml**.
+That is all of the jobs in **comet_main.yml**, before we move on to Section 6.2 there are some minor remarks which can be helpful for editing the **comet_main.yml**.
 
 1. Github Secrets:
 
-Certain Jobs require admin permissions (Creating a pull Request and Deploying to Github Pages), in order to not put tokens and access codes in a public repository we use Github Secrets. This is a security measure, you can read more [here](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets).
+Certain Jobs require admin permissions (Creating a Pull Request and Deploying to Github Pages), in order to not put tokens and access codes in a public repository we use Github Secrets. This is a security measure, you can read more [here](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets).
 
 2. Ref:
 
@@ -262,13 +265,13 @@ Often you have to run **comet_main.yml** on a different branch to test some new 
 
 ### 6.2 Showing Rendered .html files with code output. 
 
-On our website we want to have the code output showing as this leads to students being able to view the most important parts of the notebooks without launching them and running them, but this is difficult as if we want to render the notebooks with code output we would have to remove the **execute** tag in **_quarto.yml**:
+On our website we want to have the code output showing as this leads to students being able to view the most important parts of the notebooks without launching them and running them, but this is difficult as if we want to render the notebooks with code output we would have to remove the **execute** tag in `_quarto.yml`. The `execute` tag is showed below: 
 
 - eval: false means notebooks are not executed during site build.
 - keep-ipynb: false indicates not to keep output .ipynb files.
 - cache: false avoids using or keeping any cache created by computations.
 
-Because our build pipeline exists within a Docker Container and infrastructure we would have to have all relevant packages, and datasets included in the .dockerfile. Some of the datasets are private and we can not host them on our website for copyright images and if we were to include the remaining data the size of the .dockerfile would be multiple gigabytes - not exactly lightweight. Along with this all of the packages need to have a version number (to be robust to updates) and have to be compatible with each other which would lead to a complex .env file. The solution to this is described below, a way to have a rendered .html without the problems with data and packages described above.
+Because our build pipeline exists within a Docker Container and infrastructure we would have to have all relevant packages, and datasets included in the .dockerfile. Some of the datasets are private and we can not host them on our repository/website for copyright images and if we were to include the remaining data the size of the .dockerfile would be multiple gigabytes - not exactly lightweight. Along with this all of the packages need to have a version number (to be robust to updates) and have to be compatible with each other which would lead to a complex .env file. The solution to this is described below, a way to have a rendered .html without the problems with data and packages described above.
 
 First we need to manually create a full encapsulated .html from each .qmd file we are planning to have rendered. This is done by adding these commands to the .qmd header: 
 
@@ -288,12 +291,12 @@ html:
 
 Once this is done for our file we can run locally `quarto render FILENAME.qmd` and a .html file will be created in `praxis-ubc\project\_site\docs\CLASS\...,` this is `.gitignored` so it is not a problem that files are created here. Copy this .html and put it into the directory where the original .qmd is. In the case of SOCI415 it would be `praxis-ubc\project\docs\SOCI-415.` It is important that the .html files are created within the repository as they need to have the nav-bar and website layout. 
  
-Now that the .html files are created we need to make changes to the `.dockerfile`, and `_quarto.yml`. As of 2025-11-21 all of these changes are already made, but will have to be made for new files: 
+Now that the .html files are created we need to make changes to the `.dockerfile`, and `_quarto.yml`. As of **2025-11-21** all of these changes are already made for existing files, but will have to be made for new files: 
 
 - In the .dockerfile under `praxis-ubc\meta\building\.dockerfile` we need to remove the .qmd so it is not rendered and then in the next step copy the .html to the output directory which has the files for the website. Example code of this is: `RUN rm -f ./docs/SOCI-415/soci_415_network_analysis.qmd` and `COPY ./project/docs/SOCI-415/soci_415_network_analysis.html /app/output/docs/SOCI-415/`. 
-- In the `_quarto.yml` add a line like `“!docs/SOCI-415/soci_415_network_analysis.qmd"`, the *!* makes quarto ignore the file in the build. This will be for the given notebook. 
-- Now under the directory where the original .qmd is add a `_stub.qmd` with an html redirect like <meta http-equiv="refresh" content="0; url=soci_415_network_analysis.html">, check the formatting in any of the files under project/docs/CLASS it is more clear there. The stub acts as a redirect to the .html. 
-- Change the index under project/pages/index/index_CLASS.qmd to be the stub and not the original .qmd. 
+- In the `_quarto.yml` add a line like `“!docs/SOCI-415/soci_415_network_analysis.qmd"`, the `!` makes quarto ignore the file in the build. This will be for the given notebook. 
+- Now under the directory where the original .qmd is add a `_stub.qmd` with an html redirect link an example is: <meta http-equiv="refresh" content="0; url=soci_415_network_analysis.html">, check the formatting in any of the files under `project/docs/CLASS` it is more clear there. The stub acts as a redirect to the .html. 
+- Change the index under `project/pages/index/index_CLASS.qmd` to be the stub and not the original .qmd. 
 
 Once all of these changes are implemented and the site is rebuilt there will be rendered .html files with code output showing. This solutuion does not affect the build time and we do not need to add packages or datasets. 
 
