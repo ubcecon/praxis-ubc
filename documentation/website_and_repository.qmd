@@ -1,0 +1,458 @@
+---
+title: Understanding the Website and Repository
+author: Alex Ronczewski
+date: 2025-11-21
+number-sections: true
+version: 1.0
+---
+
+## Table of Contents
+
+1. [Overview and Purpose of this Document](#1-overview)
+2. [Repository Structure](#2-repository-structure)
+3. [Docker Build System](#3-docker-build-system)
+4. [Quarto Configuration & Website Structure](#4-quarto-configuration--website-structure)
+5. [Navigation & Index Pages](#5-navigation--index-pages)
+6. [GitHub Actions CI/CD Pipeline](#6-github-actions-cicd-pipeline)
+7. [Local Development & Testing](#7-local-development--testing)
+
+## 1. Overview
+
+This notebook will go over the structure of the praxis-ubc repository and website including all of the build pipelines, and files powering them. This is not a style guide or repository guidelines, those can be found under `praxis-ubc\documentation\style_guide` and `README.md`. 
+
+The repository uses:
+
+- **Quarto** for Website Generation
+- **Docker** for Containerization
+- **GitHub Actions** for CI/CD Pipelines
+
+## 2. Repository Structure
+
+The key file paths are: 
+
+| File/Directory                         | Purpose                                         |
+|-----------------------------------------|-------------------------------------------------|
+| .github/workflows/comet_main.yml        | Automates Build & Deployment                    |
+| meta/building/.dockerfile               | Defines build environment                       |
+| meta/building/sub_new.dockerfile        | Base image configuration                        |
+| meta/scripts/clean_ipynb_titles.py      | Preprocesses notebook metadata used in comet_main.yml |
+| project/_quarto.yml                     | Site configuration & navigation                 |
+| project/docs/                           | Content files (.qmd, .ipynb, .html, media, datasets) |
+| project/pages/index/                    | Homepage & index pages                          |
+| .gitignore                              | Excludes files from version control             |
+| .gitattributes                          | Configures Git LFS                              |
+
+
+If you are working on purely notebooks and not on the repository or "backend" aspects of prAxIs then this the most important directory for you `project/docs/`. All of the notebooks, media and datasets which they run of are here under folders for each topic/class. 
+
+## 3. Docker Build System
+
+Praxis uses Docker to containerize its development and computational environments, which helps ensure reproducibility, consistency, and portability across different operating systems and setups. Docker allows all dependencies, configurations, and tools required for executing code to be bundled together in a standardized image (Read more at: [What is Docker?](https://docs.docker.com/get-started/docker-overview/)). This is the lowest level of the repository. The dockerfiles can be found under `meta/building`. There are two Dockerfiles the first is **sub_new.dockerfile** which acts as the [Base image](https://docs.docker.com/build/building/base-images/). A base is the image that your image extends, the main file is called **.dockerfile** and it directly builds on **sub_new.dockerfile**. The Dockerfiles are created in this manner to optimize caching, minimize build times, seperate static and dynamic layers, and simplify debugging. 
+
+#### sub_new.dockerfile
+
+This dockerfile builds on [rocker/tidyverse:4.2.2](https://hub.docker.com/layers/rocker/tidyverse/4.2.2/images/sha256-92e500308e613110491a6a6957096740c8665e7e89aeac261e5e3704c39b4cd3), this Docker image provides a Docker images for R and the Tidyverse collection of R packages, we build directly on top of this pre-existing Docker image. 
+
+Step by step **sub_new.dockerfile**:
+
+- Imports the rocker/tidyverse:4.2.2 base image
+- Creates a directory called `/app`
+- Install's system dependencies with specific versions numbers into `/app`. The dependencies have specific version numbers so that an update does not break the code. 
+- Install's Python, Quarto and necessary R Packages. All of these again with version numbers. 
+
+This base dockerfile is saved to [DockerHub](https://hub.docker.com/) as `jlgraves/comet-test:test` so it can be used for our main .dockerfile. 
+
+### .dockerfile:
+
+- This dockerfile begins with using the jlgraves/comet-test:test image
+- Setting `/app` as the working directory. 
+- It then removes certain .qmd files to avoid rendering them during the website build process. 
+- Creates an output directory with `mkdir`
+- It then copies pre-rendered .html files into the directory `/app/output`.
+
+Finally it starts from nginx:alpine base for minimal resource use. Alpine Linux is very lightweight so it is perfect for this use case.  It then copies the rendered HTML content into Nginx’s served directory and finally exposes port 80 and runs Nginx in foreground mode.
+
+It is important to note that all of the file path's in this section like `/app/output` don't exist on the repository and rather exist within the Docker image's and can't be accessed and manipulated the same way as path's in Windows File Explorer or the Github Repository. 
+
+## 4. Quarto Configuration & Website Structure
+
+The "Instructions" for Quarto building the website are located under `project/_quarto.yml` The file explicity specifies that this project is a website and along with other configuration like how to behave during preview and what resources to use. 
+
+Under **render:** _quarto.yml specifies which files and folders to include in the build process for the website. We include:
+
+- "media/*"
+- "files/*"
+- "*.qmd"
+- "*.ipynb"
+- "*.r"
+
+These tags all include `*` meaning that Quarto include files by pattern `media/*` means all files under folders called media/ are included and `*.qmd` means all .qmd files are included. When we use `!` it means we are ignoring these files, these files are .qmd's for which we have pre-rendered .html files already prepared. These are the same .qmd files which we ignored in the Dockerfile. For our .qmd and .ipynb files we also have tags under **execute**:
+
+- eval: false means notebooks are not executed during site build.
+- keep-ipynb: false indicates not to keep output .ipynb files.
+- cache: false avoids using or keeping any cache created by computations.
+
+The next section of `project/_quarto.yml` corresponds to the websites appearance and navigation. We can configure all aspects of how the final website looks including: favicon, footer, navbar, title etc. The most important is the Navbar section which represents the Navigation Bar at the top of the [prAxIs Website](https://ubcecon.github.io/praxis-ubc/). We created the navbar itself and then add tags for text and file paths. An example of this is: 
+
+```{bash}
+- text: "SOCI-280"
+ file: pages/index/index_SOCI280.qmd
+```
+
+Which creates a button with "SOCI-280" written on it that redirects to the page: `pages/index/index_SOCI280.qmd` which acts as a landing page for all of our SOCI-280 related notebooks and outline. 
+
+Lower down we have the Launch prAxIs menu which consists of links for JupyterOpen, Syzygy, Google Collab, Local Download and the Github Repository. The links for JupyterOpen, Syzygy, and Google Collab pulls the praxis-notebooks branch of the repository and opens it in the online code editor. Finally we have the `format:` section where we select **.css** themes from `styles.css` and `comet_theme.scss`. 
+
+## 5. Navigation and Index Pages
+
+Under `project/pages/index` there are .qmd index files for each class and one for all pages. Each of these files have a .qmd style header with the title and then `contents:`. Here the contents are file paths which are showed under the Class landing page. 
+
+An example of this is the Index for SOCI 280:
+```{bash}
+ contents:
+    - "../../docs/SOCI-280/soci_280_bert_stub.qmd"
+    - "../../docs/SOCI-280/soci_280_lesson_plan.qmd"
+```
+
+When we navigate to the [SOCI-280 Page](https://ubcecon.github.io/praxis-ubc/pages/index/index_SOCI280.html) on the website we see that there are two notebooks below, the first being `SOCI-280/soci_280_bert_stub` and the second being the `soci_280_lesson_plan`. 
+
+For each index below the .qmd header there space for a text block which has information on the class and sometimes has the Lesson Plan. 
+
+## 6. GitHub Actions CI/CD Pipeline
+
+This section is much longer so it will be subdivided into:
+
+- 6.1: Explaning each step of comet_main.yml
+- 6.2: Showing rendered .html files instead of unrendered .html files on the website.  
+
+### 6.1 Explaining comet_main.yml
+
+**comet_main.yml** can be found under `.github/workflows/comet_main.yml` it is the most important file in the repository as it automates building, preparing, rendering, syncing, and deploying our notebooks to the website. This is a Github Actions workflow which can be manually activated at the [Actions: Build and Deploy section of the Github Repository](https://github.com/ubcecon/praxis-ubc/actions/workflows/comet_main.yml). 
+Many workflows trigger on pull request or commit, we only want to update the website when we are are sure the changes are correct and ready for deployment, so our workflow only triggers manually because of `workflow_dispatch:` does not have any associated variable below it. 
+
+We will go through each section and explain what each job and related sub-job does. 
+
+#### The `Build` Job: 
+
+1. Checkout:
+Checks out the repository source code on the runner using the latest version of the GitHub Actions checkout.
+
+2. Lint Quarto Notebooks:
+Finds all Quarto Markdown (.qmd) files in `./project/docs/` and runs a Python linter script (`meta/testing/linter.py`) on each. Output is redirected to a file (**lint_output.txt**). If any lint warnings/errors occur, it sets the output variable linting_failed and prints the file contents for visibility. This is used to test if all of the .qmd files are working as intended. 
+
+3. Build Docker Image:
+Builds a Docker image tagged my-app-image:latest using the Dockerfile in `./meta/building/.dockerfile`. More information on the Dockerfiles can be found in 3. [Docker Build System](#3-docker-build-system). 
+
+4. Extract Web Content:
+
+- Creates a temporary Docker container from the built image.
+- Copies contents of `/usr/share/nginx/html` (where the web content lives on NGINX-based containers) into `./web-content` on the host.
+- Removes the container.
+- Lists the resulting contents for review.
+
+5. Upload Files as Artifacts:
+Uploads everything in the `./web-content` directory as a workflow artifact named site, for use in later jobs. If there are no files, the workflow fails at this step.
+
+#### The `prepare-notebooks` Job:
+
+This job depends on the successful completion of the `Build` Job. 
+
+1. Checkout Source Notebooks:
+Checks out all notebooks and supporting files into a directory named `source-notebooks`.
+
+2. Remove Rendered Files:
+Deletes previously rendered (output) HTML and Markdown files from the source notebooks directory to avoid including them in later steps.
+
+3. Checkout Datasets:
+Retrieves the latest datasets from the main branch, into a directory named datasets.
+
+4. Organize Structure:
+
+- Uses rsync to copy only desired files these include notebooks, data, and image types from `source-notebooks/project/docs/` to `final-notebooks/docs/`. If new files are being added it is important to check that the file extension is present here. You can see the list of file ending in a list on this step. 
+- Iterates over a list of notebook directories, checks for dataset directories in these notebook directories, and copies them into the final structure.
+- If the dataset directory isn't found, it prints a warning.
+- Outputs the path of the prepared notebooks directory for subsequent jobs.
+
+5. Create Master ZIP of All Notebooks:
+Zips up all files in `final-notebooks/docs/` into `all-notebooks.zip` which can be easily downloaded.
+
+6. Upload Notebooks Artifact:
+Uploads the prepared notebooks as an artifact named notebooks.
+
+7. Upload ZIP Artifact:
+Uploads the zipped notebook collection as an artifact named `all-notebooks-zip`. The workflow errors if no such file is found.
+
+8. Print Directory Structure:
+Prints the complete tree of final-notebooks for debugging and review.
+
+#### The `render-notebooks` Job:
+
+This job depends on the successful completion of the `prepare-notebooks` Job. 
+
+1. Checkout Repository:
+Checks out the main branch to the runner.
+
+2. Download Prepared Notebooks:
+Downloads the notebooks artifact from `prepare-notebook` into `final-notebooks` for further processing.
+
+3. Set up Quarto:
+Installs Quarto enabling notebook conversion and rendering.
+
+4. Set up Python:
+Installs a compatible Python version for use by conversion and cleaning scripts. Version is not specified we use `3.x` and the runner decided on a compatible version. 
+
+5. Convert QMD to IPYNB and Clean Titles:
+
+- Copies a Python script (clean_ipynb_titles.py) from `meta/scripts/clean_ipynb_titles.py` to the notebooks directory.
+- Converts each .qmd (Quarto Markdown) notebook to .ipynb (Jupyter Notebook) using the `quarto convert` command, skipping files with "plan" in their name to ignore lesson plans.
+- Cleans notebook titles via the Python script, warning if conversion fails.
+
+It is important to note what this Python script does and why it is here. There was an issue when we *launch* the notebooks to JupyterOpen, Google Collab or any other online code execution platform that the titles on the .ipynb Jupyter notebooks were not displaying correctly. It is caused by the command `quarto convert` and how it works. Quarto expects the first cell to be a raw cell, but the conversion process sometimes creates it as a markdown cell instead. This lead to the titles being displayed in a very ugly manner. The fix is running the `clean_ipynb_titles.py` Python script on all of the .ipynb files. 
+
+The script parses out the YAML using regular expressions, extracts key information: title, author, and date, then replaces the YAML block with formatted Markdown content so it is displayed in a nice way. The rest of the first cell's content is retained after the generated title block. This fixes the ugly titles. 
+
+6. Upload Converted Notebooks:
+Uploads the rendered (converted and cleaned) notebooks as an artifact named rendered-notebooks. Fails if no files are found.
+
+#### The `sync-notebooks` Job:
+
+This job depends on the successful completion of the `render-notebooks` Job. 
+
+1. Checkout Main Branch:
+Checks out the main branch to the runner.
+
+2. Download Prepared Notebooks:
+Downloads the `rendered-notebooks` artifact into `final-notebooks`.
+
+3. Configure Git:
+Sets the git user name and email for making commits as a GitHub Actions bot.
+
+4. Copy Notebooks to Repository:
+
+- Removes any existing docs/directory.
+- Copies new/updated notebook files from `final-notebooks/docs` to the repository root directory for commit.
+
+5. Create Pull Request:
+Uses the `peter-evans` action to create a pull request from a temporary branch (praxis-notebooks-update) to the `praxis-notebooks` branch (this is the branch that is pulled in `_quarto.yml` for the launch menu), containing the latest rendered notebooks and datasets. The PR includes a formatted body and commit title/message. The temporary sync branch is deleted after the PR is created.
+
+#### The `Deploy` Job:
+
+This job depends on the successful completion of the `Build` Job. Meaning it can run even if prepare, render and sync notebooks all fail. 
+
+1. Checkout Repository:
+Checks out the main branch to the runner.
+
+2. Download Artifacts:
+Downloads the site artifact (web content from earlier) into `site-content` for publishing.
+
+3. Print Directory Structure:
+Prints the contents of `site-content` for debugging/visibility.
+
+4. Deploy to GitHub Pages:
+Uses the `peaceiris` GitHub Pages action to publish everything in site-content to the gh-pages branch, making it available as a live static website or documentation site. This leads to a seperate `pages build and deployment` action being executed which updated the website at https://ubcecon.github.io/praxis-ubc/. 
+
+That is all of the jobs in **comet_main.yml**, before we move on to Section 6.2 there are some minor remarks which can be helpful for editing the **comet_main.yml**.
+
+1. Github Secrets:
+
+Certain Jobs require admin permissions (Creating a Pull Request and Deploying to Github Pages), in order to not put tokens and access codes in a public repository we use Github Secrets. This is a security measure, you can read more [here](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets).
+
+2. Ref:
+
+Often you have to run **comet_main.yml** on a different branch to test some new change. You will have to change the `Ref:` tag on *Checkout datasets* from `prepare notebooks` and *Checkout main branch* from `sync-notebooks`. If the `Ref:` tags are not changed the workflow will fail. 
+
+3. If you have trouble visualizing the output and how all of these jobs link together you can view the workflow visually at [The Github Actions Page](https://github.com/ubcecon/praxis-ubc/actions/runs/19557283413), here you can see the run time and output of each job and sub-job. 
+
+### 6.2 Showing Rendered .html files with code output. 
+
+On our website we want to have the code output showing as this leads to students being able to view the most important parts of the notebooks without launching them and running them, but this is difficult as if we want to render the notebooks with code output we would have to remove the **execute** tag in `_quarto.yml`. The `execute` tag is showed below: 
+
+- eval: false means notebooks are not executed during site build.
+- keep-ipynb: false indicates not to keep output .ipynb files.
+- cache: false avoids using or keeping any cache created by computations.
+
+Because our build pipeline exists within a Docker Container and infrastructure we would have to have all relevant packages, and datasets included in the .dockerfile. Some of the datasets are private and we can not host them on our repository/website for copyright images and if we were to include the remaining data the size of the .dockerfile would be multiple gigabytes - not exactly lightweight. Along with this all of the packages need to have a version number (to be robust to updates) and have to be compatible with each other which would lead to a complex .env file. The solution to this is described below, a way to have a rendered .html without the problems with data and packages described above.
+
+First we need to manually create a full encapsulated .html from each .qmd file we are planning to have rendered. This is done by adding these commands to the .qmd header: 
+
+```{bash}
+execute:
+  eval: true
+  echo: true
+  output: true
+```
+
+and: 
+```{bash}
+html:
+    embed-resources: true
+    self-contained-math: true
+```
+
+Once this is done for our file we can run locally `quarto render FILENAME.qmd` and a .html file will be created in `praxis-ubc\project\_site\docs\CLASS\...,` this is `.gitignored` so it is not a problem that files are created here. Copy this .html and put it into the directory where the original .qmd is. In the case of SOCI415 it would be `praxis-ubc\project\docs\SOCI-415.` It is important that the .html files are created within the repository as they need to have the nav-bar and website layout. 
+ 
+Now that the .html files are created we need to make changes to the `.dockerfile`, and `_quarto.yml`. As of **2025-11-21** all of these changes are already made for existing files, but will have to be made for new files: 
+
+- In the .dockerfile under `praxis-ubc\meta\building\.dockerfile` we need to remove the .qmd so it is not rendered and then in the next step copy the .html to the output directory which has the files for the website. Example code of this is: `RUN rm -f ./docs/SOCI-415/soci_415_network_analysis.qmd` and `COPY ./project/docs/SOCI-415/soci_415_network_analysis.html /app/output/docs/SOCI-415/`. 
+- In the `_quarto.yml` add a line like `“!docs/SOCI-415/soci_415_network_analysis.qmd"`, the `!` makes quarto ignore the file in the build. This will be for the given notebook. 
+- Now under the directory where the original .qmd is add a `_stub.qmd` with an html redirect link an example is: <meta http-equiv="refresh" content="0; url=soci_415_network_analysis.html">, check the formatting in any of the files under `project/docs/CLASS` it is more clear there. The stub acts as a redirect to the .html. 
+- Change the index under `project/pages/index/index_CLASS.qmd` to be the stub and not the original .qmd. 
+
+Once all of these changes are implemented and the site is rebuilt there will be rendered .html files with code output showing. This solutuion does not affect the build time and we do not need to add packages or datasets. 
+
+## 7. Local Development & Testing
+
+The easiest way to test changes made to the website is using Docker locally and building the website locally. The next part of this notebook will describe how to build the website locally on Mac and Windows. This next section is repurposed from COMET (prAxIs's sister project). 
+
+## 7.1 Cloning the Github Repository (Windows)
+
+On Windows first visit the offical [Git Website](https://git-scm.com/) and press download for Windows. After doing that follow the instructions in the install wizard, you can use the default settings (unless you have some other preferences). Once this process is finished you have two options, **1.** you can clone the repository using the Command Line or **2.** you can clone it using a GUI Git Client like [Github Desktop](https://github.com/apps/desktop). This is personal preference, if you are less comfortable using the terminal you can use Github Desktop. For the next steps you only need to follow either 7.1.1 or 7.1.2 as they accomplish the same task of cloning the repository. 
+
+## 7.1.1 Cloning the Repository Using Command Line 
+Open the application Git Bash using Windows Search. If you wish to clone it to a specific place navigate to that directory using the command `cd "your\path\to\it"` if not it will install in the default locaiton (the GitHub Folder). Next inside of Git Bash run the command
+
+```{bash}
+git clone https://github.com/ubcecon/praxis-ubc.git
+```
+
+Running this command will prompt you for your sign in information for your GitHub account, follow the steps in the terminal. If you do not have an account make one as it is needed for this notebook. 
+
+Now after this process if completed you will have a new directory named praxis-ubc inside of your GitHub Folder. 
+
+## 7.1.2 Cloning the Repository Using GitHub Desktop
+
+If you have not already then install [GitHub Desktop](https://github.com/apps/desktop), by pressing download and following the instructions in the install wizard. Once this is done open GitHub Desktop and sign in using your GitHub Account. 
+
+At the top click on File -> Clone Repository and in the URL tab enter https://github.com/ubcecon/praxis-ubc.git, next choose the local path and press clone.  
+
+## 7.2 Enable Virtualization and Install WSL2
+
+In order to run prAxIs locally you will need to activate virtualization and install Windows SubSystem for Linux 2 (WSL2). To do this you will need to restart your computer and enter your BIOS. This can be done by pressing F2, Delete or another key during the restart process. The correct key will flash on screen. Once inside of the BIOS look for a setting related to virtualization, which may be called "Intel Virtualization Technology," "AMD-V," or similar depending on your motherboard manufacterer. Once you find the setting enable it, save changes and exit BIOS. 
+
+To install WSL 2, open powershell by Admin by right clicking on it and pressing Run as Administrator. Run the command below, during the install process you wil be asked to restart your computer. 
+
+```{bash}
+wsl --install
+```
+
+Virtualization is necessary for this process, but it can have some negative impacts on your computer. None of these are major, but still something to keep in mind. There can be some performace impacts, system slowdowns, and issues with software or application compatitiblity (Licencing issues, Kernel Level Anti-Cheats for certain videogames, or simply software vendors stating that they do not want their apps running in VM's).
+
+If any of this is an issue you can always disable Virtualization by going back to your BIOS and disabling the feature in the same way you enabled it.
+
+## 7.3 Installing Docker 
+
+Go to the [Docker Website](https://www.docker.com/) and press download for Windows AMD64, then follow the instructions in the installer. During the installation process ensure that the "Use WSL 2 instead of Hyper-V" option is selected.  
+
+## 7.4 Building prAxIs Locally 
+
+Open an Admin Powershell Terminal (right clicking on it and pressing Run as Administrator) inside of which navigate to your path to the GitHub praxis-ubc folder
+
+It will look similar to `C:\Users\your\path\to\GitHub\praxis-ubc` once you find this path write it down and then in the Powershell type in 
+```{bash}
+cd "C:\Users\your\path\to\GitHub\praxis-ubc"
+```
+
+You can then check if you are on the main branch of praxis-ubc by running the following command inside of the CD from before. If you are not already on the main branch then this command will swap you back to it. 
+```{bash}
+git checkout main
+```
+
+Next run the command:
+```{bash}
+docker build -t praxis-ubc-site -f meta\building\.dockerfile .
+```
+
+This will build the image for prAxIs locally, this process will take some time, once it is completed you have a local image of the prAxIs website called praxis-ubc-site with the tag latest. At this point you are almost done
+
+Next run the command: 
+```{bash}
+docker run -d -p 8080:80 praxis-ubc-site
+```
+
+This will run the image inside of a container which can then be viewed with the URL `http://localhost:8080`. Open a browser and type in this URL, you will see the prAxIs Website displayed locally with all of the notebooks rendered and new changes.  
+
+## 7.5 Cloning the Github Repository (Mac)
+On Mac, Git can be preinstalled. If it is not yet installed, then we will be following the instructions on the [Official Git Website](https://git-scm.com/downloads/mac). First, we will install [Homebrew](https://brew.sh/). To do this, open a terminal (press `Command` + `Space` and search `Terminal`) and paste in the command below.
+
+```{bash}
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+This command will install Homebrew. It may prompt you for your password - you can enter it in the terminal. Once this process finishes, type in the command below into the Terminal and Homebrew will install the Git package. 
+
+```{bash}
+brew install git
+```
+
+Once this process is finished you have two options.
+
+1. You can clone the repository using the Command Line.
+2. You can clone the repository using a GUI Git Client, like [GitHub Desktop](https://github.com/apps/desktop). 
+
+This is a matter of personal preference. If you are less comfortable using the terminal, you can use GitHub Desktop. You only need to follow either **7.5.1** or **7.5.2**, as they accomplish the same task of cloning the repository. 
+
+## 7.5.1 Cloning the Repository Using Terminal
+
+Open your Terminal as we did before, and then navigate to the directory where you want to clone the repository using the `cd` command. For example:
+
+```{bash}
+cd ~/Documents
+```
+
+changes the directory to your Documents folder. 
+
+Clone the repository by running the command:
+```{bash}
+git clone https://github.com/ubcecon/praxis-ubc.git
+```
+
+## 7.5.2 Cloning the Repository Using GitHub Desktop
+
+Install [GitHub Desktop](https://github.com/apps/desktop) by pressing download and following the installation instructions. Once this is done, open GitHub Desktop and sign in using your GitHub Account. 
+
+At the top, click on `File -> Clone Repository` and in the URL tab enter https://github.com/ubcecon/praxis-ubc.git. Next choose the local path and press clone.  
+
+## 7.6 Installing Docker
+
+Go to the [Docker Website](https://www.docker.com/). Once there, press `Download Docker Desktop` and select `Download for Mac` for the correct chip archetype (Intel or Apple Silicon). If you are unsure which chip your Mac has, you can check under `About This Mac`. Once downloaded, open the `.dmg` file and drag the Docker icon to your Applications folder. Then open Docker Desktop from your Applications folder. To complete the installation of Docker Desktop, select `Use recommended settings`, then type your password and then wait for Docker to start. You'll see the whale icon in your menu bar when it's ready.
+
+## 7.8 Build prAxIs Locally
+
+Next, navigate to the folder where you cloned the `praxis-ubc` directory and copy the path to the `praxis-ubc` folder. You can do this by right-clicking on the folder and clicking `copy`. Then, open your Terminal again (`Command` + `Space` and search for Terminal), and change the directory using `cd` to the path to the folder. It should look something like this: 
+
+```{bash}
+cd /Users/Path/to/your/praxis-ubc
+```
+
+You can then check if you are on the main branch of `praxis-ubc` by running the following command.
+
+```{bash}
+git branch
+```
+
+This will list out which branches are available, and there will be a `*` next to the branch that you are on. If you are not already on the main branch, this command will swap you back to it:
+
+```{bash}
+git switch main
+```
+
+Next, run the following command, but **be sure to change the path to YOURS! And made sure to set YOUR platform - this should be arm64 or amd64 depending on your Mac.**
+
+```{bash}
+docker build --platform=linux/amd64 -t praxis-ubc-site -f /Users/Path/to/your/praxis-ubc/meta/building/.dockerfile .
+
+docker build --platform=linux/amd64 -t praxis-ubc-site -f meta/building/.dockerfile .
+```
+
+This will build the image for prAxIs locally. This process will take some time (~10 minutes), so be patient! Once it is completed, you will have a local image of the prAxIs website called `praxis-ubc` with the tag `latest`. At this point you are almost done
+
+Next run the command 
+```{bash}
+docker run -d -p 8080:80 praxis-ubc-site
+```
+
+This will run the image inside of a container which can then be viewed with the URL `http://localhost:8080`. Open a browser and type in this URL, you will see the prAxIs website displayed locally with all of the notebooks rendered and your new changes. 
+
+## 8.0 Conclusion
+
+This concludes our notebook on the structure of the praxis-ubc repository and website including all of the build pipelines, and files powering them. This is not a style guide or repository guidelines, those can be found under `praxis-ubc\documentation\style_guide` and `README.md`. 
