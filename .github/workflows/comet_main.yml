@@ -147,19 +147,16 @@ jobs:
       - name: Convert QMD to IPYNB and clean titles
         run: |
           cp meta/scripts/clean_ipynb_titles.py final-notebooks/
-        
           cd final-notebooks
-          find . -name "*.qmd" -type f -not -name "*plan*" | while read file; do
+          find . -name "*.qmd" -type f ! -name "*plan*" ! -name "*stub*" | while read file; do
             echo "Converting: $file"
             quarto convert "$file"
-          
             ipynb_file="${file%.qmd}.ipynb"
-          
-             if [ -f "$ipynb_file" ] && [[ ! "$ipynb_file" =~ plan ]]; then
+            if [ -f "$ipynb_file" ] && [[ ! "$ipynb_file" =~ plan ]] && [[ ! "$ipynb_file" =~ stub ]]; then
               echo "  Cleaning: $ipynb_file"
               python clean_ipynb_titles.py "$ipynb_file"
             else
-              echo "  Warning: $ipynb_file not created"
+              echo "  Warning: $ipynb_file not created or is a plan/stub"
             fi
           done
 
