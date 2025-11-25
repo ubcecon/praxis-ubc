@@ -55,11 +55,21 @@ In addition, the case study we propose, focusing on legal documents will fill a 
 3. Please share some insights into how you came to use this method or tool as part of your work within the humanities:  
 [100-300 words]
 
+In my work, I often encounter historical texts that require deep analysis to uncover implicit meanings, relationships, and contradictions. Traditional NLP techniques like topic modeling and word embeddings have been useful, but I found them limited when it comes to drawing nuanced inferences from texts, especially when seeking to understand stances or implications that are not explicitly stated.
 
+However, labeling data for supervised learning tasks in historical contexts is often impractical due to the scarcity of annotated datasets. This led me to explore zero-shot learning approaches, particularly Natural Language Inference (NLI) models, which can infer relationships between text pairs without needing task-specific training data. While challenge still exists in finding effective models and applying these models to historical texts due to language evolution and OCR errors, I found that with careful prompt engineering and data preparation, NLI models can yield valuable insights. 
+
+Therefore, I believe that sharing this method through a Programming Historian lesson could greatly benefit other researchers in the humanities who face similar challenges in analyzing historical texts.
 
 4. Please tell us about the research case study you propose centring within your lesson.
 - Successful lessons centre real datasets and sample code that readers can handle and experiment with.
 [100-300 words]
+
+The research case study we propose centers on a corpus of legal documents related to early Chinese immigrants in British Columbia, Canada, during the late 19th and early 20th centuries. This corpus includes rulings, acts, and commission reports, with a particular focus on the "Chinese Regulation Act, 1884" and related legal cases such as "Regina v. Wing Chong (1885)" and "Regina v. Mee Wah (1885)". These documents provide a rich context for exploring how NLI can be applied to historical texts, as they contain complex legal language and implicit relationships that are not always explicitly stated.
+
+Our study specifically focus on the two judges' rulings in the cases mentioned above, analyzing how NLI models can help infer stances, contradictions, and entailments within the legal arguments presented. We will demonstrate how to prepare the text data, using embedding methods to mine for stance inference and topic alignment, and then apply zero-shot NLI models using Python, and interpret the results in the context of historical legal analysis. 
+
+In our lesson, we will provide readers with access to the pre-processed text data and sample code that they can use to replicate the analysis. This hands-on approach will allow readers to experiment with NLI techniques and gain practical experience in applying these methods to historical texts. We would also introduce interactive visualizations created using Plotly Python library to help readers better explore and understand the inference results.
 
 5. Please outline how your choice of software and data would support our commitment to openness:
 We advocate for the use of open source software, open programming languages, open access datasets wherever possible.
@@ -69,16 +79,39 @@ Use these questions to structure your answer:
 - What (if any) costs are required to use this tool? Does access require users to supply credit card information?
 [100-300 words]
 
+The lesson will primarily utilize open source software and tools to ensure accessibility and support our commitment to openness. We will use Python, an open-source programming language widely adopted in the digital humanities community, along with Jupyter Notebooks for an interactive coding environment.
+
+For NLP tasks, we will leverage the Hugging Face Transformers library, which is open source and provides access to a variety of pre-trained models suitable for Natural Language Inference (NLI). Additionally, we will use other open-source libraries such as NumPy, Pandas, NLTK, Spacy NLP and Plotly for data manipulation, text processing, and visualization.
+
+The dataset we will use for the case study consists of legal documents that are publicly available through the Canadian Legal Information Institute (CanLII) archives. We will provide pre-processed versions of these texts in plain text format, ensuring that readers can easily access and work with the data without any restrictions.
+
+The models and libraries we will use do not require any proprietary software or commercial tools, making them freely accessible to all users. There are no costs associated with using the tools and datasets presented in this lesson, and users will not need to supply credit card information to access any of the resources. To access more hugging face models, users may need to create a free account on the Hugging Face website, but this does not involve any payment information for basic access.
+
+To handle the possible computational limitations of some users, we will also provide instructions for using Google Colab, a free cloud-based platform that allows users to run Python code without needing to install software locally. Google Colab does not require users to supply credit card information for basic access, making it an accessible option for most users.
+
 6. Please provide us with some information about how your method or tool could be applied or adapted for use in languages other than English:
 - We have a strong preference for methodologies and tools that can be used in multilingual research-contexts.  
 [100-300 words]
+
+Since the release of BERT and other transformer-based models, there has been significant progress in developing multilingual NLP models that can handle a variety of languages. Many pre-trained models available through the Hugging Face Transformers library, such as bert-base-multilingual-cased, are designed to work with multiple languages, making them suitable for NLI tasks in non-English contexts.
+
+In our lesson, while we will focus on English-language historical texts, the methodologies we present can be adapted for use with texts in other languages. We will also leave out a section discussing where and how to find suitable multilingual NLI models, as well as considerations for handling language-specific challenges, such as tokenization and cultural context.
+
+Furthermore, the data preparation techniques and prompt engineering strategies we discuss can be generalized to other languages, allowing researchers to apply NLI techniques to historical texts in their native languages. We will encourage readers to explore multilingual datasets and experiment with different models to see how well they perform on texts in various languages.
 
 7. Please outline any technical prerequisites and potential limitations of access to using this method or tool:
 - Our readers work with different operating systems and have varying computational resources.  
 [100-200 words]
 
+The technical prerequisites for this lesson include a basic understanding of Python programming and familiarity with Jupyter Notebooks. Readers should also have some foundational knowledge of NLP concepts, although we will provide introductory explanations of key terms related to NLI. We would recommend readers to first complete introductory lessons on Python, Jupyter, text processing, and word embeddings available on Programming Historian if they are new to these topics.
+
+To accommodate readers with varying computational resources, we will provide two options for setting up the lesson environment: a local setup using Anaconda and a cloud-based solution using Google Colab. The local setup may require more computational power, especially when working with large models, while Google Colab offers free access to GPUs, making it more accessible for users with limited hardware capabilities.
+
 8. Optional link to sample code or a draft extract of this proposed lesson on your personal GitHub repository:
 
+The case study is based on a workshop presented at APSA pre-conference in 2025. You can find the relevant information here: <https://migration.ubc.ca/news/apsa-pre-conference-narrative-and-text-analysis-in-the-study-of-migration-and-citizenship/>.
+
+A rendered html version of the workshop notebook can be found here: <https://ubcecon.github.io/praxis-ubc/docs/hist_workshop/text_embeddings_workshop.html>.
 
 ---
 
