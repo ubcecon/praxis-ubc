@@ -25,6 +25,8 @@ Answer the following questions if you are proposing an *original* English-langua
 
 a). What is your proposed lesson title?
 
+Natural Language Inference for Historical Text Analysis Using Python
+
 We suggest a short, descriptive title:
 
 - Begin with verb or a noun to define the main learning activity, method or process.
@@ -35,6 +37,8 @@ We suggest a short, descriptive title:
 1. What can readers expect to learn from your proposed lesson?
 [3-4 sentences]
 
+This lesson is aiming at teaching readers the basics of natural language inference and how to apply NLI techniques to analyze historical texts in Python. We propose a lesson with two parts: 1) an introduction to the fundamentals of NLI and the traditional methods of inference in NLP, and 2) zero-shot NLI using pre-trained models. We will illustrate the application of NLI techniques through a case study analyzing a corpus of legal documents related to early Chinese immigrants in British Columbia, Canada. By the end of the lesson, readers will be able to understand NLI concepts, set up a Python environment (both locally and online through Google Colab) for NLI tasks, and apply zero-shot NLI models to draw inferences from historical texts.
+
 2. Please tell us how your proposal could support, expand, or supplement the lessons we've already published.
 Use these questions to structure your answer:
 - To which existing _Programming Historian_ lesson(s) could your proposal provide a foundational introduction?
@@ -42,8 +46,16 @@ Use these questions to structure your answer:
 - How could your proposal fill a gap in our lesson directory?  
 [200-300 words]
 
+Currently, Programming Historian has a variety of lessons focusing on text analysis, word embeddings and topic modeling, but there is a noticeable gap in resources specifically addressing Natural Language Inference (NLI) and its applications in historical text analysis. While some lessons touch on NLP techniques, none provide a comprehensive introduction to NLI, particularly zero-shot NLI, which allows for inference without the need for labeled training data, which we found particularly useful for historical texts where labeled data is often scarce.
+
+We see this lesson as an extension to the lesson *Understanding and Creating Word Embeddings*, which introduced readers to word embeddings and their applications in historical text analysis. Our proposed lesson would build upon that foundation by introducing other approaches to understanding text embeddings, such as pooling methods for stance inference, and then advancing into NLI through pre-trained models.
+
+In addition, the case study we propose, focusing on legal documents will fill a gap in the existing resources that rarely address the specific challenges of analyzing historical legal texts, such as archaic language and OCR errors. By providing practical guidance on using NLI models in this context, we aim to equip historians and digital humanists with new tools and methodologies for their research.
+
 3. Please share some insights into how you came to use this method or tool as part of your work within the humanities:  
 [100-300 words]
+
+
 
 4. Please tell us about the research case study you propose centring within your lesson.
 - Successful lessons centre real datasets and sample code that readers can handle and experiment with.
