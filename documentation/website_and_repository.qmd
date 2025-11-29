@@ -273,7 +273,7 @@ On our website we want to have the code output showing as this leads to students
 
 Because our build pipeline exists within a Docker Container and infrastructure we would have to have all relevant packages, and datasets included in the .dockerfile. Some of the datasets are private and we can not host them on our repository/website for copyright images and if we were to include the remaining data the size of the .dockerfile would be multiple gigabytes - not exactly lightweight. Along with this all of the packages need to have a version number (to be robust to updates) and have to be compatible with each other which would lead to a complex .env file. The solution to this is described below, a way to have a rendered .html without the problems with data and packages described above.
 
-First we need to manually create a full encapsulated .html from each .qmd file we are planning to have rendered. This is done by adding these commands to the .qmd header: 
+First we need to manually create a full encapsulated .html from each .qmd file we are planning to have rendered. If we do not add this to the header the .html is generated along with all outputs, images, libs and other related files. This would lead to a lot of unneeded files in the repository, and the size of the repository would grow uncontrollably. We need to make these .html "Self-Contained." This is done by adding these commands to the .qmd header: 
 
 ```{bash}
 execute:
@@ -289,13 +289,13 @@ html:
     self-contained-math: true
 ```
 
-Once this is done for our file we can run locally `quarto render FILENAME.qmd` and a .html file will be created in `praxis-ubc\project\_site\docs\CLASS\...,` this is `.gitignored` so it is not a problem that files are created here. Copy this .html and put it into the directory where the original .qmd is. In the case of SOCI415 it would be `praxis-ubc\project\docs\SOCI-415.` It is important that the .html files are created within the repository as they need to have the nav-bar and website layout. 
+Once this is done for our file we can run locally `quarto render FILENAME.qmd` and a .html file will be created in `praxis-ubc\project\_site\docs\CLASS\...,` this is `.gitignored` so it is not a problem that files are created here. We then copy this .html and put it into the directory where the original .qmd is. In the case of SOCI415 it would be `praxis-ubc\project\docs\SOCI-415.` It is important that the .html files are created within the repository as they need to have the nav-bar and website layout. 
  
 Now that the .html files are created we need to make changes to the `.dockerfile`, and `_quarto.yml`. As of **2025-11-21** all of these changes are already made for existing files, but will have to be made for new files: 
 
-- In the .dockerfile under `praxis-ubc\meta\building\.dockerfile` we need to remove the .qmd so it is not rendered and then in the next step copy the .html to the output directory which has the files for the website. Example code of this is: `RUN rm -f ./docs/SOCI-415/soci_415_network_analysis.qmd` and `COPY ./project/docs/SOCI-415/soci_415_network_analysis.html /app/output/docs/SOCI-415/`. 
-- In the `_quarto.yml` add a line like `“!docs/SOCI-415/soci_415_network_analysis.qmd"`, the `!` makes quarto ignore the file in the build. This will be for the given notebook. 
-- Now under the directory where the original .qmd is add a `_stub.qmd` with an html redirect link an example is: <meta http-equiv="refresh" content="0; url=soci_415_network_analysis.html">, check the formatting in any of the files under `project/docs/CLASS` it is more clear there. The stub acts as a redirect to the .html. 
+- In the .dockerfile under `praxis-ubc\meta\building\.dockerfile` we need to remove the .qmd so it is not rendered and then in the next step copy the .html to the output directory which has the files for the website. Example code of this is: `RUN rm -f ./docs/SOCI-415/soci_415_network_analysis.qmd` and `COPY ./project/docs/SOCI-415/soci_415_network_analysis.html /app/output/docs/SOCI-415/`. This means the .qmd with the new "self-containing" header is not rendered as if it was rendered we would get an error that we are missing various libraries, or data (the build would fail).
+- In the `_quarto.yml` add a line like `“!docs/SOCI-415/soci_415_network_analysis.qmd"`, the `!` makes quarto ignore the file in the build. This will be for the given notebook. This is similar to above the .qmd is not used for "constructing" the website. If this is not removed we get an error here.
+- Now under the directory where the original .qmd is add a `_stub.qmd` with an html redirect link an example is: <meta http-equiv="refresh" content="0; url=soci_415_network_analysis.html">, check the formatting in any of the files under `project/docs/CLASS` it is more clear there. The stub acts as a redirect to the "self-contained" .html. 
 - Change the index under `project/pages/index/index_CLASS.qmd` to be the stub and not the original .qmd. 
 
 Once all of these changes are implemented and the site is rebuilt there will be rendered .html files with code output showing. This solutuion does not affect the build time and we do not need to add packages or datasets. 
