@@ -16,12 +16,14 @@ Usage:
     python re_render_qmd_files.py [--dry-run] [--file FILENAME]
 
 Options:
-    --dry-run       Show what would be done without actually rendering
+    --dry-run       Show what would be done without actually rendering (python re_render_qmd_files.py --dry-run)
     --file FILENAME Only render a specific file (partial match supported)
     --skip-verify   Skip header verification
     --verbose       Show detailed output
 
 Date: 2025-01-24
+Updated: 2026-01-30 - Fixed: explicitly pass cwd to subprocess.run() for reliable
+                      rendering from project directory (required for _quarto.yml)
 """
 
 import argparse
@@ -30,6 +32,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -119,6 +122,78 @@ class QMDReRenderer:
 
         return len(missing) == 0, missing
 
+    def _temporarily_unexclude_file(self, rel_path: str) -> str:
+        """Temporarily remove exclusion for a file from _quarto.yml.
+
+        Returns the original line (with newline) for restoration.
+        """
+        content = self.quarto_yml.read_text(encoding='utf-8')
+
+        # Find and comment out the exclusion line
+        # Pattern: - "!docs/path/file.qmd" or - '!docs/path/file.qmd'
+        pattern = rf'([ \t]*-[ \t]*["\']?!{re.escape(rel_path)}["\']?[ \t]*\r?\n)'
+
+        match = re.search(pattern, content)
+        if match:
+            original_line = match.group(1)
+            # Comment out the line (preserving line ending)
+            commented = f"  # TEMP_DISABLED:{original_line.rstrip()}\n"
+            new_content = content.replace(original_line, commented)
+            self.quarto_yml.write_text(new_content, encoding='utf-8')
+            return original_line
+        return ""
+
+    def _restore_exclusion(self, original_line: str):
+        """Restore the original exclusion line in _quarto.yml."""
+        if not original_line:
+            return
+
+        content = self.quarto_yml.read_text(encoding='utf-8')
+        # Find the commented line and restore it
+        commented_pattern = rf'[ \t]*# TEMP_DISABLED:{re.escape(original_line.rstrip())}\r?\n'
+        new_content = re.sub(commented_pattern, original_line, content)
+        self.quarto_yml.write_text(new_content, encoding='utf-8')
+
+    def _get_directory_contents(self, directory: Path) -> set[str]:
+        """Get set of all files and directories in a directory."""
+        contents = set()
+        if directory.exists():
+            for item in directory.iterdir():
+                contents.add(item.name)
+        return contents
+
+    def _cleanup_render_artifacts(self, qmd_path: Path, pre_render_contents: set[str], target_html: str):
+        """Remove any new files/directories created during render, except target HTML."""
+        parent_dir = qmd_path.parent
+        current_contents = self._get_directory_contents(parent_dir)
+
+        # Find new items (created during render)
+        new_items = current_contents - pre_render_contents
+
+        # Also always clean up these patterns even if they existed before
+        base_name = qmd_path.stem
+        always_clean = {
+            f"{base_name}.ipynb",
+            f"{base_name}.quarto_ipynb",
+            f"{base_name}_files",
+            "lib",  # Quarto lib directory
+        }
+
+        items_to_clean = (new_items | always_clean) - {target_html}
+
+        for item_name in items_to_clean:
+            item_path = parent_dir / item_name
+            if item_path.exists():
+                try:
+                    if item_path.is_dir():
+                        shutil.rmtree(item_path)
+                        self.log(f"  Cleaned up directory: {item_name}")
+                    else:
+                        item_path.unlink()
+                        self.log(f"  Cleaned up file: {item_name}")
+                except Exception as e:
+                    self.log(f"  Warning: Could not remove {item_name}: {e}", force=True)
+
     def render_file(self, qmd_path: Path, dry_run: bool = False) -> RenderResult:
         """Render a single QMD file and copy the output HTML."""
         result = RenderResult(file_path=qmd_path, success=False)
@@ -139,49 +214,72 @@ class QMDReRenderer:
 
         if dry_run:
             print(f"  [DRY RUN] Would render: {qmd_path}")
-            print(f"  [DRY RUN] Would copy from: {site_html_path}")
-            print(f"  [DRY RUN] Would copy to: {dest_html_path}")
+            print(f"  [DRY RUN] Output will be at: {dest_html_path}")
+            print(f"  [DRY RUN] (excluded files render directly to source dir)")
             result.success = True
             return result
 
-        # Change to project directory for rendering
-        original_cwd = os.getcwd()
+        # Record directory contents before render for cleanup
+        pre_render_contents = self._get_directory_contents(qmd_path.parent)
 
+        # Temporarily remove exclusion so file renders with project settings
+        original_exclusion = None
         try:
-            os.chdir(self.project_root)
+            # Use forward slashes for quarto command (works on all platforms)
+            relative_path_str = relative_path.as_posix()
 
-            # Run quarto render
-            self.log(f"  Running: quarto render {relative_path}")
+            # Temporarily unexclude the file from _quarto.yml
+            # This ensures it renders WITH navbar and theme from project
+            self.log(f"  Temporarily enabling file in _quarto.yml...")
+            original_exclusion = self._temporarily_unexclude_file(relative_path_str)
+
+            # Record time before render to detect newly created files
+            render_start_time = time.time()
+
+            # Run quarto render from the project directory
+            self.log(f"  Running: quarto render {relative_path_str}")
+            self.log(f"  Working directory: {self.project_root}")
 
             process = subprocess.run(
-                ['quarto', 'render', str(relative_path)],
+                ['quarto', 'render', relative_path_str],
                 capture_output=True,
                 text=True,
-                timeout=600  # 10 minute timeout
+                cwd=self.project_root,  # Explicitly set working directory
+                # No timeout - some notebooks take longer to render
             )
 
             if process.returncode != 0:
                 result.error_message = f"Quarto render failed:\n{process.stderr}"
+                if process.stdout:
+                    result.error_message += f"\nstdout:\n{process.stdout}"
                 return result
 
-            # Check if HTML was generated
-            if not site_html_path.exists():
-                result.error_message = f"Expected HTML not found at: {site_html_path}"
+            # Check if HTML was freshly created in _site (project render behavior)
+            site_is_fresh = (site_html_path.exists() and
+                           site_html_path.stat().st_mtime >= render_start_time)
+
+            if site_is_fresh:
+                # HTML was created in _site/, copy to source directory
+                self.log(f"  Copying: {site_html_path} -> {dest_html_path}")
+                shutil.copy2(site_html_path, dest_html_path)
+                result.success = True
+                result.html_copied = True
+            else:
+                result.error_message = f"HTML not freshly created at expected locations:\n"
+                result.error_message += f"  - {dest_html_path}\n"
+                result.error_message += f"  - {site_html_path}"
                 return result
 
-            # Copy HTML to source directory
-            self.log(f"  Copying: {site_html_path} -> {dest_html_path}")
-            shutil.copy2(site_html_path, dest_html_path)
+            # Clean up unwanted files created by Quarto
+            self._cleanup_render_artifacts(qmd_path, pre_render_contents, html_filename)
 
-            result.success = True
-            result.html_copied = True
-
-        except subprocess.TimeoutExpired:
-            result.error_message = "Render timed out (exceeded 10 minutes)"
         except Exception as e:
             result.error_message = f"Unexpected error: {str(e)}"
         finally:
-            os.chdir(original_cwd)
+            # Always restore the exclusion in _quarto.yml
+            if original_exclusion:
+                self.log(f"  Restoring exclusion in _quarto.yml...")
+                self._restore_exclusion(original_exclusion)
 
         return result
 
