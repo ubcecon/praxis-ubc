@@ -258,12 +258,24 @@ class QMDReRenderer:
             site_is_fresh = (site_html_path.exists() and
                            site_html_path.stat().st_mtime >= render_start_time)
 
+            # Check if HTML was freshly created in source directory (single file render behavior)
+            # When rendering a single file with `quarto render file.qmd`, Quarto outputs
+            # to the source directory, not _site, regardless of project configuration.
+            dest_is_fresh = (dest_html_path.exists() and
+                            dest_html_path.stat().st_mtime >= render_start_time)
+
             if site_is_fresh:
                 # HTML was created in _site/, copy to source directory
                 self.log(f"  Copying: {site_html_path} -> {dest_html_path}")
                 shutil.copy2(site_html_path, dest_html_path)
                 result.success = True
                 result.html_copied = True
+            elif dest_is_fresh:
+                # HTML was created directly in source directory (single file render)
+                # No copy needed - file is already in the right place
+                self.log(f"  HTML created directly in source directory: {dest_html_path}")
+                result.success = True
+                result.html_copied = False  # No copy was needed
             else:
                 result.error_message = f"HTML not freshly created at expected locations:\n"
                 result.error_message += f"  - {dest_html_path}\n"
