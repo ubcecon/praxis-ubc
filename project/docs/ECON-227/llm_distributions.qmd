@@ -964,3 +964,101 @@ However, it is important to note that the model's predictions are not perfect an
 - GeeksforGeeks. (2023, September 27). Complete guide to SARIMAX in Python. [https://www.geeksforgeeks.org/python/complete-guide-to-sarimax-in-python/](https://www.geeksforgeeks.org/python/complete-guide-to-sarimax-in-python/)
 - Sprenger, T. O., Tumasjan, A., Sandner, P. G., & Welpe, I. M. (2014, February 5). *Twitter sentiment and stock market movements: The predictive power of social media*. VoxEU. [https://cepr.org/voxeu/columns/twitter-sentiment-and-stock-market-movements-predictive-power-social-media](https://cepr.org/voxeu/columns/twitter-sentiment-and-stock-market-movements-predictive-power-social-media)
 
+
+# Katherine suggested edits
+# for a singke module 
+# llm_forecasting/pipeline.py
+
+class SentimentForecaster:
+    """
+    High-level forecasting pipeline that mirrors LLM-style prediction:
+    context → distribution → forecast
+    """
+
+    def __init__(self, ticker, sentiment_model):
+        self.ticker = ticker
+        self.sentiment_model = sentiment_model
+
+    def load_data(self, news_df, price_df):
+        self.news_df = news_df
+        self.price_df = price_df
+
+    def build_features(self):
+        from .sentiment import apply_sentiment, process_sentiment
+        from .data import combine_data
+
+        sentiment = apply_sentiment(self.news_df)
+        sentiment_summary = process_sentiment(sentiment)
+        self.dataset = combine_data(sentiment_summary, self.price_df)
+
+    def fit(self):
+        from .models import fit_sarimax
+        self.model = fit_sarimax(self.dataset)
+
+    def forecast(self, steps=3):
+        return self.model.forecast(steps)
+
+    def plot(self):
+        from .visualization import plot_forecast
+        plot_forecast(self.dataset, self.model)
+
+# interactive next-word predictor
+import ipywidgets as widgets
+import numpy as np
+import matplotlib.pyplot as plt
+
+vocab = ["buy", "sell", "hold", "wait"]
+base_probs = np.array([0.5, 0.2, 0.2, 0.1])
+
+def sample_next_word(temp):
+    logits = np.log(base_probs)
+    scaled = logits / temp
+    probs = np.exp(scaled) / np.exp(scaled).sum()
+    word = np.random.choice(vocab, p=probs)
+
+    plt.bar(vocab, probs)
+    plt.title(f"Temperature = {temp}\nSampled token = '{word}'")
+    plt.ylim(0,1)
+    plt.show()
+
+widgets.interact(
+    sample_next_word,
+    temp=widgets.FloatSlider(min=0.1, max=2.0, step=0.1, value=1.0)
+)
+
+# next-token prediction
+def next_step_prediction(context_length):
+    data = np.cumsum(np.random.normal(0, 1, 50))
+    context = data[:context_length]
+
+    mean = context[-5:].mean()
+    std = context[-5:].std()
+
+    samples = np.random.normal(mean, std, 100)
+
+    plt.hist(samples, bins=30, alpha=0.7)
+    plt.axvline(mean, color="red", label="Most likely next value")
+    plt.title("Predicting the Next Token (Number)")
+    plt.legend()
+    plt.show()
+
+widgets.interact(
+    next_step_prediction,
+    context_length=widgets.IntSlider(min=5, max=40, step=1, value=20)
+)
+
+#sentiment to map to transformers with extra cibtext embeddings
+def sentiment_conditioned_prediction(sentiment_strength):
+    base_return = np.random.normal(0, 1, 100)
+
+    adjusted = base_return + sentiment_strength * 0.5
+
+    plt.hist(adjusted, bins=30, alpha=0.7)
+    plt.title(f"Sentiment-conditioned forecast\nSentiment = {sentiment_strength}")
+    plt.show()
+
+widgets.interact(
+    sentiment_conditioned_prediction,
+    sentiment_strength=widgets.FloatSlider(min=-2, max=2, step=0.1, value=0)
+)
+
