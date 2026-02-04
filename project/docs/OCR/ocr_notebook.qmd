@@ -1,0 +1,1288 @@
+---
+title: "Optical Character Recognition (OCR) for Humanities Research"
+author: "Alex Ronczewski"
+date: 2026-02-03
+description: A practical guide to extracting text from historical documents using Python.
+categories:
+  - Python
+  - OCR
+  - text extraction
+  - image processing
+  - digital humanities
+execute:
+  eval: true
+  echo: true
+  output: true
+format:
+  html:
+    code-fold: true
+    code-summary: "Show the code"
+    embed-resources: true
+    self-contained-math: true
+jupyter: python3
+---
+
+## Setup and Library Loading
+
+Before we begin, we need to install and import the necessary libraries. This notebook uses several Python packages for OCR, image processing, and text analysis.
+
+::: {.callout-tip}
+**Installation Note:** If you're running this notebook for the first time, uncomment and run the installation commands below. Some libraries require additional system dependencies:
+
+- **Poppler**: Required for PDF conversion - install via `conda install poppler` or system package manager
+:::
+
+Install the necessary packages: 
+```{python}
+# Uncomment the line below to install packages:
+#!pip install pytesseract easyocr opencv-python Pillow matplotlib pandas numpy nltk jiwer pdf2image paddlepaddle paddleocr
+```
+
+Load the required packages:  
+```{python}
+# Core libraries
+import os
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE" # multiple libraries bundle OpenMP runtime, and they conflict when loaded together.
+import json
+import warnings
+warnings.filterwarnings('ignore')
+
+# Image processing
+from PIL import Image
+import cv2
+import numpy as np
+
+# OCR engines
+import pytesseract
+import easyocr  
+
+# Data handling and visualization
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Text processing
+import nltk
+from nltk.tokenize import word_tokenize, sent_tokenize
+from nltk.stem import PorterStemmer, WordNetLemmatizer
+
+# Evaluation metrics
+from jiwer import wer, cer
+
+# PDF handling
+from pdf2image import convert_from_path  
+
+# Download NLTK data (run once)
+nltk.download('punkt')
+nltk.download('wordnet')
+nltk.download('averaged_perceptron_tagger')
+
+print("Libraries loaded successfully!")
+```
+
+Here we load our images and prepare the output directory. 
+
+```{python}
+def load_image(path):
+    """
+    Load image from various formats (jp2, pdf, tif, jpg, png).
+
+    JPEG 2000 (.jp2) files require the OpenJPEG codec. If loading fails,
+    consider converting to PNG first using an external tool.
+
+    Parameters:
+        path (str): Path to the image file
+
+    Returns:
+        numpy.ndarray: Image as numpy array (RGB format)
+    """
+    if path.endswith('.pdf'):
+        # For PDFs, use pdf2image (requires poppler)
+        from pdf2image import convert_from_path
+        pages = convert_from_path(path, dpi=300)
+        return np.array(pages[0])
+    else:
+        # For other formats including jp2, tif, jpg, png
+        img = Image.open(path)
+        # Convert to RGB if necessary
+        if img.mode != 'RGB':
+            img = img.convert('RGB')
+        return np.array(img)
+
+def display_image(img, title="Image", figsize=(10, 8)):
+    """Display an image with matplotlib."""
+    plt.figure(figsize=figsize)
+    if len(img.shape) == 2:  # Grayscale
+        plt.imshow(img, cmap='gray')
+    else:
+        plt.imshow(img)
+    plt.title(title)
+    plt.axis('off')
+    plt.tight_layout()
+    plt.show()
+
+def display_images_side_by_side(img1, img2, title1="Before", title2="After", figsize=(14, 6)):
+    """Display two images side by side for comparison."""
+    fig, axes = plt.subplots(1, 2, figsize=figsize)
+
+    if len(img1.shape) == 2:
+        axes[0].imshow(img1, cmap='gray')
+    else:
+        axes[0].imshow(img1)
+    axes[0].set_title(title1)
+    axes[0].axis('off')
+
+    if len(img2.shape) == 2:
+        axes[1].imshow(img2, cmap='gray')
+    else:
+        axes[1].imshow(img2)
+    axes[1].set_title(title2)
+    axes[1].axis('off')
+
+    plt.tight_layout()
+    plt.show()
+
+# Create output directory for processed files
+os.makedirs('output', exist_ok=True)
+print("Output directory ready: ./output/")
+```
+
+---
+
+## Introduction
+
+### What is OCR?
+
+**Optical Character Recognition (OCR)** is the technology that converts different types of documents—scanned paper documents, photographs of text, or images containing text—into editable and searchable digital text.
+
+For humanities researchers, OCR opens up vast archives of historical documents, enabling:
+
+- **Digitization**: Converting physical archives into searchable digital collections
+- **Corpus Building**: Creating large text datasets for computational analysis
+- **Accessibility**: Making historical documents searchable and accessible to researchers worldwide
+- **Text Mining**: Enabling large-scale analysis of historical texts
+
+### What You'll Learn
+
+By the end of this notebook, you will be able to:
+
+1. **Understand OCR vs VLM** and be able to choose which model/tool to use
+2. **Extract text** from historical documents using pyTesseract and EasyOCR
+3. **Pre-process images** to improve OCR accuracy
+4. **Handle complex layouts** like multi-column newspapers
+5. **Evaluate OCR quality** using standard metrics (CER, WER)
+6. **Post-process OCR output** for downstream analysis
+7. **Scale your workflow** for batch processing
+
+---
+
+## Part 1: Traditional OCR
+
+### 1.1 What is Text Extraction?
+
+Text extraction from documents falls into three main categories:
+
+1. **Printed Text**: Machine-generated text (newspapers, books, typed documents)
+   - Best suited for traditional OCR engines
+   - High accuracy achievable with good quality scans
+
+2. **Handwritten Text**: Human-written manuscripts, letters, notes
+   - Requires specialized HTR models
+   - Accuracy varies significantly based on handwriting style
+
+3. **Mixed Content**: Documents with text, illustrations, tables
+   - Requires layout analysis before text extraction
+   - May need different approaches for different regions
+
+#### The OCR Tool Landscape
+
+| Tool | Type | Strengths | Best For |
+|------|------|-----------|----------|
+| **Tesseract** | Open-source | Fast, accurate on clean text | Printed documents |
+| **EasyOCR** | Open-source | Multi-language, deep learning | Diverse scripts |
+| **PaddleOCR** | Open-source | Lightweight, good layout detection | Complex layouts |
+| **Transkribus** | Freemium | Excellent HTR, crowdsourcing | Handwritten documents |
+| **Azure Document Intelligence** | Paid | Enterprise-grade, form extraction | Business documents |
+| **AWS Textract** | Paid | Table extraction, scalable | Structured documents |
+
+---
+
+### 1.2 How Does Traditional OCR Work?
+
+Traditional OCR systems convert images of text into machine-readable characters through a multi-stage pipeline. While early OCR relied on template matching (comparing characters against a library of known fonts), modern tools like EasyOCR and Tesseract use deep learning to achieve far greater accuracy.
+
+#### The OCR Pipeline
+
+Most OCR systems follow a two-stage process:
+
+1. **Text Detection**: First, the system locates *where* text appears in the image. This involves identifying bounding boxes around words, lines, or paragraphs. Deep learning models scan the image and predict regions likely to contain text, even when text is rotated, curved, or partially obscured.
+
+2. **Text Recognition**: Once text regions are detected, a separate model reads *what* the text says. This typically uses a neural network architecture called a **CRNN (Convolutional Recurrent Neural Network)** that processes the image sequence and outputs a string of characters. You can read more about CNN's at  [A Related Notebook](https://ubcecon.github.io/praxis-ubc/docs/intro_to_cnns/intro_to_cnn.html). 
+
+#### Why Deep Learning Changed OCR
+
+Traditional template-matching OCR required near-perfect conditions: clean scans, standard fonts, and horizontal text. Deep learning models learn patterns from millions of examples, enabling them to:
+
+- Recognize text in varied fonts, sizes, and styles
+- Handle noise, blur, and degradation common in historical documents
+- Detect text at any angle or orientation
+- Generalize to scripts and languages they weren't explicitly programmed for
+
+**EasyOCR** specifically uses a CRAFT (Character Region Awareness for Text) detector for finding text, paired with a CRNN-based recognizer. This combination makes it particularly effective for documents with complex layouts or mixed content.
+
+### 1.3 EasyOCR Demo
+
+**EasyOCR** is a newer, deep-learning-based OCR library that supports 80+ languages. It often performs better on challenging images and provides built-in support for detecting text regions.
+
+::: {.callout-warning}
+**GPU Acceleration**: EasyOCR can use GPU for faster processing. If you have a CUDA-capable GPU, it will be automatically detected. On CPU, processing may take a few seconds.
+:::
+
+We will first Load our sample image - a clean newspaper column:
+```{python}
+# Load image
+img_path = "data/newspaper_clean_col1.jp2"
+img = load_image(img_path)
+
+# Display the image
+display_image(img, title="Sample Newspaper Column (newspaper_clean_col1.jp2)", figsize=(8, 12))
+```
+
+We load the easyocr package and set it to read english language. With `easyocr.Reader(['en']`. 
+```{python}
+import easyocr
+
+# Initialize EasyOCR reader (English language)
+# Set gpu=True if you have CUDA available
+reader = easyocr.Reader(['en'], gpu=False)
+```
+
+```{python}
+# Run OCR on the newspaper image
+# EasyOCR returns a list of (bbox, text, confidence) tuples
+results = reader.readtext(img)
+
+print(f"EasyOCR detected {len(results)} text regions")
+print("\nFirst 10 detections:")
+for i, (bbox, text, conf) in enumerate(results[:10]):
+    print(f"  {i+1}. '{text}' (confidence: {conf:.2%})")
+
+# Build extracted_text and ocr_df from EasyOCR results
+extracted_text = '\n'.join([text for (bbox, text, conf) in results])
+
+# Create a DataFrame mimicking Tesseract's output format
+ocr_df = pd.DataFrame({
+    'text': [text for (bbox, text, conf) in results],
+    'conf': [conf * 100 for (bbox, text, conf) in results]  # EasyOCR is 0-1, convert to 0-100
+})
+
+# Now this will work
+structured = create_structured_output(extracted_text, ocr_df, "newspaper_clean_col1.jp2")
+
+with open('output/document.json', 'w') as f:
+    json.dump(structured, f, indent=2)
+
+print("Structured Output:")
+print(json.dumps(structured['metadata'], indent=2))
+print(f"\nWord count by confidence: {structured['word_count_by_confidence']}")
+print(f"\nSaved to: output/document.json")
+```
+
+EasyOCR scanned the newspaper image and identified 246 separate regions containing text, returning each one with its bounding box coordinates, the recognized text, and a confidence score. 
+
+Confidence scores are numerical metrics—typically ranging from 0 to 1 (0% to 100%) or 0 to 5—that indicate an AI or machine learning model's level of certainty in its prediction or classification. They represent the probability that the model's output is correct. For instance in the output "3. 'Champions' (confidence: 100.00%)," EasyOCR is 100% confident this is the correct text while it is only 62.46% correct in the detection of 'Twenty-Fifth Infantcy.' Which it is right to be skeptical as it got it wrong. 
+
+#### Visualizing EasyOCR Bounding Boxes
+
+One advantage of EasyOCR is that it provides polygonal bounding boxes that can better fit rotated or curved text:
+
+```{python}
+# Create a copy of the image to draw on
+img_with_boxes = img.copy()
+
+# Draw bounding boxes for each detection
+for (bbox, text, conf) in results:
+    # bbox is a list of 4 corner points
+    pts = np.array(bbox, dtype=np.int32)
+
+    # Color based on confidence (green = high, red = low)
+    color = (0, int(255 * conf), int(255 * (1 - conf)))
+
+    # Draw the polygon
+    cv2.polylines(img_with_boxes, [pts], isClosed=True, color=color, thickness=2)
+
+# Display the image with bounding boxes
+display_image(img_with_boxes, title="EasyOCR Text Detections (Green=High Conf, Red=Low Conf)", figsize=(10, 14))
+```
+
+We can very clearly visually see the way in which EasyOCR is reading the text. 
+
+---
+
+### 1.4 Paid Tools Overview
+
+While open-source tools work well for many use cases, commercial solutions offer additional features:
+
+| Tool | Pricing | Key Features | Best For |
+|------|---------|--------------|----------|
+| **Transkribus** | Freemium (500 pages/month free) | HTR, crowdsourcing, model training | Historical manuscripts |
+| **Arkindex** | Free for researchers | Document processing pipelines | Archives |
+| **eScriptorium** | Free (self-hosted) | Medieval manuscripts, collaborative | Academic projects |
+| **Azure Document Intelligence** | Pay-per-page (~$1.50/1000 pages) | Form extraction, tables, structure | Business documents |
+| **AWS Textract** | Pay-per-page (~$1.50/1000 pages) | Tables, forms, scalable API | Enterprise integration |
+| **Google Cloud Vision** | Pay-per-image (~$1.50/1000 images) | Multi-language, handwriting | Diverse content |
+
+::: {.callout-tip}
+**For Humanities Research**: Consider starting with **Transkribus** for handwritten documents—it offers specialized models for historical scripts and allows you to train custom models on your specific document types.
+:::
+
+---
+
+## Part 2: Vision Language Models
+
+### 2.1 What Are VLMs?
+
+**Vision Language Models (VLMs)** represent a paradigm shift in document understanding. Rather than pattern-matching characters like traditional OCR, VLMs understand documents holistically—interpreting text, layout, and visual context together.
+
+#### Bottom-Up vs Top-Down Approaches
+
+| Approach | Traditional OCR | Vision Language Models |
+|----------|-----------------|------------------------|
+| **Method** | Character-by-character recognition | Holistic document understanding |
+| **Layout** | Separate step | Integrated |
+| **Context** | Limited | Full document context |
+| **Errors** | Isolated character mistakes | More coherent (or coherently wrong!) |
+
+#### When to Use OCR vs VLMs
+
+**Use Traditional OCR when:**
+
+- Documents are clean and well-formatted
+- You need character-level confidence scores
+- Processing speed is critical
+- Resources are limited
+
+**Use VLMs when:**
+
+- Documents have complex layouts
+- Text quality is poor or degraded
+- You need to extract structured information
+- Handwritten and printed text are mixed
+
+::: {.callout-warning}
+**GPU Requirements**: Most VLMs require significant GPU memory (8GB+). For CPU-only systems, consider PaddleOCR which is optimized for CPU inference.
+:::
+
+### 2.2 How Do VLMs Work?
+
+Vision Language Models combine two powerful components: a **vision encoder** that "sees" the image and a **language model** that "reasons" about what it sees. This architecture allows them to understand documents the way humans do; taking in the whole page at once rather than reading character by character.
+
+#### The VLM Architecture
+
+VLMs typically follow a three-stage process:
+
+1. **Visual Encoding**: The image is divided into small patches (like tiles in a mosaic) and processed by a vision encoder—often a Vision Transformer (ViT). This converts the raw pixels into a sequence of visual embeddings that capture shapes, patterns, and spatial relationships.
+
+2. **Cross-Modal Fusion**: The visual embeddings are combined with text understanding capabilities. This can happen through:
+   - **Early fusion**: Visual and text tokens are merged and processed together
+   - **Late fusion**: Separate processing streams that combine at the output stage
+   - **Cross-attention**: The language model attends to relevant parts of the image when generating text
+
+3. **Text Generation**: A language model (often a transformer decoder) generates the output text, guided by what it "saw" in the image. Because this is a language model, it can produce grammatically coherent text and use context to fill in gaps.
+
+#### Why VLMs "Understand" Documents Differently
+
+Traditional OCR processes text in isolation—each character or word is recognized independently. VLMs take a fundamentally different approach:
+
+| Aspect | Traditional OCR | Vision Language Models |
+|--------|-----------------|------------------------|
+| **Processing unit** | Individual characters/words | Entire document or region |
+| **Context awareness** | Limited to nearby characters | Full document context |
+| **Layout understanding** | Requires separate analysis | Inherently integrated |
+| **Ambiguity resolution** | Based on character shapes | Based on meaning and context |
+
+For example, if a historical document has a smudged word, traditional OCR might output nonsense characters. A VLM can use surrounding context—the topic of the paragraph, common phrases of the era, grammatical structure in order to infer the most likely word.
+
+**The Trade-off**: VLMs are more powerful but also more resource-intensive. They excel at understanding *what a document means* but may sometimes "hallucinate" plausible-sounding text that wasn't actually in the image. This will be familar to anyone who has used ChatGPT or other LLM's in the past. Traditional OCR is more literal. It only outputs what it detects, errors and all.
+
+---
+
+### 2.3 PaddleOCR Demo
+
+**PaddleOCR** is a practical middle ground—it uses deep learning but is optimized for CPU inference, making it accessible without specialized hardware.
+
+```{python}
+# Note: This cell requires PaddleOCR to be installed
+#!pip install paddlepaddle paddleocr
+```
+
+```{python}
+#import gc
+#import paddle
+#paddle.set_flags({"FLAGS_use_mkldnn": False})
+#from paddleocr import PaddleOCR
+
+# Convert .jp2 to .png for PaddleOCR compatibility
+#temp_png_path = 'output/temp_paddle_input.png'
+#Image.fromarray(img).save(temp_png_path)
+
+# Initialize PaddleOCR
+# paddle_ocr = PaddleOCR(use_angle_cls=True, lang='en', enable_mkldnn=False)
+
+# Run OCR
+# paddle_results = paddle_ocr.predict(temp_png_path)
+#result = paddle_results[0]
+
+# Extract texts and scores
+#texts = result['rec_texts']
+#scores = result['rec_scores']
+
+#print(f"PaddleOCR detected {len(texts)} text regions")
+#print("\nFirst 10 detections:")
+#for i, (text, conf) in enumerate(zip(texts[:10], scores[:10])):
+#    print(f"  {i+1}. '{text}' (confidence: {conf:.2%})")
+
+# Join all text into a single string for later comparison
+#paddle_full_text = ' '.join(texts)
+#print(f"\n[Total characters extracted: {len(paddle_full_text)}]")
+#print("\nFull text preview:")
+#print(paddle_full_text[:2000])
+
+# Clean up
+#del paddle_ocr
+#gc.collect()
+```
+
+This cell is pretty computationally intensive output pasted below: 
+
+PaddleOCR detected 131 text regions
+
+First 10 detections:
+  1. 'Wins Athletic' (confidence: 99.27%)
+  2. 'Champions' (confidence: 99.99%)
+  3. 'of' (confidence: 99.97%)
+  4. 'Six' (confidence: 99.99%)
+  5. 'Regiments' (confidence: 99.99%)
+  6. 'pete in Exciting' (confidence: 99.81%)
+  7. 'Tour' (confidence: 99.98%)
+  8. 'of' (confidence: 99.98%)
+  9. 'Finals' (confidence: 99.99%)
+  10. 'nament' (confidence: 99.99%)
+
+[Total characters extracted: 2059]
+
+Full text preview:
+Wins Athletic Champions of Six Regiments pete in Exciting Tour of Finals nament in Honolulu. WIN THE COLORED REGIMENT Point Scores Nearly Half the All of Made by Combined Competitors in Contest. Two Omaha Boys HOW THEY ENDED 70 point Inf. First point 40 Infantry... Second 29 point Infantry. Coast 14 point Defense Th Honolulu, March 24- T., 26 Infantry February made good its promises to carry militar athletic the final meet, finishing in against with three other regiments of seventy points to its credit out total fone hundred and fifty-foun of In addition, Gilbert, of the Twenty fifth, smashed the Island record fo the 100-yard dash to smithereens and set a local mark equal to the bes ever made in the world.
+
+#### Testing on Handwritten Documents
+
+Let's see how different OCR approaches handle handwritten text: 
+
+Uncomment if needed
+```{python}
+#!pip install poppler
+```
+
+```{python}
+# Load a handwritten letter (requires PDF conversion)
+from pdf2image import convert_from_path
+
+# Convert PDF to image
+letter_pages = convert_from_path(
+    "data/handwritten_letter_page1.pdf",
+    dpi=300,
+    poppler_path=r'D:\poppler\poppler-25.12.0\Library\bin'  
+)
+letter_img = np.array(letter_pages[0])
+
+display_image(letter_img, title="Handwritten Letter (Civil War Era)", figsize=(10, 12))
+```
+
+Now that we have the handwritten loaded we can compare EasyOCR vs Paddle. 
+
+```{python}
+# EasyOCR
+easyocr_hw_results = reader.readtext(letter_img)
+easyocr_hw = '\n'.join([text for (bbox, text, conf) in easyocr_hw_results])
+print("\n--- EasyOCR ---")
+print(easyocr_hw[:500])
+```
+
+^ **ADD PADDLE TO THIS CELL**
+
+EasyOCR does a very poor job. 
+
+More analysis ... etc
+
+## Part 3: Full OCR Workflow
+
+A complete OCR workflow involves three stages: **pre-processing**, **text extraction**, and **post-processing**. Each stage can significantly impact final accuracy.
+
+### 3.1 Pre-processing
+
+Pre-processing transforms raw document images into formats optimized for OCR. Let's work with a noisy, degraded newspaper page:
+
+```{python}
+# Load a noisy/degraded document
+noisy_path = "data/newspaper_noisy.jp2"
+noisy_img = load_image(noisy_path)
+
+display_image(noisy_img, title="Noisy/Degraded Newspaper Page", figsize=(10, 12))
+```
+
+#### 3.1.1 Grayscale Conversion
+
+Converting to grayscale simplifies the image and often improves OCR:
+
+```{python}
+# Convert to grayscale
+gray = cv2.cvtColor(noisy_img, cv2.COLOR_RGB2GRAY)
+
+display_images_side_by_side(noisy_img, gray, "Original", "Grayscale")
+```
+
+#### 3.1.2 Binarization
+
+Binarization converts the image to pure black and white. **Otsu's method** **EXPLAIN HERE WHAT IT DOES** automatically finds the optimal threshold:
+
+```{python}
+# Otsu's binarization
+_, otsu_binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+# Adaptive thresholding (better for uneven lighting)
+adaptive_binary = cv2.adaptiveThreshold(
+    gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
+)
+
+display_images_side_by_side(otsu_binary, adaptive_binary, "Otsu's Binarization", "Adaptive Threshold")
+```
+
+We can see that the end result is much clearer. 
+
+#### 3.1.3 Denoising
+
+Removing noise can dramatically improve OCR accuracy:
+
+```{python}
+# Median blur (good for salt-and-pepper noise)
+median_denoised = cv2.medianBlur(gray, 3)
+
+# Non-local means denoising (more sophisticated)
+nlm_denoised = cv2.fastNlMeansDenoising(gray, h=10)
+
+display_images_side_by_side(median_denoised, nlm_denoised, "Median Blur", "Non-Local Means Denoising")
+```
+
+#### 3.1.4 Deskewing BETTER EXAMPLE NEEDED HERE OF AN ACTUALLY SKEWED DOC
+
+Rotated documents hurt OCR accuracy. Let's detect and correct rotation:
+
+```{python}
+def deskew(image):
+    # Ensure grayscale
+    if len(image.shape) == 3:
+        gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+    else:
+        gray = image.copy()
+
+    # Edge detection
+    edges = cv2.Canny(gray, 50, 150, apertureSize=3)
+
+    # Hough line detection
+    lines = cv2.HoughLines(edges, 1, np.pi/180, 200)
+
+    if lines is None:
+        return image, 0
+
+    # Calculate angles
+    angles = []
+    for rho, theta in lines[:, 0]:
+        angle = np.degrees(theta) - 90
+        if -45 < angle < 45:  # Only consider reasonable angles
+            angles.append(angle)
+
+    if not angles:
+        return image, 0
+
+    # Median angle (robust to outliers)
+    median_angle = np.median(angles)
+
+    # Rotate image
+    (h, w) = image.shape[:2]
+    center = (w // 2, h // 2)
+    M = cv2.getRotationMatrix2D(center, median_angle, 1.0)
+    rotated = cv2.warpAffine(image, M, (w, h), flags=cv2.INTER_CUBIC,
+                              borderMode=cv2.BORDER_REPLICATE)
+
+    return rotated, median_angle
+```
+
+We now apply our deskew function on our example
+```{python}
+# Apply deskewing
+deskewed, angle = deskew(gray)
+print(f"Detected skew angle: {angle:.2f} degrees")
+
+display_images_side_by_side(gray, deskewed, "Original", f"Deskewed ({angle:.2f}°)")
+```
+
+#### 3.1.5 Contrast Enhancement (CLAHE) -> Still better examples
+
+**CLAHE (Contrast Limited Adaptive Histogram Equalization)** improves contrast locally:
+
+```{python}
+# Apply CLAHE
+clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+enhanced = clahe.apply(gray)
+
+display_images_side_by_side(gray, enhanced, "Original Grayscale", "CLAHE Enhanced")
+```
+
+#### 3.1.6 Full Pre-processing Pipeline
+
+Let's combine all steps and compare OCR results:
+
+```{python}
+#| code-fold: true
+#| code-summary: "Full preprocessing pipeline"
+
+def preprocess_document(image):
+    """
+    Apply full preprocessing pipeline to a document image.
+
+    Steps:
+    1. Convert to grayscale
+    2. Apply CLAHE contrast enhancement
+    3. Denoise with non-local means
+    4. Deskew
+    5. Adaptive binarization
+
+    Returns:
+        preprocessed image and intermediate results
+    """
+    results = {}
+
+    # 1. Grayscale
+    if len(image.shape) == 3:
+        gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+    else:
+        gray = image.copy()
+    results['grayscale'] = gray
+
+    # 2. CLAHE
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    enhanced = clahe.apply(gray)
+    results['enhanced'] = enhanced
+
+    # 3. Denoise
+    denoised = cv2.fastNlMeansDenoising(enhanced, h=10)
+    results['denoised'] = denoised
+
+    # 4. Deskew
+    deskewed, angle = deskew(denoised)
+    results['deskewed'] = deskewed
+    results['skew_angle'] = angle
+
+    # 5. Binarize
+    binary = cv2.adaptiveThreshold(
+        deskewed, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
+    )
+    results['final'] = binary
+
+    return binary, results
+```
+
+```{python}
+# Apply full pipeline
+preprocessed, steps = preprocess_document(noisy_img)
+
+# Show before and after
+display_images_side_by_side(noisy_img, preprocessed, "Original", "After Full Preprocessing")
+```
+
+### 3.2 Layout Analysis
+
+Historical newspapers often have complex multi-column layouts. Without proper layout analysis, OCR might read across columns incorrectly.
+
+```{python}
+# Load multi-column newspaper
+multicolumn_path = "data/newspaper_multicolumn.jp2"
+multicolumn_img = load_image(multicolumn_path)
+
+display_image(multicolumn_img, title="Multi-Column Newspaper Front Page", figsize=(12, 14))
+```
+
+#### Why Layout Analysis Matters
+
+Consider this scenario:
+
+```
+Column 1           Column 2
+-----------        -----------
+The mayor          Meanwhile,
+announced today    across town
+that the city      residents
+```
+
+Without layout analysis, OCR might read: "The mayor Meanwhile, announced today across town..."
+
+```{python}
+def detect_columns(image, min_column_width=100):
+    """
+    Detect text columns using vertical projection profile.
+
+    This is a simplified approach. For production use,
+    consider document analysis libraries like DocTR.
+    """
+    # Convert to grayscale and binarize
+    if len(image.shape) == 3:
+        gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+    else:
+        gray = image.copy()
+
+    _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+
+    # Calculate vertical projection (sum of white pixels per column)
+    v_projection = np.sum(binary, axis=0)
+
+    # Find gaps (low projection values indicate column separators)
+    threshold = np.mean(v_projection) * 0.1
+    gaps = v_projection < threshold
+
+    # Find column boundaries
+    columns = []
+    in_column = False
+    start = 0
+
+    for i, is_gap in enumerate(gaps):
+        if not is_gap and not in_column:
+            start = i
+            in_column = True
+        elif is_gap and in_column:
+            if i - start > min_column_width:
+                columns.append((start, i))
+            in_column = False
+
+    # Handle last column
+    if in_column and len(gaps) - start > min_column_width:
+        columns.append((start, len(gaps)))
+
+    return columns, v_projection
+```
+
+```{python}
+#| code-fold: false
+
+# Detect columns in the multi-column image
+columns, projection = detect_columns(multicolumn_img)
+
+print(f"Detected {len(columns)} columns:")
+for i, (start, end) in enumerate(columns):
+    print(f"  Column {i+1}: pixels {start} to {end} (width: {end-start})")
+
+# Visualize column detection
+fig, axes = plt.subplots(2, 1, figsize=(14, 10), gridspec_kw={'height_ratios': [3, 1]})
+
+# Image with column boundaries
+axes[0].imshow(multicolumn_img)
+for start, end in columns:
+    axes[0].axvline(x=start, color='red', linestyle='--', alpha=0.7)
+    axes[0].axvline(x=end, color='blue', linestyle='--', alpha=0.7)
+axes[0].set_title("Detected Column Boundaries (Red=Start, Blue=End)")
+axes[0].axis('off')
+
+# Projection profile
+axes[1].plot(projection, color='steelblue')
+axes[1].axhline(y=np.mean(projection) * 0.1, color='red', linestyle='--', label='Threshold')
+axes[1].set_xlabel("Horizontal Position (pixels)")
+axes[1].set_ylabel("Vertical Projection")
+axes[1].set_title("Vertical Projection Profile")
+axes[1].legend()
+
+plt.tight_layout()
+plt.show()
+```
+
+**NEED BETTER EXAMPLE CLEARER HERE**
+
+---
+
+### 3.3 Post-processing
+
+OCR output often contains errors and requires cleaning. Post-processing can include:
+
+1. **Spell checking and correction**
+2. **Text normalization** (tokenization, lemmatization)
+3. **Structured output** (JSON, Markdown)
+
+Explain what tokenization is here: 
+
+#### Text Normalization with NLTK
+
+```{python}
+# Sample OCR text with some errors
+sample_text = """
+Twenty-Fifth Infantry Wins Athletic Honors
+
+Champions of Six Regiments Compete in Exciting Finals of Tournament in Honolulu.
+
+THE COLORED REGIMENT WINS.
+
+Scores Nearly Half of All the Points Made by Combined Competitors Two Omaha Boys in Contest.
+"""
+
+# Tokenization
+tokens = word_tokenize(sample_text)
+sentences = sent_tokenize(sample_text)
+
+print("Tokenization Results:")
+print(f"  Words: {len(tokens)}")
+print(f"  Sentences: {len(sentences)}")
+print(f"\nFirst 20 tokens: {tokens[:20]}")
+```
+
+```{python}
+# Stemming and Lemmatization
+stemmer = PorterStemmer()
+lemmatizer = WordNetLemmatizer()
+
+# Example words
+test_words = ['running', 'competed', 'competitors', 'athletics', 'winning']
+
+print("\nStemming vs Lemmatization:")
+print("-" * 50)
+for word in test_words:
+    stem = stemmer.stem(word)
+    lemma = lemmatizer.lemmatize(word)
+    print(f"  {word:15} -> Stem: {stem:12} | Lemma: {lemma}")
+```
+
+#### Structured Output
+
+Converting OCR output to structured formats enables downstream analysis:
+
+```{python}
+# Create a structured representation of OCR results
+def create_structured_output(text, ocr_data_df, source_file):
+    """
+    Create a structured JSON output from OCR results.
+    """
+    # Calculate statistics
+    words = word_tokenize(text)
+    sentences = sent_tokenize(text)
+
+    output = {
+        "metadata": {
+            "source_file": source_file,
+            "ocr_engine": "tesseract",
+            "total_characters": len(text),
+            "total_words": len(words),
+            "total_sentences": len(sentences),
+            "average_confidence": float(ocr_data_df['conf'].mean()) if 'conf' in ocr_data_df else None
+        },
+        "text": text.strip(),
+        "sentences": sentences,
+        "word_count_by_confidence": {
+            "high (90-100)": len(ocr_data_df[ocr_data_df['conf'] >= 90]),
+            "medium (70-89)": len(ocr_data_df[(ocr_data_df['conf'] >= 70) & (ocr_data_df['conf'] < 90)]),
+            "low (< 70)": len(ocr_data_df[ocr_data_df['conf'] < 70])
+        }
+    }
+
+    return output
+```
+
+This will be for our simple newspaper column example: 
+
+```{python}
+# Create structured output for our clean newspaper column
+structured = create_structured_output(extracted_text, ocr_df, "newspaper_clean_col1.jp2")
+
+# Save to JSON
+with open('output/document.json', 'w') as f:
+    json.dump(structured, f, indent=2)
+
+print("Structured Output:")
+print(json.dumps(structured['metadata'], indent=2))
+print(f"\nWord count by confidence: {structured['word_count_by_confidence']}")
+print(f"\nSaved to: output/document.json")
+```
+
+We now have a very high level overview of word count within each region of confidence. With the majority of words being high confidence: high (90-100)': 178.
+
+#### LLM-Based Correction (Concept) - FINISH THIS SECTION
+
+For high-value documents, Large Language Models can correct OCR errors:
+
+```{python}
+# Example prompt template for LLM-based OCR correction
+correction_prompt = """
+The following text was extracted from a historical newspaper using OCR.
+Please correct any obvious OCR errors while preserving the original meaning
+and historical language. Do not modernize spelling or grammar.
+
+OCR TEXT:
+{ocr_text}
+
+CORRECTED TEXT:
+"""
+```
+
+::: {.callout-tip}
+**LLM Correction Tips:**
+
+- Be explicit about preserving historical language
+- Process in chunks to avoid context length limits
+- Use examples of common OCR errors in your prompt
+- Consider using Claude or GPT-4 for best results
+:::
+
+---
+
+### 3.4 Evaluation: Measuring OCR Quality
+
+Evaluating OCR accuracy requires comparing extracted text against a known "ground truth." We use two standard metrics:
+
+- **Character Error Rate (CER)**: Percentage of characters that are wrong
+- **Word Error Rate (WER)**: Percentage of words that are wrong
+
+We first load our correct .txt version of the newspaper column. 
+```{python}
+# Load ground truth
+with open("data/ground_truth_clean.txt", "r") as f:
+    ground_truth = f.read()
+
+print("Ground Truth (first 500 characters):")
+print(ground_truth[:500])
+```
+
+And then we compare it with out OCR evaluation to see the quality of the model and analysis. 
+```{python}
+# Calculate error rates
+# Note: jiwer expects lowercase and normalized text for best results
+gt_normalized = ground_truth.lower().strip()
+ocr_normalized = extracted_text.lower().strip()
+
+# Word Error Rate
+word_error_rate = wer(gt_normalized, ocr_normalized)
+
+# Character Error Rate
+char_error_rate = cer(gt_normalized, ocr_normalized)
+
+print("=" * 60)
+print("OCR EVALUATION METRICS")
+print("=" * 60)
+print(f"\nWord Error Rate (WER):      {word_error_rate:.2%}")
+print(f"Character Error Rate (CER): {char_error_rate:.2%}")
+print(f"\nWord Accuracy:      {1 - word_error_rate:.2%}")
+print(f"Character Accuracy: {1 - char_error_rate:.2%}")
+```
+
+::: {.callout-note}
+**Interpreting Error Rates:**
+
+- **CER < 5%**: Excellent - minimal manual correction needed
+- **CER 5-10%**: Good - some manual review recommended
+- **CER 10-20%**: Fair - significant post-processing needed
+- **CER > 20%**: Poor - consider improving source images or using different OCR approach
+:::
+
+#### Confidence-Based Quality Flagging
+
+We can use confidence scores to automatically flag words that likely need manual review:
+
+```{python}
+# Flag low-confidence words for review
+low_conf_threshold = 70
+low_conf_words = ocr_df[ocr_df['conf'] < low_conf_threshold][['text', 'conf']]
+
+print(f"Words with confidence below {low_conf_threshold}%:")
+print(f"  Total flagged: {len(low_conf_words)} out of {len(ocr_df)} ({len(low_conf_words)/len(ocr_df):.1%})")
+
+if len(low_conf_words) > 0:
+    print("\n  Sample low-confidence words:")
+    display(low_conf_words.head(20))
+```
+
+We also have a list of our worst confidence regions. 
+
+---
+
+## Part 4: Batch Processing & Scalability (optional More tehcnical)
+
+This next section is more technical and might not be useful for all readers.
+
+When working with historical archives, you rarely process just one document. Real-world digitization projects often involve thousands or even millions of pages. This section covers strategies for scaling your OCR workflow to handle large document collections efficiently and reliably.
+
+### 4.1 Parallelization Strategies
+
+Processing documents one at a time is slow. Modern computers have multiple CPU cores and often GPUs that can work simultaneously. **Parallelization** divides work across these resources to dramatically reduce processing time.
+
+#### CPU vs GPU Parallelization
+
+Image pre-processing tasks (grayscale conversion, binarization, denoising) are **CPU-bound** meaning, they primarily use the processor rather than memory or disk. Python's `concurrent.futures` module provides a straightforward way to parallelize these tasks across multiple CPU cores. The `ThreadPoolExecutor` is suitable for I/O-bound tasks (reading/writing files), while `ProcessPoolExecutor` is better for CPU-bound computation like image processing.
+
+Deep learning models like EasyOCR and PaddleOCR can leverage GPUs for faster inference. Unlike CPU parallelization where you run multiple processes, GPU parallelization typically involves **batching**—feeding multiple images through the model simultaneously.
+
+| Approach | Best For | Python Tools |
+|----------|----------|--------------|
+| **CPU Multi-processing** | Image pre-processing, file I/O | `concurrent.futures.ProcessPoolExecutor`, `multiprocessing` |
+| **CPU Threading** | Network requests, file operations | `concurrent.futures.ThreadPoolExecutor`, `threading` |
+| **GPU Batching** | Model inference (OCR, VLMs) | Native batch support in EasyOCR, PaddleOCR |
+
+::: {.callout-note}
+**Linux vs Windows**: Parallelization often performs better on Linux systems. Windows has higher overhead for creating new processes, and some libraries (like `multiprocessing`) behave differently. If you're processing very large archives, consider using a Linux server or cloud VM. This is more accessible then ever with tools like [Windows Subsystem for Linux 2](https://learn.microsoft.com/en-us/windows/wsl/install)
+:::
+
+#### Batch Size Tuning
+
+When using GPU-accelerated models, the **batch size**; how many images you process at once can significantly affects performance. Larger batches use GPU memory more efficiently but require more VRAM.
+
+**Batch size guidelines:**
+
+- 4GB GPU: batch_size = 2-4
+- 8GB GPU: batch_size = 4-8
+- 16GB+ GPU: batch_size = 8-16
+
+Start small and increase until you encounter memory limits.
+
+---
+
+### 4.2 Progress Tracking and Logging
+
+When processing thousands of documents, visibility into your pipeline's progress is essential. You need to know how far along you are, which files have been processed, and whether any errors occurred.
+
+#### Progress Bars with tqdm
+
+The `tqdm` library provides elegant progress bars that work in terminals, Jupyter notebooks, and scripts. It shows elapsed time, estimated time remaining, and processing speed. Simply wrap any iterable with `tqdm()` to add a progress bar.
+
+#### Structured Logging
+
+For production pipelines, Python's built-in `logging` module provides structured, configurable logging that can write to files, include timestamps, and categorize messages by severity (DEBUG, INFO, WARNING, ERROR). Configure separate handlers for console output (important messages only) and file output (detailed logs).
+
+#### Manifest Files for Tracking
+
+A **manifest file** (CSV or JSON) tracks the status of each document, including metadata like confidence scores, processing time, and any errors. This allows you to resume interrupted jobs and audit your results. Key fields to track:
+
+| Field | Purpose |
+|-------|---------|
+| `filename` | Original file identifier |
+| `status` | success / failed / pending |
+| `timestamp` | When processing occurred |
+| `processing_time_sec` | Duration for performance analysis |
+| `avg_confidence` | OCR quality metric |
+| `error_message` | Details if processing failed |
+
+---
+
+### 4.3 File Organization
+
+A well-organized file structure makes batch processing manageable and reproducible. Poor organization leads to confusion, lost outputs, and difficulty resuming failed jobs.
+
+#### Mirror the Input Directory
+
+When processing a large archive, maintain a parallel output directory structure that mirrors the input. This makes it easy to find the output for any given input file.
+
+```
+project/
+├── input/
+│   ├── archive_1/
+│   │   ├── page_001.jp2
+│   │   ├── page_002.jp2
+│   │   └── ...
+│   └── archive_2/
+│       ├── doc_001.pdf
+│       └── ...
+├── output/
+│   ├── archive_1/
+│   │   ├── page_001_preprocessed.png
+│   │   ├── page_001_ocr.json
+│   │   ├── page_001_text.txt
+│   │   └── ...
+│   └── archive_2/
+│       └── ...
+├── logs/
+│   └── ocr_pipeline_20260203.log
+└── manifest.csv
+```
+
+#### Consistent Naming Conventions
+
+Use consistent, descriptive naming that includes the processing stage:
+
+| Stage | Naming Pattern | Example |
+|-------|----------------|---------|
+| Original | `{name}.{ext}` | `page_001.jp2` |
+| Preprocessed | `{name}_preprocessed.png` | `page_001_preprocessed.png` |
+| OCR Output | `{name}_ocr.json` | `page_001_ocr.json` |
+| Extracted Text | `{name}_text.txt` | `page_001_text.txt` |
+| Corrected Text | `{name}_corrected.txt` | `page_001_corrected.txt` |
+
+---
+
+### 4.4 Workflow Orchestration
+
+A complete OCR pipeline combines preprocessing, text extraction, and post-processing into an automated workflow. Good orchestration includes checkpoints for resumability and robust error handling.
+
+#### Pipeline Architecture (Pseudocode)
+
+An example pipeline would look something like this: 
+
+```
+FUNCTION run_ocr_pipeline(input_directory, output_directory):
+
+    # Initialize tracking
+    manifest = load_or_create_manifest(output_directory)
+    checkpoint = load_checkpoint(output_directory)
+
+    # Find all files to process
+    all_files = find_files(input_directory, pattern="*.jp2")
+    files_to_process = filter_already_processed(all_files, checkpoint)
+
+    # Process each file
+    FOR each file IN files_to_process:
+
+        TRY:
+            # Step 1: Load image
+            image = load_image(file)
+
+            # Step 2: Preprocess
+            preprocessed = apply_preprocessing(image)
+            save(preprocessed, get_output_path(file, "_preprocessed.png"))
+
+            # Step 3: Run OCR
+            ocr_results = run_ocr_engine(preprocessed)
+            save_json(ocr_results, get_output_path(file, "_ocr.json"))
+
+            # Step 4: Extract and save text
+            text = extract_text(ocr_results)
+            save_text(text, get_output_path(file, "_text.txt"))
+
+            # Step 5: Calculate metrics
+            confidence = calculate_avg_confidence(ocr_results)
+
+            # Update tracking
+            update_manifest(manifest, file, status="success", confidence=confidence)
+            add_to_checkpoint(checkpoint, file)
+
+        CATCH error:
+            # Log error but continue processing
+            log_error(file, error)
+            update_manifest(manifest, file, status="failed", error=error)
+            CONTINUE
+
+    # Final summary
+    print_summary(manifest)
+```
+
+#### Error Handling and Recovery
+
+When processing thousands of files, some will inevitably fail due to corrupted images, unsupported formats, or unexpected content. A robust pipeline catches these errors, logs them, and continues processing. Use `try` functions and make sure that one file does not crash the full pipeline to not waste time and money. 
+
+The checkpoint system allows you to:
+
+1. **Resume interrupted jobs**: If your process crashes or you need to stop, simply run it again and it will skip already-processed files
+2. **Retry failures**: Clear specific files from the checkpoint to reprocess them
+3. **Audit results**: The manifest provides a complete record of what was processed, when, and with what results
+
+---
+
+### 4.5 Cloud Computing Options
+
+Local processing works for small projects, but large archives may require cloud resources—either for raw computing power or for access to commercial OCR services. Some options are: Google Collab (for smaller batches), AWS EC2 from Amazon and Google Cloud. 
+
+::: {.callout-tip}
+**For UBC Researchers**: The Advanced Research Computing (ARC) Sockeye cluster provides free access to high-performance computing resources, including GPUs. This is an excellent option for processing large document archives without cloud costs. See [UBC ARC Documentation](https://arc.ubc.ca/ubc-arc-sockeye) for access details. It might be worth reaching out. 
+:::
+
+#### Managed OCR Services
+
+For very large projects or when you need the highest accuracy, managed services handle infrastructure and provide optimized models:
+
+| Service | Pricing (approx.) | Strengths |
+|---------|-------------------|-----------|
+| **AWS Textract** | $1.50 / 1,000 pages | Table extraction, forms |
+| **Google Document AI** | $1.50 / 1,000 pages | Layout analysis, multiple languages |
+| **Azure Document Intelligence** | $1.50 / 1,000 pages | Handwriting, forms |
+| **Transkribus** | 500 pages/month free | Historical documents, HTR models |
+
+These services are particularly valuable when:
+
+- You need to process millions of pages quickly
+- Documents contain complex tables or forms
+- You require handwritten text recognition (HTR)
+- Accuracy is more important than cost
+
+---
+
+### 4.6 Cost and Time Estimation
+
+Before starting a large OCR project, estimate the time and cost to avoid surprises. This helps with project planning and resource allocation.
+
+#### Time Estimation Formula
+
+```
+Total Time = (Time per page × Number of pages) / Parallelism factor
+```
+
+#### Example Scenarios
+
+**Scenario 1: 10,000 pages on local machine (4 CPU cores)**
+
+- Time per page: 5 seconds
+- With 4 parallel workers: (10,000 × 5) / 4 = 12,500 seconds ≈ **3.5 hours**
+- Cost: $0 (local hardware)
+
+**Scenario 2: 100,000 pages on cloud GPU ($1/hour)**
+
+- Time per page: 1 second (GPU accelerated)
+- Total time: 100,000 seconds ≈ **27.8 hours**
+- Cloud cost: ~**$28**
+
+**Scenario 3: 100,000 pages using AWS Textract**
+
+- Processing time: Managed by service (fast)
+- Cost: 100,000 × $0.0015 = **$150**
+---
+
+### 4.7 Reproducibility
+
+Reproducibility ensures that you (or others) can recreate your results exactly. This is essential for academic research and for debugging issues that arise later.
+
+#### Key Elements of Reproducibility
+
+1. **Package Versions**: Record exact versions of all libraries used
+2. **Configuration Files**: Store all parameters in version-controlled config files
+3. **Model Checkpoints**: Document which OCR models and versions were used
+4. **Random Seeds**: Set seeds for any stochastic/random processes
+5. **Data Provenance**: Track the source and version of input data
+
+::: {.callout-tip}
+**Best Practice**: Create a `requirements.txt` or `environment.yml` file for your project. This allows others to recreate your exact environment. Use Version control (like Git) when necessary. 
+
+## 5.0 Conclusion
+
+ADD
+
+## 6.0 Citations
+
+- https://github.com/JaidedAI/EasyOCR
+- https://github.com/PaddlePaddle/PaddleOCR
+- https://github.com/tesseract-ocr/tesseract
+- https://readcoop.eu/transkribus/
+- https://www.nvidia.com/en-us/glossary/vision-language-models/
+- https://docs.opencv.org/4.x/d7/d4d/tutorial_py_thresholding.html
+- https://docs.opencv.org/4.x/d5/daf/tutorial_py_histogram_equalization.html
+- https://docs.python.org/3/library/concurrent.futures.html
+- https://docs.python.org/3/library/logging.html
+- https://github.com/tqdm/tqdm
+- https://aws.amazon.com/textract/
+- https://cloud.google.com/document-ai
+- https://azure.microsoft.com/en-us/products/ai-services/ai-document-intelligence
+- https://arc.ubc.ca/ubc-arc-sockeye
+- https://www.nltk.org/
+- https://github.com/jitsi/jiwer
+- https://www.loc.gov/collections/chronicling-america/titles/
+- https://www.loc.gov/collections/travels-in-america-1750-to-1920/about-this-collection/
+- https://content.lib.washington.edu/civilwarweb/index.html
+- https://ubcecon.github.io/praxis-ubc/docs/text_analysis/text_analysis.html
+- https://ubcecon.github.io/praxis-ubc/docs/hist_workshop/text_embeddings_workshop.html
