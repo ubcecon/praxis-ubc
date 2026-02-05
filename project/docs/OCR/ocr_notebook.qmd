@@ -151,7 +151,7 @@ print("Output directory ready: ./output/")
 
 ### What is OCR?
 
-**Optical Character Recognition (OCR)** is the technology that converts different types of documents—scanned paper documents, photographs of text, or images containing text—into editable and searchable digital text.
+**Optical Character Recognition (OCR)** is the technology that converts different types of documents: scanned paper documents, photographs of text, or images containing text into editable and searchable digital text.
 
 For humanities researchers, OCR opens up vast archives of historical documents, enabling:
 
@@ -165,10 +165,10 @@ For humanities researchers, OCR opens up vast archives of historical documents, 
 By the end of this notebook, you will be able to:
 
 1. **Understand OCR vs VLM** and be able to choose which model/tool to use
-2. **Extract text** from historical documents using pyTesseract and EasyOCR
+2. **Extract text** from historical documents using EasyOCR and PaddleOCR
 3. **Pre-process images** to improve OCR accuracy
-4. **Handle complex layouts** like multi-column newspapers
-5. **Evaluate OCR quality** using standard metrics (CER, WER)
+4. **Handle complex document layouts** like multi-column newspapers
+5. **Evaluate OCR quality** using standard metrics (CER, WER, Confidence Intervals)
 6. **Post-process OCR output** for downstream analysis
 7. **Scale your workflow** for batch processing
 
@@ -230,13 +230,13 @@ Traditional template-matching OCR required near-perfect conditions: clean scans,
 
 ### 1.3 EasyOCR Demo
 
-**EasyOCR** is a newer, deep-learning-based OCR library that supports 80+ languages. It often performs better on challenging images and provides built-in support for detecting text regions.
+**EasyOCR** is a newer, deep-learning-based OCR library that supports 80+ languages. It provides built-in support for detecting text regions.
 
 ::: {.callout-warning}
 **GPU Acceleration**: EasyOCR can use GPU for faster processing. If you have a CUDA-capable GPU, it will be automatically detected. On CPU, processing may take a few seconds.
 :::
 
-We will first Load our sample image - a clean newspaper column:
+We will first Load our sample image: a clean newspaper column:
 ```{python}
 # Load image
 img_path = "data/newspaper_clean_col1.jp2"
@@ -246,7 +246,7 @@ img = load_image(img_path)
 display_image(img, title="Sample Newspaper Column (newspaper_clean_col1.jp2)", figsize=(8, 12))
 ```
 
-We load the easyocr package and set it to read english language. With `easyocr.Reader(['en']`. 
+We load the EasyOCR package and set it to read english language. With `easyocr.Reader(['en']`. 
 ```{python}
 import easyocr
 
@@ -281,7 +281,7 @@ print(f"Average confidence: {ocr_df['conf'].mean():.1f}%")
 
 EasyOCR scanned the newspaper image and identified 246 separate regions containing text, returning each one with its bounding box coordinates, the recognized text, and a confidence score. 
 
-Confidence scores are numerical metrics—typically ranging from 0 to 1 (0% to 100%) or 0 to 5—that indicate an AI or machine learning model's level of certainty in its prediction or classification. They represent the probability that the model's output is correct. For instance in the output "3. 'Champions' (confidence: 100.00%)," EasyOCR is 100% confident this is the correct text while it is only 62.46% correct in the detection of 'Twenty-Fifth Infantcy.' Which it is right to be skeptical as it got it wrong. 
+Confidence scores are numerical metrics; typically ranging from 0 to 1 (0% to 100%) which indicate an AI or machine learning model's level of certainty in its prediction or classification. They represent the probability that the model's output is correct. For instance in the output "3. 'Champions' (confidence: 100.00%)," EasyOCR is 100% confident this is the correct text while it is only 62.46% correct in the detection of 'Twenty-Fifth Infantcy.' Which it is right to be skeptical as it got it wrong. 
 
 #### Visualizing EasyOCR Bounding Boxes
 
@@ -333,7 +333,7 @@ While open-source tools work well for many use cases, commercial solutions offer
 
 ### 2.1 What Are VLMs?
 
-**Vision Language Models (VLMs)** represent a paradigm shift in document understanding. Rather than pattern-matching characters like traditional OCR, VLMs understand documents holistically—interpreting text, layout, and visual context together.
+**Vision Language Models (VLMs)** represent a paradigm shift in document understanding. Rather than pattern-matching characters like traditional OCR, VLMs understand documents holistically, interpreting text, layout, and visual context together.
 
 #### Bottom-Up vs Top-Down Approaches
 
@@ -372,7 +372,7 @@ Vision Language Models combine two powerful components: a **vision encoder** tha
 
 VLMs typically follow a three-stage process:
 
-1. **Visual Encoding**: The image is divided into small patches (like tiles in a mosaic) and processed by a vision encoder—often a Vision Transformer (ViT). This converts the raw pixels into a sequence of visual embeddings that capture shapes, patterns, and spatial relationships.
+1. **Visual Encoding**: The image is divided into small patches (like tiles in a mosaic) and processed by a vision encoder. Often a Vision Transformer (ViT). This converts the raw pixels into a sequence of visual embeddings that capture shapes, patterns, and spatial relationships.
 
 2. **Cross-Modal Fusion**: The visual embeddings are combined with text understanding capabilities. This can happen through:
    - **Early fusion**: Visual and text tokens are merged and processed together
@@ -383,24 +383,17 @@ VLMs typically follow a three-stage process:
 
 #### Why VLMs "Understand" Documents Differently
 
-Traditional OCR processes text in isolation—each character or word is recognized independently. VLMs take a fundamentally different approach:
+Traditional OCR processes text in isolation; each character or word is recognized independently. VLMs take a fundamentally different approach, they have the whole context of the document and can generate correct grammatical sentences based on that context. They also have built in layout understanding as they can "see" the document. 
 
-| Aspect | Traditional OCR | Vision Language Models |
-|--------|-----------------|------------------------|
-| **Processing unit** | Individual characters/words | Entire document or region |
-| **Context awareness** | Limited to nearby characters | Full document context |
-| **Layout understanding** | Requires separate analysis | Inherently integrated |
-| **Ambiguity resolution** | Based on character shapes | Based on meaning and context |
+For example, if a historical document has a smudged word, traditional OCR might output nonsense characters. A VLM can use surrounding context like the topic of the paragraph, common phrases of the era, grammatical structure in order to infer the most likely word.
 
-For example, if a historical document has a smudged word, traditional OCR might output nonsense characters. A VLM can use surrounding context—the topic of the paragraph, common phrases of the era, grammatical structure in order to infer the most likely word.
-
-**The Trade-off**: VLMs are more powerful but also more resource-intensive. They excel at understanding *what a document means* but may sometimes "hallucinate" plausible-sounding text that wasn't actually in the image. This will be familar to anyone who has used ChatGPT or other LLM's in the past. Traditional OCR is more literal. It only outputs what it detects, errors and all.
+**The Trade-off**: VLMs are more powerful but also much more resource-intensive. They excel at understanding *what a document means* but may sometimes "hallucinate" plausible-sounding text that wasn't actually in the image. This will be familar to anyone who has used ChatGPT or other LLM's in the past. Traditional OCR is more literal. It only outputs what it detects, errors and all.
 
 ---
 
 ### 2.3 PaddleOCR Demo
 
-**PaddleOCR** is a practical middle ground—it uses deep learning but is optimized for CPU inference, making it accessible without specialized hardware.
+**PaddleOCR** is a practical middle ground, it uses deep learning but is optimized for CPU inference, making it accessible without specialized hardware.
 
 ```{python}
 # Note: This cell requires PaddleOCR to be installed
@@ -464,6 +457,8 @@ First 10 detections:
 
 Full text preview:
 Wins Athletic Champions of Six Regiments pete in Exciting Tour of Finals nament in Honolulu. WIN THE COLORED REGIMENT Point Scores Nearly Half the All of Made by Combined Competitors in Contest. Two Omaha Boys HOW THEY ENDED 70 point Inf. First point 40 Infantry... Second 29 point Infantry. Coast 14 point Defense Th Honolulu, March 24- T., 26 Infantry February made good its promises to carry militar athletic the final meet, finishing in against with three other regiments of seventy points to its credit out total fone hundred and fifty-foun of In addition, Gilbert, of the Twenty fifth, smashed the Island record fo the 100-yard dash to smithereens and set a local mark equal to the bes ever made in the world.
+
+We can see that the confidence is much higher. 
 
 #### Testing on Handwritten Documents
 
@@ -534,7 +529,7 @@ display_images_side_by_side(noisy_img, gray, "Original", "Grayscale")
 
 #### 3.1.2 Binarization
 
-Binarization converts the image to pure black and white. **Otsu's method** **EXPLAIN HERE WHAT IT DOES** automatically finds the optimal threshold:
+Binarization converts the image to pure black and white. **Otsu's method** is a, global automatic image thresholding algorithm that converts grayscale images into binary (black and white) by determining an optimal threshold that separates pixels into foreground and background classes. It automatically finds the optimal threshold:
 
 ```{python}
 # Otsu's binarization
@@ -762,8 +757,6 @@ def detect_columns(image, min_column_width=100):
 ```
 
 ```{python}
-#| code-fold: false
-
 # Detect columns in the multi-column image
 columns, projection = detect_columns(multicolumn_img)
 
@@ -806,7 +799,7 @@ OCR output often contains errors and requires cleaning. Post-processing can incl
 2. **Text normalization** (tokenization, lemmatization)
 3. **Structured output** (JSON, Markdown)
 
-Explain what tokenization is here: 
+Tokenization is: the process of breaking down the raw text output generated from a scanned image or document into smaller, distinct, and manageable units called tokens. This simplifies data analysis, and Natural Language Processing (NLP) tasks. 
 
 #### Text Normalization with NLTK
 
@@ -899,9 +892,9 @@ print(f"\nWord count by confidence: {structured['word_count_by_confidence']}")
 print(f"\nSaved to: output/document.json")
 ```
 
-We now have a very high level overview of word count within each region of confidence. With the majority of words being high confidence: high (90-100)': 178.
+We now have a very high level overview of word count within each region of confidence. With the majority of words being high confidence: high (90-100): 178.
 
-#### LLM-Based Correction (Concept) - FINISH THIS SECTION
+#### LLM-Based Correction - WORK IN PROGRESS
 
 For high-value documents, Large Language Models can correct OCR errors:
 
@@ -918,17 +911,6 @@ OCR TEXT:
 CORRECTED TEXT:
 """
 ```
-
-::: {.callout-tip}
-**LLM Correction Tips:**
-
-- Be explicit about preserving historical language
-- Process in chunks to avoid context length limits
-- Use examples of common OCR errors in your prompt
-- Consider using Claude or GPT-4 for best results
-:::
-
----
 
 ### 3.4 Evaluation: Measuring OCR Quality
 
@@ -999,7 +981,7 @@ We also have a list of our worst confidence regions.
 
 ---
 
-## Part 4: Batch Processing & Scalability (optional More tehcnical)
+## Part 4: Batch Processing & Scalability (optional more tehcnical)
 
 This next section is more technical and might not be useful for all readers.
 
@@ -1011,7 +993,7 @@ Processing documents one at a time is slow. Modern computers have multiple CPU c
 
 #### CPU vs GPU Parallelization
 
-Image pre-processing tasks (grayscale conversion, binarization, denoising) are **CPU-bound** meaning, they primarily use the processor rather than memory or disk. Python's `concurrent.futures` module provides a straightforward way to parallelize these tasks across multiple CPU cores. The `ThreadPoolExecutor` is suitable for I/O-bound tasks (reading/writing files), while `ProcessPoolExecutor` is better for CPU-bound computation like image processing.
+Image pre-processing tasks (grayscale conversion, binarization, denoising) are **CPU-bound** meaning, they primarily use the processor rather than memory or disk. Python's `concurrent.futures` module provides a straightforward way to parallelize these tasks across multiple CPU cores. The `ThreadPoolExecutor` is suitable for I/O-bound tasks (reading/writing files), while `ProcessPoolExecutor` is better for CPU-bound computation like image processing. **(EXPAND HERE)**
 
 Deep learning models like EasyOCR and PaddleOCR can leverage GPUs for faster inference. Unlike CPU parallelization where you run multiple processes, GPU parallelization typically involves **batching**—feeding multiple images through the model simultaneously.
 
@@ -1180,10 +1162,10 @@ The checkpoint system allows you to:
 
 ### 4.5 Cloud Computing Options
 
-Local processing works for small projects, but large archives may require cloud resources—either for raw computing power or for access to commercial OCR services. Some options are: Google Collab (for smaller batches), AWS EC2 from Amazon and Google Cloud. 
+Local processing works for small projects, but large archives may require cloud resources; either for raw computing power or for access to commercial OCR services. Some options are: Google Collab (for smaller batches), AWS EC2 from Amazon and Google Cloud. 
 
 ::: {.callout-tip}
-**For UBC Researchers**: The Advanced Research Computing (ARC) Sockeye cluster provides free access to high-performance computing resources, including GPUs. This is an excellent option for processing large document archives without cloud costs. See [UBC ARC Documentation](https://arc.ubc.ca/ubc-arc-sockeye) for access details. It might be worth reaching out. 
+**For UBC Researchers**: The Advanced Research Computing (ARC) Sockeye cluster provides free access to high-performance computing resources, including GPUs. This is an excellent option for processing large document archives without cloud costs. See [UBC ARC Documentation](https://arc.ubc.ca/compute-storage/ubc-arc-sockeye) for access details. It might be worth reaching out. 
 :::
 
 #### Managed OCR Services
@@ -1206,7 +1188,7 @@ These services are particularly valuable when:
 
 ---
 
-### 4.6 Cost and Time Estimation
+### 4.6 Cost and Time Estimation (EXPAND ON THIS TOO BASIC)
 
 Before starting a large OCR project, estimate the time and cost to avoid surprises. This helps with project planning and resource allocation.
 
@@ -1279,3 +1261,5 @@ ADD
 - https://content.lib.washington.edu/civilwarweb/index.html
 - https://ubcecon.github.io/praxis-ubc/docs/text_analysis/text_analysis.html
 - https://ubcecon.github.io/praxis-ubc/docs/hist_workshop/text_embeddings_workshop.html
+- https://learning.media.ubc.ca/media/6.2+Raster+Density+and+Colour+Adjustments+/0_cuwawgrc
+- https://learning.media.ubc.ca/media/Channels/0_u0aqwm1q
