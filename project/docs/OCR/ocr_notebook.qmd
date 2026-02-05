@@ -266,24 +266,17 @@ for i, (bbox, text, conf) in enumerate(results[:10]):
     print(f"  {i+1}. '{text}' (confidence: {conf:.2%})")
 
 # Build extracted_text and ocr_df from EasyOCR results
+# These will be used later for evaluation and structured output
 extracted_text = '\n'.join([text for (bbox, text, conf) in results])
 
-# Create a DataFrame mimicking Tesseract's output format
+# Create a DataFrame for confidence analysis
 ocr_df = pd.DataFrame({
     'text': [text for (bbox, text, conf) in results],
     'conf': [conf * 100 for (bbox, text, conf) in results]  # EasyOCR is 0-1, convert to 0-100
 })
 
-# Now this will work
-structured = create_structured_output(extracted_text, ocr_df, "newspaper_clean_col1.jp2")
-
-with open('output/document.json', 'w') as f:
-    json.dump(structured, f, indent=2)
-
-print("Structured Output:")
-print(json.dumps(structured['metadata'], indent=2))
-print(f"\nWord count by confidence: {structured['word_count_by_confidence']}")
-print(f"\nSaved to: output/document.json")
+print(f"\nTotal text length: {len(extracted_text)} characters")
+print(f"Average confidence: {ocr_df['conf'].mean():.1f}%")
 ```
 
 EasyOCR scanned the newspaper image and identified 246 separate regions containing text, returning each one with its bounding box coordinates, the recognized text, and a confidence score. 
@@ -1257,6 +1250,7 @@ Reproducibility ensures that you (or others) can recreate your results exactly. 
 
 ::: {.callout-tip}
 **Best Practice**: Create a `requirements.txt` or `environment.yml` file for your project. This allows others to recreate your exact environment. Use Version control (like Git) when necessary. 
+:::
 
 ## 5.0 Conclusion
 
