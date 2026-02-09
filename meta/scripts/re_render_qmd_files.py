@@ -242,16 +242,14 @@ class QMDReRenderer:
 
             process = subprocess.run(
                 ['quarto', 'render', relative_path_str],
-                capture_output=True,
                 text=True,
                 cwd=self.project_root,  # Explicitly set working directory
                 # No timeout - some notebooks take longer to render
+                # stdout/stderr stream to console so cell progress is visible
             )
 
             if process.returncode != 0:
-                result.error_message = f"Quarto render failed:\n{process.stderr}"
-                if process.stdout:
-                    result.error_message += f"\nstdout:\n{process.stdout}"
+                result.error_message = "Quarto render failed (see output above)"
                 return result
 
             # Check if HTML was freshly created in _site (project render behavior)
