@@ -131,7 +131,7 @@ class QMDReRenderer:
 
         # Find and comment out the exclusion line
         # Pattern: - "!docs/path/file.qmd" or - '!docs/path/file.qmd'
-        pattern = rf'([ \t]*-[ \t]*["\']?!{re.escape(rel_path)}["\']?[ \t]*\r?\n)'
+        pattern = rf'([ \t]*-[ \t]*["\']?!{re.escape(rel_path)}["\']?[^\r\n]*\r?\n)'
 
         match = re.search(pattern, content)
         if match:
