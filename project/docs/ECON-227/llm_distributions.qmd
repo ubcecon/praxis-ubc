@@ -63,7 +63,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import yfinance as yf
 from finvizfinance.quote import finvizfinance
-from transformers import pipeline
+from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 import holidays
 import plotly.graph_objects as go
@@ -72,6 +72,8 @@ import ipywidgets as widgets
 from IPython.display import display, clear_output
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 from forecast_plot import create_plot
+import torch
+import torch.nn.functional as F
 ```
 
 ### 1 Introduction: Distribution of LLM Predictions
@@ -153,9 +155,57 @@ plt.tight_layout()
 plt.show()
 ```
 
+```{python}
+# Load a pre-trained model and tokenizer from Hugging Face
+Next_word_prediction = "distilbert/distilgpt2"
+tokenizer = AutoTokenizer.from_pretrained(Next_word_prediction)
+model = AutoModelForCausalLM.from_pretrained(Next_word_prediction)
+model.eval()
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model.to(device)
+print("Loaded:", Next_word_prediction, "on", device)
+```
+
+```{python}
+# Return top-1 next-token predictions + probabilities
+def predict_next_word(sentence, k=5, temperature=1.0):
+
+    inputs = tokenizer(sentence, return_tensors="pt").to(device)
+
+    with torch.no_grad():
+        out = model(**inputs)
+        logits = out.logits[0, -1, :]
+
+    logits = logits / temperature
+    probs = torch.nn.functional.softmax(logits, dim=-1)
+
+    topk = torch.topk(probs, k)
+
+    top_probs = topk.values.detach().cpu().tolist()
+    top_ids = topk.indices.detach().cpu().tolist()
+
+    top_tokens = [tokenizer.decode([i]) for i in top_ids]
+
+    print("Sentence:", sentence)
+    print("Prediction (top-1):", repr(top_tokens[0]), "| prob =", round(top_probs[0], 3))
+    print()
+
+    for t, p in zip(top_tokens, top_probs):
+        print(f"{repr(t):>10}  {p:.3f}")
+```
+
+Let's use the model to predict the next word in a sentence.
+
+> *Try changing the sentence below to see how the predicted next word changes.*
+
+```{python}
+predict_next_word("The cat sat on the")
+```
+
 ### 2 Sampling and Temperature
 
-The example above shows us the process of generating $T=3$: at each step, the model calculates the conditional probability of the next word and then selects the word with the highest probability to insert into the sentence. The final output we obtain is "buy some milk".
+The example above (“bob went to the store”) shows us the process of generating $T=3$: at each step, the model calculates the conditional probability of the next word and then selects the word with the highest probability to insert into the sentence. The final output we obtain is "buy some milk".
 
 To get more creative responses you change the distribution at the output where you pick the next word. Very simply this involves making the distribution sharper or flatter.
 If you make the distribution sharper, you are more likely to pick the word with the highest probability. If you make it flatter, you are more likely to pick a word that is not the most probable one.
@@ -220,6 +270,63 @@ plt.show()
 ```
 
 In the example above, we see how the probability distribution changes with different temperatures. A high temperature (1.5) results in a flatter distribution, meaning the model is more likely to sample from less probable tokens, while a low temperature (0.5) results in a sharper distribution, favoring the most probable tokens.
+
+```{python}
+# Visualize next-word probability distribution
+def plot_next_token_distribution(sentence, k=20, temperature=1.0):
+
+    inputs = tokenizer(sentence, return_tensors="pt").to(device)
+
+    with torch.no_grad():
+        out = model(**inputs)
+        logits = out.logits[0, -1, :]
+
+    logits = logits / temperature
+    probs = F.softmax(logits, dim=-1)
+
+    topk = torch.topk(probs, k)
+    top_probs = topk.values.detach().cpu().tolist()
+    top_ids = topk.indices.detach().cpu().tolist()
+    top_tokens = []
+    for i in top_ids:
+        tok = tokenizer.decode([i])
+        tok = tok.replace("\n", "\\n")
+        top_tokens.append(tok)
+
+    plt.figure(figsize=(10, 4))
+    ax = sns.barplot(x=top_tokens, y=top_probs, palette="muted")
+
+    ax.set_title(f"Top-{k} next-token distribution (temperature={temperature})")
+    ax.set_xlabel("Next token")
+    ax.set_ylabel("Probability")
+    ax.set_ylim(0, max(top_probs) * 1.25)
+    ax.tick_params(axis="x", rotation=45)
+
+    max_idx = int(torch.tensor(top_probs).argmax().item())
+    ax.patches[max_idx].set_color("gold")
+
+    for patch, prob in zip(ax.patches, top_probs):
+        height = patch.get_height()
+        ax.annotate(
+            f"{prob:.2f}",
+            xy=(patch.get_x() + patch.get_width() / 2, height),
+            xytext=(0, 3),
+            textcoords="offset points",
+            ha="center",
+            va="bottom",
+            fontsize=9
+        )
+    plt.tight_layout()
+    plt.show()
+```
+
+Now let's apply the same idea to our own sentence using a real language model.
+
+> *Try changing the sentence or the temperature below to see how the distribution changes.*
+
+```{python}
+plot_next_token_distribution("The cat sat on the", temperature=1.0)
+```
 
 Note that while this is with words and language, the same idea applies to any sequential data, like stock prices, weather data, etc. The model looks at what happened before and tries to guess what comes next.
 
@@ -448,7 +555,7 @@ This table lets us track how optimism or pessimism is **building up over time**,
 
 ####  Why is this useful?
 
-- We know that in the last 100 news stories about NVIDIA 24 have been positive and 5 have been negative. 
+- We know that in the last 100 news stories about NVIDIA 24 have been positive and 5 have been negative.
 - If the `daily_pct_positive` is rising, the overall tone of news is getting more optimistic.
 - If it's dropping, it could mean public or investor concern is growing.
 - We can later plot this and compare it against stock price to see if sentiment influences market behavior.
