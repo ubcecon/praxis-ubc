@@ -9,11 +9,16 @@ categories:
   - neural networks
   - deep learning
 description: "This notebook provides an introduction to Convolutional Neural Networks (CNNs), their architecture, and their applications. It includes a hands-on example of building and training a CNN classifier using the CIFAR-10 dataset."
+execute:
+  eval: true
+  echo: true
+  output: true
 format:
   html: 
     code-fold: true
     code-summary: "Show the code"
-
+    embed-resources: true
+    self-contained-math: true
   ipynb:
     jupyter:
       kernelspec:
@@ -24,6 +29,8 @@ format:
 
 ::: {.callout-warning}
 This notebook may require using a GPU and a system with over 24GB of RAM to run efficiently. Running it on a system with limited resources may result in long processing times or potential memory issues.
+
+Note that some code cells are commented out to prevent long execution times. You can choose to uncomment and run them if your system has sufficient resources.
 :::
 
 Before you start, make sure you have the required libraries installed, if not, simply **uncomment the lines below (remove the #)** and run the cell to install them: 
@@ -97,6 +104,8 @@ We can also display one of the images to see what it's like.
 
 ```{python}
 # let's view the image (it's very small)
+import matplotlib.pyplot as plt
+
 sample = dataset_train[0]['img']
 
 plt.imshow(sample)
@@ -315,78 +324,78 @@ We will train the model for 25 epochs. To ensure we’re not overfitting to the 
 You can run the training and fitting loop as follows, but **be cautious: This cell will take a long time to run**. Alternatively, you can skip 3 cells and load the model we pre-trained directly.
 
 ```{python}
-train_losses = []
-val_losses = []
-val_accuracies = []
+# train_losses = []
+# val_losses = []
+# val_accuracies = []
 
-num_epochs = 25
-for epoch in range(num_epochs):
-    model.train()
-    running_loss = 0.0
+# num_epochs = 25
+# for epoch in range(num_epochs):
+#     model.train()
+#     running_loss = 0.0
     
-    for i, (images, labels) in enumerate(dloader_train):  
-        images = images.to(device)
-        labels = labels.to(device)
+#     for i, (images, labels) in enumerate(dloader_train):  
+#         images = images.to(device)
+#         labels = labels.to(device)
         
-        outputs = model(images)
-        loss = loss_func(outputs, labels)
+#         outputs = model(images)
+#         loss = loss_func(outputs, labels)
         
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+#         optimizer.zero_grad()
+#         loss.backward()
+#         optimizer.step()
         
-        running_loss += loss.item()
+#         running_loss += loss.item()
         
-    avg_train_loss = running_loss / len(dloader_train)
-    train_losses.append(avg_train_loss)
+#     avg_train_loss = running_loss / len(dloader_train)
+#     train_losses.append(avg_train_loss)
     
-    with torch.no_grad():
-        model.eval()
-        correct = 0
-        total = 0
-        all_val_loss = []
-        for images, labels in dloader_val:
-            images = images.to(device)
-            labels = labels.to(device)
-            outputs = model(images)
-            total += labels.size(0)
-            predicted = torch.argmax(outputs, dim=1)
-            correct += (predicted == labels).sum().item()
-            all_val_loss.append(loss_func(outputs, labels).item())
+#     with torch.no_grad():
+#         model.eval()
+#         correct = 0
+#         total = 0
+#         all_val_loss = []
+#         for images, labels in dloader_val:
+#             images = images.to(device)
+#             labels = labels.to(device)
+#             outputs = model(images)
+#             total += labels.size(0)
+#             predicted = torch.argmax(outputs, dim=1)
+#             correct += (predicted == labels).sum().item()
+#             all_val_loss.append(loss_func(outputs, labels).item())
             
-        mean_val_loss = sum(all_val_loss) / len(all_val_loss)
-        mean_val_acc = 100 * (correct / total)
+#         mean_val_loss = sum(all_val_loss) / len(all_val_loss)
+#         mean_val_acc = 100 * (correct / total)
         
-        val_losses.append(mean_val_loss)
-        val_accuracies.append(mean_val_acc)
+#         val_losses.append(mean_val_loss)
+#         val_accuracies.append(mean_val_acc)
         
-    print(f'Epoch [{epoch+1}/{num_epochs}], Train Loss: {avg_train_loss:.4f}, Val Loss: {mean_val_loss:.4f}, Val Acc: {mean_val_acc:.2f}%')
+#     print(f'Epoch [{epoch+1}/{num_epochs}], Train Loss: {avg_train_loss:.4f}, Val Loss: {mean_val_loss:.4f}, Val Acc: {mean_val_acc:.2f}%')
 ```
 
 We can visualize how training loss, validation loss and validation accuracy evolve over time.
 
 ```{python}
-plt.figure(figsize=(8,4))
+# plt.figure(figsize=(8,4))
 
-# Plot Loss
-plt.subplot(1,2,1)
-plt.plot(train_losses, label='Training Loss')
-plt.plot(val_losses, label='Validation Loss')
-plt.xlabel('Epoch')
-plt.ylabel('Loss')
-plt.title('Loss Curve')
-plt.legend()
+# # Plot Loss
+# plt.subplot(1,2,1)
+# plt.plot(train_losses, label='Training Loss')
+# plt.plot(val_losses, label='Validation Loss')
+# plt.xlabel('Epoch')
+# plt.ylabel('Loss')
+# plt.title('Loss Curve')
+# plt.legend()
 
-# Plot Accuracy
-plt.subplot(1,2,2)
-plt.plot(val_accuracies, label='Validation Accuracy', color='green')
-plt.xlabel('Epoch')
-plt.ylabel('Accuracy (%)')
-plt.title('Validation Accuracy Curve')
-plt.legend()
+# # Plot Accuracy
+# plt.subplot(1,2,2)
+# plt.plot(val_accuracies, label='Validation Accuracy', color='green')
+# plt.xlabel('Epoch')
+# plt.ylabel('Accuracy (%)')
+# plt.title('Validation Accuracy Curve')
+# plt.legend()
 
-plt.tight_layout()
-plt.show()
+# plt.tight_layout()
+# plt.show()
 ```
 
 The loss curve and validation accuracy curve show that the training loss and validation loss goes down while the validation accuracy of the model goes up as the training epochs increase. If we add more epochs (costly!), the validation accuracy of the model will be higher, but the model will also be more at risk of overfitting. To prevent which, we often need to regularize the model.
@@ -395,13 +404,13 @@ After training for 25 epochs, we see our validation accuracy has passed 70%, we 
 
 ```{python}
 # save to file
-torch.save(model, 'cnn.pt')
+# torch.save(model, 'cnn.pt')
 ```
 
 ```{python}
 
 # load from file and switch to inference mode
-model = torch.load('cnn.pt', weights_only=False)
+model = torch.load('data/cnn.pt', weights_only=False)
 model.eval()
 ```
 
