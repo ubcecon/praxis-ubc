@@ -954,111 +954,89 @@ However, it is important to note that the model's predictions are not perfect an
 - **Mean Absolute Error (MAE)**: A measure of prediction accuracy that calculates the average absolute difference between predicted and actual values.
 - **Root Mean Squared Error (RMSE)**: A measure of prediction accuracy that calculates the square root of the average of squared differences between predicted and actual values.
 
-### References
+### Proposed Edits
+# --- 2. Collect News Headlines ---
+SBUX_news_df.head(10)[["DateOnly", "Title"]]
 
-- Kirsch, N. (2024, April 29). 10 Best AI Stocks Of August 2024. Forbes Advisor. [https://www.forbes.com/advisor/investing/best-ai-stocks/](https://www.forbes.com/advisor/investing/best-ai-stocks/)
-- Chen, J. (2023, October 6). *Efficient Market Hypothesis (EMH): Forms and criticisms*. Investopedia. [https://www.investopedia.com/terms/e/efficientmarkethypothesis.asp](https://www.investopedia.com/terms/e/efficientmarkethypothesis.asp)
-- Yahoo Finance. (n.d.). Yahoo Finance — Stocks, financial news, quotes, and market data. Retrieved August 1, 2025, from [https://ca.finance.yahoo.com/](https://ca.finance.yahoo.com/)
-- Aroussi, R. (n.d.). yfinance [Python package]. GitHub. Retrieved August 1, 2025, from [https://github.com/ranaroussi/yfinance](https://github.com/ranaroussi/yfinance)
-- Li, T. (2025). finvizfinance (Version 1.1.1) [Python package]. PyPI. Retrieved August 1, 2025, from [https://pypi.org/project/finvizfinance/](https://pypi.org/project/finvizfinance/)
-- GeeksforGeeks. (2023, September 27). Complete guide to SARIMAX in Python. [https://www.geeksforgeeks.org/python/complete-guide-to-sarimax-in-python/](https://www.geeksforgeeks.org/python/complete-guide-to-sarimax-in-python/)
-- Sprenger, T. O., Tumasjan, A., Sandner, P. G., & Welpe, I. M. (2014, February 5). *Twitter sentiment and stock market movements: The predictive power of social media*. VoxEU. [https://cepr.org/voxeu/columns/twitter-sentiment-and-stock-market-movements-predictive-power-social-media](https://cepr.org/voxeu/columns/twitter-sentiment-and-stock-market-movements-predictive-power-social-media)
+# --- 3. Guess and Classify Sentiment ---
+SBUX_sentiment_df = apply_sentiment(SBUX_news_df)
+SBUX_sentiment_df.head()
 
-
-# Katherine suggested edits
-# for a singke module 
-# llm_forecasting/pipeline.py
-
-class SentimentForecaster:
-    """
-    High-level forecasting pipeline that mirrors LLM-style prediction:
-    context → distribution → forecast
-    """
-
-    def __init__(self, ticker, sentiment_model):
-        self.ticker = ticker
-        self.sentiment_model = sentiment_model
-
-    def load_data(self, news_df, price_df):
-        self.news_df = news_df
-        self.price_df = price_df
-
-    def build_features(self):
-        from .sentiment import apply_sentiment, process_sentiment
-        from .data import combine_data
-
-        sentiment = apply_sentiment(self.news_df)
-        sentiment_summary = process_sentiment(sentiment)
-        self.dataset = combine_data(sentiment_summary, self.price_df)
-
-    def fit(self):
-        from .models import fit_sarimax
-        self.model = fit_sarimax(self.dataset)
-
-    def forecast(self, steps=3):
-        return self.model.forecast(steps)
-
-    def plot(self):
-        from .visualization import plot_forecast
-        plot_forecast(self.dataset, self.model)
-
-# interactive next-word predictor
-import ipywidgets as widgets
-import numpy as np
-import matplotlib.pyplot as plt
-
-vocab = ["buy", "sell", "hold", "wait"]
-base_probs = np.array([0.5, 0.2, 0.2, 0.1])
-
-def sample_next_word(temp):
-    logits = np.log(base_probs)
-    scaled = logits / temp
-    probs = np.exp(scaled) / np.exp(scaled).sum()
-    word = np.random.choice(vocab, p=probs)
-
-    plt.bar(vocab, probs)
-    plt.title(f"Temperature = {temp}\nSampled token = '{word}'")
-    plt.ylim(0,1)
-    plt.show()
-
-widgets.interact(
-    sample_next_word,
-    temp=widgets.FloatSlider(min=0.1, max=2.0, step=0.1, value=1.0)
+SBUX_sentiment_df["7day_pct_positive"] = (
+    SBUX_sentiment_df.groupby("DateOnly")["POSITIVE"]
+    .transform(lambda x: x.rolling(7, min_periods=1).sum() /
+                         (x.rolling(7, min_periods=1).sum() + x.rolling(7, min_periods=1).sum()))
 )
+SBUX_sentiment_df.head()
 
-# next-token prediction
-def next_step_prediction(context_length):
-    data = np.cumsum(np.random.normal(0, 1, 50))
-    context = data[:context_length]
+# --- 5. Forecasting Stock Changes Using Sentiment + Past Returns ---
+def prepare_and_forecast(sent_df, ticker="SBUX", forecast_days=3):
+    stock_df = pd.read_csv(f"datasets/{ticker}_price.csv")
+    stock_df["DateOnly"] = pd.to_datetime(stock_df["DateOnly"])
+    stock_df["Pct_Change"] = stock_df["Close"].pct_change() * 100
 
-    mean = context[-5:].mean()
-    std = context[-5:].std()
+    combined_df = pd.merge(
+        sent_df, stock_df, on="DateOnly", how="inner"
+    ).assign(
+        lagged_sentiment=lambda df: df["7day_pct_positive"].shift(1)
+    ).dropna()
 
-    samples = np.random.normal(mean, std, 100)
+    endog = combined_df["Pct_Change"]
+    exog = combined_df["lagged_sentiment"]
 
-    plt.hist(samples, bins=30, alpha=0.7)
-    plt.axvline(mean, color="red", label="Most likely next value")
-    plt.title("Predicting the Next Token (Number)")
-    plt.legend()
-    plt.show()
+    model = SARIMAX(endog, exog=exog, order=(1,1,1))
+    fit = model.fit(disp=False)
 
-widgets.interact(
-    next_step_prediction,
-    context_length=widgets.IntSlider(min=5, max=40, step=1, value=20)
+    future_dates = get_future_dates(combined_df.index[-1], forecast_days)
+    future_exog = np.tile(combined_df['lagged_sentiment'].iloc[-1], forecast_days).reshape(-1, 1)
+
+    forecast = fit.get_forecast(steps=forecast_days, exog=future_exog)
+    return combined_df, forecast.predicted_mean, forecast.conf_int(), future_dates
+
+combined_df, forecast_mean, forecast_ci, forecast_index = prepare_and_forecast(SBUX_sentiment_df)
+create_plot(combined_df, forecast_mean, forecast_ci, forecast_index)
+
+# --- 6. AI Stocks Sentiment Analysis ---
+ai_tickers = ["ACN", "ADBE", "AMD", "APP", "AVGO", "CRM", "MRVL", "MU", "NVDA", "QCOM"]
+
+AI_sentiment_news_df = pd.read_csv("datasets/AI_news_sentiment.csv")
+AI_sentiment_df = AI_process_sentiment(AI_sentiment_news_df)
+AI_sentiment_df.head()
+
+AI_stock_prices = pd.read_csv("datasets/AI_top10_price_snapshot.csv")
+AI_sentiment_df['DateOnly'] = pd.to_datetime(AI_sentiment_df['DateOnly'])
+AI_stock_prices['DateOnly'] = pd.to_datetime(AI_stock_prices['DateOnly'])
+
+final_df = pd.merge(
+    AI_stock_prices,
+    AI_sentiment_df,
+    on=['DateOnly', 'Ticker'],
+    how='inner'
 )
+final_df.head()
 
-#sentiment to map to transformers with extra cibtext embeddings
-def sentiment_conditioned_prediction(sentiment_strength):
-    base_return = np.random.normal(0, 1, 100)
+final_df = final_df.copy()
+final_df['sentiment_std'] = (
+    final_df['7day_pct_positive'] - final_df['7day_pct_positive'].mean()
+) / final_df['7day_pct_positive'].std()
 
-    adjusted = base_return + sentiment_strength * 0.5
+final_df['lagged_sentiment'] = final_df['sentiment_std'].shift(1)
+final_df.dropna(subset=['lagged_sentiment', 'Pct_Change'], inplace=True)
+final_df.set_index('DateOnly', inplace=True)
+final_df.sort_index(inplace=True)
 
-    plt.hist(adjusted, bins=30, alpha=0.7)
-    plt.title(f"Sentiment-conditioned forecast\nSentiment = {sentiment_strength}")
-    plt.show()
+forecast_mean, forecast_ci, forecast_index = fit_and_forecast(final_df)
+create_plot(final_df, forecast_mean, forecast_ci, forecast_index)
 
-widgets.interact(
-    sentiment_conditioned_prediction,
-    sentiment_strength=widgets.FloatSlider(min=-2, max=2, step=0.1, value=0)
-)
+# --- 7. Model Evaluation ---
+compare_start, compare_end = get_compare_window(forecast_index[0], forecast_index[-1])
+actuals_df = fetch_actual_pct_changes(ai_tickers, compare_start, compare_end, buffer_days=7)
+pred_mean_values = forecast_mean.values
+mdf, metrics = compare_predictions(pred_mean_values, forecast_index, actuals_df)
+
+print("Comparison metrics:")
+print(f"Count: {metrics['count']}\nMAE: {metrics['MAE']:.2f}\nRMSE: {metrics['RMSE']:.2f}\n")
+if not mdf.empty:
+    print(mdf.head())
+create_plot(final_df, forecast_mean, forecast_ci, forecast_index, actuals_df)
 
