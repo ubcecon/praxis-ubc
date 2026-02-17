@@ -34,7 +34,7 @@ Before we begin, we need to install and import the necessary libraries. This not
 Install the necessary packages: 
 ```{python}
 # Uncomment the line below to install packages:
-#!pip install pytesseract easyocr opencv-python Pillow matplotlib pandas numpy nltk jiwer pdf2image paddlepaddle paddleocr
+#!pip install pytesseract easyocr opencv-python Pillow matplotlib pandas numpy nltk jiwer pdf2image surya-ocr poppler
 ```
 
 Load the required packages:
@@ -62,6 +62,10 @@ from nltk.stem import PorterStemmer, WordNetLemmatizer
 from jiwer import wer, cer
 from pdf2image import convert_from_path
 
+import gc
+from surya.recognition import RecognitionPredictor
+from surya.detection import DetectionPredictor
+
 nltk.download('punkt')
 nltk.download('wordnet')
 nltk.download('averaged_perceptron_tagger')
@@ -73,7 +77,7 @@ Here we define helper functions for loading and displaying images, and prepare t
 
 ```{python}
 def load_image(path):
-    """Load an image from pdf, jp2, tif, jpg, or png and return as RGB numpy array."""
+    #Load an image from pdf, jp2, tif, jpg, or png and return as RGB numpy array.
     if path.endswith('.pdf'):
         from pdf2image import convert_from_path
         pages = convert_from_path(path, dpi=300)
@@ -120,7 +124,6 @@ print("Output directory ready: ./output/")
 ```
 
 ---
-
 ## Introduction
 
 ### What is OCR?
@@ -139,7 +142,7 @@ For humanities researchers, OCR opens up vast archives of historical documents, 
 By the end of this notebook, you will be able to:
 
 1. **Understand OCR vs VLM** and be able to choose which model/tool to use
-2. **Extract text** from historical documents using EasyOCR and PaddleOCR
+2. **Extract text** from historical documents using EasyOCR and Surya OCR
 3. **Pre-process images** to improve OCR accuracy
 4. **Handle complex document layouts** like multi-column newspapers
 5. **Evaluate OCR quality** using standard metrics (CER, WER, Confidence Intervals)
@@ -172,7 +175,7 @@ Text extraction from documents falls into three main categories:
 |------|------|-----------|----------|
 | **Tesseract** | Open-source | Fast, accurate on clean text | Printed documents |
 | **EasyOCR** | Open-source | Multi-language, deep learning | Diverse scripts |
-| **PaddleOCR** | Open-source | Lightweight, good layout detection | Complex layouts |
+| **Surya OCR** | Open-source | Multi-language, layout detection, CPU-friendly | Complex layouts |
 | **Transkribus** | Freemium | Excellent HTR, crowdsourcing | Handwritten documents |
 | **Azure Document Intelligence** | Paid | Enterprise-grade, form extraction | Business documents |
 | **AWS Textract** | Paid | Table extraction, scalable | Structured documents |
@@ -219,8 +222,6 @@ display_image(img, title="Sample Newspaper Column (newspaper_clean_col1.jp2)", f
 
 We load the EasyOCR package and set it to read English with `easyocr.Reader(['en'])`.
 ```{python}
-import easyocr
-
 reader = easyocr.Reader(['en'], gpu=False) # set gpu=True if you have CUDA
 ```
 
@@ -318,7 +319,7 @@ While open-source tools work well for many use cases, commercial solutions offer
 - Handwritten and printed text are mixed
 
 ::: {.callout-warning}
-**GPU Requirements**: Most VLMs require significant GPU memory (8GB+). For CPU-only systems, consider PaddleOCR which is optimized for CPU inference.
+**GPU Requirements**: Most VLMs require significant GPU memory (8GB+). For CPU-only systems, consider Surya OCR which works well on CPU.
 :::
 
 ### 2.2 How Do VLMs Work?
@@ -348,80 +349,44 @@ For example, if a historical document has a smudged word, traditional OCR might 
 
 ---
 
-### 2.3 PaddleOCR Demo
+### 2.3 Surya OCR Demo
 
-**PaddleOCR** is a practical middle ground, it uses deep learning but is optimized for CPU inference, making it accessible without specialized hardware.
+**Surya OCR** is a practical middle ground — it uses deep learning (transformer-based models) but works well on CPU, making it accessible without specialized hardware. It supports 90+ languages and includes built-in text detection and layout analysis.
 
 ```{python}
-#!pip install paddlepaddle paddleocr
+#!pip install surya-ocr
 ```
 
 ```{python}
-#import gc
-#import paddle
-#paddle.set_flags({"FLAGS_use_mkldnn": False})
-#from paddleocr import PaddleOCR
-#
-## PaddleOCR needs .png, so convert from .jp2 first
-#temp_png_path = 'output/temp_paddle_input.png'
-#Image.fromarray(img).save(temp_png_path)
-#
-#paddle_ocr = PaddleOCR(use_angle_cls=True, lang='en', enable_mkldnn=False)
-#paddle_results = paddle_ocr.predict(temp_png_path)
-#result = paddle_results[0]
-#
-#texts = result['rec_texts']
-#scores = result['rec_scores']
-#
-#print(f"PaddleOCR detected {len(texts)} text regions")
-#print("\nFirst 10 detections:")
-#for i, (text, conf) in enumerate(zip(texts[:10], scores[:10])):
-#    print(f"  {i+1}. '{text}' (confidence: {conf:.2%})")
-#
-#paddle_full_text = ' '.join(texts)
-#print(f"\n[Total characters extracted: {len(paddle_full_text)}]")
-#print("\nFull text preview:")
-#print(paddle_full_text[:2000])
-#
-#del paddle_ocr
-#gc.collect()
-```
+rec_predictor = RecognitionPredictor()
+det_predictor = DetectionPredictor()
 
-This cell is pretty computationally intensive output pasted below: 
+surya_img = Image.fromarray(img)
+surya_results = rec_predictor([surya_img], det_predictor=det_predictor)
+surya_result = surya_results[0]
 
-PaddleOCR detected 131 text regions
+surya_texts = [line.text for line in surya_result.text_lines]
+surya_scores = [line.confidence for line in surya_result.text_lines]
 
-First 10 detections:
-  1. 'Wins Athletic' (confidence: 99.27%)
-  2. 'Champions' (confidence: 99.99%)
-  3. 'of' (confidence: 99.97%)
-  4. 'Six' (confidence: 99.99%)
-  5. 'Regiments' (confidence: 99.99%)
-  6. 'pete in Exciting' (confidence: 99.81%)
-  7. 'Tour' (confidence: 99.98%)
-  8. 'of' (confidence: 99.98%)
-  9. 'Finals' (confidence: 99.99%)
-  10. 'nament' (confidence: 99.99%)
+print(f"Surya OCR detected {len(surya_texts)} text regions")
+print("\nFirst 10 detections:")
+for i, (text, conf) in enumerate(zip(surya_texts[:10], surya_scores[:10])):
+    print(f"  {i+1}. '{text}' (confidence: {conf:.2%})")
 
-[Total characters extracted: 2059]
+surya_full_text = ' '.join(surya_texts)
+print(f"\n[Total characters extracted: {len(surya_full_text)}]")
+print("\nFull text preview:")
+print(surya_full_text[:2000])
 
-Full text preview:
-Wins Athletic Champions of Six Regiments pete in Exciting Tour of Finals nament in Honolulu. WIN THE COLORED REGIMENT Point Scores Nearly Half the All of Made by Combined Competitors in Contest. Two Omaha Boys HOW THEY ENDED 70 point Inf. First point 40 Infantry... Second 29 point Infantry. Coast 14 point Defense Th Honolulu, March 24- T., 26 Infantry February made good its promises to carry militar athletic the final meet, finishing in against with three other regiments of seventy points to its credit out total fone hundred and fifty-foun of In addition, Gilbert, of the Twenty fifth, smashed the Island record fo the 100-yard dash to smithereens and set a local mark equal to the bes ever made in the world.
-
-We can see that the confidence is much higher. 
+del rec_predictor, det_predictor
+gc.collect()
+``` 
 
 #### Testing on Handwritten Documents
 
 Let's see how different OCR approaches handle handwritten text: 
 
-Uncomment if needed
 ```{python}
-#!pip install poppler
-```
-
-```{python}
-from pdf2image import convert_from_path
-
 letter_pages = convert_from_path(
     "data/simple/handwritten_letter_page1.pdf",
     dpi=300,
@@ -432,20 +397,50 @@ letter_img = np.array(letter_pages[0])
 display_image(letter_img, title="Handwritten Letter (Civil War Era)", figsize=(10, 12))
 ```
 
-Now that we have the handwritten loaded we can compare EasyOCR vs Paddle. 
+Now that we have the handwritten letter loaded we can compare EasyOCR vs Surya OCR on the same image.
 
 ```{python}
 easyocr_hw_results = reader.readtext(letter_img)
-easyocr_hw = '\n'.join([text for (bbox, text, conf) in easyocr_hw_results])
-print("\n--- EasyOCR ---")
-print(easyocr_hw[:500])
+easyocr_hw_text = '\n'.join([text for (bbox, text, conf) in easyocr_hw_results])
+easyocr_hw_confs = [conf for (bbox, text, conf) in easyocr_hw_results]
+
+print("--- EasyOCR ---")
+print(f"Regions detected: {len(easyocr_hw_results)}")
+print(f"Avg confidence: {np.mean(easyocr_hw_confs):.2%}")
+print(f"\nExtracted text (first 500 chars):\n{easyocr_hw_text[:500]}")
 ```
 
-^ **ADD PADDLE TO THIS CELL**
+```{python}
+rec_predictor_hw = RecognitionPredictor()
+det_predictor_hw = DetectionPredictor()
 
-EasyOCR does a very poor job. 
+surya_hw_img = Image.fromarray(letter_img)
+surya_hw_results = rec_predictor_hw([surya_hw_img], det_predictor=det_predictor_hw)
+surya_hw_result = surya_hw_results[0]
 
-More analysis ... etc
+surya_hw_texts = [line.text for line in surya_hw_result.text_lines]
+surya_hw_scores = [line.confidence for line in surya_hw_result.text_lines]
+surya_hw_text = '\n'.join(surya_hw_texts)
+
+print("--- Surya OCR ---")
+print(f"Regions detected: {len(surya_hw_texts)}")
+print(f"Avg confidence: {np.mean(surya_hw_scores):.2%}")
+print(f"\nExtracted text (first 500 chars):\n{surya_hw_text[:500]}")
+
+del rec_predictor_hw, det_predictor_hw
+gc.collect()
+```
+
+```{python}
+comparison = pd.DataFrame({
+    'Metric': ['Regions detected', 'Avg confidence', 'Total characters'],
+    'EasyOCR': [len(easyocr_hw_results), f"{np.mean(easyocr_hw_confs):.2%}", len(easyocr_hw_text)],
+    'Surya OCR': [len(surya_hw_texts), f"{np.mean(surya_hw_scores):.2%}", len(surya_hw_text)]
+})
+display(comparison)
+```
+
+Both engines struggle with handwritten text. Traditional OCR is built for printed characters, so the low confidence scores and garbled output here are expected. For handwritten documents, specialized tools like Transkribus or fine-tuned VLMs tend to perform much better.
 
 ## Part 3: Full OCR Workflow
 
@@ -504,8 +499,8 @@ display_images_side_by_side(median_denoised, nlm_denoised, "Median Blur", "Non-L
 Rotated documents hurt OCR accuracy. Let's detect and correct rotation:
 
 ```{python}
+# Detect skew angle via Hough lines and rotate to correct it
 def deskew(image):
-    """Detect skew angle via Hough lines and rotate to correct it."""
     if len(image.shape) == 3:
         gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
     else:
@@ -564,8 +559,8 @@ Let's combine all steps and compare OCR results:
 #| code-fold: true
 #| code-summary: "Full preprocessing pipeline"
 
+# Grayscale -> CLAHE -> denoise -> deskew -> binarize
 def preprocess_document(image):
-    """Grayscale -> CLAHE -> denoise -> deskew -> binarize."""
     results = {}
 
     if len(image.shape) == 3:
@@ -624,8 +619,8 @@ that the city      residents
 Without layout analysis, OCR might read: "The mayor Meanwhile, announced today across town..."
 
 ```{python}
+# Detect text columns using vertical projection profile
 def detect_columns(image, min_column_width=100):
-    """Detect text columns using vertical projection profile."""
     if len(image.shape) == 3:
         gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
     else:
@@ -739,8 +734,8 @@ for word in test_words:
 Converting OCR output to structured formats enables downstream analysis:
 
 ```{python}
+#Create a structured JSON output from OCR results.
 def create_structured_output(text, ocr_data_df, source_file):
-    """Create a structured JSON output from OCR results."""
     words = word_tokenize(text)
     sentences = sent_tokenize(text)
 
@@ -822,9 +817,7 @@ ocr_normalized = extracted_text.lower().strip()
 word_error_rate = wer(gt_normalized, ocr_normalized)
 char_error_rate = cer(gt_normalized, ocr_normalized)
 
-print("=" * 60)
 print("OCR EVALUATION METRICS")
-print("=" * 60)
 print(f"\nWord Error Rate (WER):      {word_error_rate:.2%}")
 print(f"Character Error Rate (CER): {char_error_rate:.2%}")
 print(f"\nWord Accuracy:      {1 - word_error_rate:.2%}")
@@ -874,13 +867,13 @@ Processing documents one at a time is slow. Modern computers have multiple CPU c
 
 Image pre-processing tasks (grayscale conversion, binarization, denoising) are **CPU-bound** meaning, they primarily use the processor rather than memory or disk. Python's `concurrent.futures` module provides a straightforward way to parallelize these tasks across multiple CPU cores. The `ThreadPoolExecutor` is suitable for I/O-bound tasks (reading/writing files), while `ProcessPoolExecutor` is better for CPU-bound computation like image processing. **(EXPAND HERE)**
 
-Deep learning models like EasyOCR and PaddleOCR can leverage GPUs for faster inference. Unlike CPU parallelization where you run multiple processes, GPU parallelization typically involves **batching**—feeding multiple images through the model simultaneously.
+Deep learning models like EasyOCR and Surya OCR can leverage GPUs for faster inference. Unlike CPU parallelization where you run multiple processes, GPU parallelization typically involves **batching**—feeding multiple images through the model simultaneously.
 
 | Approach | Best For | Python Tools |
 |----------|----------|--------------|
 | **CPU Multi-processing** | Image pre-processing, file I/O | `concurrent.futures.ProcessPoolExecutor`, `multiprocessing` |
 | **CPU Threading** | Network requests, file operations | `concurrent.futures.ThreadPoolExecutor`, `threading` |
-| **GPU Batching** | Model inference (OCR, VLMs) | Native batch support in EasyOCR, PaddleOCR |
+| **GPU Batching** | Model inference (OCR, VLMs) | Native batch support in EasyOCR, Surya OCR |
 
 ::: {.callout-note}
 **Linux vs Windows**: Parallelization often performs better on Linux systems. Windows has higher overhead for creating new processes, and some libraries (like `multiprocessing`) behave differently. If you're processing very large archives, consider using a Linux server or cloud VM. This is more accessible then ever with tools like [Windows Subsystem for Linux 2](https://learn.microsoft.com/en-us/windows/wsl/install)
@@ -1120,7 +1113,7 @@ ADD
 ## 6.0 Citations
 
 - https://github.com/JaidedAI/EasyOCR
-- https://github.com/PaddlePaddle/PaddleOCR
+- https://github.com/VikParuchuri/surya
 - https://github.com/tesseract-ocr/tesseract
 - https://readcoop.eu/transkribus/
 - https://www.nvidia.com/en-us/glossary/vision-language-models/
