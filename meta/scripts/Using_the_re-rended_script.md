@@ -9,30 +9,27 @@ Some notebooks in prAxIs require packages and datasets that are not available in
 - Rendered locally as self-contained HTML files
 - The HTML is copied alongside the source `.qmd` for deployment
 
-For more details, see `documentation/website_and_repository.qmd`, Section 6.2.
+**For more details, see `documentation/website_and_repository.qmd`, Section 6.2.**
 
 ## Prerequisites
 
 1. **Quarto** must be installed and available in your PATH
-   - Download from: https://quarto.org/docs/get-started/
    - Verify installation: `quarto --version`
 
 2. **Python 3.9+** is required
 
 3. **Required packages** for the notebooks you're rendering must be installed locally
    - Each notebook may have different requirements (check the notebook headers)
+   - The dataset also has to be present in the correct directory so far this matters for: AMNE-376, SOCI-280, SOCI-415
 
 ## Usage
 
 ### Basic Usage
 
-From any directory, run:
+Run: 
 
 ```bash
-# Render all excluded QMD files
-python D:\GitHub\praxis-ubc\meta\scripts\re_render_qmd_files.py
-
-# Or navigate to the repository first
+# Navigate to the repository first
 cd D:\GitHub\praxis-ubc
 python meta\scripts\re_render_qmd_files.py
 ```
@@ -43,7 +40,6 @@ python meta\scripts\re_render_qmd_files.py
 |--------|-------------|
 | `--dry-run` | Show what would be done without actually rendering |
 | `--file FILTER` | Only render files matching the filter (partial match) |
-| `--skip-verify` | Skip verification of required headers |
 | `--verbose, -v` | Show detailed output |
 
 ### Examples
@@ -60,9 +56,6 @@ python re_render_qmd_files.py --file network_analysis
 
 # Render with verbose output
 python re_render_qmd_files.py --verbose
-
-# Skip header verification (use with caution)
-python re_render_qmd_files.py --skip-verify
 ```
 
 ## How It Works
@@ -88,9 +81,11 @@ python re_render_qmd_files.py --skip-verify
 
 4. **Reporting**: Provides a summary showing successful and failed renders
 
+5. While running the script has a detailed output showing which cell it is on and the status of rendering and executing. Very useful for debugging notebooks which do not want to render. 
+
 ## Files Currently Configured for Re-rendering
 
-As of 2025-01-24, these files are excluded from Docker build and need local rendering:
+As of 2025-02-17, these files are excluded from Docker build and need local rendering:
 
 | File | Course |
 |------|--------|
@@ -120,8 +115,7 @@ Make sure you have all required Python/R packages installed locally. Check the n
 
 ### Missing required headers warning
 The file needs the self-contained headers shown above. Either:
-- Add the headers to the file, or
-- Use `--skip-verify` if you're sure the file is correct
+- Add the headers to the file
 
 ## Adding New Files
 
@@ -156,3 +150,5 @@ To add a new file for local rendering:
 5. Update the index page to use the stub instead of the original
 
 6. Run this script to render the HTML locally
+
+**For more details, see `documentation/website_and_repository.qmd`, Section 6.2.**
