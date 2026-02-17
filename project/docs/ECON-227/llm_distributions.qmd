@@ -592,31 +592,25 @@ This allows us to analyze how stock prices change over time.
 
 def get_stock_data(ticker, start, end):
     stock = yf.download(ticker, start=start, end=end)
+    stock.columns = ['_'.join(col).strip() for col in stock.columns]  # "Close_SBUX", etc.
 
-    # Flatten columns if multi-indexed (e.g., multiple tickers)
-    if isinstance(stock.columns, pd.MultiIndex):
-        stock.columns = ['_'.join(col).strip() for col in stock.columns]  # "Close_SBUX", etc.
-        close_col = f"Close_{ticker}"
-    else:
-        close_col = "Close"
+    close_col = f"Close_{ticker}"
 
     stock["Pct_Change"] = stock[close_col].pct_change() * 100
     stock.reset_index(inplace=True)
     stock["DateOnly"] = pd.to_datetime(stock["Date"])
+
     return stock[["DateOnly", "Pct_Change"]]
 
 # merges sentiment and stock data by date, and lags sentiment by one day to align with price changes.
 def combine_data(sent_df, stock_df):
-    sent_df = sent_df.reset_index(drop=True)
-    stock_df = stock_df.reset_index(drop=True)
-
     sent_df["DateOnly"] = pd.to_datetime(sent_df["DateOnly"])
     stock_df["DateOnly"] = pd.to_datetime(stock_df["DateOnly"])
-
-    return (
-        pd.merge(sent_df, stock_df, on="DateOnly", how="inner")
-          .assign(lagged_sentiment=lambda df: df["daily_pct_positive"].shift(1))
-    )
+    
+    merged = pd.merge(sent_df, stock_df, on="DateOnly", how="inner")
+    merged["lagged_sentiment"] = merged["daily_pct_positive"].shift(1)
+    
+    return merged
 
 
 # For the sake of reproducibility (so we always get the same results), we will use a a dataset that was scrapped using the same method at an earlier time (July - 2025)
@@ -656,8 +650,7 @@ By combining these functions, we can see how shifts in news sentiment may impact
 ```{python}
 # business days we should forecast for 
 def get_future_dates(start_date, num_days):
-    if not isinstance(start_date, pd.Timestamp):
-        start_date = pd.to_datetime(start_date)
+    start_date = pd.to_datetime(start_date)
 
     us_holidays = holidays.US()
     future_dates = []
@@ -748,15 +741,11 @@ all_news = []
 def fetch_all_news(ticker_list):
     all_news = []
     for ticker in ticker_list:
-        try:
-            news = get_news_data(ticker)
-            all_news.append(news)
-        except Exception as e:
-            print(f"Failed to get news for {ticker}: {e}")
-    if all_news:
-        return pd.concat(all_news, ignore_index=True)
-    else:
-        return pd.DataFrame()
+        news = get_news_data(ticker)
+        all_news.append(news)
+
+    return pd.concat(all_news, ignore_index=True)
+
 
 # For the sake of reproducability (so we always get the same results), we will use a a dataset that was scrapped using the same method at an earlier time (July - 2025)
 
@@ -836,13 +825,10 @@ def fetch_and_save_stock_data(ticker_list, start_date, end_date, save_dir="data/
     os.makedirs(save_dir, exist_ok=True)
     
     for ticker in ticker_list:
-        try:
-            stock_df = get_stock_data(ticker, start_date, end_date)
-            stock_df["Ticker"] = ticker
-            file_path = f"{save_dir}/{ticker}_price.csv"
-            stock_df.to_csv(file_path, index=False)
-        except Exception as e:
-            print(f"Failed to get stock data for {ticker}: {e}")
+        stock_df = get_stock_data(ticker, start_date, end_date)
+        stock_df["Ticker"] = ticker
+        file_path = f"{save_dir}/{ticker}_price.csv"
+        stock_df.to_csv(file_path, index=False)
 
 
 # For the sake of reproducability (so we always get the same results), we will use a a dataset that was scrapped using the same method at an earlier time (July - 2025)
@@ -882,9 +868,7 @@ Similar to our approach with the `SBUX` stock price, we can fit a SARIMAX model 
 
 ```{python}
 def fit_and_forecast(final_df, forecast_steps=7):
-    from statsmodels.tsa.statespace.sarimax import SARIMAX
-    import numpy as np
-    import pandas as pd
+
 
     # Drop missing values
     final_df = final_df.dropna(subset=['Pct_Change', 'lagged_sentiment'])
@@ -944,78 +928,58 @@ def get_compare_window(compare_start, compare_target_end):
 
     # Define today to avoid fetching beyond range
     today = pd.Timestamp(datetime.utcnow().date())  # use UTC date
-
     compare_end = min(today, compare_target_end)
     return compare_start, compare_end
 
 # Create function to fetch the actual percentage change
-def fetch_actual_pct_changes(ticker_list, start_date, end_date, buffer_days=7):
-    # This function fetches the pct change of the given list of tickers and return as a DataFrame
-    rows = []
-    # fetch one ticker at a time to avoid group_by complexity
-    start_fetch = (start_date - pd.Timedelta(days=buffer_days)).strftime('%Y-%m-%d')
-    end_fetch = (end_date + pd.Timedelta(days=1)).strftime('%Y-%m-%d')
+def fetch_actual_pct_changes(ticker_list, start_date, end_date):
+    start_fetch = (start_date - pd.Timedelta(days=7)).strftime('%Y-%m-%d') # gives a string of the date 7 days before the start date
+    end_fetch   = (end_date   + pd.Timedelta(days=1)).strftime('%Y-%m-%d') #gives a string, 1 days after end date.
 
+    frames = []
     for t in ticker_list:
-        try:
-            df = yf.download(t, start=start_fetch, end=end_fetch, progress=False, interval='1d', auto_adjust=False)
-            if df.empty:
-                # no data for ticker in window
-                continue
-            df.index = pd.to_datetime(df.index).normalize()
-            # compute percent change on Close
-            if 'Adj Close' in df.columns:
-                price_col = 'Adj Close'
-            else:
-                price_col = 'Close'
-            df['pct_change'] = df[price_col].pct_change() * 100.0
-            # select only rows in [start_date, end_date]
-            sel = df.loc[(df.index >= start_date) & (df.index <= end_date)]
-            # Fix: Properly select the pct_change column
-            sel = sel[['pct_change']].dropna()
-            for idx, r in sel.iterrows():
-                rows.append({'DateOnly': idx, 'Ticker': t, 'Actual_Pct_Change': r['pct_change']})
-        except Exception as e:
-            print(f"yfinance fetch failed for {t}: {e}")
+        df = yf.download(t, start=start_fetch, end=end_fetch, progress=False, auto_adjust=False) #we 
+        if df.empty: 
+            continue
+        df.columns = df.columns.get_level_values(0) #we collapse the result to a standard pd df
 
-    actuals_df = pd.DataFrame(rows)
-    if not actuals_df.empty:
-        actuals_df['DateOnly'] = pd.to_datetime(actuals_df['DateOnly']).dt.normalize()
-    return actuals_df
+        df.index = pd.to_datetime(df.index).normalize()
+        pct = df['Adj Close'].pct_change() * 100.0
+        pct = pct.loc[(df.index >= start_date) & (df.index <= end_date)].dropna()
+
+        frames.append(pd.DataFrame({
+            'DateOnly': pct.index,
+            'Ticker': t,
+            'Actual_Pct_Change': pct.values
+        }))
+
+    return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(
+        columns=['DateOnly', 'Ticker', 'Actual_Pct_Change']
+    )
 
 # Function to compare predictions with actuals
 def compare_predictions(pred_mean, pred_index, actuals_df, ticker=None):
 
     pred_df = pd.DataFrame({
         'DateOnly': pd.to_datetime(pred_index).normalize(),
-        'Predicted_Pct_Change': np.asarray(pred_mean).astype(float)
-    })
+        'Predicted_Pct_Change': np.asarray(pred_mean).astype(float)})
+
     if ticker is not None:
         actuals_df = actuals_df[actuals_df['Ticker'] == ticker].copy()
-    # If actuals contain multiple tickers and ticker=None, will compare using all actual rows
     merged = pd.merge(pred_df, actuals_df, on='DateOnly', how='inner')
 
     if merged.empty:
-        print("No overlapping observed days to compare (maybe market closed or today < start).")
         return merged, {}
 
-    # If actuals has multiple tickers for same DateOnly (if ticker=None), aggregated handling:
-    if 'Ticker' in merged.columns and ticker is None:
-        # average actuals across tickers for that day
-        aggregated = merged.groupby('DateOnly').agg({
-            'Predicted_Pct_Change': 'first',  
-            'Actual_Pct_Change': 'mean'
-        }).reset_index()
-        mdf = aggregated
-    else:
-        mdf = merged[['DateOnly', 'Predicted_Pct_Change', 'Actual_Pct_Change']].copy()
+    # Average actuals across tickers per day 
+    mdf = (
+        merged.groupby('DateOnly', as_index=False)
+        .agg(Predicted_Pct_Change=('Predicted_Pct_Change', 'first'),
+                    Actual_Pct_Change=('Actual_Pct_Change', 'mean')))
 
-    # metrics
-    mae = mean_absolute_error(mdf['Actual_Pct_Change'], mdf['Predicted_Pct_Change'])
+    mae  = mean_absolute_error(mdf['Actual_Pct_Change'], mdf['Predicted_Pct_Change'])
     rmse = sqrt(mean_squared_error(mdf['Actual_Pct_Change'], mdf['Predicted_Pct_Change']))
-    metrics = {'count': len(mdf), 'MAE': mae, 'RMSE': rmse}
-
-    return mdf, metrics
+    return mdf, {'count': len(mdf), 'MAE': mae, 'RMSE': rmse}
 ```
 
 The evaluation metrics we use are the **Mean Absolute Error (MAE)** and **Root Mean Squared Error (RMSE)**, which measure how far off our predictions are from the actual stock price changes.
@@ -1041,7 +1005,7 @@ compare_target_end = forecast_index[-1]
 compare_start, compare_end = get_compare_window(compare_start, compare_target_end)
 
 # Create the actual comparison DataFrame
-actuals_df = fetch_actual_pct_changes(ai_tickers, compare_start, compare_end, buffer_days=7)
+actuals_df = fetch_actual_pct_changes(ai_tickers, compare_start, compare_end)
 
 # Calculate the metrics
 pred_mean_values = forecast_mean.values  # array-like
