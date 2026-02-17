@@ -37,40 +37,31 @@ Install the necessary packages:
 #!pip install pytesseract easyocr opencv-python Pillow matplotlib pandas numpy nltk jiwer pdf2image paddlepaddle paddleocr
 ```
 
-Load the required packages:  
+Load the required packages:
 ```{python}
-# Core libraries
 import os
-os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE" # multiple libraries bundle OpenMP runtime, and they conflict when loaded together.
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE" # avoid OpenMP conflicts between libraries
 import json
 import warnings
 warnings.filterwarnings('ignore')
 
-# Image processing
 from PIL import Image
 import cv2
 import numpy as np
 
-# OCR engines
 import pytesseract
-import easyocr  
+import easyocr
 
-# Data handling and visualization
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# Text processing
 import nltk
 from nltk.tokenize import word_tokenize, sent_tokenize
 from nltk.stem import PorterStemmer, WordNetLemmatizer
 
-# Evaluation metrics
 from jiwer import wer, cer
+from pdf2image import convert_from_path
 
-# PDF handling
-from pdf2image import convert_from_path  
-
-# Download NLTK data (run once)
 nltk.download('punkt')
 nltk.download('wordnet')
 nltk.download('averaged_perceptron_tagger')
@@ -78,39 +69,24 @@ nltk.download('averaged_perceptron_tagger')
 print("Libraries loaded successfully!")
 ```
 
-Here we load our images and prepare the output directory. 
+Here we define helper functions for loading and displaying images, and prepare the output directory.
 
 ```{python}
 def load_image(path):
-    """
-    Load image from various formats (jp2, pdf, tif, jpg, png).
-
-    JPEG 2000 (.jp2) files require the OpenJPEG codec. If loading fails,
-    consider converting to PNG first using an external tool.
-
-    Parameters:
-        path (str): Path to the image file
-
-    Returns:
-        numpy.ndarray: Image as numpy array (RGB format)
-    """
+    """Load an image from pdf, jp2, tif, jpg, or png and return as RGB numpy array."""
     if path.endswith('.pdf'):
-        # For PDFs, use pdf2image (requires poppler)
         from pdf2image import convert_from_path
         pages = convert_from_path(path, dpi=300)
         return np.array(pages[0])
     else:
-        # For other formats including jp2, tif, jpg, png
         img = Image.open(path)
-        # Convert to RGB if necessary
         if img.mode != 'RGB':
             img = img.convert('RGB')
         return np.array(img)
 
 def display_image(img, title="Image", figsize=(10, 8)):
-    """Display an image with matplotlib."""
     plt.figure(figsize=figsize)
-    if len(img.shape) == 2:  # Grayscale
+    if len(img.shape) == 2:
         plt.imshow(img, cmap='gray')
     else:
         plt.imshow(img)
@@ -120,7 +96,6 @@ def display_image(img, title="Image", figsize=(10, 8)):
     plt.show()
 
 def display_images_side_by_side(img1, img2, title1="Before", title2="After", figsize=(14, 6)):
-    """Display two images side by side for comparison."""
     fig, axes = plt.subplots(1, 2, figsize=figsize)
 
     if len(img1.shape) == 2:
@@ -140,7 +115,6 @@ def display_images_side_by_side(img1, img2, title1="Before", title2="After", fig
     plt.tight_layout()
     plt.show()
 
-# Create output directory for processed files
 os.makedirs('output', exist_ok=True)
 print("Output directory ready: ./output/")
 ```
@@ -236,28 +210,22 @@ Traditional template-matching OCR required near-perfect conditions: clean scans,
 **GPU Acceleration**: EasyOCR can use GPU for faster processing. If you have a CUDA-capable GPU, it will be automatically detected. On CPU, processing may take a few seconds.
 :::
 
-We will first Load our sample image: a clean newspaper column:
+We will first load our sample image, a clean newspaper column:
 ```{python}
-# Load image
-img_path = "data/newspaper_clean_col1.jp2"
+img_path = "data/simple/newspaper_clean_col1.jp2"
 img = load_image(img_path)
-
-# Display the image
 display_image(img, title="Sample Newspaper Column (newspaper_clean_col1.jp2)", figsize=(8, 12))
 ```
 
-We load the EasyOCR package and set it to read english language. With `easyocr.Reader(['en']`. 
+We load the EasyOCR package and set it to read English with `easyocr.Reader(['en'])`.
 ```{python}
 import easyocr
 
-# Initialize EasyOCR reader (English language)
-# Set gpu=True if you have CUDA available
-reader = easyocr.Reader(['en'], gpu=False)
+reader = easyocr.Reader(['en'], gpu=False) # set gpu=True if you have CUDA
 ```
 
 ```{python}
-# Run OCR on the newspaper image
-# EasyOCR returns a list of (bbox, text, confidence) tuples
+# EasyOCR returns (bbox, text, confidence) tuples
 results = reader.readtext(img)
 
 print(f"EasyOCR detected {len(results)} text regions")
@@ -265,14 +233,11 @@ print("\nFirst 10 detections:")
 for i, (bbox, text, conf) in enumerate(results[:10]):
     print(f"  {i+1}. '{text}' (confidence: {conf:.2%})")
 
-# Build extracted_text and ocr_df from EasyOCR results
-# These will be used later for evaluation and structured output
 extracted_text = '\n'.join([text for (bbox, text, conf) in results])
 
-# Create a DataFrame for confidence analysis
 ocr_df = pd.DataFrame({
     'text': [text for (bbox, text, conf) in results],
-    'conf': [conf * 100 for (bbox, text, conf) in results]  # EasyOCR is 0-1, convert to 0-100
+    'conf': [conf * 100 for (bbox, text, conf) in results] # convert 0-1 to 0-100
 })
 
 print(f"\nTotal text length: {len(extracted_text)} characters")
@@ -288,21 +253,13 @@ Confidence scores are numerical metrics; typically ranging from 0 to 1 (0% to 10
 One advantage of EasyOCR is that it provides polygonal bounding boxes that can better fit rotated or curved text:
 
 ```{python}
-# Create a copy of the image to draw on
 img_with_boxes = img.copy()
 
-# Draw bounding boxes for each detection
 for (bbox, text, conf) in results:
-    # bbox is a list of 4 corner points
     pts = np.array(bbox, dtype=np.int32)
-
-    # Color based on confidence (green = high, red = low)
-    color = (0, int(255 * conf), int(255 * (1 - conf)))
-
-    # Draw the polygon
+    color = (0, int(255 * conf), int(255 * (1 - conf))) # green=high, red=low
     cv2.polylines(img_with_boxes, [pts], isClosed=True, color=color, thickness=2)
 
-# Display the image with bounding boxes
 display_image(img_with_boxes, title="EasyOCR Text Detections (Green=High Conf, Red=Low Conf)", figsize=(10, 14))
 ```
 
@@ -396,7 +353,6 @@ For example, if a historical document has a smudged word, traditional OCR might 
 **PaddleOCR** is a practical middle ground, it uses deep learning but is optimized for CPU inference, making it accessible without specialized hardware.
 
 ```{python}
-# Note: This cell requires PaddleOCR to be installed
 #!pip install paddlepaddle paddleocr
 ```
 
@@ -405,34 +361,28 @@ For example, if a historical document has a smudged word, traditional OCR might 
 #import paddle
 #paddle.set_flags({"FLAGS_use_mkldnn": False})
 #from paddleocr import PaddleOCR
-
-# Convert .jp2 to .png for PaddleOCR compatibility
+#
+## PaddleOCR needs .png, so convert from .jp2 first
 #temp_png_path = 'output/temp_paddle_input.png'
 #Image.fromarray(img).save(temp_png_path)
-
-# Initialize PaddleOCR
-# paddle_ocr = PaddleOCR(use_angle_cls=True, lang='en', enable_mkldnn=False)
-
-# Run OCR
-# paddle_results = paddle_ocr.predict(temp_png_path)
+#
+#paddle_ocr = PaddleOCR(use_angle_cls=True, lang='en', enable_mkldnn=False)
+#paddle_results = paddle_ocr.predict(temp_png_path)
 #result = paddle_results[0]
-
-# Extract texts and scores
+#
 #texts = result['rec_texts']
 #scores = result['rec_scores']
-
+#
 #print(f"PaddleOCR detected {len(texts)} text regions")
 #print("\nFirst 10 detections:")
 #for i, (text, conf) in enumerate(zip(texts[:10], scores[:10])):
 #    print(f"  {i+1}. '{text}' (confidence: {conf:.2%})")
-
-# Join all text into a single string for later comparison
+#
 #paddle_full_text = ' '.join(texts)
 #print(f"\n[Total characters extracted: {len(paddle_full_text)}]")
 #print("\nFull text preview:")
 #print(paddle_full_text[:2000])
-
-# Clean up
+#
 #del paddle_ocr
 #gc.collect()
 ```
@@ -470,12 +420,10 @@ Uncomment if needed
 ```
 
 ```{python}
-# Load a handwritten letter (requires PDF conversion)
 from pdf2image import convert_from_path
 
-# Convert PDF to image
 letter_pages = convert_from_path(
-    "data/handwritten_letter_page1.pdf",
+    "data/simple/handwritten_letter_page1.pdf",
     dpi=300,
     poppler_path=r'D:\poppler\poppler-25.12.0\Library\bin'  
 )
@@ -487,7 +435,6 @@ display_image(letter_img, title="Handwritten Letter (Civil War Era)", figsize=(1
 Now that we have the handwritten loaded we can compare EasyOCR vs Paddle. 
 
 ```{python}
-# EasyOCR
 easyocr_hw_results = reader.readtext(letter_img)
 easyocr_hw = '\n'.join([text for (bbox, text, conf) in easyocr_hw_results])
 print("\n--- EasyOCR ---")
@@ -509,8 +456,7 @@ A complete OCR workflow involves three stages: **pre-processing**, **text extrac
 Pre-processing transforms raw document images into formats optimized for OCR. Let's work with a noisy, degraded newspaper page:
 
 ```{python}
-# Load a noisy/degraded document
-noisy_path = "data/newspaper_noisy.jp2"
+noisy_path = "data/simple/newspaper_noisy.jp2"
 noisy_img = load_image(noisy_path)
 
 display_image(noisy_img, title="Noisy/Degraded Newspaper Page", figsize=(10, 12))
@@ -521,7 +467,6 @@ display_image(noisy_img, title="Noisy/Degraded Newspaper Page", figsize=(10, 12)
 Converting to grayscale simplifies the image and often improves OCR:
 
 ```{python}
-# Convert to grayscale
 gray = cv2.cvtColor(noisy_img, cv2.COLOR_RGB2GRAY)
 
 display_images_side_by_side(noisy_img, gray, "Original", "Grayscale")
@@ -532,10 +477,8 @@ display_images_side_by_side(noisy_img, gray, "Original", "Grayscale")
 Binarization converts the image to pure black and white. **Otsu's method** is a, global automatic image thresholding algorithm that converts grayscale images into binary (black and white) by determining an optimal threshold that separates pixels into foreground and background classes. It automatically finds the optimal threshold:
 
 ```{python}
-# Otsu's binarization
 _, otsu_binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
-# Adaptive thresholding (better for uneven lighting)
 adaptive_binary = cv2.adaptiveThreshold(
     gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
 )
@@ -550,10 +493,7 @@ We can see that the end result is much clearer.
 Removing noise can dramatically improve OCR accuracy:
 
 ```{python}
-# Median blur (good for salt-and-pepper noise)
 median_denoised = cv2.medianBlur(gray, 3)
-
-# Non-local means denoising (more sophisticated)
 nlm_denoised = cv2.fastNlMeansDenoising(gray, h=10)
 
 display_images_side_by_side(median_denoised, nlm_denoised, "Median Blur", "Non-Local Means Denoising")
@@ -565,35 +505,29 @@ Rotated documents hurt OCR accuracy. Let's detect and correct rotation:
 
 ```{python}
 def deskew(image):
-    # Ensure grayscale
+    """Detect skew angle via Hough lines and rotate to correct it."""
     if len(image.shape) == 3:
         gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
     else:
         gray = image.copy()
 
-    # Edge detection
     edges = cv2.Canny(gray, 50, 150, apertureSize=3)
-
-    # Hough line detection
     lines = cv2.HoughLines(edges, 1, np.pi/180, 200)
 
     if lines is None:
         return image, 0
 
-    # Calculate angles
     angles = []
     for rho, theta in lines[:, 0]:
         angle = np.degrees(theta) - 90
-        if -45 < angle < 45:  # Only consider reasonable angles
+        if -45 < angle < 45:
             angles.append(angle)
 
     if not angles:
         return image, 0
 
-    # Median angle (robust to outliers)
     median_angle = np.median(angles)
 
-    # Rotate image
     (h, w) = image.shape[:2]
     center = (w // 2, h // 2)
     M = cv2.getRotationMatrix2D(center, median_angle, 1.0)
@@ -603,9 +537,8 @@ def deskew(image):
     return rotated, median_angle
 ```
 
-We now apply our deskew function on our example
+We now apply our deskew function on our example:
 ```{python}
-# Apply deskewing
 deskewed, angle = deskew(gray)
 print(f"Detected skew angle: {angle:.2f} degrees")
 
@@ -617,7 +550,6 @@ display_images_side_by_side(gray, deskewed, "Original", f"Deskewed ({angle:.2f}Â
 **CLAHE (Contrast Limited Adaptive Histogram Equalization)** improves contrast locally:
 
 ```{python}
-# Apply CLAHE
 clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
 enhanced = clahe.apply(gray)
 
@@ -633,43 +565,26 @@ Let's combine all steps and compare OCR results:
 #| code-summary: "Full preprocessing pipeline"
 
 def preprocess_document(image):
-    """
-    Apply full preprocessing pipeline to a document image.
-
-    Steps:
-    1. Convert to grayscale
-    2. Apply CLAHE contrast enhancement
-    3. Denoise with non-local means
-    4. Deskew
-    5. Adaptive binarization
-
-    Returns:
-        preprocessed image and intermediate results
-    """
+    """Grayscale -> CLAHE -> denoise -> deskew -> binarize."""
     results = {}
 
-    # 1. Grayscale
     if len(image.shape) == 3:
         gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
     else:
         gray = image.copy()
     results['grayscale'] = gray
 
-    # 2. CLAHE
     clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
     enhanced = clahe.apply(gray)
     results['enhanced'] = enhanced
 
-    # 3. Denoise
     denoised = cv2.fastNlMeansDenoising(enhanced, h=10)
     results['denoised'] = denoised
 
-    # 4. Deskew
     deskewed, angle = deskew(denoised)
     results['deskewed'] = deskewed
     results['skew_angle'] = angle
 
-    # 5. Binarize
     binary = cv2.adaptiveThreshold(
         deskewed, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
     )
@@ -679,10 +594,7 @@ def preprocess_document(image):
 ```
 
 ```{python}
-# Apply full pipeline
 preprocessed, steps = preprocess_document(noisy_img)
-
-# Show before and after
 display_images_side_by_side(noisy_img, preprocessed, "Original", "After Full Preprocessing")
 ```
 
@@ -691,8 +603,7 @@ display_images_side_by_side(noisy_img, preprocessed, "Original", "After Full Pre
 Historical newspapers often have complex multi-column layouts. Without proper layout analysis, OCR might read across columns incorrectly.
 
 ```{python}
-# Load multi-column newspaper
-multicolumn_path = "data/newspaper_multicolumn.jp2"
+multicolumn_path = "data/simple/newspaper_multicolumn.jp2"
 multicolumn_img = load_image(multicolumn_path)
 
 display_image(multicolumn_img, title="Multi-Column Newspaper Front Page", figsize=(12, 14))
@@ -714,13 +625,7 @@ Without layout analysis, OCR might read: "The mayor Meanwhile, announced today a
 
 ```{python}
 def detect_columns(image, min_column_width=100):
-    """
-    Detect text columns using vertical projection profile.
-
-    This is a simplified approach. For production use,
-    consider document analysis libraries like DocTR.
-    """
-    # Convert to grayscale and binarize
+    """Detect text columns using vertical projection profile."""
     if len(image.shape) == 3:
         gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
     else:
@@ -728,14 +633,11 @@ def detect_columns(image, min_column_width=100):
 
     _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
 
-    # Calculate vertical projection (sum of white pixels per column)
     v_projection = np.sum(binary, axis=0)
 
-    # Find gaps (low projection values indicate column separators)
     threshold = np.mean(v_projection) * 0.1
     gaps = v_projection < threshold
 
-    # Find column boundaries
     columns = []
     in_column = False
     start = 0
@@ -749,7 +651,6 @@ def detect_columns(image, min_column_width=100):
                 columns.append((start, i))
             in_column = False
 
-    # Handle last column
     if in_column and len(gaps) - start > min_column_width:
         columns.append((start, len(gaps)))
 
@@ -757,17 +658,14 @@ def detect_columns(image, min_column_width=100):
 ```
 
 ```{python}
-# Detect columns in the multi-column image
 columns, projection = detect_columns(multicolumn_img)
 
 print(f"Detected {len(columns)} columns:")
 for i, (start, end) in enumerate(columns):
     print(f"  Column {i+1}: pixels {start} to {end} (width: {end-start})")
 
-# Visualize column detection
 fig, axes = plt.subplots(2, 1, figsize=(14, 10), gridspec_kw={'height_ratios': [3, 1]})
 
-# Image with column boundaries
 axes[0].imshow(multicolumn_img)
 for start, end in columns:
     axes[0].axvline(x=start, color='red', linestyle='--', alpha=0.7)
@@ -775,7 +673,6 @@ for start, end in columns:
 axes[0].set_title("Detected Column Boundaries (Red=Start, Blue=End)")
 axes[0].axis('off')
 
-# Projection profile
 axes[1].plot(projection, color='steelblue')
 axes[1].axhline(y=np.mean(projection) * 0.1, color='red', linestyle='--', label='Threshold')
 axes[1].set_xlabel("Horizontal Position (pixels)")
@@ -804,7 +701,6 @@ Tokenization is: the process of breaking down the raw text output generated from
 #### Text Normalization with NLTK
 
 ```{python}
-# Sample OCR text with some errors
 sample_text = """
 Twenty-Fifth Infantry Wins Athletic Honors
 
@@ -815,7 +711,6 @@ THE COLORED REGIMENT WINS.
 Scores Nearly Half of All the Points Made by Combined Competitors Two Omaha Boys in Contest.
 """
 
-# Tokenization
 tokens = word_tokenize(sample_text)
 sentences = sent_tokenize(sample_text)
 
@@ -826,11 +721,9 @@ print(f"\nFirst 20 tokens: {tokens[:20]}")
 ```
 
 ```{python}
-# Stemming and Lemmatization
 stemmer = PorterStemmer()
 lemmatizer = WordNetLemmatizer()
 
-# Example words
 test_words = ['running', 'competed', 'competitors', 'athletics', 'winning']
 
 print("\nStemming vs Lemmatization:")
@@ -846,12 +739,8 @@ for word in test_words:
 Converting OCR output to structured formats enables downstream analysis:
 
 ```{python}
-# Create a structured representation of OCR results
 def create_structured_output(text, ocr_data_df, source_file):
-    """
-    Create a structured JSON output from OCR results.
-    """
-    # Calculate statistics
+    """Create a structured JSON output from OCR results."""
     words = word_tokenize(text)
     sentences = sent_tokenize(text)
 
@@ -876,13 +765,11 @@ def create_structured_output(text, ocr_data_df, source_file):
     return output
 ```
 
-This will be for our simple newspaper column example: 
+This will be for our simple newspaper column example:
 
 ```{python}
-# Create structured output for our clean newspaper column
 structured = create_structured_output(extracted_text, ocr_df, "newspaper_clean_col1.jp2")
 
-# Save to JSON
 with open('output/document.json', 'w') as f:
     json.dump(structured, f, indent=2)
 
@@ -899,7 +786,6 @@ We now have a very high level overview of word count within each region of confi
 For high-value documents, Large Language Models can correct OCR errors:
 
 ```{python}
-# Example prompt template for LLM-based OCR correction
 correction_prompt = """
 The following text was extracted from a historical newspaper using OCR.
 Please correct any obvious OCR errors while preserving the original meaning
@@ -919,27 +805,21 @@ Evaluating OCR accuracy requires comparing extracted text against a known "groun
 - **Character Error Rate (CER)**: Percentage of characters that are wrong
 - **Word Error Rate (WER)**: Percentage of words that are wrong
 
-We first load our correct .txt version of the newspaper column. 
+We first load our correct .txt version of the newspaper column.
 ```{python}
-# Load ground truth
-with open("data/ground_truth_clean.txt", "r") as f:
+with open("data/simple/ground_truth_clean.txt", "r") as f:
     ground_truth = f.read()
 
 print("Ground Truth (first 500 characters):")
 print(ground_truth[:500])
 ```
 
-And then we compare it with out OCR evaluation to see the quality of the model and analysis. 
+And then we compare it with our OCR output to see how the model performed.
 ```{python}
-# Calculate error rates
-# Note: jiwer expects lowercase and normalized text for best results
 gt_normalized = ground_truth.lower().strip()
 ocr_normalized = extracted_text.lower().strip()
 
-# Word Error Rate
 word_error_rate = wer(gt_normalized, ocr_normalized)
-
-# Character Error Rate
 char_error_rate = cer(gt_normalized, ocr_normalized)
 
 print("=" * 60)
@@ -965,7 +845,6 @@ print(f"Character Accuracy: {1 - char_error_rate:.2%}")
 We can use confidence scores to automatically flag words that likely need manual review:
 
 ```{python}
-# Flag low-confidence words for review
 low_conf_threshold = 70
 low_conf_words = ocr_df[ocr_df['conf'] < low_conf_threshold][['text', 'conf']]
 
