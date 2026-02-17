@@ -44,11 +44,12 @@ Before you start, make sure you have the required libraries installed, if not, *
 #     ipywidgets \
 #     scikit-learn \
 #     matplotlib \
-#     seaborn
+#     seaborn \
+#     torch
 # !pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cpu --quiet
 ```
 
-**Important:** Run this cell to load the libraries we need for running this notebook. 
+**Important:** Run this cell to load the libraries we need for running this notebook.
 
 ```{python}
 # load libraries we need to run this notebook
@@ -92,7 +93,7 @@ For example: "bob went to the store" to buy some milk.
 
 Here, let's say we will output a total of $T$ words to form a sentence, $w_1, w_2, \ldots, w_{t-1}, w_t$ are the words in the sentence and the subscript $t$ means the word is at the position $t$. 
 
-What the model does is learning the **probability distribution** of the next word given the previous words. It is to create a list of non-negative numbers, one for each possible next word, that add up to 1. 
+What the model does is learning the **probability distribution** of the next word given the previous words. It is to create a list of non-negative numbers, one for each possible next word, that add up to 1.
 
 Given the previous words $w_1, w_2, \ldots, w_{t-1}$, the probability of predicting the next word $w_{t}$ is called **conditional probability**: it essentially measures for all words in the vocabulary, "the probability of the next word being this word, based on what was already said".
 
@@ -333,7 +334,7 @@ Note that while this is with words and language, the same idea applies to any se
 If you are interested in understanding the inner workings of these models, take a look at the interactive visualization at [The Illustrated Transformer](https://poloclub.github.io/transformer-explainer/) . It provides an excellent, hands-on way to explore the core ideas behind modern language models.
 
 
-So, just like it guesses the next word in a sentence, it can guess the next day's temperature or the next movement in a stock price, based on the pattern it sees in the earlier numbers. 
+So, just like it guesses the next word in a sentence, it can guess the next day's temperature or the next movement in a stock price, based on the pattern it sees in the earlier numbers.
 
 ```{python}
 n = 10
@@ -367,105 +368,33 @@ Typically, when building a model to predict stock prices, you would use more inf
 
 In the examples below, that's exactly what we're going to try! We'll see how adding these extra features can help the model make better predictions about what happens next.
 
-### 3 Predicting Stock Prices from News Headlines with AI
-
-Just like LLMs predict the next word based on the context of prior words:
-
-$$
-P(w_t \mid w_1, w_2, \ldots, w_{t-1})
-$$
-
-We can use similar models to predict the next value in a time series, like **stock prices** or **percentage changes** in returns.
-
-While prediction of next word in language models is inherently **univariate** that the model predicts the next word based solely on the sequence of previous words, predicting daily stock returns is often a **multivariate** problem as more exogenous factors must be taken into account. Here, we don't just use past stock prices (returns) as context, but also incorporate **additional features** such as public sentiment from news headlines.
-
-In other words, instead of predicting the next token from a single stream (words), we predict the next value in a time series using **multiple sources of information**: historical price data and external signals like news sentiment. This richer, multivariate context allows the model to capture more complex relationships and potentially make more accurate forecasts.
-
-The comparison of word prediction and stock price prediction is given as follows:
-
-| Word Prediction                 | Stock Price Prediction           |
-|-------------------------------------|------------------------------------------------|
-| Previous words                      | Past daily returns + aggregated news sentiment |
-| Next word prediction                | Future return prediction                       |
-| Attention to important words        | Feature weights on returns **and** sentiment       |   
-| Temperature to control randomness   | Confidence or prediction intervals in forecasts|
-| Word probability distribution       | Forecasted return distribution                 |
-
-In this case study, we use a language model to analyze real-time news headlines alongside historical stock prices in order to forecast short-term changes in stock value.
-
-You will:
-
-- Collect news headlines about real companies (like Amazon or Starbucks)
-- Use a pre-trained AI model to classify the **sentiment** (positive or negative) of these news headlines
-- Combine that with stock prices
-- Use a forecasting model to predict future price changes
-- Visualize your results interactively
-
-
-### Preview the News Data
-
-Here we use the `finvizfinance` packages to retrieve real-time news headlines for companies like Starbucks (SBUX).
-
-```{python}
-# The code below will give us a snapshot of the 100 most recent news headlines for a particular stock in the last 30 days.  
-
-def get_news_data(ticker):
-    stock = finvizfinance(ticker)
-    news_df = stock.ticker_news()
-    news_df = pd.DataFrame(news_df)
-
-    # Drop NaN and clean whitespace
-    news_df = news_df.dropna(subset=["Title"])
-    news_df = news_df[news_df["Title"].str.strip() != ""]
-    news_df['Title'] = news_df['Title'].str.lower()
-    news_df['Date'] = pd.to_datetime(news_df['Date'])
-    news_df['DateOnly'] = news_df['Date'].dt.date
-    news_df["Ticker"] = ticker.upper()
-    # Remove the 'Date' column
-    news_df = news_df.drop(columns=['Date'])
-
-    return news_df.reset_index(drop=True)
-
-# For the sake of reproducibility (so we always get the same results), we will use a a dataset that was scrapped using the same method at an earlier time (July - 2025)
-
-# Uncomment the line below get a more recent snapshot of the data! 
-# SBUX_news_df = get_news_data("SBUX")
-# SBUX_news_df.to_csv("datasets/SBUX_news.csv", index=False)
-```
-
-Let's look at what the cleaned news data looks like. We'll start with Starbucks (`SBUX`).
-
-Each row is a headline, what website it was from, the date it was published and a ticker indicating what stock it is for. 
-
-```{python}
-SBUX_news_df = pd.read_csv("datasets/SBUX_news.csv")
-SBUX_news_df.head()
-```
-
-Let's take a closer look at the news titles. What would you say about their sentiment?
-
-```{python}
-titles = SBUX_news_df['Title'].tolist()
-print("News on Starbucks:\n")
-for i, title in enumerate(titles[:5], start=1):
-    print(f"{i}. {title}")
-```
-
-### 4 Classifying Headline Sentiment with LLM
+### 3 Classifying Headline Sentiment with LLM
 
 Earlier, we explored how **large language models (LLMs)** predict the *next word* by learning the probability distribution of possible outcomes based on context.
 
 Now, we apply a similar idea to **entire sentences**: in this case, financial news headlines. Instead of predicting the next word, the model assigns a probability to each **sentiment category** (e.g. POSITIVE, NEGATIVE, or NEUTRAL).
 
-#### How it works:
+In other words, instead of predicting:
 
-- A pre-trained model reads the headline.
-- It assigns probabilities to the sentiment labels.
-- We keep only **positive** or **negative** headlines, since those are more likely to affect stock prices.
-  
+$$
+P(w_t \mid w_1, w_2, \ldots, w_{t-1})
+$$
+
+We now predict:
+
+$$
+P( Sentiment\mid headline)
+$$
+
 This is like asking:
 
 > *Given the words in this sentence, what is the most likely emotion behind it?*
+
+#### How it works:
+
+-   A pre-trained model reads the headline.
+-   It assigns probabilities to the sentiment labels.
+-   We keep only **positive** or **negative** headlines, since those are more likely to affect stock prices.
 
 We will rely on some AI tools to figure out.
 
@@ -474,6 +403,8 @@ BERT (short for *Bidirectional Encoder Representations from Transformers*) is a 
 In this notebook, we are going to use Hugging Face's `pipeline()` function to load a **RoBERTa** model: an optimized version of the BERT model trained to understand the tone of text. Although it is specifically trained on tweets and social media text. It's well-suited to handling short, informal writing like news headlines.
 
 This builds directly on our earlier discussion of LLMs predicting **probability distributions**, but here, the prediction is over **sentiment classes** rather than words.
+
+This process converts unstructured text into structured sentiment labels that we can analyze quantitatively.
 
 We now apply a pre-trained **large language model** to each headline.
 
@@ -514,7 +445,7 @@ def process_sentiment(news_df):
     return grouped.reset_index()
 ```
 
-Let's use our model to see wether the sentence "I hate bananas" is negative or positive 
+Let's use our model to see wether the sentence "I hate bananas" is negative or positive
 
 >*Try changing the words inside classify sentiment to see wether its is classified positive or negative*
 
@@ -522,7 +453,60 @@ Let's use our model to see wether the sentence "I hate bananas" is negative or p
 classify_sentiment("I hate bananas")        # You can change the words inside the function to test anything you want! 
 ```
 
-Now let's apply this to our entire `SBUX_news_df` and see how each news headline is classified. 
+### 4 Applying Sentiment Classification to Real News
+
+#### Preview the News Data
+
+Here we use the `finvizfinance` packages to retrieve real-time news headlines for companies like Starbucks (SBUX).
+
+```{python}
+# The code below will give us a snapshot of the 100 most recent news headlines for a particular stock in the last 30 days.  
+
+def get_news_data(ticker):
+    stock = finvizfinance(ticker)
+    news_df = stock.ticker_news()
+    news_df = pd.DataFrame(news_df)
+
+    # Drop NaN and clean whitespace
+    news_df = news_df.dropna(subset=["Title"])
+    news_df = news_df[news_df["Title"].str.strip() != ""]
+    news_df['Title'] = news_df['Title'].str.lower()
+    news_df['Date'] = pd.to_datetime(news_df['Date'])
+    news_df['DateOnly'] = news_df['Date'].dt.date
+    news_df["Ticker"] = ticker.upper()
+    # Remove the 'Date' column
+    news_df = news_df.drop(columns=['Date'])
+
+    return news_df.reset_index(drop=True)
+
+# For the sake of reproducibility (so we always get the same results), we will use a a dataset that was scrapped using the same method at an earlier time (July - 2025)
+
+# Uncomment the line below get a more recent snapshot of the data! 
+# SBUX_news_df = get_news_data("SBUX")
+# SBUX_news_df.to_csv("datasets/SBUX_news.csv", index=False)
+```
+
+Let's look at what the cleaned news data looks like. We'll start with Starbucks (`SBUX`).
+
+Each row is a headline, what website it was from, the date it was published and a ticker indicating what stock it is for.
+
+```{python}
+SBUX_news_df = pd.read_csv("datasets/SBUX_news.csv")
+SBUX_news_df.head()
+```
+
+Let's take a closer look at the news titles.
+
+> *What would you say about their sentiment?*
+
+```{python}
+titles = SBUX_news_df['Title'].tolist()
+print("News on Starbucks:\n")
+for i, title in enumerate(titles[:5], start=1):
+    print(f"{i}. {title}")
+```
+
+Now let's apply the model to our entire `SBUX_news_df` and see how each news headline is classified. Compare the sentiment labels with what you would have guessed. Do you think the model is doing a good job?
 
 ```{python}
 news_df = apply_sentiment(SBUX_news_df)       # Classify sentiment of each Starbucks news headline
@@ -550,7 +534,8 @@ This table is the output of a function that summarizes news sentiment over time.
 
 Each row corresponds to a specific date and gives us a snapshot of how positive or negative the news headlines were for that day and the surrounding week.
 
-Markets move not just based on today's headlines, but on **short-term trends** in public sentiment.  
+Markets move not just based on today's headlines, but on **short-term trends** in public sentiment.
+
 This table lets us track how optimism or pessimism is **building up over time**, which we can later use to help predict stock price movements.
 
 ####  Why is this useful?
@@ -560,7 +545,43 @@ This table lets us track how optimism or pessimism is **building up over time**,
 - If it's dropping, it could mean public or investor concern is growing.
 - We can later plot this and compare it against stock price to see if sentiment influences market behavior.
 
-### 5 Getting Stock Price Data 
+### 5 Getting Stock Price Data
+
+#### From Language Prediction to Stock Prediction
+
+Just like LLMs predict the next word based on the context of prior words:
+
+$$
+P(w_t \mid w_1, w_2, \ldots, w_{t-1})
+$$
+
+We can use similar models to predict the next value in a time series, like **stock prices** or **percentage changes** in returns.
+
+While prediction of next word in language models is inherently **univariate** that the model predicts the next word based solely on the sequence of previous words, predicting daily stock returns is often a **multivariate** problem as more exogenous factors must be taken into account. Here, we don't just use past stock prices (returns) as context, but also incorporate **additional features** such as public sentiment from news headlines.
+
+In other words, instead of predicting the next token from a single stream (words), we predict the next value in a time series using **multiple sources of information**: historical price data and external signals like news sentiment. This richer, multivariate context allows the model to capture more complex relationships and potentially make more accurate forecasts.
+
+The comparison of word prediction and stock price prediction is given as follows:
+
+| Word Prediction | Stock Price Prediction |
+|--------------------------------|----------------------------------------|
+| Previous words | Past daily returns + aggregated news sentiment |
+| Next word prediction | Future return prediction |
+| Attention to important words | Feature weights on returns **and** sentiment |
+| Temperature to control randomness | Confidence or prediction intervals in forecasts |
+| Word probability distribution | Forecasted return distribution |
+
+In the previous section, we used a language model to analyze real-time news headlines and extract sentiment signals.
+
+Now, we will combine these sentiment signals with historical stock price data to forecast short-term changes in stock value.
+
+You will:
+
+-   Combine sentiment signals with stock prices
+-   Use a forecasting model to predict future price changes
+-   Visualize your results interactively
+
+#### Retrieving and Preparing Stock Price Data
 
 We are using the `yfinance` package to get real stock price data directly from Yahoo Finance. The function below helps us download historical stock prices and compute the daily percentage change in the stock's closing price. To make sure our results are replicable, this data has been saved as a `.csv` file "datasets/SBUX_price.csv"
 
@@ -612,7 +633,7 @@ SBUX_price_df = pd.read_csv("datasets/SBUX_price.csv")
 SBUX_price_df.head()
 ```
 
-Now we bring together the sentiment summary data and the stock price changes. By merging these two datasets, we can analyze how changes in news sentiment might be related to changes in Starbucks' stock price. This combined dataset will help us answer the question: "Does positive news sentiment lead to an increase in stock price?" 
+Now we bring together the sentiment summary data and the stock price changes. By merging these two datasets, we can analyze how changes in news sentiment might be related to changes in Starbucks' stock price. This combined dataset will help us answer the question: "Does positive news sentiment lead to an increase in stock price?"
 
 ```{python}
 combined_df = combine_data(sentiment_df, SBUX_price_df)
@@ -693,7 +714,7 @@ create_plot(combined_df, forecast_mean, forecast_ci, forecast_index)
 
 ### 6 How Do AIs Feel About AI?
 
-In this section of the notebook, we explore how our **AI Sentiment Analysis model** feels about AI-related stocks. That's a mouthful! 
+In this section of the notebook, we explore how our **AI Sentiment Analysis model** feels about AI-related stocks. That's a mouthful!
 
 The goal is to see if public sentiment (as captured by the headlines) is generally optimistic or pessimistic toward leading AI companies — as interpreted by another AI (we are using BERT here!).
 
@@ -710,8 +731,8 @@ We'll start by selecting the [top 10 AI stocks in 2025](https://www.forbes.com/a
 - `QCOM` (Qualcomm)
 
 For each company, we will:
-2. Classify the sentiment using our `RoBERTa`-based model
 1. Pull recent news headlines
+2. Classify the sentiment using our `RoBERTa`-based model
 3. Analyze the **7-day rolling trends** in public sentiment
 4. Compare results across companies
 
@@ -754,7 +775,7 @@ AI_sentiment_news_df = pd.read_csv("datasets/AI_news_sentiment.csv")
 AI_sentiment_news_df.head()
 ```
 
-This`AI_process_sentiment` does for a bunch of companies what we did for SBUX. It automatically collect all their news headlines and put them in one place for analysis. 
+This`AI_process_sentiment` does for a bunch of companies what we did for SBUX. It automatically collect all their news headlines and put them in one place for analysis.
 
 ```{python}
 def AI_process_sentiment(news_df):
@@ -800,7 +821,7 @@ AI_sentiment_df = AI_process_sentiment(AI_sentiment_news_df)
 AI_sentiment_df.head()
 ```
 
-#### Like we did with the `SBUX` stock above let's get stock prices for all of our AI stocks now.  
+#### Like we did with the `SBUX` stock above let's get stock prices for all of our AI stocks now.
 
 ```{python}
 # Match date range to your sentiment dataset
@@ -997,7 +1018,7 @@ def compare_predictions(pred_mean, pred_index, actuals_df, ticker=None):
     return mdf, metrics
 ```
 
-The evaluation metrics we use are the **Mean Absolute Error (MAE)** and **Root Mean Squared Error (RMSE)**, which measure how far off our predictions are from the actual stock price changes. 
+The evaluation metrics we use are the **Mean Absolute Error (MAE)** and **Root Mean Squared Error (RMSE)**, which measure how far off our predictions are from the actual stock price changes.
 
 The MAE is the average of the absolute differences between predicted and actual values, while the RMSE is the square root of the average of squared differences. Usually, lower values of these metrics indicate better model performance.
 
@@ -1080,4 +1101,6 @@ However, it is important to note that the model's predictions are not perfect an
 - Li, T. (2025). finvizfinance (Version 1.1.1) [Python package]. PyPI. Retrieved August 1, 2025, from [https://pypi.org/project/finvizfinance/](https://pypi.org/project/finvizfinance/)
 - GeeksforGeeks. (2023, September 27). Complete guide to SARIMAX in Python. [https://www.geeksforgeeks.org/python/complete-guide-to-sarimax-in-python/](https://www.geeksforgeeks.org/python/complete-guide-to-sarimax-in-python/)
 - Sprenger, T. O., Tumasjan, A., Sandner, P. G., & Welpe, I. M. (2014, February 5). *Twitter sentiment and stock market movements: The predictive power of social media*. VoxEU. [https://cepr.org/voxeu/columns/twitter-sentiment-and-stock-market-movements-predictive-power-social-media](https://cepr.org/voxeu/columns/twitter-sentiment-and-stock-market-movements-predictive-power-social-media)
-
+- Wolf, T., Debut, L., Sanh, V., Chaumond, J., Delangue, C., Moi, A., … Rush, A. M. (2020). Transformers: State-of-the-art natural language processing. Proceedings of the 2020 Conference on Empirical Methods in Natural Language Processing: System Demonstrations, 38–45. [https://huggingface.co/transformers/](https://huggingface.co/transformers/)
+- Sanh, V., Debut, L., Chaumond, J., & Wolf, T. (2019). DistilGPT2 [Pretrained language model]. Hugging Face. [https://huggingface.co/distilbert/distilgpt2](https://huggingface.co/distilbert/distilgpt2)
+- Paszke, A., Gross, S., Massa, F., Lerer, A., Bradbury, J., Chanan, G., … Chintala, S. (2019). PyTorch: An imperative style, high-performance deep learning library. Advances in Neural Information Processing Systems, 32. [https://pytorch.org/](https://pytorch.org/)
