@@ -170,6 +170,7 @@ print("Loaded:", Next_word_prediction, "on", device)
 ```
 
 ```{python}
+#| echo: false
 # Return top-1 next-token predictions + probabilities
 def predict_next_word(sentence, k=5, temperature=1.0):
 
@@ -274,7 +275,8 @@ plt.show()
 In the example above, we see how the probability distribution changes with different temperatures. A high temperature (1.5) results in a flatter distribution, meaning the model is more likely to sample from less probable tokens, while a low temperature (0.5) results in a sharper distribution, favoring the most probable tokens.
 
 ```{python}
-# Visualize next-word probability distribution
+#| echo: false
+# Visualize next-word probability distribution'
 def plot_next_token_distribution(sentence, k=20, temperature=1.0):
 
     inputs = tokenizer(sentence, return_tensors="pt").to(device)
@@ -524,7 +526,7 @@ cm = confusion_matrix(phrasebank_df["true_label"], phrasebank_df["pred_label"], 
 
 fig, ax = plt.subplots(figsize=(7, 5))
 disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=["POSITIVE", "NEUTRAL", "NEGATIVE"])
-disp.plot(ax=ax, colorbar=False, cmap="twilight_shifted")
+disp.plot(ax=ax, colorbar=False, cmap="Greens")
 ax.set_title("RoBERTa vs. the experts, financial phrasebank dataset")
 plt.tight_layout()
 plt.show()
@@ -563,25 +565,284 @@ print(f"Mean confidence — incorrect: {phrasebank_df[~phrasebank_df['correct']]
 
 > We see that a model's probability score isn't cosmetic: when it's wrong, it's more likely to be less sure, but not always so!
 
-### 5 Getting Stock Price Data
+### Predicting stock returns with sentiment data
+
+In part 4, we've validated our classifier on expert-labelled data. So far it's okay, but not ideal. Think of ways we could improve the performance of the model. Would using a model trained on other types of data help? 
+
+Now, let's apply it to something noisier and more informal: financial social media posts. We'll use the twitter financial news sentiment dataset from huggingface, which contains over 21 thousand finance-related posts covering a wide range of companies and market events. 
+
+This lets us:
+
+1) Test the model on a completely different style of text (short, informal posts)
+2) Work with enough data to find meaningful patterns across companies and sectors.
+
+```{python}
+from datasets import concatenate_datasets
+twitter_raw = concatenate_datasets([
+    load_dataset("zeroshot/twitter-financial-news-topic", split="train"),
+    load_dataset("zeroshot/twitter-financial-news-topic", split="validation")])
+twitter_df = twitter_raw.to_pandas()
+
+print(f"Dataset size is {len(twitter_df)} posts")
+twitter_df[["text"]].head()
+```
+
+The following cell will run the model on the dataset and predict the sentiment of each sentence. Note that it may take a very long time to run so we've pre-ran the code and saved just the sentiment in a seperate csv. 
+
+```{python}
+# ticker_posts = twitter_df[twitter_df["text"].str.contains(r'\$[A-Z]{1,5}\b', regex=True)].copy() #we first filter for posts containing any sort of ticker
+# ticker_posts["orig_index"] = ticker_posts.index
+# results = [classify_with_score(x) for x in ticker_posts["text"]]
+# ticker_posts["pred_label"] = [r[0] for r in results]
+# ticker_posts["confidence"] = [r[1] for r in results]
+# ticker_posts[["orig_index", "pred_label", "confidence"]].to_csv(
+#     "datasets/twitter_topic_labels.csv", index=False)
+```
+
+```{python}
+ticker_posts = twitter_df[twitter_df["text"].str.contains(r'\$[A-Z]{1,5}\b', regex=True)].copy()
+ticker_posts["orig_index"] = ticker_posts.index
+labels_df = pd.read_csv("datasets/twitter_topic_labels.csv")
+twitter_df = ticker_posts.merge(labels_df, on="orig_index")
+twitter_df[["text", "pred_label", "confidence"]].head()
+```
 
 
+#### Which companies are being talked about?
+
+Finance and crypto posts frequently use the `$TICKER` tag to mention stocks or coins. Let's extract those mentions and see which companies make up most of the conversation, and if the conversation about them skews positive vs negative. We previously filtered our dataset to only contain examples with said stock tickers.
+
+```{python}
+import re 
+
+def extract_tickers(text):
+    return re.findall(r'\$([A-Z]{1,5})\b', str(text))
+
+twitter_df["tickers"] = twitter_df["text"].apply(extract_tickers) #we'll create a new column to indicate what ticker is being mentioned.
+
+ticker_rows = [] 
+
+for _, row in twitter_df.iterrows():
+    for ticker in row["tickers"]:
+        ticker_rows.append({
+            "ticker": ticker,
+            "pred_label": row["pred_label"],
+            "confidence": row["confidence"]
+        }) #have to also make sure we only have one row per post, ticker pair.
+
+ticker_df = pd.DataFrame(ticker_rows)
+print(f"number obs: {len(ticker_df)}")
+print(ticker_df["ticker"].value_counts().head(20).to_string())
+```
+
+We'll keep all the tickers that have at least 5 mentions to at least have a somewhat reasonable sample size for each ticker. 
+
+```{python}
+counts = ticker_df["ticker"].value_counts()
+top_tickers = counts[counts >= 5].head(20).index.tolist() #adjust this value if you want more tickers if you want
+
+ticker_sentiment_rows = []
+for ticker in top_tickers:
+    sub = ticker_df[ticker_df["ticker"] == ticker]
+    pos = (sub["pred_label"] == "POSITIVE").sum()
+    neg = (sub["pred_label"] == "NEGATIVE").sum()
+    total_pn = pos + neg
+    if total_pn > 0:
+        ticker_sentiment_rows.append({
+            "ticker": ticker,
+            "pct_positive": pos / total_pn,
+            "total_mentions": len(sub),
+        }) #creating new columns for the ticker, the percentage of posts that are positive, and the total number of mentions for each ticker
+
+ticker_sentiment_df = (
+        pd.DataFrame(ticker_sentiment_rows)
+        .sort_values("pct_positive", ascending=False)
+        .reset_index(drop=True))
+
+print(ticker_sentiment_df[["ticker", "pct_positive", "total_mentions"]].value_counts().head(20).to_string())
+```
+
+```{python}
+fig, ax = plt.subplots(figsize=(12, 5))
+colors = ["steelblue" if p >= 0.5 else "tomato" for p in ticker_sentiment_df["pct_positive"]]
+ax.bar(ticker_sentiment_df["ticker"], ticker_sentiment_df["pct_positive"],
+        color=colors, edgecolor="white")
+ax.axhline(0.5, color="black", linestyle="--", linewidth=1, label="50%")
+ax.set_ylabel("% positive mentions")
+ax.set_xlabel("Ticker")
+ax.set_title("sentiment by company")
+ax.set_ylim(0, 1)
+ax.legend()
+plt.tight_layout()
+plt.show()
+```
+
+#### Does social media sentiment track stock performance?
+
+Naturally, an important question we'd want to ask is if positive social media coverage correlates with better stock performance. For this, we'll pull 3-month stock returns for our tickers using the yfinance package and compare them to their sentiment. 
+
+```{python}
+#| echo: false
+
+warnings.filterwarnings("ignore")
+end_date = pd.Timestamp.today()
+start_date = end_date - pd.DateOffset(months=3)
+
+tickers_list = ticker_sentiment_df["ticker"].tolist()
+
+if os.path.exists("datasets/returns_3m.csv"): # this sucks to read, but we're just downloading the data from yfinance and trying to avoid rate limits by caching the data the second time this cell is ran
+    returns_df = pd.read_csv("datasets/returns_3m.csv")
+else:
+    raw = yf.download(tickers_list, start=start_date.strftime('%Y-%m-%d'),
+                          end=end_date.strftime('%Y-%m-%d'), progress=False, auto_adjust=True)
+    closes = raw["Close"] if len(tickers_list) > 1 else raw["Close"].to_frame(tickers_list[0])
+    returns_rows = []
+    for ticker in tickers_list:
+        if ticker not in closes.columns:
+            continue
+        col = closes[ticker].dropna()
+        if len(col) < 5:
+            continue
+        ret = (col.iloc[-1] - col.iloc[0]) / col.iloc[0] * 100
+        returns_rows.append({"ticker": ticker, "return_3m": float(ret)})
+    returns_df = pd.DataFrame(returns_rows) if returns_rows else pd.DataFrame(columns=["ticker", "return_3m"])
+    if not returns_df.empty:
+        returns_df.to_csv("datasets/returns_3m.csv", index=False)
+
+plot_df = pd.merge(ticker_sentiment_df, returns_df, on="ticker")
+
+plot_df
+```
+
+```{python}
+fig, ax = plt.subplots(figsize=(9, 6))
+ax.scatter(plot_df["pct_positive"],
+    plot_df["return_3m"],s=plot_df["total_mentions"] * 2,alpha=0.7,
+    color="steelblue",edgecolors="white", linewidths=0.5)
+
+for _, row in plot_df.iterrows():
+    ax.annotate(
+        row["ticker"],
+        (row["pct_positive"], row["return_3m"]),
+        textcoords="offset points", xytext=(5, 3), fontsize=9)
+
+ax.axhline(0, color="gray", linestyle="--", linewidth=0.8)
+ax.axvline(0.5, color="gray", linestyle="--", linewidth=0.8)
+ax.set_xlabel("% Positive Social Media Mentions")
+ax.set_ylabel("3-Month Stock Return")
+ax.set_title("Sentiment vs. 3-Month Stock Return")
+
+corr = plot_df["pct_positive"].corr(plot_df["return_3m"])
+
+plt.tight_layout()
+plt.show()       
+```
+
+The scatterplot above shows a *correlation* between sentiment and returns. But correlation is not prediction. Can we actually use sentiment, combined with a company's past performance, to forcast what will happen next?
+
+We'll model this using a simple linear regression:
+
+$$\hat y = \beta_0 + \beta_1 \cdot \text{sentiment score} + \beta_2 \cdot \text{past 1 month return}$$
+
+This kind of mirrors the core idea from section 1. The model looks at what is knows (sentiment and recent momentum of each stock ticker) and assigns weights to produce a prediction. The "vocabulary" here is just two features instead of thousands of words. 
+
+> FYI: the stock returns are being pulled using today's date, but our sentiment data is from 2019, so the results are a bit wonky. 
+
+```{python}
+#| echo: false
+
+from sklearn.linear_model import LinearRegression
+
+past_end = start_date
+past_start = past_end - pd.DateOffset(months=1)
+
+if os.path.exists("datasets/returns_1m.csv"): #same thing here; getting returns for 1 month average beofre the 3 month window
+    past_returns_df = pd.read_csv("datasets/returns_1m.csv")
+else:
+    past_raw = yf.download(top_tickers, start=past_start.strftime('%Y-%m-%d'),
+                               end=past_end.strftime('%Y-%m-%d'), progress=False, auto_adjust=True)
+    past_closes = past_raw["Close"] if len(top_tickers) > 1 else past_raw["Close"].to_frame(top_tickers[0])
+    past_returns_rows = []
+    for ticker in top_tickers:
+        if ticker not in past_closes.columns:
+            continue
+        col = past_closes[ticker].dropna()
+        if len(col) < 3:
+            continue
+        ret = (col.iloc[-1] - col.iloc[0]) / col.iloc[0] * 100
+        past_returns_rows.append({"ticker": ticker, "past_1m_return": float(ret)})
+    past_returns_df = pd.DataFrame(past_returns_rows) if past_returns_rows else pd.DataFrame(columns=["ticker", "past_1m_return"])
+    if not past_returns_df.empty:
+        past_returns_df.to_csv("datasets/returns_1m.csv", index=False)
+```
+
+```{python}
+
+model_df = pd.merge(plot_df, past_returns_df, on="ticker").dropna() 
+
+X = model_df[["pct_positive", "past_1m_return"]].values
+y = model_df["return_3m"].values
+
+reg = LinearRegression()
+reg.fit(X, y)
+
+
+
+model_df["predicted_return"] = reg.predict(X)
+
+print(f"Sentiment coefficient:{reg.coef_[0]:.2f}")
+print(f"Past 1-month return coeff:{reg.coef_[1]:.2f}")
+print(f"R^2: {reg.score(X, y):.3f}")
+```
+
+```{python}
+fig, ax = plt.subplots(figsize=(7, 6))
+ax.scatter(
+    model_df["return_3m"], model_df["predicted_return"], # y hat on y axis, y on x
+    color="steelblue", alpha=0.7, edgecolors="white", s=70
+)
+
+for _, row in model_df.iterrows():
+    ax.annotate(row["ticker"],
+        (row["return_3m"], row["predicted_return"]),
+        textcoords="offset points", xytext=(5, 3), fontsize=8)
+
+lims = [min(model_df["return_3m"].min(), model_df["predicted_return"].min()) - 3,
+max(model_df["return_3m"].max(), model_df["predicted_return"].max()) + 3,]
+ax.plot(lims, lims, "k--", linewidth=0.8, label="Perfect prediction")
+ax.set_xlabel("Actual 3-Month Return")
+ax.set_ylabel("Predicted 3-Month Return")
+ax.set_title("Predicted vs. Actual Returns")
+ax.legend()
+plt.tight_layout()
+plt.show()
+
+```
+
+> Points close to the dashed line are well predicted, while points far from it are errors. Based on the coefficients, does sentiment or short term past returns have a stronger effect? This model was fit and evaluated on the same data. Why is in-sample R^2 a optimistic measure of how well our model is performing? What would a proper evaluation require?
+
+> Think about the following: does a strong correlation here mean social media drives stock prices, or the other way around? What would you need to do, or could do, to make a causal claim? 
+
+### Conclusion
+
+This notebook showed how large language models process and make predictions about text, and how those predictions, which are grounded in probability distributions, can be applied to real financial data. 
 
 ### Key Takeaways
 
 - **Large language models (LLMs)** predict the next word in a sequence by learning the probability distribution of possible outcomes based on context.
 - LLMs can also be used to predict future values in a time series, such as stock prices, by incorporating additional features like public sentiment.
-- **The SARIMAX model** is a powerful forecasting model that allows us to include external information, such as news sentiment, in our predictions.
-- We must evaluate the model's performance using metrics like **MAE** and **RMSE** to ensure its predictions are reliable.
+- **Temperature** controls how sharp or flat that distribution is, affecting how decisive or creative the models outputs are. 
+- Confidence scores are informative: a model’s probability for its top prediction correlates with its accuracy, making it a useful signal of reliability.
 
 ### Glossary
 
 - **Large Language Model (LLM)**: A type of AI model that predicts the next word in a sequence based on the context of previous words.
 - **Next Word Prediction**: The task of predicting the next word in a sequence given the previous words.
 - **Sentiment Analysis**: The process of determining the emotional tone behind a series of words, used to understand the sentiment expressed in text.
-- **SARIMAX Model**: A statistical model used for forecasting time series data that can incorporate external variables.
-- **Mean Absolute Error (MAE)**: A measure of prediction accuracy that calculates the average absolute difference between predicted and actual values.
-- **Root Mean Squared Error (RMSE)**: A measure of prediction accuracy that calculates the square root of the average of squared differences between predicted and actual values.
+- **Next Word Prediction**: The task of predicting the next word in a sequence given the previous words.
+- **Confidence Score:** The probability a model assigns to its top prediction; higher confidence correlates with higher accuracy on average.
+- **Confusion Matrix:** A table that shows how often a classifier’s predictions agree or disagree with ground-truth labels, broken down by class.
+
 
 ### References
 
