@@ -118,7 +118,6 @@ os.makedirs('output', exist_ok=True)
 print("Output directory ready: ./output/")
 ```
 
-***
 ## Introduction
 
 ### What is OCR?
@@ -143,8 +142,6 @@ By the end of this notebook, you will be able to:
 5. **Evaluate OCR quality** using standard metrics (CER, WER, Confidence Intervals)
 6. **Post-process OCR output** for downstream analysis
 7. **Scale your workflow** for batch processing
-
-***
 
 ## Part 1: Traditional OCR
 
@@ -174,8 +171,6 @@ Text extraction from documents falls into three main categories:
 | **Transkribus** | Freemium | Excellent HTR, crowdsourcing | Handwritten documents |
 | **Azure Document Intelligence** | Paid | Enterprise-grade, form extraction | Business documents |
 | **AWS Textract** | Paid | Table extraction, scalable | Structured documents |
-
-***
 
 ### 1.2 How Does Traditional OCR Work?
 
@@ -212,7 +207,7 @@ We will first load our sample image, a clean newspaper column:
 ```{python}
 img_path = "data/simple/newspaper_clean_col1.jp2"
 img = load_image(img_path)
-display_image(img, title="Sample Newspaper Column (newspaper_clean_col1.jp2)", figsize=(8, 12))
+display_image(img, title="Sample Newspaper Column", figsize=(8, 12))
 ```
 
 This is just one vertical column of clear text, for this notebook this will act as our most basic example. 
@@ -223,7 +218,6 @@ reader = easyocr.Reader(['en'], gpu=False)
 ```
 
 ```{python}
-# EasyOCR returns (bbox, text, confidence) tuples
 results = reader.readtext(img)
 
 print(f"EasyOCR detected {len(results)} text regions")
@@ -235,7 +229,7 @@ extracted_text = '\n'.join([text for (bbox, text, conf) in results])
 
 ocr_df = pd.DataFrame({
     'text': [text for (bbox, text, conf) in results],
-    'conf': [conf * 100 for (bbox, text, conf) in results] # convert 0-1 to 0-100
+    'conf': [conf * 100 for (bbox, text, conf) in results]
 })
 
 print(f"\nTotal text length: {len(extracted_text)} characters")
@@ -248,7 +242,7 @@ EasyOCR scanned the newspaper image and identified 246 separate regions containi
 
 Confidence scores are numerical metrics; typically ranging from 0 to 1 (0% to 100%) which indicate an AI or machine learning model's level of certainty in its prediction or classification. They represent the probability that the model's output is correct. A more technical definition is that: When an OCR model predicts a character, it computes a softmax probability distribution over all possible output classes. The confidence score is the maximum probability (the model's estimated likelihood that its top prediction is correct). For example if an OCR model sees a deformed or smuged **e** it does not say immediately that it is an e, but calculates a probablity for all characters (e,c,a,7,.,0 etc). The confidence score we see is the highest value of this prediciton. 
 
-Crucially **confidences scores are not accuracy,** softmax normalizes over the model's known vocabulary, not over ground truth. It is a valuavle metric, but do not overly rely on it or tunnel vision on pushing the highest confidence. Low confidence is often more informative than high, it gives insights on the models true uncertanity. 
+Crucially **confidences scores are not accuracy**, softmax normalizes over the model's known vocabulary, not over ground truth. It is a valuavle metric, but do not overly rely on it or tunnel vision on pushing the highest confidence. Low confidence is often more informative than high, it gives insights on the models true uncertanity. 
 
 #### Visualizing EasyOCR Bounding Boxes
 
@@ -265,9 +259,10 @@ for (bbox, text, conf) in results:
 display_image(img_with_boxes, title="EasyOCR Text Detections (Green=High Conf, Red=Low Conf)", figsize=(10, 14))
 ```
 
-We can very clearly visually see the way in which EasyOCR is reading the text. The overall confidence from EasyOCR is at 91.4% which is not bad, but it is worth keeping in mind that this is a very basic example and the model is still making some mistakes. If we were to use a more difficult sample EasyOCR will struggle. 
+We can very clearly visually see the way in which EasyOCR is reading the text. Green boxes represent high confidence while blue are lower confidence (we do not see any red as there is no very low confidence regions).
 
-***
+The overall confidence from EasyOCR is at 91.4% which is not bad, but it is worth keeping in mind that this is a very basic example and the model is still making some mistakes. If we were to use a more difficult sample EasyOCR will struggle. 
+
 
 ### 1.4 Paid Tools Overview
 
@@ -342,17 +337,15 @@ For example, if a historical document has a smudged word, traditional OCR might 
 
 **The Trade-off**: VLMs are more powerful but also much more resource-intensive. They excel at understanding *what a document means* but may sometimes "hallucinate" plausible-sounding text that wasn't actually in the image. This will be familar to anyone who has used ChatGPT or other LLM's in the past. Traditional OCR is more literal. It only outputs what it detects, errors and all.
 
-***
-
 ### 2.3 Surya OCR Demo
 
-**Surya OCR** is a practical middle ground — it uses deep learning (transformer-based models) but works well on CPU, making it accessible without specialized hardware. It supports 90+ languages and includes built-in text detection and layout analysis.
+**Surya OCR** is a practical middle ground, it uses deep learning (transformer-based models) but works well on CPU, making it accessible without specialized hardware. It supports 90+ languages and includes built-in text detection and layout analysis.
 
 ```{python}
 #!pip install surya-ocr
 ```
 
-Let's try running Surya OCR on the same newspaper column and look at the results. This will take longer to run than EasyOCR, we can then compare the confidence and findings. 
+Let's try running Surya OCR on the same newspaper column and look at the results. This will take longer to run than EasyOCR. We can then compare the confidence and findings. 
 
 ```{python}
 foundation_predictor = FoundationPredictor()
@@ -381,6 +374,9 @@ del rec_predictor, det_predictor, foundation_predictor
 gc.collect()
 ``` 
 
+
+Output text sample: "<b>Twenty-Fifth Infantry</b> <b>Wins Athletic Honors</b> Champions of Six Regiments Com- pete in Exciting Finals of Tour- nament in Honolulu. THE COLORED REGIMENT WINS. Scores Nearly Half of All the Points Made by Combined Competitors Two Omaha Boys in Contest." 
+
 EasyOCR had an Average confidence: 91.4% while Surya had an average confidence of 99.4%. It is worth noting that confidence is not everything and it is important to actually review the results or compare them to a "ground-truth" (the actual text inside of the document often in a .txt format). The text preview looks correct, but this was a very simple example. Let's try on something far more difficult. 
 
 #### Testing on Handwritten Documents
@@ -388,13 +384,8 @@ EasyOCR had an Average confidence: 91.4% while Surya had an average confidence o
 Our example here will be a handwritten letter from the American Civil war from Alexander Parker Crittdnden to his wife, Clara Critteden dated to December 11, 1864. We can see how EasyOCR and Surya handle this more difficult handwritten example. 
 
 ```{python}
-letter_pages = convert_from_path(
-    "data/simple/handwritten_letter_page1.pdf",
-    dpi=300,
-    poppler_path=r'D:\poppler\poppler-25.12.0\Library\bin'  
-)
+letter_pages = convert_from_path("data/simple/handwritten_letter_page1.pdf", dpi=300, poppler_path=r'D:\poppler\poppler-25.12.0\Library\bin')
 letter_img = np.array(letter_pages[0])
-
 display_image(letter_img, title="Handwritten Letter (Civil War Era)", figsize=(10, 12))
 ```
 
@@ -405,7 +396,7 @@ easyocr_hw_results = reader.readtext(letter_img)
 easyocr_hw_text = '\n'.join([text for (bbox, text, conf) in easyocr_hw_results])
 easyocr_hw_confs = [conf for (bbox, text, conf) in easyocr_hw_results]
 
-print("--- EasyOCR ---")
+print("EasyOCR:")
 print(f"Regions detected: {len(easyocr_hw_results)}")
 print(f"Avg confidence: {np.mean(easyocr_hw_confs):.2%}")
 print(f"\nExtracted text (first 500 chars):\n{easyocr_hw_text[:500]}")
@@ -450,7 +441,7 @@ display(comparison)
 
 Both engines struggle a bit more with handwritten text. Traditional OCR is built for printed characters, so the low confidence scores and garbled output here are expected. VLM's perform much better. We have seen both great OCR and poor OCR, so what can we do to get the best results, how can we help the models. You can just throw different models at text and hope it works, but there are many tools and techniques which can be used to improve the OCR quality. In the next section we will look at developing a full pipeline to give the models a leg-up by giving them the best possible source and then post-processing techniques to analyze the output. 
 
-## Part 3:Pre-processing 
+## Part 3: Pre-processing 
 
 A complete OCR workflow involves three stages: **pre-processing**, **text extraction**, and **post-processing**. Each stage can significantly impact final accuracy.
 
@@ -482,7 +473,6 @@ Binarization converts the image to pure black and white. **Otsu's method** is a,
 
 First we will apply Otsu's method to our image of UBC to show what it does: 
 ```{python}
-# cv2.threshold returns (threshold_value, binary_image)
 otsu_thresh, ubc_binary = cv2.threshold(ubc_gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
 print(f"Otsu selected threshold: {otsu_thresh:.0f} (out of 255)")
@@ -597,7 +587,6 @@ display_images_side_by_side(ubc_gray, ubc_enhanced, "Original Grayscale", "CLAHE
 **Over pre-processing**: Doing too much pre-processing can degrade the image quality and make it nearly illegible. A clean PDF run through aggressive binarization + denoising will lose information. Be careful when running pre-processing, not every document needs everystep. They can hurt more than help. Look at the output and test various techniques. 
 :::
 
-
 ### 3.2 Layout Analysis
 
 Historical newspapers and various other documents often have complex multi-column layouts. Without proper layout analysis, OCR might read across columns incorrectly.
@@ -671,7 +660,7 @@ Tokenization is: the process of breaking down the raw text output generated from
 
 #### Text Normalization with NLTK
 
-We will use our simple newspaper column example from earlier. We have the sample text and we will first turn it into smaller tokens, and then stem and lemmanize the tokens. Tokens in this context refer to the smaller units that the OCR can see, While words are human-readable units of language, tokens are the smaller, fragmented building blocks that AI models (LLMs) use to process text efficiently. 
+We will use our simple newspaper column example from earlier. We have the sample text and we will first turn it into smaller tokens, and then stem and lemmanize the tokens. Tokens in this context refer to the smaller units that the OCR can see. While words are human-readable units of language, tokens are the smaller, fragmented building blocks that AI models (LLMs) use to process text efficiently. 
 
 ```{python}
 sample_text = """
@@ -704,7 +693,6 @@ lemmatizer = WordNetLemmatizer()
 test_words = ['running', 'competed', 'competitors', 'athletics', 'winning']
 
 print("\nStemming vs Lemmatization:")
-print("-" * 50)
 for word in test_words:
     stem = stemmer.stem(word)
     lemma = lemmatizer.lemmatize(word)
@@ -759,7 +747,18 @@ print(f"\nWord count by confidence: {structured['word_count_by_confidence']}")
 print(f"\nSaved to: output/document.json")
 ```
 
-A .json is less human leggible than a .txt but it is amazing for machine processing and programing tasks. Here out .json looks like ![.json example](media/json_example.png)
+A .json is less human-readable than a .txt, but it is excellent for machine processing and programming tasks. Here our .json looks like:
+
+![.json example](media/json_example.png)
+
+.json files are great tools for Natural Language Processing (NLP) techniques examples of which are: 
+
+- **Named-Entity Recognition (NER)** — automatically identify people, places, dates, and organizations mentioned in the document.
+- **Topic Modeling** — discover recurring themes across a large corpus of digitized documents.
+- **Sentiment / Stance Analysis** — measure tone or opinion in editorials, letters, or testimony.
+- **Text Embeddings & Semantic Search** — convert passages into vector representations so you can search by meaning rather than exact keywords.
+
+For hands-on examples of several of these techniques, see the prAxIs [Text Embeddings Workshop](https://ubcecon.github.io/praxis-ubc/docs/hist_workshop/text_embeddings_workshop.html) module.
 
 #### LLM-Based Correction
 
@@ -851,7 +850,7 @@ print("Ground Truth (first 500 characters):")
 print(ground_truth[:500])
 ```
 
-And then we compare it with our easyOCR output to see how the model performed.
+And then we compare it with our EasyOCR output to see how the model performed.
 ```{python}
 gt_normalized = ground_truth.lower().strip()
 ocr_normalized = extracted_text.lower().strip()
@@ -859,7 +858,7 @@ ocr_normalized = extracted_text.lower().strip()
 word_error_rate = wer(gt_normalized, ocr_normalized)
 char_error_rate = cer(gt_normalized, ocr_normalized)
 
-print("OCR EVALUATION METRICS")
+print("OCR Evalutation Metrics:")
 print(f"\nWord Error Rate (WER):      {word_error_rate:.2%}")
 print(f"Character Error Rate (CER): {char_error_rate:.2%}")
 print(f"\nWord Accuracy:      {1 - word_error_rate:.2%}")
@@ -913,7 +912,7 @@ testimony_pages = convert_from_path(
     dpi=300,
     first_page=1,
     last_page=2,
-    poppler_path=r'D:\poppler\poppler-25.12.0\Library\bin' #might not be necessary need to test more
+    poppler_path=r'D:\poppler\poppler-25.12.0\Library\bin' 
 )
 alcapone_testimony_p1_raw = np.array(testimony_pages[0])
 alcapone_testimony_p2_raw = np.array(testimony_pages[1])
@@ -935,6 +934,7 @@ We can see that most of the text is written on a typewritter and we have testimo
 Before running OCR we chain the same techniques introduced in Part 3 into a single pipeline function. The ordering matters: we convert to grayscale first (required by all subsequent steps), deskew to correct any rotation, denoise to remove speckle, apply CLAHE to boost local contrast, and finally binarize with Otsu's method to produce a clean black-and-white image.
 
 ```{python}
+# our pre-processing pipeline
 def preprocess_for_ocr(image):
     gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
     deskewed, angle = deskew(gray)
@@ -954,16 +954,13 @@ for label, img in alcapone_documents.items():
 
 display_images_side_by_side(
     alcapone_documents["verdict"], alcapone_preprocessed["verdict"],
-    "Verdict — Raw", "Verdict — Preprocessed", figsize=(14, 10)
-)
+    "Verdict — Raw", "Verdict — Preprocessed", figsize=(14, 10))
 display_images_side_by_side(
     alcapone_documents["testimony_p1"], alcapone_preprocessed["testimony_p1"],
-    "Testimony Page 1 — Raw", "Testimony Page 1 — Preprocessed", figsize=(14, 10)
-)
+    "Testimony Page 1 — Raw", "Testimony Page 1 — Preprocessed", figsize=(14, 10))
 display_images_side_by_side(
     alcapone_documents["testimony_p2"], alcapone_preprocessed["testimony_p2"],
-    "Testimony Page 2 — Raw", "Testimony Page 2 — Preprocessed", figsize=(14, 10)
-)
+    "Testimony Page 2 — Raw", "Testimony Page 2 — Preprocessed", figsize=(14, 10))
 ```
 
 The output is much clearer with minimal noise and just black text on a white background. This will vastly improve OCR quality. 
@@ -987,7 +984,7 @@ for label, processed_img in alcapone_preprocessed.items():
     layout = layout_results[0]
     alcapone_layouts[label] = layout
 
-    print(f"--- {label}: {len(layout.bboxes)} regions detected ---")
+    print(f"{label}: {len(layout.bboxes)} regions detected")
     for box in layout.bboxes:
         marker = "*" if box.label in TEXT_LABELS else " "
         print(f"  {marker} [{box.label}] position {box.position}, confidence {box.confidence:.2%}")
@@ -1058,7 +1055,7 @@ for label, processed_img in alcapone_preprocessed.items():
         "full_text": full_text,
     }
 
-    print(f"--- {label} ---")
+    print(f"{label}:")
     print(f"  Text regions used: {len(text_boxes)} of {len(layout.bboxes)}")
     print(f"  Lines detected   : {len(all_texts)}")
     print(f"  Avg confidence   : {np.mean(all_scores):.2%}" if all_scores else "  Avg confidence   : N/A")
@@ -1067,6 +1064,10 @@ for label, processed_img in alcapone_preprocessed.items():
 del rec_predictor, det_predictor, foundation_predictor
 gc.collect()
 ```
+
+Output Text Preview Page 1: "IN THE DISTRICT COURT OF THE UNITED STATES FOR THE NORTHERN DISTRICT OF ILLINOIS PASTERN DIVISION _____ L'Oldeelling Sufrey & Martha 4. 6. Smart. (Burr Dugan Ambrou Mewhant. W.J. Henrich W/ Ma Vormely Leogs W. Larsen nate 6 Brown"
+
+Output Text Preview Page 3: "sented to another grand jury. ( The in enumeration of overt acts the defendant and others are charged with substantial offenses within the period of the statute of limitations for which a heavier penalty is provided than that possible under the conspiracy indictment."
 
 The model gives us a confidence value along with a preview of the text. The first page with the handwritten signatures has a much lower confidence then the rest of the document (we have seen previously how OCR struggles on handwritten text). The text preview also looks quite high quality. The third page specifically has a 99.09% confidence. 
 
@@ -1094,7 +1095,7 @@ for label, res in alcapone_ocr_results.items():
 summary_df = pd.DataFrame(summary_rows)
 display(summary_df)
 
-print("\n--- Low-confidence lines (< 70%) for manual review ---")
+print("\n Low-confidence lines (< 70%) for manual review")
 for label, res in alcapone_ocr_results.items():
     low_lines = [(t, s) for t, s in zip(res["texts"], res["scores"]) if s < 0.70]
     if low_lines:
@@ -1213,6 +1214,8 @@ We can see that we have a low WER and CER. This is a good score, and could be im
 ### 4.2 Medieval Medical Manuscripts
 
 Our most challenging case: pages from medieval medical and astrological texts. Unlike the typewritten Al Capone documents, these are handwritten in medieval scripts with abbreviations, Latin text, and marginal annotations. We apply the same preprocessing, Surya OCR, confidence analysis, export pipeline used above. Here we do not have a ground truth and will have to rely on confidence scores and an eye test. 
+
+We will be using *Cirogia vulgare. Ricettario. Antidotarium vulgare* which was published between 1300 and 1350 in Latin and Medical/Astrological texts in English published between 1551 and 1553. 
 
 To be clear this is difficult for OCR and we are not expecting an excellent result using a relatively simple and non-computationally intensive model (Surya) that is not specificall trained for medieval text like this. 
 
@@ -1350,11 +1353,15 @@ del rec_predictor, det_predictor, foundation_predictor
 gc.collect()
 ```
 
+Text Output Sample Manuscript: "fichelosso ouesto aten similiance cola sinci bid trure whamest nesia tructo Avouani Suarvan chellangue no aborron troppooue roaltro chempevins tisse losso. sicometra mountmento, esuces listimo pāno vilins. onero vitera chemol to mellio-uniavum mattre elosso colape na ouero cotenta fi come dirintozeo.."
+
+Text Output Sample Horoscope: "The Pathures and properties Of the Fixed Starres. Ander the 16 degre of V. Snieb rifeth & forme topes offi<br>the nature of 4. Invites a hora constant to в п Under the 16. degre of V. driet rifeth, & flarre topes off<br>the nature of 4. Inpiter 6: h. Galmene they of be borne<br>sonder his confectati..."
+
 The output here does not seem bad, it is in Latin for the first document which is a good sign. If we run the output for the first document into DeepTL we end up with: 
 
 "This little thing looks like a tiny, two-sided, double-edged blade. Avouani Suarvan's tongue doesn't really hate anything, but it can cut through other things. As for the mounting, the result is a very thin sheet. I'm adding a new layer to the best-of-the-best matrix, and I've also included some content, as if to make it more detailed."
 
-As for the second image (the horoscope) it is in English so it will be easier to understand. The output is messy with obvious issues, but it is in English and can be rougly understood. 
+As for the second image (the horoscope) it is in English so it will be easier to understand. The output is messy with obvious issues, but it is in very old English and can be rougly understood. 
 
 We sadly do not have the actual text so we can not compare like with the Al Capone case, but for a very difficult test we have done relatively well. 
 
@@ -1382,7 +1389,7 @@ for label, res in medieval_ocr_results.items():
 summary_df = pd.DataFrame(summary_rows)
 display(summary_df)
 
-print("\n--- Low-confidence lines (< 70%) for manual review ---")
+print("\nLow-confidence lines (< 70%) for manual review")
 for label, res in medieval_ocr_results.items():
     low_lines = [(t, s) for t, s in zip(res["texts"], res["scores"]) if s < 0.70]
     if low_lines:
@@ -1712,7 +1719,6 @@ The parallelism factor depends on your setup. CPU preprocessing can be paralleli
 ::: {.callout-tip}
 **Run a pilot first.** Before committing to a full run, process 50–100 representative pages and time each stage. Multiply up from real measurements rather than estimates. This also lets you catch pipeline bugs early, before you've burned hours of compute.
 :::
-***
 
 ### 5.7 Reproducibility
 
@@ -1732,7 +1738,27 @@ Reproducibility ensures that you (or others) can recreate your results exactly. 
 
 ## 6.0 Conclusion
 
-ADD
+This notebook walked through and explained a complete OCR workflow. 
+
+**Parts 1 and 2** introduced two families of text-extraction technology. Traditional OCR engines like EasyOCR use convolutional and recurrent networks trained on character-level features, while Vision Language Models like Surya combine detection, recognition, and layout understanding into a single framework. Both have trade-offs: traditional engines are lightweight and fast; VLMs are more accurate on complex layouts but require more computational power.
+
+**Part 3** discussed preprocessing techniques like grayscale conversion, deskewing, denoising, contrast enhancement (CLAHE), and binarization (Otsu thresholding) which can dramatically improve OCR output. We also covered layout analysis for detecting document structure, and post-processing techniques like tokenization, and evaluation metrics (CER, WER, and confidence scores) for measuring quality.
+
+**Part 4** put everything together on real historical documents. For the Al Capone legal records (1931), we ran the full pipeline: preprocessing, layout-guided OCR, confidence analysis, structured export, and ground-truth evaluation against a human-verified transcript. The medieval medical manuscripts demonstrated the same workflow on much older, more degraded sources where no ground truth exists, relying instead on confidence-based quality assessment.
+
+**Part 5** addressed what happens when your project grows beyond a handful of pages. How to orchestrate and utilize a full OCR pipeline on a large scale.  
+
+#### Where to Go Next
+
+The techniques in this notebook are a starting point. For researchers looking to go further:
+
+- **Downstream analysis**: Once text is extracted, you can apply text analysis methods such as [topic modeling, named-entity recognition, and text embeddings](https://ubcecon.github.io/praxis-ubc/docs/text_analysis/text_analysis.html) to study patterns across large document collections.
+- **Fine-tuning**: Both EasyOCR and Surya support fine-tuning on custom datasets. If you are working with a specific script, language, or document style, a small amount of labeled training data can significantly improve accuracy.
+- **Handwriting recognition (HTR)**: Handwritten documents remain one of the hardest challenges in OCR. Tools like [Transkribus](https://readcoop.eu/transkribus/) specialize in this area and can be integrated into pipelines similar to the one built here.
+
+::: {.callout-tip}
+**Remember**: OCR is not an end in itself. It is the first step in turning physical documents into machine-readable data that can be searched, analyzed, and shared. The quality of every downstream analysis depends on the quality of the text extraction that feeds it, so investing time in preprocessing and evaluation pays off throughout your entire research pipeline.
+:::
 
 ## 7.0 Citations
 
