@@ -1,7 +1,7 @@
 ---
 title: "How Do Large Language Models Predict?"
 date: 2025-08-26
-author: prAxIs UBC Team <br> _Irene Berezin, Zhihan Dong, Katherine Karapetrovic, Krishaant Pathmananathan, Yash Mali, Kaiyan Zhang, Jonathan Graves, Laura Nelson_
+author: Praxis UBC Team <br> _Irene Berezin, Zhihan Dong, Katherine Karapetrovic, Krishaant Pathmananathan, Yash Mali, Kaiyan Zhang, Jonathan Graves, Laura Nelson_
 image: media/next_word_prediction.png
 categories:
   - ECON 227
@@ -204,7 +204,7 @@ predict_next_word("The cat sat on the")
 
 ### 2 Sampling and Temperature
 
-The example above (“bob went to...”) shows us the process of generating a short sentence.  At each step, the model calculates the conditional probability of the next word and then selects the word with the highest probability to insert into the sentence. The final output we obtain is "buy some milk".
+The example above (“bob went to...”) shows the process of generating a short sentence.  At each step, the model calculates the conditional probability of the next word and then selects the word with the highest probability to insert into the sentence. The final output we obtain is "buy some milk".
 
 To get more creative responses you can change the way you pick the next word: pick a "likely" word but not necessarily the most probable one.  Simply put, this involves making the conditional distribution sharper or flatter. If you make the distribution sharper, you are more likely to pick the word with the highest probability. If you make it flatter, you are more likely to pick a word that is not the most probable one.
 
@@ -397,7 +397,7 @@ Intuitively, we are asking the model:
 - Based on the words and their context, it calculates the probability of the headline being positive, negative, or neutral.
 - It then assigns the headline to the category with the highest probability, and also gives us a confidence score (the probability of that category).
 
-To do this, we will use some models that have already been trained to do this task well.  Specifically, we will use a model called `RoBERTa` (short for *Robust Bidirectional Encoder Representations from Transformers*).  `RoBERTa` is a pretrained language model that learns a word's meaning by looking at the words *before and after* it, so it understands context and tone well. It is also specifically trained on tweets and social media text, so it tends to be well-suited to handling short, non-technical, texts like news headlines.
+To do this, we will use some models that have already been trained to do this task well.  Specifically, we will use a model called `RoBERTa` (short for *Robust Bidirectional Encoder Representations from Transformers*).  `RoBERTa` is a pretrained language model that learns a word's meaning by looking at the words *before and after* it, so it understands context and tone well. It is also specifically trained on tweets and social media text, so it tends to be well-suited to handling short, non-technical texts like news headlines.
 
 Our plan is to build on our earlier discussion of LLMs predicting **probability distributions**, but here, the prediction is over **sentiment classes** rather than words.  This process converts unstructured text into structured sentiment labels that we can analyze quantitatively, making it a useful complement to other kinds of data in economic or statistical analysis.
 
@@ -457,7 +457,7 @@ Do you agree with the model's predictions?  Why or why not?  If it seems to have
 
 Thus far, we've applied our sentiment classifier to a handful of example sentences.  But it's likely your own opinion on at least a few of these sentences differed from the model's opinion.  Who is right?   In particular, how reliable is the model on actual financial texts?
 
-To answer that, we'll use the **financial phrasebank**, a benchmark dataset frequently used in natural language research. The dataset contains 3435 financial news sentences that have been gathered from financial news archives. Each sentence has been labelled as _positive_, _negative_ or _neutral_ by a panel of domain experts in finance.  We use the version where at least 75% of the annotators agreed on the label to ensure a somewhat objective "true" label.
+To answer that, we'll use the **financial phrasebank**, a benchmark dataset frequently used in natural language research. The dataset contains 3,435 financial news sentences that have been gathered from financial news archives. Each sentence has been labelled as _positive_, _negative_ or _neutral_ by a panel of domain experts in finance.  We use the version where at least 75% of the annotators agreed on the label to ensure a somewhat objective "true" label.
 
 Here are the details of the dataset:
 
@@ -490,7 +490,7 @@ for _, row in phrasebank_df.sample(5, random_state=42).iterrows():
 
 ### Running the classifier
 
-We'll now apply the `RoBERTa` model to each sentence. This will give us both a predicted label as a confidence score (the model's probability for its chosen label). We'll classify a balanced sample of 150 sentences per class, but if you want to run this on the full dataset just remove `.apply(sample_group)`.
+We'll now apply the `RoBERTa` model to each sentence. This will give us both a predicted label and a confidence score (the model's probability for its chosen label). We'll classify a balanced sample of 150 sentences per class, but if you want to run this on the full dataset just remove `.apply(sample_group)`.
 
 > _Note_: that running this code may take some time.  If you're running this code a second time, feel free to comment out the first 5 lines 
 
@@ -519,7 +519,7 @@ One problem with this kind of evaluation is that it is hard to get a sense of th
 
 ### Confusion matrices
 
-A **confusion matrix** gives us an overview of how often the model agrees with what the expert labels.  It also tell us when it makes a mistake, what label it predicted instead of the correct one.  In the matrix, each row represents the true label,  and each column is what the model predicted. A perfect model would have a diagonal matrix with 1s on the diagonal and 0s everywhere else.
+A **confusion matrix** gives us an overview of how often the model agrees with the expert labels.  It also tells us when it makes a mistake, what label it predicted instead of the correct one.  In the matrix, each row represents the true label,  and each column is what the model predicted. A perfect model would have a diagonal matrix with 1s on the diagonal and 0s everywhere else.
 
 ```{python}
 cm = confusion_matrix(phrasebank_df["true_label"], phrasebank_df["pred_label"], labels=["POSITIVE", "NEUTRAL", "NEGATIVE"])
@@ -749,7 +749,7 @@ plt.tight_layout()
 plt.show()       
 ```
 
-The scatterplot above shows a *correlation* between sentiment and returns. But correlation is not prediction. Can we actually use sentiment, combined with a company's past performance, to forcast what will happen next?  This might make us a lot of money if it works, but it's also a much harder task.  Let's see how we might approach this problem.
+The scatterplot above shows a *correlation* between sentiment and returns. But correlation is not prediction. Can we actually use sentiment, combined with a company's past performance, to forecast what will happen next?  This might make us a lot of money if it works, but it's also a much harder task.  Let's see how we might approach this problem.
 
 We'll model this using a simple linear regression:
 
