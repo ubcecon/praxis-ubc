@@ -7,7 +7,6 @@ categories:
     - computer vision
 format:
     revealjs:
-        scrollable: true
         logo: "media/praxis-logo.png"
         footer: "Praxis UBC: Image Analysis Workshop"
         smaller: true
@@ -113,14 +112,20 @@ Processing is often a prerequisite step for analysis.
 **Convolution** applies a small filter (kernel) to an image to extract specific features.
 
 :::{layout-ncol=2}
-![Convolution Operation](media/sharpener_kernel.gif){height=140px fig-align="center"}
+![Convolution Operation](media/sharpener_kernel.gif){height=120px fig-align="center"}
 
-![Feature Extraction](media/eye_detection_kernel.gif){height=140px fig-align="center"}
+![Feature Extraction](media/eye_detection_kernel.gif){height=120px fig-align="center"}
 :::
 
 Common filters: **Edge Detection**, **Sharpening**, **Blurring**, **Embossing**.
 
-![Sobel filter example (Credit: Praxis UBC)](media/sobel_kernel_example.png){height=140px fig-align="center"}
+---
+
+## Convolution Example
+
+![Sobel filter example (Credit: Praxis UBC)](media/sobel_kernel_example.png){height=200px fig-align="center"}
+
+A Sobel filter highlights edges by computing intensity gradients in the horizontal and vertical directions.
 
 ---
 
@@ -138,9 +143,7 @@ Training from scratch requires thousands of labeled images and heavy compute. In
 
 . . .
 
-:::{.callout-note}
-**Practical rule:** start with the simplest pre-trained model that fits your task and compute budget. Evaluate on a small labeled sample before scaling up.
-:::
+Start with the simplest pre-trained model that fits your task and compute budget.
 
 # Workshop Demo
 
@@ -163,6 +166,18 @@ The collection spans industrial facilities, urban neighborhoods, agricultural la
 . . .
 
 > Let's see how we can extract information from these images using computational techniques!
+
+---
+
+## A Note on This Workshop
+
+The examples in this workshop are **designed to teach concepts, not to achieve production-quality results**.
+
+Some outputs (for example OCR on archival photos) will look rough. That is intentional: the goal is to unpack the black box of image AI step by step, so you understand how each tool works and where it breaks down.
+
+. . .
+
+For real projects, you would use larger models, cleaner data, and careful tuning. What matters here is the intuition.
 
 ---
 
@@ -208,11 +223,15 @@ Clustering is **unsupervised**: it surfaces patterns you did not know to look fo
 
 Pre-trained neural networks convert each image into a compact numeric vector (an **embedding**).
 
-:::{ncols=2}
-![ResNet-18 Architecture](media/Original-ResNet-18-Architecture.png){width=180px}
+:::{layout-ncol=2}
+![ResNet-18](media/Original-ResNet-18-Architecture.png){width=160px}
 
-![ViT Architecture](media/ViT_architecture.png){width=180px}
+![ViT](media/ViT_architecture.png){width=160px}
 :::
+
+---
+
+## CNN vs. ViT
 
 - **CNN (ResNet-18):** local convolutional filters build increasingly abstract representations. 512 dimensions per image.
 - **ViT (ViT-B/16):** splits image into patches, models global relationships via self-attention. 768 dimensions per image.
@@ -271,7 +290,7 @@ Useful for digitizing documents, reading labels, or extracting text for search a
 
 Best results require clean, flat scans. Always filter by confidence score.
 
-Zero-shot OCR (no training) is possible with pre-trained models such as DeepSeek OCR, but fine-tuning on a small labeled set can improve accuracy for specific fonts or layouts.
+Our demo example deliberately uses a challenging archival image: the OCR output is imperfect, which helps illustrate what to expect before you invest time tuning.
 
 ---
 
@@ -279,13 +298,17 @@ Zero-shot OCR (no training) is possible with pre-trained models such as DeepSeek
 
 **How it works:** A **vision encoder** (CNN or ViT) reads the image; a **language decoder** (GPT) turns those features into text.
 
-![Captioning architecture](media/image_captioning_transformer.png){height=200px fig-align="center"}
+![Captioning architecture](media/image_captioning_transformer.png){height=180px fig-align="center"}
 
 . . .
 
-**The gap:** The model sees only pixels -- it doesn't know *who*, *where*, or *why*. Raw captions describe surfaces ("aerial view of urban landscape") but miss context ("Cleveland on Lake Erie, 1973").
+**The gap:** The model sees only pixels -- it doesn't know *who*, *where*, or *why*.
 
-. . .
+---
+
+## Enriching Captions with Context
+
+Raw captions describe surfaces ("aerial view of urban landscape") but miss context ("Cleveland on Lake Erie, 1973").
 
 **Enrichment pattern:** Combine the raw AI caption with metadata (keywords, category, archival title) into a structured prompt, then ask an LLM to synthesize one research-ready sentence.
 
