@@ -1,46 +1,46 @@
-# prAxIs: "Unpacking the Black Box: Critical AI Literacies for Arts Students"
+# Image Analysis Workshop (share-ai)
 
-A repository for our the large TLEF project: Unpacking the Black Box: Critical AI Literacies for Arts Students.
+This branch contains the `image_analysis` workshop materials, including:
 
-## Important Documents
+- Notebook: `image_analysis/image_analysis_demo.ipynb`
+- Data and precomputed assets under `image_analysis/data/`
+- Figures and media under `image_analysis/media/`
 
-You can find the most important documents here, in our repository:
+## Launch on UBC Open JupyterHub (CWL Required)
 
-- The `CODE_OF_CONDUCT.md` file contains our project and repository code of conduct, which is expected that all members and contributors follow.
+Use the link below to pull this branch and open the workshop directory directly in JupyterLab:
 
-All of the other documentation is organized as outlined below.
+- [Open on UBC JupyterHub](https://open.jupyter.ubc.ca/jupyter/hub/user-redirect/git-pull?repo=https%3A%2F%2Fgithub.com%2Fubcecon%2Fshare-ai&branch=image_analysis_demo&urlpath=lab%2Ftree%2Fshare-ai%2Fimage_analysis)
 
-You can find general details about this project in this document, in addition to the key files and formats.  By contributing to this project, you agree to our project code of conduct.
+Notes:
 
-## Repository Guidelines
+- This requires a UBC CWL login.
+- The link targets branch `image_analysis_demo`.
+- It opens the `image_analysis/` directory so users can run the notebook immediately.
 
-It is very important that you follow these guidelines when committing work to the repository, in order to keep things well-organized.
+## Running the Notebook Normally
 
-1.  Do _not_ commit directly to `main`.  Always commit via a merge request, from a branch.
-2.  Be responsible with branches:
-    * Delete old branches.
-    * Don't publish un-necessary local branches.
-    * Give branches sensible names.
-    * Make sure you have don't commit temporary files and other materials.
-3.  Use good commit messages.
+Open and run:
 
-### Organization
+- `image_analysis/image_analysis_demo.ipynb`
 
-This repository is organized into several distinct parts, housed in the `main` branch's `root` directory.
+The notebook includes a setup cell that checks and installs missing packages inside the notebook environment.
+If packages are installed during that step, restart the kernel/runtime and run the setup cell once more.
 
-* The directory `/meta` contains general repository management files.
-* The directory `/project` contains all the main project files, including the website.
-  * `/docs` contains the notebooks and lesson plans.
-  * `/pages` contains the website material, distinct from the other content.
-  * `/media` and `/files` contain supplemental items.
-* The directory `/documentation` contains all the project documentation, including the style guides.
-  * Some of these are also included in the website.
+## Colab Setup (For Users Without UBC Access)
 
-We use the [Quarto](https://quarto.org/) framework to write content and build the website, although we also can support raw `.ipynb` notebooks, as well.
+You can open the notebook directly in Colab:
 
-### Large Files
+- [Open in Colab](https://colab.research.google.com/github/ubcecon/share-ai/blob/image_analysis_demo/image_analysis/image_analysis_demo.ipynb)
 
-Large files are problematic in Git: because they are stored as binaries _any_ change to them (including inconsequential ones) creates a new version of the file, which is then stored in the repository's commit history.  This means that the repo can quickly balloon in size to an unmanageable degree.  We use the [git Large File Storage](https://git-lfs.github.com/) system.
+After Colab opens:
 
-Currently, the list of filetypes which should be automatically version controlled is in the `.gitattributes` file in the main repository.  However, you should avoid committing large files whenever possible.
+1. Run all cells from top to bottom.
+2. If the notebook setup cell installs packages, allow Colab to restart the runtime.
+3. Re-run the setup cell once after restart, then continue with the notebook.
 
+## Resource Expectations
+
+- The repository includes workshop data and precomputed embeddings used by the notebook.
+- OCR and deep-learning sections rely on packages listed in `requirements.txt`.
+- On fresh environments, the first setup run may take longer while dependencies initialize.
