@@ -33,11 +33,37 @@ You can open the notebook directly in Colab:
 
 - [Open in Colab](https://colab.research.google.com/github/ubcecon/share-ai/blob/image_analysis_demo/image_analysis/image_analysis_demo.ipynb)
 
-After Colab opens:
+Important: opening from the link alone does not automatically copy the full repository folders into the Colab runtime.
 
-1. Run all cells from top to bottom.
-2. If the notebook setup cell installs packages, allow Colab to restart the runtime.
-3. Re-run the setup cell once after restart, then continue with the notebook.
+After Colab opens, add and run this as a new first code cell:
+
+```python
+import os
+import shutil
+from pathlib import Path
+
+repo_dir = Path("/content/share-ai")
+if repo_dir.exists():
+	shutil.rmtree(repo_dir)
+
+!git clone --depth 1 --branch image_analysis_demo https://github.com/ubcecon/share-ai.git /content/share-ai
+os.chdir("/content/share-ai/image_analysis")
+
+print("Working directory:", os.getcwd())
+print("Data folder exists:", Path("data").exists())
+print("Media folder exists:", Path("media").exists())
+```
+
+Then continue with the notebook in this order:
+
+1. Run the notebook setup/install cell.
+2. If Colab asks to restart the runtime, allow it.
+3. Re-run the bootstrap cell above.
+4. Re-run the notebook setup cell, then run the remaining cells.
+
+If you prefer, after running the bootstrap cell you can open the local copy at:
+
+- `File` -> `Open notebook` -> `/content/share-ai/image_analysis/image_analysis_demo.ipynb`
 
 ## Resource Expectations
 
