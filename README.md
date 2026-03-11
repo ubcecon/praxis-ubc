@@ -16,7 +16,7 @@ Notes:
 
 - This requires a UBC CWL login.
 - The link targets branch `image_analysis_demo`.
-- It opens the `image_analysis/` directory so users can run the notebook immediately.
+- It opens the `image_analysis/` directory so you can run the notebook immediately.
 
 ## Running the Notebook Normally
 
@@ -33,7 +33,7 @@ You can open the notebook directly in Colab:
 
 - [Open in Colab](https://colab.research.google.com/github/ubcecon/share-ai/blob/image_analysis_demo/image_analysis/image_analysis_demo.ipynb)
 
-Important: opening from the link alone does not automatically copy the full repository folders into the Colab runtime.
+**Important**: opening from the link alone does not automatically copy the full repository folders into the Colab runtime.
 
 After Colab opens, add and run this as a new first code cell:
 
