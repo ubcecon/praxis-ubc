@@ -11,6 +11,7 @@ This branch contains the `image_analysis` workshop materials, including:
 Use the link below to pull this branch and open the workshop directory directly in JupyterLab:
 
 - [Open on UBC JupyterHub](https://open.jupyter.ubc.ca/jupyter/hub/user-redirect/git-pull?repo=https%3A%2F%2Fgithub.com%2Fubcecon%2Fshare-ai&branch=image_analysis_demo&urlpath=lab%2Ftree%2Fshare-ai%2Fimage_analysis)
+- Select the **Tensorflow Notebook** for a faster setup.
 
 Notes:
 
@@ -64,6 +65,12 @@ Then continue with the notebook in this order:
 If you prefer, after running the bootstrap cell you can open the local copy at:
 
 - `File` -> `Open notebook` -> `/content/share-ai/image_analysis/image_analysis_demo.ipynb`
+
+## Static Rendered Notebook
+
+A static [rendered notebook](https://github.com/ubcecon/praxis-ubc/blob/image_analysis_demo/image_analysis_demo.html) in `.html` format is also available in this repository, you can download and view the demo in your web browser locally. 
+
+You may still be able to play with the interactive visualizations using this version, but you cannot **modify and run codes** yourself.
 
 ## Resource Expectations
 
