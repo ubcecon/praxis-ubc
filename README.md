@@ -1,4 +1,4 @@
-# Image Analysis Workshop (share-ai)
+# Image Analysis Workshop
 
 This branch contains the `image_analysis` workshop materials, including:
 
