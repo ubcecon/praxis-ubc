@@ -5,6 +5,7 @@ This branch contains the `image_analysis` workshop materials, including:
 - Notebook: `image_analysis/image_analysis_demo.ipynb`
 - Data and precomputed assets under `image_analysis/data/`
 - Figures and media under `image_analysis/media/`
+- Workshop slides `image_analysis/image_analysis_slides.slides.html`
 
 ## Launch on UBC Open JupyterHub (CWL Required)
 
@@ -71,6 +72,10 @@ If you prefer, after running the bootstrap cell you can open the local copy at:
 A static [rendered notebook](https://github.com/ubcecon/praxis-ubc/blob/image_analysis_demo/image_analysis_demo.html) in `.html` format is also available in this repository, you can download and view the demo in your web browser locally. 
 
 You may still be able to play with the interactive visualizations using this version, but you cannot **modify and run codes** yourself.
+
+## Workshop Slides
+
+For those interested, you can also download and view the [workshop slides](https://github.com/ubcecon/praxis-ubc/blob/image_analysis_demo/image_analysis/image_analysis_slides.slides.html) in your web browser locally.
 
 ## Resource Expectations
 
