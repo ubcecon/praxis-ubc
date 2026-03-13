@@ -75,7 +75,7 @@ You may still be able to play with the interactive visualizations using this ver
 
 ## Workshop Slides
 
-For those interested, you can also download and view the [workshop slides](https://github.com/ubcecon/praxis-ubc/blob/image_analysis_demo/image_analysis/image_analysis_slides.slides.html) in your web browser locally.
+For those interested, you can also download and view the [workshop slides](https://github.com/ubcecon/praxis-ubc/blob/image_analysis_demo/image_analysis_slides.slides.html) in your web browser locally.
 
 ## Resource Expectations
 
