@@ -1,7 +1,7 @@
 ---
 title: "Optical Character Recognition (OCR)"
 author: "Alex Ronczewski"
-date: 2026-02-26
+date: 2026-04-06
 description: OCR
 categories:
   - Python
@@ -34,7 +34,7 @@ Before we begin, we need to install and import the necessary libraries. This not
 Install the necessary packages: 
 ```{python}
 # Uncomment the line below to install packages:
-#!pip install pytesseract easyocr opencv-python Pillow matplotlib pandas numpy nltk jiwer pdf2image surya-ocr poppler anthropic
+#!pip install pytesseract easyocr opencv-python Pillow matplotlib pandas numpy nltk jiwer pdf2image "surya-ocr>=0.9" poppler anthropic
 ```
 
 Load the required packages:
@@ -66,7 +66,6 @@ from surya.layout import LayoutPredictor
 from surya.settings import settings
 nltk.download('punkt')
 nltk.download('wordnet')
-nltk.download('averaged_perceptron_tagger')
 ```
 
 Here we define helper functions for loading and displaying images, and prepare the output directory. These functions will help us a lot throughout the notebook. 
@@ -127,7 +126,7 @@ Before we begin it is important to define how a computer can read text in the fi
 
 ### Digitized Text vs. Machine-Readable Text
 
-Humans and computers see text, and images differently. When you open a scanned document or a photograph of a page on your computer, you can read the words on screen but your computer cannot. You can see the context and what the image or text represents from a computer's perspective there is no difference from a photograph of a landscape. In this case images are treated as visual, pixel-based graphics which are rendered onto your computer monitor, but the computer does not know exactly what it is rendering the same way a human viewing the images does. It could be a picture of your family, the ocean, a letter or a painting. 
+Humans and computers see text, and images differently. When you open a scanned document or a photograph of a page on your computer, you can read the words on screen but your computer cannot. You can see the context and what the image or text represents, but from a computer's perspective there is no difference from a photograph of a landscape. In this case images are treated as visual, pixel-based graphics which are rendered onto your computer monitor, but the computer does not know exactly what it is rendering the same way a human viewing the images does. It could be a picture of your family, the ocean, a letter or a painting. 
 
 **Machine-readable text**, by contrast, is stored as character data (e.g., Unicode, or ASCII ) that software can search, sort, count, and analyze. A PDF or a Word document already contains machine-readable text. A normal picture does not. This distinction matters because nearly every computational text-analysis method (keyword search, topic modeling, named-entity recognition, embeddings) requires machine-readable text as input. If your source material exists only as images (scans, photographs, microfilm captures), you need a way to bridge the gap. That is exactly what OCR does.
 
@@ -135,7 +134,7 @@ Humans and computers see text, and images differently. When you open a scanned d
 
 **Optical Character Recognition (OCR)** is the technology that converts different types of documents: scanned paper documents, photographs of text, or images containing text into editable and searchable digital text.
 
-For humanities researchers, OCR opens up vast archives of historical documents, enabling:
+For humanities researchers, OCR makes it possible to work with historical documents at scale, enabling:
 
 - **Digitization**: Converting physical archives into searchable digital collections
 - **Corpus Building**: Creating large text datasets for computational analysis
@@ -150,7 +149,7 @@ By the end of this notebook, you will be able to:
 2. **Extract text** from historical documents using EasyOCR and Surya OCR
 3. **Pre-process images** to improve OCR accuracy
 4. **Handle complex document layouts** like multi-column newspapers
-5. **Evaluate OCR quality** using standard metrics (CER, WER, Confidence Intervals)
+5. **Evaluate OCR quality** using standard metrics (CER, WER, Confidence Scores)
 6. **Post-process OCR output** for downstream analysis
 7. **Scale your workflow** for batch processing
 
@@ -193,7 +192,7 @@ Most OCR systems follow a two-stage process:
 
 1. **Text Detection**: First, the system locates *where* text appears in the image. This involves identifying bounding boxes around words, lines, or paragraphs. Deep learning models scan the image and predict regions likely to contain text, even when text is rotated, curved, or partially obscured.
 
-2. **Text Recognition**: Once text regions are detected, a separate model reads *what* the text says. This typically uses a neural network architecture called a **CRNN (Convolutional Recurrent Neural Network)** that processes the image sequence and outputs a string of characters. You can read more about CNN's at [A Related Notebook](https://ubcecon.github.io/praxis-ubc/docs/intro_to_cnns/intro_to_cnn.html). 
+2. **Text Recognition**: Once text regions are detected, a separate model reads *what* the text says. This typically uses a neural network architecture called a **CRNN (Convolutional Recurrent Neural Network)** that processes the image sequence and outputs a string of characters. You can read more about CNNs at [A Related Notebook](https://ubcecon.github.io/praxis-ubc/docs/intro_to_cnns/intro_to_cnn.html). 
 
 #### Why Deep Learning Changed OCR
 
@@ -225,7 +224,7 @@ This is just one vertical column of clear text, for this notebook this will act 
 
 We load the EasyOCR package and set it to read English with `easyocr.Reader(['en'])`.
 ```{python}
-reader = easyocr.Reader(['en'], gpu=False) 
+reader = easyocr.Reader(['en'], gpu=torch.cuda.is_available())
 ```
 
 ```{python}
@@ -251,7 +250,7 @@ EasyOCR scanned the newspaper image and identified 246 separate regions containi
 
 ##### Confidence Metrics
 
-Confidence scores are numerical metrics; typically ranging from 0 to 1 (0% to 100%) which indicates an AI or machine learning model's level of certainty in its prediction or classification. They represent the probability that the model's output is correct. A more technical definition is that: When an OCR model predicts a character, it computes a softmax probability distribution over all possible output classes. The confidence score is the maximum probability (the model's estimated likelihood that its top prediction is correct). For example if an OCR model sees a deformed or smudged **e** it does not say immediately that it is an e, but calculates a probability for all characters (e,c,a,7,.,0 etc). The confidence score we see is the highest value of this prediction. 
+Confidence scores are numerical metrics; typically ranging from 0 to 1 (0% to 100%) which indicates an AI or machine learning model's level of certainty in its prediction or classification. They represent the probability that the model's output is correct. A more technical definition is that: When an OCR model predicts a character, it computes a softmax probability distribution over all possible output classes. The confidence score is the maximum probability (the model's estimated likelihood that its top prediction is correct). For example if an OCR model sees a deformed or smudged **e** it does not say immediately that it is an e, but calculates a probability for all characters (e,c,a,7,.,0 etc). The confidence score we see is the highest value of this prediction. This is a simplified description, the exact computation varies by model architecture (e.g. CTC-based models like EasyOCR compute sequence-level probabilities, while transformer models like Surya use token-level log-probabilities); but the intuition is the same: higher scores mean the model is more certain.
 
 Crucially **confidence scores are not accuracy**, softmax normalizes over the model's known vocabulary, not over ground truth. It is a valuable metric, but do not overly rely on it or tunnel vision on pushing the highest confidence. Low confidence is often more informative than high, it gives insights on the model's true uncertainty. 
 
@@ -281,18 +280,18 @@ While open-source tools work well for many use cases, commercial solutions offer
 
 | Tool | Pricing | Key Features | Best For |
 |------|---------|--------------|----------|
-| **Transkribus** | Freemium (500 pages/month free) | HTR, crowdsourcing, model training | Historical manuscripts |
+| **Transkribus** | Freemium (~50 pages/month free via credit system) | HTR, crowdsourcing, model training | Historical manuscripts |
 | **Arkindex** | Free for researchers | Document processing pipelines | Archives |
 | **eScriptorium** | Free (self-hosted) | Medieval manuscripts, collaborative | Academic projects |
-| **Azure Document Intelligence** | Pay-per-page (~$1.50/1000 pages) | Form extraction, tables, structure | Business documents |
-| **AWS Textract** | Pay-per-page (~$1.50/1000 pages) | Tables, forms, scalable API | Enterprise integration |
-| **Google Cloud Vision** | Pay-per-image (~$1.50/1000 images) | Multi-language, handwriting | Diverse content |
+| **Azure Document Intelligence** | Basic OCR ~$1.50/1000 pages; forms/tables $10–$65/1000 | Form extraction, tables, structure | Business documents |
+| **AWS Textract** | Basic OCR ~$1.50/1000 pages; structured extraction higher | Tables, forms, scalable API | Enterprise integration |
+| **Google Cloud Vision** | Basic OCR ~$1.50/1000 images; Document AI higher | Multi-language, handwriting | Diverse content |
 
-## Part 2: Vision Language Models
+## Part 2: Beyond Traditional OCR
 
 ### 2.1 What Are VLMs?
 
-**Vision Language Models (VLMs)** take a fundamentally different approach to document understanding. Rather than pattern-matching characters like traditional OCR, VLMs understand documents as a whole, interpreting text, layout, and visual context together.
+At the other end of the spectrum from traditional OCR are **Vision Language Models (VLMs)**. These take a fundamentally different approach to document understanding. Rather than recognizing characters individually like traditional OCR, VLMs understand documents as a whole, interpreting text, layout, and visual context together.
 
 #### Bottom-Up vs Top-Down Approaches
 
@@ -350,11 +349,7 @@ For example, if a historical document has a smudged word, traditional OCR might 
 
 ### 2.3 Surya OCR Demo
 
-**Surya OCR** is a practical middle ground, it uses deep learning (transformer-based models) but works well on CPU, making it accessible without specialized hardware. It supports 90+ languages and includes built-in text detection and layout analysis.
-
-```{python}
-#!pip install surya-ocr
-```
+Full VLMs like GPT-4V or Gemini are powerful but require significant computational resources, often cloud-hosted GPUs and API costs. For this notebook we use **Surya OCR** instead, a practical middle ground. Surya is not a VLM in the strict sense, but it borrows ideas from that world: it uses transformer-based models and includes built-in layout analysis alongside text detection and recognition. It works well on CPU, supports 90+ languages, and does not require cloud access or API keys.
 
 Let's try running Surya OCR on the same newspaper column and look at the results. This will take longer to run than EasyOCR. We can then compare the confidence and findings. 
 
@@ -388,7 +383,7 @@ if torch.cuda.is_available():
 ``` 
 
 
-Output text sample: "<b>Twenty-Fifth Infantry</b> <b>Wins Athletic Honors</b> Champions of Six Regiments Com- pete in Exciting Finals of Tour- nament in Honolulu. THE COLORED REGIMENT WINS. Scores Nearly Half of All the Points Made by Combined Competitors Two Omaha Boys in Contest." 
+Output text sample: "Twenty-Fifth Infantry Wins Athletic Honors Champions of Six Regiments Com- pete in Exciting Finals of Tour- nament in Honolulu. THE COLORED REGIMENT WINS. Scores Nearly Half of All the Points Made by Combined Competitors Two Omaha Boys in Contest."
 
 EasyOCR had an Average confidence: 91.4% while Surya had an average confidence of 99.4%. It is worth noting that confidence is not everything and it is important to actually review the results or compare them to a "ground-truth" (the actual text inside of the document often in a .txt format). The text preview looks correct, but this was a very simple example. Let's try on something far more difficult. 
 
@@ -397,7 +392,7 @@ EasyOCR had an Average confidence: 91.4% while Surya had an average confidence o
 Our example here will be a handwritten letter from the American Civil war from Alexander Parker Crittenden to his wife, Clara Crittenden dated to December 11, 1864. We can see how EasyOCR and Surya handle this more difficult handwritten example. 
 
 ```{python}
-letter_pages = convert_from_path("data/simple/handwritten_letter_page1.pdf", dpi=300, poppler_path=r'D:\poppler\poppler-25.12.0\Library\bin')
+letter_pages = convert_from_path("data/simple/handwritten_letter_page1.pdf", dpi=300)
 letter_img = np.array(letter_pages[0])
 display_image(letter_img, title="Handwritten Letter (Civil War Era)", figsize=(10, 12))
 ```
@@ -415,7 +410,7 @@ print(f"Avg confidence: {np.mean(easyocr_hw_confs):.2%}")
 print(f"\nExtracted text (first 500 chars):\n{easyocr_hw_text[:500]}")
 ```
 
-EasyOCR has performed very poorly and the output for the actual body of the letter is mostly random symbols and nonsensical. This is an excellent example to not follow average confidence blindy as the average confidence is 29.82% which should imply that it is slightly legible. The average confidence here is skewed by the lines above the letter from the University of Washington which are not handwritten. 
+EasyOCR has performed very poorly and the output for the actual body of the letter is mostly random symbols and nonsensical. This is an excellent example to not follow average confidence blindly as the average confidence is 29.82% which should imply that it is slightly legible. The average confidence here is skewed by the lines above the letter from the University of Washington which are not handwritten. 
 
 Let's try now with Surya: 
 
@@ -459,7 +454,7 @@ if torch.cuda.is_available():
     torch.cuda.empty_cache()
 ```
 
-Both engines struggle a bit more with handwritten text. Traditional OCR is built for printed characters, so the low confidence scores and garbled output here are expected. VLMs perform much better. We have seen both great OCR and poor OCR, so what can we do to get the best results, how can we help the models. You can just throw different models at text and hope it works, but there are many tools and techniques which can be used to improve the OCR quality. In the next section we will look at developing a full pipeline to give the models a leg-up by giving them the best possible source and then post-processing techniques to analyze the output. 
+Both engines struggle a bit more with handwritten text. Traditional OCR is built for printed characters, so the low confidence scores and garbled output here are expected. Surya, with its transformer-based approach, performs much better. We have seen both great OCR and poor OCR, so what can we do to get the best results, how can we help the models. You can just throw different models at text and hope it works, but there are many tools and techniques which can be used to improve the OCR quality. In the next section we will look at developing a full pipeline to give the models a leg-up by giving them the best possible source and then post-processing techniques to analyze the output. 
 
 ## Part 3: Pre-processing 
 
@@ -467,7 +462,7 @@ A complete OCR workflow involves three stages: **pre-processing**, **text extrac
 
 Pre-processing transforms raw document images into formats optimized for OCR. Each technique below uses a different image to highlight what that step does best.
 
-#### 3.1 Grayscale Conversion
+### 3.1 Grayscale Conversion
 
 Converting to grayscale simplifies the image from three colour channels (RGB) down to one. By removing colour, it reduces noise and improves contrast between text and background. This also lowers file size which is critical for computation time and can be very impactful for batch-processing lots of documents. Here we use a colour photograph of the UBC campus:
 
@@ -485,11 +480,11 @@ menu_gray = cv2.cvtColor(menu_img, cv2.COLOR_RGB2GRAY)
 display_images_side_by_side(menu_img, menu_gray, "Original (Menu)", "Grayscale (Menu)")
 ```
 
-This will help OCR models "see" the text and extract it. Grayscale helps OCR clearly see and analyze text as it reduced color noise and channel complexity. The image is simplified and allows the model to extract the text. 
+This will help OCR models "see" the text and extract it. Grayscale helps OCR clearly see and analyze text as it reduces color noise and channel complexity. The image is simplified and allows the model to extract the text. 
 
 #### 3.1.1 Binarization
 
-Binarization converts the image to pure black and white. **Otsu's method** is a, global automatic image thresholding algorithm that converts grayscale images into binary (black and white) by determining an optimal threshold that separates pixels into foreground and background classes. It automatically finds the optimal threshold:
+Binarization converts the image to pure black and white. **Otsu's method** is a global automatic image thresholding algorithm that converts grayscale images into binary (black and white) by determining an optimal threshold that separates pixels into foreground and background classes. It automatically finds the optimal threshold:
 
 First we will apply Otsu's method to our image of UBC to show what it does: 
 ```{python}
@@ -594,7 +589,7 @@ The text was dynamically rotated. This greatly improves OCR as skewed text hurts
 
 **CLAHE (Contrast Limited Adaptive Histogram Equalization)** improves readability of an image by fixing the lighting.
 
-We will use our grayscale image of UBC and improve the contrast. It first runs histogram equalization that stretches the brightness levels so the darks get darker and the lights get lighter, giving you more contrast. CLAHE runs histogram equalization in small squares across the whole document, there is also contrast limiting to not over-amplify the noise. 
+We will use our grayscale image of UBC and improve the contrast. CLAHE divides the image into small tiles and runs histogram equalization independently on each one, stretching brightness levels so the darks get darker and the lights get lighter. A contrast limit prevents over-amplification of noise in uniform regions.
 
 ```{python}
 clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
@@ -682,7 +677,7 @@ Tokenization is the process of breaking down the raw text output generated from 
 
 #### Text Normalization with NLTK
 
-We will use our simple newspaper column example from earlier. We have the sample text and we will first turn it into smaller tokens, and then stem and lemmatize the tokens. Tokens in this context refer to the smaller units that the OCR can see. While words are human-readable units of language, tokens are the smaller, fragmented building blocks that AI models (LLMs) use to process text efficiently. 
+We will use our simple newspaper column example from earlier. We have the sample text and we will first turn it into smaller tokens, and then stem and lemmatize the tokens. Here we use NLTK's `word_tokenize()` which splits text into individual words and punctuation marks. This is different from the subword tokenization used by LLMs (like BPE), which breaks words into smaller pieces. For our purposes, word-level tokens are what we need for counting, stemming, and lemmatization.
 
 ```{python}
 sample_text = """
@@ -706,7 +701,7 @@ print(f"\nFirst 20 tokens: {tokens[:20]}")
 
 The tokens here are just words as we are giving the raw correct text to the function, there is no OCR required, if it was complex OCR like with the handwritten letter the tokens that the model uses might be a little different from words. 
 
-Next we will run stemming and lemmatization on our tokens. "Stemming and lemmatization are text preprocessing techniques that reduce the inflected forms of words across a text data set to one common root word or dictionary form, also known as a “lemma” in computational linguistics."
+Next we will run stemming and lemmatization on our tokens. “Stemming and lemmatization are text preprocessing techniques that reduce the inflected forms of words across a text data set to one common root word or dictionary form, also known as a “lemma” in computational linguistics.""
 
 ```{python}
 stemmer = PorterStemmer()
@@ -721,7 +716,7 @@ for word in test_words:
     print(f"  {word:15} -> Stem: {stem:12} | Lemma: {lemma}")
 ```
 
-Stemming can be very useful for text analysis as all conjugations and versions of similar words are reduced to the root stem. It is vital for many NLP (natural language processing) techniques. 
+Stemming can be very useful for text analysis as all conjugations and versions of similar words are reduced to the root stem. It is vital for many Natural Language Processing techniques. 
 
 #### Structured Output
 
@@ -730,14 +725,14 @@ Converting OCR output to structured formats enables downstream analysis:
 We make a function to save the .json output of our OCR. 
 ```{python}
 #Create a structured JSON output from OCR results.
-def create_structured_output(text, ocr_data_df, source_file):
+def create_structured_output(text, ocr_data_df, source_file, ocr_engine="easyocr"):
     words = word_tokenize(text)
     sentences = sent_tokenize(text)
 
     output = {
         "metadata": {
             "source_file": source_file,
-            "ocr_engine": "tesseract",
+            "ocr_engine": ocr_engine,
             "total_characters": len(text),
             "total_words": len(words),
             "total_sentences": len(sentences),
@@ -769,7 +764,7 @@ print(f"\nWord count by confidence: {structured['word_count_by_confidence']}")
 print(f"\nSaved to: output/document.json")
 ```
 
-A .json is less human-readable than a .txt, but it is excellent for machine processing and programming tasks. Here our .json looks like:
+A .json is less human-readable than a .txt, but it is excellent for machine processing and programming tasks. Here what our .json looks like:
 
 ![.json example](media/json_example.png)
 
@@ -854,7 +849,7 @@ of a total of one hundred and fifty-four.
 
 The LLM corrected several common OCR errors: `Infantcy` → `Infantry`, `AlI` → `All`, `T,,` → `T.,`, `24-_The` → `24—The`, and rejoined hyphenated line breaks (`Com-pete` → `Compete`, `Tour-nament` → `Tournament`). It also replaced colons with periods where appropriate and reconstructed the tabular score layout.
 
-It is useful to have LLM corrections in an OCR pipeline as it is a low-risk method to drastically improve output quality. 
+LLM corrections can catch errors that rule-based methods miss, though they carry a small risk of hallucinating plausible text that was not in the original document.
 
 ### 3.4 Evaluation: Measuring OCR Quality
 
@@ -896,7 +891,7 @@ print(f"Character Accuracy: {1 - char_error_rate:.2%}")
 - **CER > 20%**: Poor - consider improving source images or using different OCR approach
 :::
 
-We can see that there are lots of errors from the EasyOCR output with only ~20% of words being correct and ~17% of characters being incorrect. This is a simple way to see the quality of the output. 
+We can see that there are lots of errors from the EasyOCR output with only ~20% of words being correct and ~17% of characters being incorrect. Much of this error comes from how WER and CER are computed — differences in reading order, line breaks, and whitespace between the OCR output and ground truth all count as errors, even when the characters themselves were read correctly. This is why confidence was 91.4% but word accuracy is much lower.
 
 #### Confidence-Based Quality Flagging
 
@@ -915,6 +910,8 @@ if len(low_conf_words) > 0:
 ```
 
 We have a list of our worst text regions. With many of them being incorrect or just partial segments.
+
+In this cell we will clear the demo images and cache for notebook performace.
 
 ```{python}
 # cleanup demo images from Parts 1-3 and clear Jupyter output cache
@@ -952,7 +949,6 @@ testimony_pages = convert_from_path(
     dpi=300,
     first_page=1,
     last_page=2,
-    poppler_path=r'D:\poppler\poppler-25.12.0\Library\bin' 
 )
 alcapone_testimony_p1_raw = np.array(testimony_pages[0])
 alcapone_testimony_p2_raw = np.array(testimony_pages[1])
@@ -1109,11 +1105,13 @@ if torch.cuda.is_available():
     torch.cuda.empty_cache()
 ```
 
-Output Text Preview Page 1: "IN THE DISTRICT COURT OF THE UNITED STATES FOR THE NORTHERN DISTRICT OF ILLINOIS PASTERN DIVISION _____ L'Oldeelling Sufrey & Martha 4. 6. Smart. (Burr Dugan Ambrou Mewhant. W.J. Henrich W/ Ma Vormely Leogs W. Larsen nate 6 Brown"
+We show the verdict (Page 1) and testimony page 2 (Page 3) here as representative examples; testimony page 1 is omitted for brevity but follows the same pattern.
 
-Output Text Preview Page 3: "sented to another grand jury. ( The in enumeration of overt acts the defendant and others are charged with substantial offenses within the period of the statute of limitations for which a heavier penalty is provided than that possible under the conspiracy indictment."
+Output Text Preview Page 1 (Verdict): "IN THE DISTRICT COURT OF THE UNITED STATES FOR THE NORTHERN DISTRICT OF ILLINOIS PASTERN DIVISION _____ L'Oldeelling Sufrey & Martha 4. 6. Smart. (Burr Dugan Ambrou Mewhant. W.J. Henrich W/ Ma Vormely Leogs W. Larsen nate 6 Brown"
 
-The model gives us a confidence value along with a preview of the text. The first page with the handwritten signatures has a much lower confidence than the rest of the document (we have seen previously how OCR struggles on handwritten text). The text preview also looks quite high quality. The third page specifically has a 99.09% confidence. 
+Output Text Preview Page 3 (Testimony p2): "sented to another grand jury. ( The in enumeration of overt acts the defendant and others are charged with substantial offenses within the period of the statute of limitations for which a heavier penalty is provided than that possible under the conspiracy indictment."
+
+The model gives us a confidence value along with a preview of the text. The first page with the handwritten signatures has a much lower confidence than the rest of the document (we have seen previously how OCR struggles on handwritten text). The text preview also looks quite high quality. The third page specifically has a 99.09% confidence.
 
 #### Post-Processing: Confidence Analysis
 
@@ -1489,7 +1487,7 @@ for label, res in medieval_ocr_results.items():
     print()
 ```
 
-The medieval manuscripts represent the hardest end of our OCR difficulty spectrum. The confidence scores here are much lower than the Al Capone results, reflecting the fundamental challenge of applying modern OCR to handwritten medieval text. For documents like these, OCR output is best treated as a rough draft that requires significant human review and correction.
+The medieval manuscripts are the most challenging documents we tested. The confidence scores here are much lower than the Al Capone results, reflecting the fundamental challenge of applying modern OCR to handwritten medieval text. For documents like these, OCR output is best treated as a rough draft that requires significant human review and correction.
 
 ::: {.callout-note}
 **Medieval scripts and OCR limitations.** Standard OCR models, including Surya, are trained primarily on modern printed and typewritten text. Medieval handwriting uses ligatures, abbreviations, and letter forms that differ substantially from modern scripts. Specialized models trained on historical handwriting (such as Kraken or Transkribus) may perform better on these documents.
@@ -1513,9 +1511,9 @@ OCR models like EasyOCR and Surya OCR can use GPUs for faster inference. Unlike 
 
 | Approach | Best For | Python Tools |
 |----------|----------|--------------|
-| **CPU Multi-processing** | Image pre-processing, file I/O | `concurrent.futures.ProcessPoolExecutor`, `multiprocessing` |
-| **CPU Threading** | Network requests, file operations | `concurrent.futures.ThreadPoolExecutor`, `threading` |
-| **GPU Batching** | Model inference (OCR, VLMs) | Native batch support in EasyOCR, Surya OCR |
+| **CPU Multi-processing** | Image pre-processing, heavy computation | `concurrent.futures.ProcessPoolExecutor`, `multiprocessing` |
+| **CPU Threading** | Network requests, file I/O | `concurrent.futures.ThreadPoolExecutor`, `threading` |
+| **GPU Batching** | Model inference (OCR) | Native batch support in Surya OCR; loop-based in EasyOCR |
 
 ::: {.callout-note}
 **Linux vs Windows**: Parallelization often performs better on Linux systems. Windows has higher overhead for creating new processes, and some libraries (like `multiprocessing`) behave differently. If you're processing very large archives, consider using a Linux server or cloud VM. This is more accessible than ever with tools like [Windows Subsystem for Linux 2](https://learn.microsoft.com/en-us/windows/wsl/install)
@@ -1719,10 +1717,10 @@ For very large projects or when you need the highest accuracy, managed services 
 
 | Service | Pricing (approx.) | Strengths |
 |---------|-------------------|-----------|
-| **AWS Textract** | $1.50 / 1,000 pages | Table extraction, forms |
-| **Google Document AI** | $1.50 / 1,000 pages | Layout analysis, multiple languages |
-| **Azure Document Intelligence** | $1.50 / 1,000 pages | Handwriting, forms |
-| **Transkribus** | 500 pages/month free | Historical documents, HTR models |
+| **AWS Textract** | ~$1.50/1,000 pages (basic OCR); $10–$15/1,000 (forms/tables) | Table extraction, forms |
+| **Google Document AI** | ~$1.50/1,000 pages (basic OCR); higher for structured extraction | Layout analysis, multiple languages |
+| **Azure Document Intelligence** | ~$1.50/1,000 pages (basic OCR); $10–$65/1,000 (forms/tables) | Handwriting, forms |
+| **Transkribus** | ~50 pages/month free (credit-based system) | Historical documents, HTR models |
 
 These services are particularly valuable when:
 
@@ -1733,7 +1731,7 @@ These services are particularly valuable when:
 
 ### 5.6 Cost and Time Estimation
 
-Before starting a large OCR project, estimate the time and cost to avoid surprises. A realistic estimate accounts for every stage of the pipeline — not just OCR inference.
+Before starting a large OCR project, estimate the time and cost to avoid surprises. A realistic estimate accounts for every stage of the pipeline, not just OCR inference.
 
 #### Breaking Down Time per Page
 
@@ -1786,7 +1784,7 @@ Reproducibility ensures that you (or others) can recreate your results exactly. 
 1. **Package Versions**: Record exact versions of all libraries used
 2. **Configuration Files**: Store all parameters in version-controlled config files
 3. **Model Checkpoints**: Document which OCR models and versions were used
-4. **Random Seeds**: Set seeds for any stochastic/random processes
+4. **Determinism**: Standard OCR inference is deterministic, but if your pipeline includes stochastic steps (e.g. data augmentation during fine-tuning), set seeds and consider enabling `torch.use_deterministic_algorithms(True)`
 5. **Data Provenance**: Track the source and version of input data
 
 ::: {.callout-tip}
@@ -1797,7 +1795,7 @@ Reproducibility ensures that you (or others) can recreate your results exactly. 
 
 This notebook walked through and explained a complete OCR workflow. 
 
-**Parts 1 and 2** introduced two families of text-extraction technology. Traditional OCR engines like EasyOCR use convolutional and recurrent networks trained on character-level features, while Vision Language Models like Surya combine detection, recognition, and layout understanding into a single framework. Both have trade-offs: traditional engines are lightweight and fast; VLMs are more accurate on complex layouts but require more computational power.
+**Parts 1 and 2** introduced two families of text-extraction technology. Traditional OCR engines like EasyOCR use convolutional and recurrent networks trained on character-level features, while modern transformer-based tools like Surya combine detection, recognition, and layout understanding into a single framework. Both have trade-offs: traditional engines are lightweight and fast; transformer-based approaches are more accurate on complex layouts but require more computational power.
 
 **Part 3** discussed preprocessing techniques like grayscale conversion, deskewing, denoising, contrast enhancement (CLAHE), and binarization (Otsu thresholding) which can dramatically improve OCR output. We also covered layout analysis for detecting document structure, and post-processing techniques like tokenization, and evaluation metrics (CER, WER, and confidence scores) for measuring quality.
 
@@ -1865,11 +1863,11 @@ Python Software Foundation. (n.d.-b). *logging — Logging facility for Python*.
 
 READ-COOP. (n.d.). *Transkribus*. <https://readcoop.eu/transkribus/>
 
-ResearchGate. (n.d.). *Noisy image — Gaussian noise example* [Image]. <https://www.researchgate.net/figure/Noisy-image-Gaussian-noise-with-mean-and-variance-0005_fig2_252066070>
+Kaur, G., & Kaur, R. (2013). *Image de-noising using wavelet transform and various filters*. International Journal of Research in Computer Science, 3(4), 15–21. <https://www.researchgate.net/publication/252066070_Image_De-Noising_using_Wavelet_Transform_and_Various_Filters>
 
 Tesseract OCR. (n.d.). *Tesseract open source OCR engine* [Computer software]. GitHub. <https://github.com/tesseract-ocr/tesseract>
 
-UBC Advanced Research Computing. (n.d.). *Sockeye*. <https://arc.ubc.ca/ubc-arc-sockeye>
+UBC Advanced Research Computing. (n.d.). *Sockeye*. <https://arc.ubc.ca/compute-storage/ubc-arc-sockeye>
 
 UBC iSchool. (n.d.). *About*. <https://ischool.ubc.ca/about/>
 
