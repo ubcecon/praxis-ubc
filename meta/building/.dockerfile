@@ -17,6 +17,7 @@ RUN rm -f ./docs/intro_to_convolutions/intro_to_convolution.qmd
 RUN rm -f ./docs/intro_to_deep_learning/intro_to_fundamental_ML.qmd
 RUN rm -f ./docs/AMNE-376/amne_376_image_embedding.qmd
 RUN rm -f ./docs/SOCI-280/soci_280_bert.qmd
+RUN rm -f ./docs/image_analysis/image_analysis.qmd
 
 RUN mkdir output
 
@@ -34,6 +35,7 @@ COPY ./project/docs/intro_to_convolutions/intro_to_convolution.html /app/output/
 COPY ./project/docs/intro_to_deep_learning/intro_to_fundamental_ML.html /app/output/docs/intro_to_deep_learning/
 COPY ./project/docs/AMNE-376/amne_376_image_embedding.html /app/output/docs/AMNE-376/
 COPY ./project/docs/SOCI-280/soci_280_bert.html /app/output/docs/SOCI-280/
+COPY ./project/docs/image_analysis/image_analysis.html /app/output/docs/image_analysis/
 
 #Final Stage on lightweight linux
 FROM nginx:alpine
