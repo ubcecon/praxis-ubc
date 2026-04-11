@@ -88,7 +88,6 @@ This lesson was tested with the following software versions:
 With the dependencies installed, load the required libraries:
 
 ```python
-# This cell loads the necessary libraries for executing the notebook.
 import pandas as pd
 import numpy as np
 import re
@@ -244,16 +243,12 @@ The length of each document can provide insights into its depth and complexity. 
 
 
 ```python
-# Summary the distribution of document lengths
-# Create a DataFrame to store the document lengths
 doc_lengths = []
 
-# Measure lengths of each document by number of characters
 for row in df.iterrows():
     text_length = len(row[1]['text'])
     doc_lengths.append({'Document': row[1]['filename'], 'Length': text_length})
 
-# Convert to DataFrame and display
 doc_lengths_df = pd.DataFrame(doc_lengths)
 doc_lengths_df
 ```
@@ -301,101 +296,70 @@ For this lesson's purposes, you can use TF-IDF to identify the most important wo
 3. The most frequent remaining words can reveal the main topics of each case.
 
 ```python
-# Define the function to preprocess text in a DataFrame column
 def preprocess_text(text_string):
-    """
-    Cleans and preprocesses text by:
-    1. Converting to lowercase
-    2. Removing punctuation and numbers
-    3. Tokenizing
-    4. Removing English stop words 
-    5. Removing words with 4 or fewer characters
-    """
-    # Start with the standard English stop words
+    
     stop_words = set(stopwords.words('english'))
     
-    # Add custom domain-specific stop words if needed
     custom_additions = {'would', 'may', 'act', 'mr', 'sir', 'also', 'upon', 'shall'}
     stop_words.update(custom_additions)
     
-    # Lowercase and remove non-alphabetic characters
     processed_text = text_string.lower()
     processed_text = re.sub(r'[^a-z\s]', '', processed_text)
     
-    # Tokenize
     tokens = processed_text.split()
     
-    # Filter out stop words AND short words in a single step
     filtered_tokens = [
         word for word in tokens 
         if word not in stop_words and len(word) > 4
     ]
-    # Re-join the words into a single string
     return " ".join(filtered_tokens)
 ```
 
 ```python
-# Apply the function to create the 'processed_text' column
 df['processed_text'] = df['text'].apply(preprocess_text)
 
-# Display the first few rows of the processed text
 df['processed_text'].head(5)
 ```
 
 ```python
-# Perform TF-IDF vectorization on the processed text
 
-# Regrouping the DataFrame for better representation
 df['group'] = 'Other'
 df.loc[df['author'] == 'Crease', 'group'] = 'Crease'
 df.loc[df['author'] == 'Begbie', 'group'] = 'Begbie'
 df.loc[df['author'] == 'Others', 'group'] = 'Regulation Act'
 
-# Load the vectorizer and transform the processed text
-# This calculates IDF based on word rarity across ALL individual texts.
 vectorizer = TfidfVectorizer(max_features=1000, ngram_range=(1, 3))
 tfidf_matrix = vectorizer.fit_transform(df['processed_text'])
 
-# Create a new DataFrame with the TF-IDF scores
 feature_names = vectorizer.get_feature_names_out()
 tfidf_df = pd.DataFrame(tfidf_matrix.toarray(), columns=feature_names)
 
-# Add the 'group' column to this TF-IDF DataFrame for aggregation
 tfidf_df['group'] = df['group'].values
 
-# Group by author and calculate the MEAN TF-IDF score for each word
 mean_tfidf_by_group = tfidf_df.groupby('group').mean()
 
-# Calculate TF-IDF for the combined corpus ("All") using the same vectorizer
 processed_all = " ".join(df['processed_text'])
 all_vec = vectorizer.transform([processed_all]).toarray().ravel()
 all_series = pd.Series(all_vec, index=feature_names, name='All')
 
-# Add the "All" row to the grouped TF-IDF DataFrame
 mean_tfidf_by_group = pd.concat([all_series.to_frame().T, mean_tfidf_by_group], axis=0)
 
-# Collect top words and arrange them into a side-by-side DataFrame
 list_of_author_dfs = []
 for group_name in ['All', 'Crease', 'Begbie', 'Regulation Act', 'Other']:
     if group_name not in mean_tfidf_by_group.index:
-        # If a group is missing, append an empty frame to keep column alignment
         empty_df = pd.DataFrame({group_name: [], f'{group_name}_score': []})
         list_of_author_dfs.append(empty_df)
         continue
 
-    # Get the top 10 terms and scores for the current author/group
     top_words = mean_tfidf_by_group.loc[group_name].sort_values(ascending=False).head(10)
 
-    # Convert the Series to a DataFrame
     top_words_df = top_words.reset_index()
     top_words_df.columns = [group_name, f'{group_name}_score']
 
     list_of_author_dfs.append(top_words_df)
 
-# Concatenate the list of DataFrames horizontally
 final_wide_df = pd.concat(list_of_author_dfs, axis=1)
 
-# Display the final combined DataFrame (includes "All")
 final_wide_df
 ```
 
@@ -441,17 +405,12 @@ While the model itself has the ability to generate word embeddings that capture 
 In this way, you can not only generate word embeddings with contextual meanings over the whole corpus, but also aggregate the corpus into different groups and generate contextualized word embeddings for each group.
 
 ```python
-# We will use the Legal-BERT model for this task
+#Legal-Bert
 tokenizer = AutoTokenizer.from_pretrained('nlpaueb/legal-bert-base-uncased')
-model = AutoModel.from_pretrained('nlpaueb/legal-bert-base-uncased').eval() # set the model to evaluation mode
+model = AutoModel.from_pretrained('nlpaueb/legal-bert-base-uncased').eval() 
 
-# Define a function to embed words using the tokenizer and model
 def embed_words(sentences, tokenizer=tokenizer, model=model, target_words=None,
                 device=None, max_length=512):
-    """
-    Returns a dictionary {word: mean_embedding}.
-    Only the mean embedding (float32 numpy array) per word is kept.
-    """
     if device is None:
         try:
             device = next(model.parameters()).device
@@ -462,8 +421,8 @@ def embed_words(sentences, tokenizer=tokenizer, model=model, target_words=None,
 
     target_set = None if target_words is None else set(target_words)
 
-    sums = {}   # word -> torch.Tensor sum of embeddings
-    counts = {} # word -> occurrence count
+    sums = {}   
+    counts = {} 
 
     with torch.no_grad():
         for sent in sentences:
@@ -475,7 +434,7 @@ def embed_words(sentences, tokenizer=tokenizer, model=model, target_words=None,
             )
             enc = {k: v.to(device) for k, v in enc.items()}
             outputs = model(**enc)
-            hidden = outputs.last_hidden_state.squeeze(0)  # (seq_len, hidden)
+            hidden = outputs.last_hidden_state.squeeze(0)  
             tokens = tokenizer.convert_ids_to_tokens(enc["input_ids"][0])
 
             i = 0
@@ -485,7 +444,6 @@ def embed_words(sentences, tokenizer=tokenizer, model=model, target_words=None,
                     i += 1
                     continue
 
-                # Gather wordpieces
                 j = i + 1
                 piece_embs = [hidden[i]]
                 word = tok[2:] if tok.startswith("##") else tok
@@ -511,11 +469,11 @@ def embed_words(sentences, tokenizer=tokenizer, model=model, target_words=None,
 ```
 
 ```python
-# Define a function to clean and preprocess text
+#Function to clean and preprocess text
 def clean_text(text):
     
     text = text.lower()
-    text = re.sub(r'[^\w\s]', '', text)  # Remove punctuation
+    text = re.sub(r'[^\w\s]', '', text)
     
     return text.strip()
 ```
@@ -525,46 +483,37 @@ warnings.filterwarnings("ignore")
 
 nlp = spacy.load("en_core_web_sm")
 
-# Group texts to form a single text per group
 grouped_texts = df.groupby('group')['text'].apply(lambda x: ' '.join(x)).reset_index()
 
-# Add a row for the combined text of all groups
 grouped_texts = pd.concat(
     [grouped_texts, pd.DataFrame([{'group': 'All', 'text': ' '.join(df['text'])}])],
     ignore_index=True
 )
 
-# Create new columns for word and sentence tokens
 grouped_texts['word_tokens'] = grouped_texts['text'].apply(lambda x: word_tokenize(clean_text(x)))
-# Sentence tokenization using spaCy
+
 grouped_texts['sentence_tokens'] = grouped_texts['text'].apply(lambda x: [sent.text for sent in nlp(x).sents])
 
-# Apply clean_text to the sentence tokens
 grouped_texts['sentence_tokens'] = grouped_texts['sentence_tokens'].apply(
     lambda x: [clean_text(sent) for sent in x]
 )
 ```
 
 ```python
-# # Embed the words in each group
 # grouped_texts['word_embeddings'] = grouped_texts['sentence_tokens'].apply(
 #     lambda x: embed_words(x)
 #     )
 
-# # Save the grouped_texts DataFrame to a pkl file for future use
 # grouped_texts.to_pickle("data/word_embeddings.pkl")
 ```
 
 ```python
-
-# Compute the number of unique words in each group
 grouped_texts['num_unique_words'] = grouped_texts['word_tokens'].apply(lambda x: len(set(x)))
 
 grouped_texts.head()
 ```
 
 ```python
-# Load the grouped_texts DataFrame from CSV
 grouped_texts = pd.read_pickle("data/word_embeddings.pkl")
 ```
 
@@ -577,25 +526,22 @@ It is clear that the word embeddings of the same word in different groups are di
 - The dimensionality of all word embeddings is 768, which is the size of the hidden layer in the LEGAL-BERT model used here.
 
 ```python
-# Display the word embedding of Chinese for the whole corpus
 chinese_embedding = grouped_texts[grouped_texts['group'] == 'All']['word_embeddings'].values[0].get('chinese')
 
-# Display first 20 dimensions for brevity
 print(f"First 20 Dimensions of Word Embedding for 'Chinese' in the Full Corpus:\n {chinese_embedding[:20]}\n")
 print(f"Total Dimensions of Word Embedding for 'Chinese': {len(chinese_embedding)}\n")
 ```
 
 ```python
-# Display the word embedding of Chinese in Crease's text
 crease_embeddings = grouped_texts[grouped_texts['group'] == 'Crease']['word_embeddings'].values[0]
-# Display first 20 dimensions for brevity
+
 print(f"First 20 Dimensions of Word Embeddings for 'Chinese' in Crease's Text:\n{crease_embeddings.get('chinese')[:20]}\n") 
 print(f"Total Dimensions of Word Embeddings for 'Chinese' in Crease's Text: {len(crease_embeddings.get('chinese'))}\n")
 ```
 
 ```python
 begbie_embeddings = grouped_texts[grouped_texts['group'] == 'Begbie']['word_embeddings'].values[0]
-# Display first 20 dimensions for brevity
+
 print(f"First 20 Dimensions of Word Embeddings for 'Chinese' in Begbie's Text:\n{begbie_embeddings.get('chinese')[:20]}\n")
 print(f"Total Dimensions of Word Embeddings for 'Chinese' in Begbie's Text: {len(begbie_embeddings.get('chinese'))}\n")
 ```
@@ -625,7 +571,6 @@ Focusing on the word "Chinese", you can calculate its cosine similarity with oth
 target = "chinese"
 top_n = 10
 all_results = []
-# Iterate through each group and compute similarities
 for _, grp_row in grouped_texts.iterrows():
     group = grp_row['group']
     emb_dict = grp_row['word_embeddings']
@@ -647,11 +592,9 @@ for _, grp_row in grouped_texts.iterrows():
 
 similar_words_df = pd.DataFrame(all_results)
 
-# Display the first few rows of the DataFrame with similar words
 sims_wide = similar_words_df.pivot(index='rank', columns='group', values='similarity')
 words_wide = similar_words_df.pivot(index='rank', columns='group', values='word')
 
-# Combine with a tidy multi-level column index: 
 wide_combined = pd.concat({'word': words_wide, 'similarity': sims_wide}, axis=1)
 wide_combined = (
     wide_combined.swaplevel(0,1, axis=1)
@@ -687,14 +630,12 @@ def embed_text(
     text,
     focus_token=None,
     window=10,
-    pooling="mean",  # "mean" (default), "max", or "min"
+    pooling="mean", 
     tokenizer=tokenizer,
     model=model):
 
-    # Get stopwords for filtering
     stop_words = set(stopwords.words('english'))
     
-    # Run the model once
     inputs = tokenizer(text, return_tensors="pt", truncation=True)
     with torch.no_grad():
         outputs = model(**inputs)
@@ -703,13 +644,11 @@ def embed_text(
     if focus_token is None:
         return hidden[0].cpu().numpy()
     
-    # Normalize to list
     keywords = (
         [focus_token] if isinstance(focus_token, str)
         else focus_token
     )
 
-    # Pre-tokenize each keyword to its subtoken ids
     kw_token_ids = {
         kw: tokenizer.convert_tokens_to_ids(tokenizer.tokenize(kw))
         for kw in keywords
@@ -717,9 +656,8 @@ def embed_text(
 
     input_ids = inputs["input_ids"].squeeze(0).tolist()
     tokens = tokenizer.convert_ids_to_tokens(input_ids)
-    spans = []  # list of (start, end) index pairs
+    spans = []  
 
-    # find every match of every keyword
     for kw, sub_ids in kw_token_ids.items():
         L = len(sub_ids)
         for i in range(len(input_ids) - L + 1):
@@ -727,20 +665,16 @@ def embed_text(
                 spans.append((i, i+L))
 
     if not spans:
-        # fallback on CLS vector
         return hidden[0].cpu().numpy()
 
-    # For each span, grab the window around it
     vecs = []
     for (start, end) in spans:
         lo = max(1, start - window)
         hi = min(hidden.size(0), end + window)
         
-        # Filter out stopwords from the window
         non_stop_indices = [i for i in range(lo, hi) 
                            if tokens[i] not in stop_words and not tokens[i].startswith('##')]
         
-        # If all tokens are stopwords, use the original window
         if not non_stop_indices:
             span_vec = hidden[lo:hi]
         else:
@@ -757,7 +691,6 @@ def embed_text(
         
         vecs.append(pooled.cpu().numpy())
 
-    # Average across all spans
     return np.mean(np.stack(vecs, axis=0), axis=0)
 ```
 
@@ -791,7 +724,6 @@ for auth, texts in act_dict.items():
 ```
 
 ```python
-# Investigate the length of the snippets
 n_snippet = {auth: len(snippets) for auth, snippets in act_snippets.items()}
 
 print("Snippet size by author:")
@@ -800,7 +732,6 @@ for auth, num in n_snippet.items():
 ```
 
 ```python
-# # Create embeddings
 # embeddings_dict = {'Crease': [], 'Begbie': [], 'Act 1884': []}
 
 # for auth, snippets in act_snippets.items():
@@ -814,7 +745,6 @@ for auth, num in n_snippet.items():
 ```
 
 ```python
-# read in the embeddings dictionary
 with open("data/case_snippet_embeddings.pkl", "rb") as f:
     embeddings_dict = pickle.load(f)
 ```
@@ -830,7 +760,6 @@ With the sentence as the basic unit of analysis, you can calculate the overall c
 Note that similarity scores are not deterministic, as they depend on the specific texts and the context in which the keywords are used. However, they can provide valuable insights into the stance of each author and how it relates to other authors' positions. This reinforces the idea that **stance is not a fixed attribute**, but rather a dynamic and context-dependent aspect of language.
 
 ```python
-# Compute the pairwise cosine similarity
 mean_crease = np.mean(embeddings_dict["Crease"], axis=0, keepdims=True)
 mean_begbie = np.mean(embeddings_dict["Begbie"], axis=0, keepdims=True)
 mean_act_1884 = np.mean(embeddings_dict["Act 1884"], axis=0, keepdims=True)
@@ -845,12 +774,10 @@ print(f"Cosine similarity between mean Begbie and mean Act 1884: {sim_begbie_act
 ```
 
 ```python
-# Extract embeddings for Crease, Begbie and the Act 1884
 crease_embeddings = embeddings_dict["Crease"]
 begbie_embeddings = embeddings_dict["Begbie"]
 act_1884_embeddings = embeddings_dict["Act 1884"]
 
-# Define a function to compute mean cosine similarity
 def mean_cosine_similarity(embeddings1, embeddings2):
     similarities = [
         1 - cosine(e1, e2)
@@ -859,17 +786,14 @@ def mean_cosine_similarity(embeddings1, embeddings2):
     ]
     return sum(similarities) / len(similarities)
 
-# Extract embeddings
 crease_emb = embeddings_dict["Crease"]
 begbie_emb = embeddings_dict["Begbie"]
 act_1884_emb = embeddings_dict["Act 1884"]
 
-# Compute mean similarities
 crease_begbie_sim = mean_cosine_similarity(crease_emb, begbie_emb)
 crease_act_sim = mean_cosine_similarity(crease_emb, act_1884_emb)
 begbie_act_sim = mean_cosine_similarity(begbie_emb, act_1884_emb)
 
-# Output
 print(f"Mean cosine similarity between Crease and Begbie embeddings: {crease_begbie_sim:.4f}")
 print(f"Mean cosine similarity between Crease and Act 1884 embeddings: {crease_act_sim:.4f}")
 print(f"Mean cosine similarity between Begbie and Act 1884 embeddings: {begbie_act_sim:.4f}")
@@ -884,7 +808,6 @@ While the embeddings themselves are high-dimensional vectors (in this case, 768-
 Using **Plotly Express**, the code creates an interactive scatter plot where each point represents a text snippet, colored by author, with hover functionality to display the corresponding sentence. This visualization highlights clusters and relationships between snippets, offering insights into semantic similarities across authors.
 
 ```python
-# Set seed for umap reproducibility
 all_vecs = np.vstack(embeddings_dict["Crease"] + embeddings_dict["Begbie"] + embeddings_dict["Act 1884"])
 labels  = (["Crease"] * len(embeddings_dict["Crease"])) + (["Begbie"] * len(embeddings_dict["Begbie"])) + (['Act 1884'] * len(embeddings_dict["Act 1884"]))
 
@@ -923,17 +846,15 @@ Below, the lesson examines the top 10 sentences with the highest stance similari
 This approach allows you to delve deeper into the texts, uncovering how the language used aligns with the calculated average stance and providing richer insights into the authors' positions on the issue of Chinese immigrants.
 
 ```python
-# Print out the 10 most similar embedding sentences to Crease's mean embedding
+#Find the 10 most similar embedding sentences to Crease's mean embedding
 
 crease_similarity_df = pd.DataFrame(columns=['Author', 'Text', 'Similarity Score'])
 
-# Iterate through the embeddings and their corresponding sentences
 for auth, snippets in act_snippets.items():
     for snippet, emb in zip(snippets, embeddings_dict[auth]):
         similarity = cosine_similarity(emb.reshape(1, -1), mean_crease)[0][0]
         crease_similarity_df.loc[len(crease_similarity_df)] = [auth, snippet, similarity]
         
-# Sort by similarity score
 crease_sorted_similarity = crease_similarity_df.sort_values(by='Similarity Score', ascending=False)
 
 print("Top 10 most similar sentences to Crease's mean embedding:\n")
@@ -943,17 +864,15 @@ for _, row in crease_sorted_similarity.head(10).iterrows():
 ```
 
 ```python
-# Print out the 10 most similar embedding sentences to Begbie's mean embedding
+# Find the 10 most similar embedding sentences to Begbie's mean embedding
 
 begbie_similarity_df = pd.DataFrame(columns=['Author', 'Text', 'Similarity Score'])
 
-# Iterate through the embeddings and their corresponding sentences
 for auth, snippets in act_snippets.items():
     for snippet, emb in zip(snippets, embeddings_dict[auth]):
         similarity = cosine_similarity(emb.reshape(1, -1), mean_begbie)[0][0]
         begbie_similarity_df.loc[len(begbie_similarity_df)] = [auth, snippet, similarity]
         
-# Sort by similarity score
 begbie_sorted_similarity = begbie_similarity_df.sort_values(by='Similarity Score', ascending=False)
 
 print("Top 10 most similar sentences to Begbie's mean embedding:\n")
@@ -963,17 +882,13 @@ for _, row in begbie_sorted_similarity.head(10).iterrows():
 ```
 
 ```python
-# Print out the 10 most similar embedding sentences to the Regulation Act's mean embedding
-
 regulation_similarity_df = pd.DataFrame(columns=['Author', 'Text', 'Similarity Score'])
 
-# Iterate through the embeddings and their corresponding sentences
 for auth, snippets in act_snippets.items():
     for snippet, emb in zip(snippets, embeddings_dict[auth]):
         similarity = cosine_similarity(emb.reshape(1, -1), mean_act_1884)[0][0]
         regulation_similarity_df.loc[len(regulation_similarity_df)] = [auth, snippet, similarity]
         
-# Sort by similarity score
 regulation_sorted_similarity = regulation_similarity_df.sort_values(by='Similarity Score', ascending=False)
 
 print("Top 10 most similar sentences to the Regulation Act's mean embedding:\n")
@@ -1003,10 +918,8 @@ Therefore, the lesson uses a different approach to explore the topics in the cor
 
 
 ```python
-# Define our target "topics"
 target_words = ["labor", "legislation", "license", "taxation"]
 
-# Find most similar words to the keywords using the "All" group embeddings
 all_emb = grouped_texts.loc[grouped_texts['group'] == 'All', 'word_embeddings'].values
 if len(all_emb) == 0:
     raise ValueError("No 'All' group found in grouped_texts")
@@ -1018,7 +931,6 @@ results = {}
 for target in target_words:
     target_vec = all_emb.get(target)
     if target_vec is None:
-        # fill with NaN if target missing
         results[target] = [np.nan] * top_n
         continue
 
@@ -1035,22 +947,18 @@ for target in target_words:
     sims_sorted = sorted(sims, key=lambda x: x[1], reverse=True)[:top_n]
     results[target] = [w for w, _ in sims_sorted]
 
-# Create DataFrame with targets as columns and ranks as rows
 similar_words_df = pd.DataFrame(results)
 similar_words_df
 ```
 
 ```python
-# Create anchors for the topics
 def create_anchor(topic, similar_df=similar_words_df, top_n=10):
 
     t = topic
 
-    # collect words: topic + top_n similar words 
     similar_words = similar_df[t].astype(str).tolist()[:top_n]
     words = [t] + [w.lower() for w in similar_words]
 
-    # deduplicate while preserving order
     seen = set()
     uniq_words = []
     for w in words:
@@ -1058,7 +966,6 @@ def create_anchor(topic, similar_df=similar_words_df, top_n=10):
             seen.add(w)
             uniq_words.append(w)
 
-    # embed each word and average
     vecs = []
     for w in uniq_words:
         emb = embed_text(w)  
@@ -1068,13 +975,11 @@ def create_anchor(topic, similar_df=similar_words_df, top_n=10):
 ```
 
 ```python
-# Create anchors for the topics
 labor_anchor = create_anchor("labor")
 legislation_anchor = create_anchor("legislation")
 license_anchor = create_anchor("license")
 taxation_anchor = create_anchor("taxation")
 
-# Create a DataFrame to hold the anchors
 anchors_df = pd.DataFrame({
     'Topic': ['labor', 'legislation', 'license', 'taxation'],
     'Anchor Vector': [labor_anchor, legislation_anchor, license_anchor, taxation_anchor]
@@ -1085,11 +990,9 @@ anchors_df
 
 ```python
 # Calculate the cosine similarity between each anchor and the mean embeddings of Crease, Begbie, and the Act 1884
-# Visualize the results as a box plot
 def calculate_similarity(anchor, embeddings):
     return cosine_similarity(anchor.reshape(1, -1), embeddings).flatten()
 
-# Create a DataFrame to hold the similarity scores
 similarity_scores = {
     'Author': [],
     'Topic': [],
@@ -1116,17 +1019,14 @@ for topic in anchors_df['Topic']:
             similarity_scores['Text'].append(texts[idx] if idx < len(texts) else "")
             similarity_scores['Similarity Score'].append(float(score))
 
-# Convert to DataFrame
 similarity_df = pd.DataFrame(similarity_scores)
 ```
 
 ```python
-# prepare authors and topics
 preferred_order = ['Crease', 'Begbie', 'Act 1884']
 authors = [a for a in preferred_order if a in similarity_df['Author'].unique()]
 topics = list(similarity_df['Topic'].unique())[:4] 
 
-# Color Blind friendly palette
 author_palette = sns.color_palette("colorblind", n_colors=len(authors))
 
 sns.set(style="whitegrid", context="notebook")
@@ -1154,14 +1054,11 @@ for i in range(4):
             capprops=dict(linewidth=0.9)
         )
 
-        # compute per-author means and overlay them
         means = df_t.groupby('Author')['Similarity Score'].mean().reindex(authors)
         x_positions = list(range(len(authors)))
-        # plot white diamond with black edge so it stands out on colored boxes
         ax.scatter(x_positions, means.values, marker='D', s=60,
                    facecolors='white', edgecolors='black', zorder=10)
 
-        # robust y-limits 
         vals = df_t['Similarity Score'].dropna()
         if len(vals) == 0:
             ymin, ymax = -1.0, 1.0
@@ -1199,7 +1096,6 @@ for i in range(4):
     else:
         ax.set_visible(False)
 
-# Single legend for authors
 legend_handles = [Patch(facecolor=author_palette[idx], label=authors[idx]) for idx in range(len(authors))]
 fig.legend(handles=legend_handles, title='Author', loc='upper right', frameon=True)
 
@@ -1224,7 +1120,6 @@ The key steps in the zero-shot classification process are as follows:
 4. **Investigate the results**: Analyze the classification results to identify the stance of each text, focusing on the highest probability label for each text. Also calculate the average probability for each candidate label across all texts to compare the overall stance of different authors and documents.
 
 ```python
-# Create the full snippets dictionary
 act_1884_full = " ".join(act_1884)
 crease_cases_full = " ".join(crease_cases)
 begbie_cases_full = " ".join(begbie_cases)
@@ -1233,25 +1128,21 @@ full_cases = {"Crease": crease_cases_full, "Begbie": begbie_cases_full, "Act 188
 ```
 
 ```python
-# We create a dictionary to hold the full snippets for each author
 full_snippets = {}
 for author, text in full_cases.items():
-    # Tokenize using Spacy
     sentence = [sent.text for sent in nlp(text).sents]
     snippets = []
     for sent in sentence:
-        if len(sent) > 30:  # Filter out short and meaningless sentences created by tokenization
+        if len(sent) > 30:  
             snippets.append(sent)
             
     full_snippets[author] = snippets
 ```
 
 ```python
-# Create a DataFrame to display snippet size by author
 snippet_sizes = [{'Author': auth, 'Snippet Count': len(snippets)} for auth, snippets in full_snippets.items()]
 snippet_sizes_df = pd.DataFrame(snippet_sizes)
 
-# Display the DataFrame
 print(snippet_sizes_df)
 ```
 
@@ -1263,7 +1154,6 @@ To ensure that the zero-shot classification results are meaningful, the candidat
 Note that this is also a major limitation of the zero-shot classification approach, as it relies on the quality and relevance of the candidate labels to the text being classified. If the labels are not well-defined or do not accurately reflect the stance categories, the classification results may be misleading or inaccurate. This is particularly important when working with historical texts, where the language and context may differ significantly from modern usage. Therefore, it is essential to carefully select and define the candidate labels to ensure that they accurately reflect the stance categories of interest.
 
 ```python
-# Create pipeline for zero-shot classification with error handling and efficiency improvements
 warnings.filterwarnings("ignore")
 
 zero_shot = pipeline(
@@ -1275,7 +1165,6 @@ zero_shot = pipeline(
 )
 
 
-# Simplified and clearer labels for better classification
 labels = [
     "advocates for equal legal treatment of Chinese immigrants compared to white or European settlers, opposing racial discrimination",
     "describes or retells the status or treatment of Chinese immigrants without expressing support or opposition to racial inequality, is unrelated to Chinese immigrants, or cannot be classified as either",
@@ -1283,21 +1172,16 @@ labels = [
 ]
 
 def get_scores(snippet, max_length=512):
-    # Ensure snippet is not empty and is reasonable length
     if not snippet or len(snippet.strip()) < 10:
-        return {label: 0.33 for label in labels}  # Return neutral scores for empty/short text
+        return {label: 0.33 for label in labels}  
 
-    # Truncate if too long to avoid token limit issues
     if len(snippet) > max_length * 4:  
         snippet = snippet[:max_length * 4]
 
-    # Run classification
     out = zero_shot(snippet, candidate_labels=labels, truncation=True, max_length=max_length)
 
-    # Create score dictionary
     score_dict = dict(zip(out["labels"], out["scores"]))
 
-    # Ensure all labels are present
     for label in labels:
         if label not in score_dict:
             score_dict[label] = 0.0
@@ -1310,13 +1194,10 @@ You can test the zero-shot classification pipeline on a sample text to see how i
 > That assuming Chinese immigrants of the laboring class will persist in retaining their present characteristics of Asiatic life, where these are strikingly peculiar and distinct from western, and that the influx will continue to increase, this immigration should be dealt with by Parliament ; but no legislation should be such as would give a shock to great interests and enterprises established before any probability that Parliament would interfere with that immigration arose. Questions of vested rights might come up, and these ought to be carefully considered before action is taken.
 
 ```python
-# Define the snippet
 chapleau_snippet = "That assuming Chinese immigrants of the laboring class will persist in retaining their present characteristics of Asiatic life, where these are strikingly peculiar and distinct from western, and that the influx will continue to increase, this immigration should be dealt with by Parliament; but no legislation should be such as would give a shock to great interests and enterprises established before any probability that Parliament would interfere with that immigration arose. Questions of vested rights might come up, and these ought to be carefully considered before action is taken."
 
-# Get the scores for the snippet
 chapleau_scores = get_scores(chapleau_snippet)
 
-# Display the scores
 print("Classification Scores for Chapleau's Snippet:")
 for label, score in chapleau_scores.items():
     print(f"{score:.4f}: {label}")
@@ -1354,18 +1235,14 @@ However, it has limitations in understanding the overall stance of the text, as 
 #         }
 #         rows.append(row)
 
-# # Create DataFrame to store the scores
 # df_scores = pd.DataFrame(rows)
 
-# # Save the DataFrame to a CSV file
 # df_scores.to_csv("data/zero_shot_sentence_scores.csv", index=False)
 ```
 
 ```python
-# Read the saved DataFrame
 df_scores = pd.read_csv("data/zero_shot_sentence_scores.csv")
 
-# Print out the top 10 sentences with the highest "Pro" scores
 top_pro_sentences = df_scores.nlargest(10, 'Pro')
 
 print("\nTop 10 sentences with the highest 'Pro' scores:\n")
@@ -1376,7 +1253,6 @@ for _, row in top_pro_sentences.iterrows():
 ```
 
 ```python
-# Print out the top 10 sentences with the highest "Cons" scores
 top_cons_sentences = df_scores.nlargest(10, 'Cons')
 
 print("\nTop 10 sentences with the highest 'Cons' scores:\n")
@@ -1387,7 +1263,6 @@ for _, row in top_cons_sentences.iterrows():
 ```
 
 ```python
-# Group by author and calculate mean scores
 mean_scores = df_scores.groupby("Author")[["Pro", "Neutral", "Cons"]].mean()
 median_scores = df_scores.groupby("Author")[["Pro", "Neutral", "Cons"]].median()
 
@@ -1425,24 +1300,18 @@ The limitation of this approach is that it may not capture the nuances of each s
 Below, the function splits the text into overlapping windows of a specified size (maximum number of tokens) with a certain overlap (stride that overlaps between consecutive windows). The zero-shot classification pipeline is then applied to each window and the results are averaged to obtain the final classification for the entire text.
 
 ```python
-# Define a function to chunk text into overlapping windows
 def chunk_into_windows(text, max_tokens=512, stride=128):
     
-    # Break into sentences first for cleaner boundaries
     sents = sent_tokenize(text)
     windows = []
     current = ""
     for sent in sents:
-        # Tentative window if we add this sentence
         cand = current + " " + sent if current else sent
-        # Count tokens
         n_tokens = len(tokenizer.encode(cand, add_special_tokens=False))
         if n_tokens <= max_tokens:
             current = cand
         else:
-            # finalize current window, then start new from overlapping tail
             windows.append(current)
-            # keep the stride tokens from the end of the current window
             tail_ids = tokenizer.encode(current, add_special_tokens=False)[-stride:]
             tail_text = tokenizer.decode(tail_ids)
             current = tail_text + " " + sent
@@ -1452,13 +1321,11 @@ def chunk_into_windows(text, max_tokens=512, stride=128):
 ```
 
 ```python
-# # Run classification per author
 # rows = []
 # for author, text in full_cases.items():
     
 #     windows = chunk_into_windows(text, max_tokens=256, stride=64)
     
-#     # classify each window
 #     for win in windows:
 #         out = zero_shot(win, candidate_labels=labels, truncation=True, max_length=256)
 #         # Extract scores and labels
@@ -1473,15 +1340,12 @@ def chunk_into_windows(text, max_tokens=512, stride=128):
 
 # all_scores = pd.DataFrame(rows)
 
-# # Save the DataFrame to a CSV file
 # all_scores.to_csv("data/zero_shot_windowed_scores.csv", index=False)
 ```
 
 ```python
-# Read the saved DataFrame
 all_scores = pd.read_csv("data/zero_shot_windowed_scores.csv")
 
-# Print out the top 5 windows with the highest "Pro" scores
 top_pro_windows = all_scores.nlargest(5, 'Pro')
 
 print("\nTop 5 windows with the highest 'Pro' scores:\n")
@@ -1491,7 +1355,6 @@ for _, row in top_pro_windows.iterrows():
 ```
 
 ```python
-# Print out the top 5 windows with the highest "Cons" scores
 top_cons_windows = all_scores.nlargest(5, 'Cons')
 
 print("\nTop 5 windows with the highest 'Cons' scores:\n")
@@ -1501,7 +1364,6 @@ for _, row in top_cons_windows.iterrows():
 ```
 
 ```python
-# Calculate the mean scores and median scores for each author
 mean_scores = all_scores.groupby("Author")[["Pro", "Neutral", "Cons"]].mean()
 median_scores = all_scores.groupby("Author")[["Pro", "Neutral", "Cons"]].median()
 
@@ -1552,26 +1414,21 @@ The steps are as follows:
 3. **Analyze Correlation**: Analyze the correlation between the topic alignment scores and the zero-shot classification scores to identify patterns and relationships between the topics and the stances expressed in the texts. The lesson also calculates the correlation coefficients for each author to see how their topic alignments relate to their stances.
 
 ```python
-# define a function to clean text for matching
 def clean_text(text):
     text = text.lower()
     text = re.sub(r'[^\w\s]', '', text)  
     return text.strip()
 
-# Convert the similarity DataFrame to wide format
 similarity_wide = similarity_df.pivot(index=['Author','Text'], columns='Topic', values='Similarity Score').reset_index()
 
-# Clean the text for matching
 similarity_wide['Clean Text'] = similarity_wide['Text'].apply(clean_text)
 
 print(f"The total size of our corpus is {len(similarity_wide)} sentences.")
 ```
 
 ```python
-# Clean the text in df_scores for matching
 df_scores['Clean Text'] = df_scores['Text'].apply(clean_text)
 
-# Match the cleaned text in similarity_wide with df_scores
 matched_rows = []
 for _, row in similarity_wide.iterrows():
     match = df_scores[df_scores['Clean Text'] == row['Clean Text']]
@@ -1586,7 +1443,6 @@ for _, row in similarity_wide.iterrows():
         }
         matched_rows.append(matched_row)
         
-# Create a DataFrame from the matched rows
 merged_df = pd.DataFrame(matched_rows)
 
 print(f"The size of our merged corpus is {len(merged_df)} sentences.")
@@ -1596,7 +1452,6 @@ merged_df.head()
 ```
 
 ```python
-# Ensure wrapped text for hover
 merged_df['wrapped_text'] = merged_df['Text'].apply(lambda t: wrap_text(t, width=50))
 
 author_order = ['Crease', 'Begbie', 'Act 1884']
@@ -1609,15 +1464,12 @@ def plot_topic_vs_stance(df, topic='labor', authors=None, color_map=None, show_r
 
     df = df.copy()
 
-    # Prepare text wrapping if needed
     if 'wrapped_text' not in df.columns:
         df['wrapped_text'] = df['Text'].apply(lambda t: wrap_text(t, width=50))
 
-    # Default authors if not provided
     if authors is None:
         authors = df['Author'].unique()
 
-    # Function to create a slightly darker variant of a color for regression lines
     def darken_color(color, factor=0.7):
         
         if isinstance(color, str) and color.startswith('#'):
@@ -1625,7 +1477,7 @@ def plot_topic_vs_stance(df, topic='labor', authors=None, color_map=None, show_r
             rgb = tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
             darkened_rgb = tuple(int(c * factor) for c in rgb)
             return f"rgb({darkened_rgb[0]}, {darkened_rgb[1]}, {darkened_rgb[2]})"
-        return color  # Return as-is if not hex format
+        return color  
 
     default_colors = [
         '#2E86C1', '#E74C3C', '#28B463', '#F39C12', '#8E44AD',
@@ -1636,11 +1488,9 @@ def plot_topic_vs_stance(df, topic='labor', authors=None, color_map=None, show_r
         color_map = {author: default_colors[i % len(default_colors)]
                      for i, author in enumerate(authors)}
 
-    # More distinct symbols
     symbols = ['circle', 'square', 'diamond', 'triangle-up', 'star', 'hexagon']
     author_symbols = {author: symbols[i % len(symbols)] for i, author in enumerate(authors)}
 
-    # Create subplots with reduced vertical spacing for a tighter layout
     fig = make_subplots(
         rows=2, cols=1,
         shared_xaxes=True,
@@ -1650,7 +1500,6 @@ def plot_topic_vs_stance(df, topic='labor', authors=None, color_map=None, show_r
         vertical_spacing=0.06
     )
 
-    # Track which authors have data for legend management
     authors_with_data = set()
 
     for author in authors:
@@ -1658,7 +1507,6 @@ def plot_topic_vs_stance(df, topic='labor', authors=None, color_map=None, show_r
         author_color = color_map.get(author, '#7F8C8D')
         author_symbol = author_symbols.get(author, 'circle')
 
-        # Pro scores (top subplot)
         df_pro = df_author.dropna(subset=['Pro', topic])
         if len(df_pro) > 0:
             authors_with_data.add(author)
@@ -1715,7 +1563,6 @@ def plot_topic_vs_stance(df, topic='labor', authors=None, color_map=None, show_r
                     row=1, col=1
                 )
 
-        # Cons scores (bottom subplot)
         df_cons = df_author.dropna(subset=['Cons', topic])
         if len(df_cons) > 0:
             fig.add_trace(
@@ -1768,7 +1615,6 @@ def plot_topic_vs_stance(df, topic='labor', authors=None, color_map=None, show_r
                     row=2, col=1
                 )
 
-    # Update axes styling
     fig.update_xaxes(
         title_text="",
         showgrid=True,
@@ -1813,23 +1659,22 @@ def plot_topic_vs_stance(df, topic='labor', authors=None, color_map=None, show_r
         row=2, col=1
     )
 
-    # Layout: title moved to top left, legend moved to top right
     fig.update_layout(
         width=width,
         height=height,
         title=dict(
             text=f"Stance Towards Chinese Immigrants vs {topic.title()} Topic Similarity",
-            x=0.02,  # Move title to top left
+            x=0.02,  
             xanchor='left',
             font=dict(size=16, color='#2C3E50'),
             pad=dict(t=12, b=20)
         ),
         legend=dict(
             title=None,
-            orientation='v',  # Vertical orientation for top right
-            y=0.98,  # Position at top
+            orientation='v',  
+            y=0.98,  
             yanchor='top',
-            x=0.98,  # Position at right
+            x=0.98,  
             xanchor='right',
             bgcolor='rgba(255,255,255,0.92)',
             bordercolor='rgba(52,73,94,0.12)',
@@ -1843,7 +1688,6 @@ def plot_topic_vs_stance(df, topic='labor', authors=None, color_map=None, show_r
         font=dict(family="Arial, sans-serif", color='#2C3E50')
     )
 
-    # Subplot title styling (keep compact)
     if len(fig.layout.annotations) >= 2:
         fig.layout.annotations[0].update(font=dict(size=13, color='#34495E'))
         fig.layout.annotations[1].update(font=dict(size=13, color='#34495E'))
@@ -1858,17 +1702,14 @@ plot_topic_vs_stance(merged_df, topic="labor", color_map=color_map, show_regress
 ```
 
 ```python
-# Create visualization for legislation
 plot_topic_vs_stance(merged_df, topic="legislation", color_map=color_map, show_regression=True)
 ```
 
 ```python
-# Create visualization for license
 plot_topic_vs_stance(merged_df, topic="license", color_map=color_map, show_regression=True)
 ```
 
 ```python
-# Create visualization for taxation
 plot_topic_vs_stance(merged_df, topic="taxation", color_map=color_map, show_regression=True)
 ```
 
@@ -1881,10 +1722,8 @@ $$
 Where $X$ and $Y$ are the topic alignment scores and stance scores, respectively, $\text{cov}(X, Y)$ is the covariance between the two variables, and $\sigma_X$ and $\sigma_Y$ are their standard deviations.
 
 ```python
-# Summarize the correlation between topic similarity and stance scores
 correlation_results = []
 
-# Overall correlations (across all authors)
 for topic in ['labor', 'legislation', 'license', 'taxation']:
     for stance in ['Pro', 'Cons']:
         corr = merged_df[[topic, stance]].corr().iloc[0, 1]
@@ -1895,7 +1734,6 @@ for topic in ['labor', 'legislation', 'license', 'taxation']:
             'Correlation': corr
         })
 
-# Correlations by individual author
 for author in merged_df['Author'].unique():
     author_data = merged_df[merged_df['Author'] == author]
     for topic in ['labor', 'legislation', 'license', 'taxation']:
@@ -1910,16 +1748,14 @@ for author in merged_df['Author'].unique():
         
 correlation_df = pd.DataFrame(correlation_results)
 
-# Pivot the DataFrame to show correlations in a more readable format
 correlation_pivot = correlation_df.pivot_table(
     index=['Author', 'Topic'], 
     columns='Stance', 
     values='Correlation'
 ).reset_index()
 
-correlation_pivot.columns.name = None  # Remove the name of the columns index
+correlation_pivot.columns.name = None 
 
-# Convert to wide format for better display
 correlation_wide = correlation_pivot.pivot_table(
     index='Author',
     columns='Topic',
