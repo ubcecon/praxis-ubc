@@ -31,14 +31,14 @@ format:
 
 Word embeddings transform words into numerical vectors, where distance reflects similarity of meaning. They are a core tool in Natural Language Processing (NLP), the field concerned with how computers handle human language. The key property is that similar words end up near each other in this vector space: "economy" and "trade" are close; "economy" and "zebra" are not. For economists, this makes language quantitative.
 
-In this notebook we load national constitutions from the Comparative Constitutions Project, classify them by regime type, and use word embeddings to ask whether autocratic and democratic constitutions use language differently. This is built off of the notion that autocratic constitutions are dominated with rights language they don't enforce. For example: North Korea's constitution guarantees freedom of speech. We will find if word embeddings detect these patterns or do constitutions all sound the same?
+In this notebook we load national constitutions from the Comparative Constitutions Project, classify them by regime type, and use word embeddings to ask whether autocratic and democratic constitutions use language differently. This is built off of the notion that autocratic constitutions are dominated with rights language they don't enforce. For example: North Korea's constitution guarantees freedom of speech. Can word embeddings detect these patterns, or do all constitutions sound the same?
 
 ### Learning Outcomes
 
 By the end of this notebook, students will be able to:
 
 1. Explain what word embeddings are and why they make language quantitative
-2. Load and preprocess a real-world text corpus from a public API
+2. Load and preprocess a text corpus from a public API
 3. Use TF-IDF and cosine similarity to compare groups of documents
 4. Interpret PCA visualizations of high-dimensional text data
 5. Critically evaluate the limitations of NLP methods applied to political texts
@@ -78,7 +78,7 @@ from nltk.corpus import stopwords
 We use the **Comparative Constitutions Project** (constituteproject.org), which provides English-language texts of every available national constitution. We use their public API. 
 
 ::: callout-note
-All texts are English translations. Translation decisions bring their own set of biases, we need to keep this in mind when interpreting results.
+All texts are English translations. Translation decisions bring their own set of biases; we need to keep this in mind when interpreting results.
 :::
 
 We load the .json data from the Comparative Constitutions Project API and print the number of constitutions. 
@@ -116,7 +116,7 @@ df.head()
 
 ### Classifying Regimes
 
-We classify countries as autocratic or democratic using a manual list. Our list of autocratic countries is based on countries classified as "closed/electoral autocracies" by V-Dem's Regimes of the World index. It is important to note that this is a simplification; a country's constitution may have been drafted under a different regime than the current one. This is sufficient for a workshop, but for a research paper we would have to check V-Dem's Regimes of the World index at the time of drafting the constitution or its most recent update. You can see the list of Autocracies in the code cell below. 
+We classify countries as autocratic or democratic using a manual list. Our list of autocratic countries is based on countries classified as "closed/electoral autocracies" by V-Dem's Regimes of the World index. It is important to note that this is a simplification; a country's constitution may have been drafted under a different regime than the current one. This is sufficient for a workshop, but for a research paper we would have to check V-Dem's Regimes of the World index at the time of drafting the constitution or its most recent update. You can see the list of autocracies in the code cell below. 
 
 ```{python}
 # List of Autocracies
@@ -142,11 +142,11 @@ df["word_count"] = df["text"].apply(lambda t: len(t.split()))
 df.groupby("regime")["word_count"].agg(["mean", "median", "min", "max"]).round(0)
 ```
 
-::: callout-tip
-## Discussion
-- We classified regimes as a binary: autocratic or democratic. What gets lost in this simplification? Can you think of countries that don't fit neatly?
-- These constitutions were drafted at different times under different regimes. Why might the *current* regime type not match the constitution's language?
-:::
+Please discuss in small groups with your classmates:
+
+- What gets lost in a binary regime classification? 
+- Can you think of countries that don't fit neatly into either category? S
+- Since these constitutions were drafted at different times under different regimes, why might the *current* regime type not match the constitution's language?
 
 ## 3 Text Preprocessing
 
@@ -164,10 +164,7 @@ def preprocess(text):
 df["tokens"] = df["text"].apply(preprocess)
 ```
 
-::: callout-tip
-## Discussion
-- We removed stopwords like "shall" and "the." Could removing certain words bias our analysis? Are there words you'd want to keep that a standard stopword list removes?
-:::
+Consider: we removed stopwords like "shall" and "the." Could removing certain words bias our analysis? Are there words you'd want to keep that a standard stopword list removes?
 
 ## 4 Load Pre-trained Word2Vec Embeddings
 
@@ -214,10 +211,7 @@ display(pd.DataFrame({"word": feature_names[top_demo_idx], "tfidf_difference": a
 
 The autocratic list is mostly country names which we classify as autocratic (Turkmenistan, Uzbekistan, Belarus, Zimbabwe) and country-specific legislative terms (hluttaw is Myanmar's parliament, majlisi is Tajikistan's). That's because with only 19 autocratic constitutions, unique country references dominate the TF-IDF scores. The democratic list shows more generic institutional vocabulary (parliament, court, office) since those terms are spread across 174 countries rather than concentrated in a few.
 
-::: callout-tip
-## Discussion
-- Country names dominate the autocratic list. What does this tell us about TF-IDF with small sample sizes? How might you address this?
-:::
+We found that country names dominate the autocratic list: what does this tell us about TF-IDF with small sample sizes? How might you address this?
 
 ::: callout-tip
 ## Try It Yourself
@@ -289,7 +283,7 @@ results_df
 
 Cohen's d measures the size of the difference in standard deviations: values above 0.2 are considered small, 0.5 medium, and 0.8 large. Positive values mean the word is closer to autocratic constitutions.
 
-The standout finding: "democracy," "equality," and "freedom" all show large effect sizes toward autocratic constitutions. This is in line with our hypothesis that autocratic constitutions more heavily lean on language around equality and human rights, which they then do not uphold. The only word which significantly leans towards democratic constitutions is "property" consistent with the emphasis on individual economic rights in democratic nations.
+The standout finding: "democracy," "equality," and "freedom" all show large effect sizes toward autocratic constitutions. This is in line with our hypothesis that autocratic constitutions more heavily lean on language around equality and human rights, which they then do not uphold. The only word which significantly leans towards democratic constitutions is "property," consistent with the emphasis on individual economic rights in democratic nations.
 
 ::: callout-tip
 ## Try It Yourself
@@ -340,14 +334,10 @@ In this notebook we used word embeddings to compare the constitutional language 
 
 The results support our original hypothesis that autocratic constitutions lean heavily on democratic vocabulary and notions of equality. Words like "democracy," "equality," and "freedom" showed large effect sizes toward autocratic constitutions. This is consistent with a well-documented pattern in politics: authoritarian regimes highlight rights they do not enforce. The one word that meaningfully tilted toward democratic constitutions was "property," reflecting the emphasis on individual economic rights in democracies.
 
-Word embeddings let us surface these patterns across 193 documents in seconds -- work that would take weeks of close reading.
+Further Discussion Questions:
 
-::: callout-tip
-## Discussion
-- What other corpora could you apply this method to? Trade agreements? UN General Assembly speeches? Party platforms?
-- We used a model trained on Google News. How might results differ with a model trained on legal or constitutional text?
-- If you were advising a policy organization, what would you need to validate before drawing policy conclusions from this analysis?
-:::
+- What are some other corpora that you could apply this method to, possible examples are: trade agreements, UN General Assembly speeches, or party platforms. 
+- Given that our model was trained on Google News, how might results differ with a model trained on legal or constitutional text? If you were advising a policy organization, what would you need to validate before drawing conclusions from an analysis like this?
 
 ## 10 References
 
