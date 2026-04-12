@@ -33,6 +33,22 @@ Word embeddings transform words into numerical vectors, where distance reflects 
 
 In this notebook we load national constitutions from the Comparative Constitutions Project, classify them by regime type, and use word embeddings to ask whether autocratic and democratic constitutions use language differently. This is built off of the notion that autocratic constitutions are dominated with rights language they don't enforce. For example: North Korea's constitution guarantees freedom of speech. We will find if word embeddings detect these patterns or do constitutions all sound the same?
 
+### Learning Outcomes
+
+By the end of this notebook, students will be able to:
+
+1. Explain what word embeddings are and why they make language quantitative
+2. Load and preprocess a real-world text corpus from a public API
+3. Use TF-IDF and cosine similarity to compare groups of documents
+4. Interpret PCA visualizations of high-dimensional text data
+5. Critically evaluate the limitations of NLP methods applied to political texts
+
+### Prerequisites
+
+- **Python**: Basic familiarity with Python syntax (variables, loops, functions). No NLP or machine learning experience required.
+- **Statistics**: Comfort with means, standard deviations, and the idea of statistical significance.
+- **Internet connection**: Required to fetch constitution texts from the API and download the Word2Vec model (~1.7 GB on first run).
+
 Install our libraries
 ```{python}
 !pip install gensim scikit-learn pandas numpy matplotlib plotly nltk scipy --quiet
@@ -122,6 +138,12 @@ df["word_count"] = df["text"].apply(lambda t: len(t.split()))
 df.groupby("regime")["word_count"].agg(["mean", "median", "min", "max"]).round(0)
 ```
 
+::: callout-tip
+## Discussion
+- We classified regimes as a binary: autocratic or democratic. What gets lost in this simplification? Can you think of countries that don't fit neatly?
+- These constitutions were drafted at different times under different regimes. Why might the *current* regime type not match the constitution's language?
+:::
+
 ## 3 Text Preprocessing
 
 Raw constitution text is full of noise that doesn't carry meaning: punctuation, inconsistent capitalisation ("The" vs "the"), and high-frequency filler words like "the," "of," "and," and "shall." These words appear in every constitution regardless of regime type, so they would dominate the analysis without telling us anything useful. We strip punctuation, lowercase everything so "Rights" and "rights" are treated as the same word, and remove English stopwords (standard list of ~180 common words that carry grammatical function but little semantic content).
@@ -137,6 +159,11 @@ def preprocess(text):
 
 df["tokens"] = df["text"].apply(preprocess)
 ```
+
+::: callout-tip
+## Discussion
+- We removed stopwords like "shall" and "the." Could removing certain words bias our analysis? Are there words you'd want to keep that a standard stopword list removes?
+:::
 
 ## 4 Load Pre-trained Word2Vec Embeddings
 
@@ -182,6 +209,16 @@ display(pd.DataFrame({"word": feature_names[top_demo_idx], "tfidf_difference": a
 ```
 
 The autocratic list is mostly country names which we classify as autocratic (Turkmenistan, Uzbekistan, Belarus, Zimbabwe) and country-specific legislative terms (hluttaw is Myanmar's parliament, majlisi is Tajikistan's). That's because with only 19 autocratic constitutions, unique country references dominate the TF-IDF scores. The democratic list shows more generic institutional vocabulary (parliament, court, office) since those terms are spread across 174 countries rather than concentrated in a few.
+
+::: callout-tip
+## Discussion
+- Country names dominate the autocratic list. What does this tell us about TF-IDF with small sample sizes? How might you address this?
+:::
+
+::: callout-tip
+## Try It Yourself
+Add 3 more countries to the `autocracy_ids` set that you think should be classified as autocratic. Re-run the TF-IDF cell. Do the top words change?
+:::
 
 ## 6 Create Document Vectors
 
@@ -248,7 +285,12 @@ results_df
 
 Cohen's d measures the size of the difference in standard deviations: values above 0.2 are considered small, 0.5 medium, and 0.8 large. Positive values mean the word is closer to autocratic constitutions.
 
-The standout finding: "democracy," "equality," and "freedom" all show large effect sizes toward autocratic constitutions. This is in line with our hypothesis that autocratic constitutions more heavily lean on language around equality and human rights, which they then do not uphold. The only word which significantly leans towards democratic constitutions is "property" consistent with the emphasis on individual economic rights in democratic nations. 
+The standout finding: "democracy," "equality," and "freedom" all show large effect sizes toward autocratic constitutions. This is in line with our hypothesis that autocratic constitutions more heavily lean on language around equality and human rights, which they then do not uphold. The only word which significantly leans towards democratic constitutions is "property" consistent with the emphasis on individual economic rights in democratic nations.
+
+::: callout-tip
+## Try It Yourself
+Add 3-5 words to `target_words` that you think would differ between regime types. Re-run the analysis. What did you find?
+:::
 
 ## 8 Analysis: Visualising with PCA
 
@@ -280,9 +322,15 @@ fig.update_layout(width=800, height=600)
 fig.show()
 ```
 
-We can see many of the autocratic constitutions are on the right side of the visualization and most of the democratic constitutions lean left. You can hover over the dots to see which country they correspond to. 
+We can see many of the autocratic constitutions are on the right side of the visualization and most of the democratic constitutions lean left. You can hover over the dots to see which country they correspond to.
 
-### 9 Conclusion
+::: callout-tip
+## Discussion
+
+- Find your home country on the plot. Are you surprised by its position? What might explain where it ended up?
+:::
+
+## 9 Conclusion
 
 In this notebook we used word embeddings to compare the constitutional language of autocratic and democratic regimes. We built TF-IDF weighted document vectors using Google's pre-trained Word2Vec model and compared how politically meaningful words relate to each group's language.
 
@@ -290,7 +338,7 @@ The results support our original hypothesis that autocratic constitutions lean h
 
 Word embeddings let us surface these patterns across 193 documents in seconds -- work that would take weeks of close reading.
 
-### 10 References
+## 10 References
 
 - Elkins, Z., Ginsburg, T., & Melton, J. (2014). Constitute: The world's constitutions to read, search, and compare. Comparative Constitutions Project. [https://constituteproject.org](https://constituteproject.org)
 - Mikolov, T., Chen, K., Corrado, G., & Dean, J. (2013). Efficient estimation of word representations in vector space. *arXiv preprint arXiv:1301.3781*. [https://arxiv.org/abs/1301.3781](https://arxiv.org/abs/1301.3781)
