@@ -6,10 +6,10 @@ slug: natural-language-inference-historical-text
 authors:
 - Laura Nelson
 - Jonathan Graves
-- Irene Berezin
-- Alex Ronczewski
 - Kaiyan Zhang
-date: YYYY-MM-DD
+- Alex Ronczewski
+- Irene Berezin
+date: 2026-05-xx
 reviewers:
 - TBD
 editors:
@@ -28,34 +28,43 @@ abstract: "This lesson demonstrates how to use text embeddings, zero-shot classi
 
 ## Lesson Goals
 
-This lesson walks you through a complete workflow for applying natural language processing techniques to historical legal texts. By the end, you'll be able to:
+This lesson teaches you how to apply [Natural Language Inference (NLI)](https://en.wikipedia.org/wiki/Textual_entailment) techniques to historical documents using Python. NLI allows a model to determine whether a given text entails, contradicts, or is neutral toward a hypothesis, making it a powerful tool for stance analysis in historical corpora where labeled training data is unavailable, or where manual labeling is expensive.
 
-- Preprocess historical legal texts for computational analysis using Python
-- Generate and interpret TF-IDF keyword frequencies across document groups
-- Create contextual word embeddings using a domain-specific BERT model (Legal-BERT)
-- Visualize high-dimensional text embeddings using UMAP dimensionality reduction
-- Apply zero-shot classification to assess stance in historical documents
-- Critically evaluate the limitations of NLP methods for historical text analysis
+By the end, you will be able to:
+
+- Use TF-IDF to identify key terms across document groups
+- Detect and remove direct quotations using fuzzy string matching
+- Generate contextual text embeddings with Sentence-BERT
+- Visualize high-dimensional embeddings using UMAP
+- Apply zero-shot NLI classification to assess stance without labeled data
+- Design effective classification labels for historical text analysis
+- Validate model outputs against a labeled ground truth set
+- Apply robustness checks (quote sensitivity, label sensitivity, bootstrap confidence intervals) to assess result stability
+- Critically evaluate NLP results against domain knowledge
+
+The lesson uses nineteenth-century British Columbia court rulings on Chinese immigration as its case study. However, the workflow applies to any historical corpus where you want to computationally assess authorial stance.
 
 ## Prerequisites
 
-You'll need intermediate Python experience to follow this lesson comfortably: that means working with the pandas package, writing functions, and using pip to install packages. If you're newer to Python, start with the [Programming Historian's Introduction to Python](https://programminghistorian.org/en/lessons/introduction-and-installation) before tackling this lesson.
+You will need intermediate Python experience: working with pandas, writing functions, and using pip. If you are newer to Python, start with the [Programming Historian's Introduction to Python](https://programminghistorian.org/en/lessons/introduction-and-installation) first.
 
-Python 3.10 or later is required. You'll also need at least 8GB of RAM. A GPU isn't required, but if you have one available, it will speed things up significantly.
+Python 3.10 or later is required, along with at least 8GB of RAM. A GPU is not required but will speed up model inference.
 
 <div class="alert alert-warning">
-This lesson uses transformer-based language models that require at least 8GB of RAM. Running all embedding generation and zero-shot classification steps from scratch may take 30 to 60 minutes on a standard laptop without a GPU. Pre-computed results are provided as CSV and pickle files so you can follow along without running the most computationally expensive steps.
+This lesson uses transformer-based language models that require at least 8GB of RAM. The embedding model (all-mpnet-base-v2, 438MB) runs quickly, but the zero-shot classification model (DeBERTa-v3-large, 870MB) is computationally intensive. Running all zero-shot classification steps from scratch may take 60 to 90 minutes on a standard laptop without a GPU. Pre-computed results are provided as CSV and NumPy files so you can follow along without running the most computationally expensive steps.
 </div>
 
 ## Software and Setup
 
-Install all required Python packages by running:
+Install all required Python packages:
 
 ```bash
-pip install pandas numpy umap-learn matplotlib seaborn plotly nltk spacy scikit-learn scipy transformers torch tqdm
+pip install pandas numpy umap-learn matplotlib \
+  seaborn nltk spacy scikit-learn scipy \
+  transformers torch tqdm sentence-transformers
 ```
 
-You'll also need to download NLTK data and the spaCy English language model:
+Download NLTK data and the spaCy language model:
 
 ```python
 import nltk
@@ -70,1713 +79,933 @@ python -m spacy download en_core_web_sm
 
 ### Software Versions
 
-This lesson was tested with the following software versions:
+This lesson was tested with:
 
-- Python 3.10
-- transformers 4.38
-- torch 2.1
-- scikit-learn 1.3
+- Python 3.13
+- transformers 4.51
+- torch 2.6
+- sentence-transformers 4.1
+- scikit-learn 1.6
 - umap-learn 0.5
-- pandas 2.0
-- matplotlib 3.7
-- plotly 5.18
-- nltk 3.8
-- spacy 3.7
-- Legal-BERT model: nlpaueb/legal-bert-base-uncased (via Hugging Face)
-- DeBERTa NLI model: MoritzLaurer/DeBERTa-v3-large-mnli-fever-anli-ling-wanli (via Hugging Face)
+- pandas 2.2
+- matplotlib 3.10
+- nltk 3.9
+- spacy 3.8
+- Sentence-BERT: `sentence-transformers/all-mpnet-base-v2` (Hugging Face)
+- DeBERTa NLI: `MoritzLaurer/deberta-v3-large-zeroshot-v2.0` (Hugging Face)
 
-With the dependencies installed, load the required libraries:
+Load the required libraries:
 
 ```python
 import pandas as pd
 import numpy as np
 import re
-import pickle
 import umap
 import textwrap
+import difflib
 import matplotlib.pyplot as plt
-from matplotlib.patches import Patch
 import seaborn as sns
-from IPython.display import HTML
-from plotly import io as pio
-import plotly.express as px
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 from nltk import sent_tokenize, word_tokenize
 from nltk.corpus import stopwords
 import spacy
-from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import (
+    TfidfVectorizer,
+)
 from sklearn.metrics.pairwise import cosine_similarity
 from scipy.spatial.distance import cosine
-from transformers import AutoTokenizer, AutoModel, pipeline
+from sentence_transformers import (
+    SentenceTransformer,
+)
+from transformers import (
+    AutoTokenizer, pipeline,
+)
 import torch
 import warnings
 from collections import defaultdict, Counter
-from typing import Dict, Any, Union
 ```
 
-## Introduction
+## Case Study: Chinese Immigration Law in British Columbia
 
-Most people have interacted with AI through chatbots, but that format obscures:
+While the techniques demonstrated in this lesson are general-purpose; you will go through a case study that provides concrete material to work with.
 
-1. the decades of development of ML and [Natural Language Processing (NLP)](https://en.wikipedia.org/wiki/Natural_language_processing) techniques that led to this moment, and
-2. the analytical uses of AI, specifically for text analysis in the social sciences and humanities.
+The *1884 Chinese Regulation Act* in British Columbia (a province on the Pacific coast of Canada) was provincial legislation targeting Chinese residents, part of a broader wave of anti-Chinese laws across western North America in the late nineteenth century. It was challenged and declared unconstitutional in the 1885 case of *R v. Wing Chong* by [Henry Pering Pellew Crease](https://www.biographi.ca/en/bio/crease_henry_pering_pellew_13E.html), a judge on the Supreme Court of British Columbia.[^1] Justice Crease struck down the legislation on economic grounds, finding that it infringed on federal authority over immigration, trade, commerce, and taxation.
 
-In this lesson, you will explore, at a very high level, how AI is changing the way historians (and others) can process and analyze text. Specifically, you will:
+However, Crease was not considered straightforwardly sympathetic to Chinese immigrants. Historian Tina Loo notes that he displayed mistrust toward Canadians, referred to them as "North American Chinamen," and feared they would "rule the country and job its offices."[^11] This raises the question: did Crease oppose the Act out of genuine anti-discrimination concern, or because he valued the Chinese immigrant labor force for economic growth?
 
-1. See how AI has improved the ability to extract machine-readable text from images of historical text (what is known as [Optical Character Recognition (OCR)](https://en.wikipedia.org/wiki/Optical_character_recognition)).
-2. Learn how models trained on large amounts of domain-specific text allow for richer representations of text and the potential for deeper interpretation, compared to previous techniques.
-3. Briefly explore how natural language prompts (such as what you put into chatbots), when used in an analytic pipeline, have enabled new approaches to text analysis.
+To explore this question computationally, you will compare the language of Crease's rulings with two reference points: the discriminatory Act itself, and Justice [Matthew Baillie Begbie](https://www.biographi.ca/en/bio/begbie_matthew_baillie_12E.html),[^12] the first Chief Justice of British Columbia. Unlike Crease, historical accounts describe Begbie as protective of marginalized peoples, including Chinese immigrants.[^8][^9] Begbie struck down discriminatory municipal by-laws in Victoria targeting Chinese-owned businesses in the 1888 case of *R v. Victoria*.[^4]
 
-This lesson does not cover the math behind these techniques. Instead, it gives you a broad overview of how they work and introduces the key vocabulary, so you have a starting point for further exploration.
+The corpus consists of ten digitized texts: legal rulings (*R v. Wing Chong*,[^1] *Wong Hoy Woon v. Duncan*,[^2] *R v. Mee Wah*,[^3] *R v. Victoria*[^4]), the *1884 Chinese Regulation Act*, and reports from the 1884 Royal Commission on Chinese Immigration.[^7] The texts were converted from archival scans to machine-readable format using [Optical Character Recognition (OCR)](https://en.wikipedia.org/wiki/Optical_character_recognition). Direct quotes of the Act within Crease's ruling were identified using fuzzy string matching and removed so they do not contaminate the analysis of his own language (this process is described in the next section).
 
-### Overview of Historical Background
+## Preparing the Corpus
 
-***The 1884 Chinese Regulation Act*** in British Columbia (a province on the Pacific coast of Canada) was provincial legislation targeting Chinese residents in what was then a young Canadian province, part of a broader wave of anti-Chinese laws across western North America in the late nineteenth century. It is widely regarded as one of the most notorious discriminatory provincial laws targeting Chinese immigration, and it was challenged and ultimately declared unconstitutional in the 1885 case of ***R v. Wing Chong*** by [Henry Pering Pellew Crease](https://www.biographi.ca/en/bio/crease_henry_pering_pellew_13E.html), a judge on the Supreme Court of British Columbia.[^1] Justice Crease found the legislation to be unconstitutional on economic grounds; infringing on federal authority over immigration, trade, commerce, treaty-making, and taxation. 
+The OCR process produced a `.csv` file with the following structure:
 
-The central figure in the ruling, *Henry Pering Pellew Crease*, came from a wealthy English military family, and possessed a prestigious law background. 
-
-* His social identity was above-all English, and this was made clear in his politics. 
-* He viewed Canada not as a new society to be built, but as an extension of the British Empire. 
-* Historian Tina Loo, writing in the *Dictionary of Canadian Biography*, notes that he displayed mistrust towards Canadians, referring to them as "North American Chinamen", afraid that they would "rule the country and job its offices."[^11]
-
-A longstanding question about Crease concerns his opinion on the 1884 Chinese Regulation Act, given that the Act was strongly condemned and ultimately struck down by Crease. This seems at odds with his broader position on Chinese immigrants.
-
-This raises an interesting question: **Did Judge Crease strike down the act because of genuine anti-discrimination concerns, or because he saw the Chinese immigrant labor force as a valuable asset for growing the Canadian economy?**
-
-### Objective
-
-* The goal is to explore this question by analyzing the language used by Justice Crease in his legal opinions and writings related to Chinese immigrants through **Natural Language Processing (NLP)** approaches. By examining the text, the analysis may uncover insights into his stance.
-
-* This lesson also demonstrates how historians can use computational tools to *help* them answer such a research question, by showing each step in the research process.
-
-* In the end, you will be able to transform the text documents into something more intuitive and visually appealing, such as a 2D UMAP projection of the legal text embeddings by sentences. This can help historians better interpret the relationship between different texts.
-
-![The 2D UMAP projection of legal text embeddings by sentences](data/embedding_visualization.png)
-
-### The Problem: Legal Text Analysis
-
-Legal text analysis is a complex task. Legal documents tend to be lengthy, dense, formal, and filled with specialized terminology. They are often written in neutral or passive voice, making it difficult to discern the author's personal opinions or biases. These characteristics pose unique challenges for historians and legal scholars alike, and they also challenge the usual methods of natural language processing (NLP).[^13]
-
-Mining insights from such texts requires sophisticated techniques to extract meaningful information and identify patterns. The technique needs to be able to:
-
-* **Understand legal vocabulary**: Legal texts often contain specialized terminology and complex sentence structures. The technique should be able to handle legal jargon and formal language.
-* **Identify contextual semantics**: Legal texts often involve nuanced meanings and interpretations. The technique should be able to capture the context and semantics of legal language.
-* **Handle ambiguity**: Legal texts can be ambiguous, with multiple interpretations possible. The technique should be able to handle ambiguity and provide insights into different interpretations.
-* **Extract relevant topics**: Legal texts often cover multiple topics and issues. The technique should be able to extract relevant topics and themes from the text.
-* **Analyze sentiment**: Legal texts can convey different sentiments, such as positive, negative, or neutral. The technique should be able to analyze sentiment and provide insights into the author's tone and attitude.
-
-### Research Approach
-
-In this lesson, you will explore how to address these challenges using a comparison approach. While the focus is on the text of Justice Crease, you will compare it with other legal texts from the same period to gain a better understanding of the language used in legal documents at that time.
-
-The first subject used for comparison is the ***1884 Chinese Regulation Act***, which was the law that Crease struck down. The second is **Justice [Matthew Baillie Begbie](https://www.biographi.ca/en/bio/begbie_matthew_baillie_12E.html)**,[^12] the first Chief Justice of British Columbia, who testified alongside Crease in the 1884 Royal Commission on Chinese Immigration (a Royal Commission is a formal public inquiry established by the government of Canada).[^7]
-
-* Unlike Crease, historical accounts describe Begbie as protective of marginalized peoples, particularly Indigenous communities and Chinese immigrants.[^8][^9]
-* Similar to what Crease did to the Chinese Regulation Act, Begbie struck down discriminatory municipal by-laws in Victoria that targeted Chinese-owned businesses in the 1888 case of ***R v. Victoria***.[^4]
-
-The lesson uses machine learning techniques, specifically text embeddings, to do the following:
-
-1. Compile **a corpus of legal cases and commission reports** authored by contemporary judges concerning Chinese immigrants.
-2. Apply **Optical Character Recognition (OCR)** to the reports in order to convert them to a machine-readable format. 
-3. Examine **keywords** in the texts, to compare the positions of different justices and regulations.
-4. Use **machine learning** to assess the relative emphasis on economic versus social justice concerns.
-5. Use **Sentiment Analysis** to evaluate the tone of the documents, focusing on whether they reflect positive, negative, or neutral sentiments, and compare the sentiments of writings by different authors to identify patterns.
-6. Use **[Zero-Shot Classification](https://en.wikipedia.org/wiki/Zero-shot_learning)** to evaluate whether the documents reflect pro-discrimination, neutral, or anti-discrimination positions.
-
-This approach demonstrates different techniques historians can use to identify patterns in documents for analysis.
-
-### Data Collection and Preprocessing
-
-The corpus consists of ten digitized texts:
-
-- Legal Documents that address Chinese immigration in BC during the period: 
-    - *R v. Wing Chong* 
-    - *Wong Hoy Woon v. Duncan*[^2] 
-    - *R v. Mee Wah*,[^3] *R v. Victoria* 
-    - *the 1884 Chinese Regulation Act*
-- Reports authored by Crease and Begbie for the Royal Commission that show the judges' personal perspectives. 
-- The remaining documents enrich the corpus for analysis and supplement the study.
-
-A big issue with working with historical texts is the format they're stored in: usually scans of varying quality from physical books, articles, etc. However, these are not machine-readable file formats (e.g., text files), so the first step is using **Optical Character Recognition (OCR)** to convert the scanned images into machine-readable text. This approach was chosen because: 
-
-1. It is a common technique for digitizing printed texts that is already widely used in legal case archives such as the [CanLII](https://en.wikipedia.org/wiki/CanLII) (Canadian Legal Information Institute) database, a publicly accessible database of Canadian court decisions and legislation, and 
-2. There are many OCR tools available that vary in cost, effectiveness, and ease of use. 
-
-Below is a brief overview of early and modern OCR techniques:
-
-
-- **Early OCR (Pattern Matching):**
-  - Compared each character image to a library of fonts and shapes.
-  - Worked well for clean, printed text.
-  - Struggled with handwriting, unusual fonts, or degraded scans.
-
-- **Modern OCR (Intelligent Recognition):**
-  - Uses AI to "read" text more like a human.
-  - Analyzes shapes, context, and layout.
-  - Handles messy, handwritten, or complex documents much better.
-
-After testing several tools, the analysis found that modern, AI-based OCR methods produced the most accurate results for these historical documents.
-
-### Data Overview
-
-After OCR, the process produced a `.csv` file containing the text and metadata of the documents. Note that the direct quotes of the *1884 Chinese Regulation Act* in Crease's ruling were removed, as they don't reflect his own language. The structure of the data is as follows:
-
-| Column Name                 | Description                                              |
-| --------------------------- | -------------------------------------------------------- |
-| filename                    | Name of the file containing the document text.           |
-| author                      | Author of the document (e.g., "Crease", "Begbie").       |
-| type                        | Document type (e.g., "case", "report").                  |
-| text                        | Full text of the document, which may include OCR errors. |
-| act_quote_sentences_removed | Number of quoted sentences removed from the full text.   |
-
-Here, the `.csv` file is read into a pandas DataFrame and displayed.
+| Column Name                 | Description                                        |
+| --------------------------- | -------------------------------------------------- |
+| filename                    | Name of the source document file                   |
+| author                      | Author (e.g., "Crease", "Begbie")                  |
+| type                        | Document type (e.g., "case", "report", "act")      |
+| text                        | Full text, which may include OCR errors             |
+| act_quote_sentences_removed | Number of quoted sentences removed from the text   |
 
 ```python
-# Load the dataset
 df = pd.read_csv("data/metadata_cleaned.csv")
-
-df
+df[['filename', 'author', 'type']].head(10)
 ```
 
-The length of each document can provide insights into its depth and complexity. The summary below quantifies the number of characters in each document.
-
-
 ```python
-doc_lengths = []
-
-for row in df.iterrows():
-    text_length = len(row[1]['text'])
-    doc_lengths.append({'Document': row[1]['filename'], 'Length': text_length})
-
-doc_lengths_df = pd.DataFrame(doc_lengths)
-doc_lengths_df
+df['doc_length'] = df['text'].apply(len)
+df[['filename', 'doc_length']]
 ```
 
-## How Computers Interpret Text
+## Detecting and Removing Direct Quotations
 
-While computers can process text swiftly, they do not "understand" it in the human sense. Instead, they build mathematical models of language from statistical patterns and structural regularities. These models produce symbolic and continuous representations of words and passages that allow downstream algorithms to detect topics, relationships, and affective signals. However, these representations remain proxies for meaning rather than literal comprehension.
+Crease's ruling in *R v. Wing Chong* quotes passages from the 1884 Chinese Regulation Act verbatim. If these quoted passages remain in the corpus, the NLI model will classify them as discriminatory language attributable to Crease, when in fact they are the Act's own words that Crease cited in order to critique them. To avoid this contamination, you need to detect and remove directly quoted sentences.
 
-This process typically involves a sequence of steps:
-
-1. **[Tokenization](https://en.wikipedia.org/wiki/Lexical_analysis#Tokenization)**: Breaking text into analyzable units (words, subwords, or sentences). 
-2. **Preprocessing**: Cleaning and normalizing text (lowercasing, removing OCR noise, handling archaic spelling). 
-3. **Vectorization**: Converting tokens or texts into numerical vectors. 
-    - Simple count-based approaches (TF-IDF) capture term importance across documents. 
-    - Modern contextual methods (BERT, Legal‑BERT) produce dense embeddings that capture usage-dependent semantics.
-4. **Modeling and Comparison**: Applying algorithms to those vectors. Examples include [cosine similarity](https://en.wikipedia.org/wiki/Cosine_similarity) for semantic closeness, [UMAP](https://en.wikipedia.org/wiki/Nonlinear_dimensionality_reduction#Uniform_manifold_approximation_and_projection) for visualization, and zero‑shot classification.
-5. **Aggregation and Interpretation**: Aggregating sentence- or snippet-level outputs to produce document- or author-level summaries (mean stance vectors, topic distributions), followed by careful human interpretation.
-
-Why this is helpful for social science and humanities research:
-
-- **Scalability**: Enables analysis of large corpora beyond human reading capacity.
-- **Pattern Discovery**: Uncovers latent structures and relationships not easily seen by humans.
-- **Quantification**: Provides numerical measures of abstract concepts (e.g., sentiment, stance).
-- **Reproducibility**: Offers systematic, repeatable methods for text analysis.
-
-### Count Approach: TF-IDF
-
-The **[Term Frequency-Inverse Document Frequency (TF-IDF)](https://en.wikipedia.org/wiki/Tf%E2%80%93idf)** is a statistical measure that evaluates the importance of a word in a document relative to a collection of documents. It is one of the earliest and most widely used methods for text analysis. It is essentially a count-based approach that quantifies the importance of words in a document based on their frequency and distribution across multiple documents. TF-IDF works by calculating two components:
-1. **Term Frequency (TF)**: Measures how frequently a term appears in a document.
-2. **Inverse Document Frequency (IDF)**: Measures how important a term is across the entire corpus, by considering how many documents contain the term.
-
-For this lesson's purposes, you can use TF-IDF to identify the most important words in each document, which can help reveal the key themes and topics discussed in the text. Here is what the analysis will do:
-
-1. Regroup the text data into five groups:
-    - All writings
-    - Crease's writings
-    - Begbie's writings
-    - Chinese Regulation Act
-    - Other documents
-2. For each group, the analysis will: 
-    - Create a TF-IDF vectorizer to convert the text into numerical vectors.
-    - Remove common filler words ("the", "and", etc.).
-    - Calculate the TF-IDF scores for each word in the documents.
-    - Identify the most important words based on their TF-IDF scores.
-3. The most frequent remaining words can reveal the main topics of each case.
+The approach uses fuzzy string matching via Python's `difflib.SequenceMatcher`, which computes a similarity ratio between two strings based on the longest contiguous matching subsequences. For each sentence in Crease's text, you compute its similarity to every sentence in the Act and retain the highest score:
 
 ```python
+act_text = df.loc[
+    df['type'] == 'act', 'text'
+].values[0]
+act_sents = [
+    s.text.strip()
+    for s in nlp(act_text).sents
+    if len(s.text.strip()) > 20
+]
+
+crease_orig_path = (
+    "data/Regina_V_Wing_Chong.txt"
+)
+with open(crease_orig_path,
+          encoding='utf-8') as f:
+    crease_orig = f.read()
+
+crease_sents = [
+    s.text.strip()
+    for s in nlp(crease_orig).sents
+    if len(s.text.strip()) > 20
+]
+
+def compute_quote_similarity(
+    sent, reference_sents
+):
+    best = 0.0
+    s_lower = sent.lower()
+    for ref in reference_sents:
+        ratio = difflib.SequenceMatcher(
+            None, s_lower, ref.lower()
+        ).ratio()
+        if ratio > best:
+            best = ratio
+    return best
+```
+
+A threshold of 0.6 catches near-exact quotes (accounting for OCR errors), while 0.4 catches looser paraphrases. The `act_quote_sentences_removed` column in the metadata records how many sentences were removed from each document at the 0.6 threshold.
+
+## Exploratory Analysis: TF-IDF
+
+Before applying complex models, it is useful to identify the most distinctive terms in each author's texts using a count-based method. [Term Frequency-Inverse Document Frequency (TF-IDF)](https://en.wikipedia.org/wiki/Tf%E2%80%93idf) assigns high scores to words that are frequent within a document but rare across the corpus, surfacing terms that distinguish one group from another.
+
+```python
+stop_words = set(stopwords.words('english'))
+stop_words.update(
+    {'would', 'may', 'act', 'mr',
+     'sir', 'also', 'upon', 'shall'}
+)
+
 def preprocess_text(text_string):
-    
-    stop_words = set(stopwords.words('english'))
-    
-    custom_additions = {'would', 'may', 'act', 'mr', 'sir', 'also', 'upon', 'shall'}
-    stop_words.update(custom_additions)
-    
-    processed_text = text_string.lower()
-    processed_text = re.sub(r'[^a-z\s]', '', processed_text)
-    
-    tokens = processed_text.split()
-    
-    filtered_tokens = [
-        word for word in tokens 
-        if word not in stop_words and len(word) > 4
+    text = text_string.lower()
+    text = re.sub(r'[^a-z\s]', '', text)
+    tokens = text.split()
+    filtered = [
+        w for w in tokens
+        if w not in stop_words and len(w) > 4
     ]
-    return " ".join(filtered_tokens)
+    return " ".join(filtered)
 ```
 
 ```python
-df['processed_text'] = df['text'].apply(preprocess_text)
-
-df['processed_text'].head(5)
-```
-
-```python
+df['processed_text'] = (
+    df['text'].apply(preprocess_text)
+)
 
 df['group'] = 'Other'
-df.loc[df['author'] == 'Crease', 'group'] = 'Crease'
-df.loc[df['author'] == 'Begbie', 'group'] = 'Begbie'
-df.loc[df['author'] == 'Others', 'group'] = 'Regulation Act'
+df.loc[
+    df['author'] == 'Crease', 'group'
+] = 'Crease'
+df.loc[
+    df['author'] == 'Begbie', 'group'
+] = 'Begbie'
+df.loc[
+    df['author'] == 'Others', 'group'
+] = 'Regulation Act'
 
-vectorizer = TfidfVectorizer(max_features=1000, ngram_range=(1, 3))
-tfidf_matrix = vectorizer.fit_transform(df['processed_text'])
-
+vectorizer = TfidfVectorizer(
+    max_features=1000, ngram_range=(1, 3)
+)
+tfidf_matrix = vectorizer.fit_transform(
+    df['processed_text']
+)
 feature_names = vectorizer.get_feature_names_out()
-tfidf_df = pd.DataFrame(tfidf_matrix.toarray(), columns=feature_names)
-
+tfidf_df = pd.DataFrame(
+    tfidf_matrix.toarray(),
+    columns=feature_names,
+)
 tfidf_df['group'] = df['group'].values
+mean_tfidf = tfidf_df.groupby('group').mean()
 
-mean_tfidf_by_group = tfidf_df.groupby('group').mean()
-
-processed_all = " ".join(df['processed_text'])
-all_vec = vectorizer.transform([processed_all]).toarray().ravel()
-all_series = pd.Series(all_vec, index=feature_names, name='All')
-
-mean_tfidf_by_group = pd.concat([all_series.to_frame().T, mean_tfidf_by_group], axis=0)
-
-list_of_author_dfs = []
-for group_name in ['All', 'Crease', 'Begbie', 'Regulation Act', 'Other']:
-    if group_name not in mean_tfidf_by_group.index:
-        empty_df = pd.DataFrame({group_name: [], f'{group_name}_score': []})
-        list_of_author_dfs.append(empty_df)
-        continue
-
-    top_words = mean_tfidf_by_group.loc[group_name].sort_values(ascending=False).head(10)
-
-    top_words_df = top_words.reset_index()
-    top_words_df.columns = [group_name, f'{group_name}_score']
-
-    list_of_author_dfs.append(top_words_df)
-
-final_wide_df = pd.concat(list_of_author_dfs, axis=1)
-
-final_wide_df
+for group in ['Crease', 'Begbie',
+              'Regulation Act', 'Other']:
+    top = (
+        mean_tfidf.loc[group]
+        .sort_values(ascending=False)
+        .head(10)
+    )
+    print(f"\n--- {group} ---")
+    print(top)
 ```
 
-Undoubtedly, the TF-IDF practice on the corpus has identified some interesting patterns, such as: 
+The TF-IDF results reveal that "Chinese" is prominent across all groups. Crease's writings emphasize "labor" and "taxation", Begbie's emphasize "license", and the Act focuses on "dollars." However, TF-IDF treats each word as an isolated token; it cannot distinguish between "labor" used to describe economic contribution and "labor" used in a regulatory context. To capture such semantic nuances, you need contextual embeddings.
 
-- The emphasis on "Chinese" in all groups. 
-- The emphasis on "labor" in Crease's writings. 
-- The emphasis on "license" in Begbie's writings. 
-- And the emphasis on "dollars" in the Chinese Regulation Act. 
-- Other texts put "Canada" on the top of the list, and "legislation" right after "Chinese".
+## How Text Embeddings Work
 
-However, this approach has limitations, as it does not capture the semantic meaning of words or their relationships to each other. For example, it cannot distinguish between "Chinese" as a noun and "Chinese" as an adjective, or between "labor" as a noun and "labor" as a verb. It also does not consider the context in which words are used, which can lead to misinterpretation of their meaning.
+[Text embeddings](https://en.wikipedia.org/wiki/Word_embedding) represent words or passages as dense numerical vectors in a high-dimensional space (typically 768 dimensions for BERT-family models). Unlike TF-IDF, which counts word occurrences, embedding models like [BERT](https://en.wikipedia.org/wiki/BERT_(language_model)) produce vectors that encode contextual meaning: the same word receives different vectors depending on its surrounding text.
 
-### Embedding Approach
+The basic workflow for generating embeddings is:
 
-With the advancement of machine learning, **[text embeddings](https://en.wikipedia.org/wiki/Word_embedding)** emerged as a more powerful technique for text analysis. It represents words or phrases as dense vectors in a high-dimensional space, capturing semantic relationships between them. This allows for more nuanced understanding of text, enabling tasks like similarity measurement, clustering, and classification.
+1. Tokenize text into subword units that the model recognizes
+2. Pass tokenized text through the model to extract hidden-layer representations
+3. Pool subword vectors to produce a single vector per sentence (the `sentence-transformers` library handles steps 1 through 3 in a single call)
+4. Use [cosine similarity](https://en.wikipedia.org/wiki/Cosine_similarity) to measure how close two vectors are in this space
 
-There are several popular text embedding models, including:
-- **[Word2Vec](https://en.wikipedia.org/wiki/Word2vec)**: A neural network-based model that learns word embeddings by predicting context words given a target word (or vice versa).
-- **[GloVe](https://en.wikipedia.org/wiki/GloVe)**: A global vector representation model that learns word embeddings by factorizing the word co-occurrence matrix.
-- **[FastText](https://en.wikipedia.org/wiki/FastText)**: An extension of Word2Vec that represents words as bags of character n-grams, allowing it to handle out-of-vocabulary words and capture subword information.
-- **[BERT](https://en.wikipedia.org/wiki/BERT_(language_model))**: A [transformer](https://en.wikipedia.org/wiki/Transformer_(deep_learning_architecture))-based model that generates contextualized embeddings by considering the entire sentence context, allowing it to capture word meanings based on their surrounding words.
-
-In this lesson, you will use a BERT-based model to generate text embeddings for the corpus. [The Legal-BERT model](https://huggingface.co/nlpaueb/legal-bert-base-uncased)[^10] is a BERT model pre-trained on English legal texts, including legislation, law cases, and contracts. It is designed to capture the legal language and semantics, making it suitable for this analysis. 
-
-Keep in mind that the model is not perfect and may still have limitations in understanding the nuances of legal language, especially in historical texts. 
-
-## Word Embeddings
-
-This section covers how to generate and work with word embeddings from the corpus using Legal-BERT.
-
-### Creating Word Embeddings
-
-While the model itself has the ability to generate word embeddings that capture the semantic meaning of words, you still need to design a strategy to extract these meanings from the corpus. 
-
-- Load LEGAL-BERT model and tokenizer.
-- Tokenize sentences into smaller subword units using a tokenizer.
-- Process each tokenized sentence through the model to extract hidden layer representations.
-- Combine subword embeddings to form a single vector for each word by averaging the embeddings of its subword components.
-- Aggregate embeddings for repeated words across sentences by averaging their vectors.
-- Return a dictionary mapping each word to its mean embedding, capturing its semantic meaning in the context of the text.
-
-In this way, you can not only generate word embeddings with contextual meanings over the whole corpus, but also aggregate the corpus into different groups and generate contextualized word embeddings for each group.
-
-```python
-#Legal-Bert
-tokenizer = AutoTokenizer.from_pretrained('nlpaueb/legal-bert-base-uncased')
-model = AutoModel.from_pretrained('nlpaueb/legal-bert-base-uncased').eval() 
-
-def embed_words(sentences, tokenizer=tokenizer, model=model, target_words=None,
-                device=None, max_length=512):
-    if device is None:
-        try:
-            device = next(model.parameters()).device
-        except Exception:
-            device = torch.device("cpu")
-    device = torch.device(device)
-    model.to(device).eval()
-
-    target_set = None if target_words is None else set(target_words)
-
-    sums = {}   
-    counts = {} 
-
-    with torch.no_grad():
-        for sent in sentences:
-            enc = tokenizer(
-                sent,
-                return_tensors="pt",
-                truncation=True,
-                max_length=max_length
-            )
-            enc = {k: v.to(device) for k, v in enc.items()}
-            outputs = model(**enc)
-            hidden = outputs.last_hidden_state.squeeze(0)  
-            tokens = tokenizer.convert_ids_to_tokens(enc["input_ids"][0])
-
-            i = 0
-            while i < len(tokens):
-                tok = tokens[i]
-                if tok in ("[CLS]", "[SEP]", "[PAD]"):
-                    i += 1
-                    continue
-
-                j = i + 1
-                piece_embs = [hidden[i]]
-                word = tok[2:] if tok.startswith("##") else tok
-                while j < len(tokens) and tokens[j].startswith("##"):
-                    piece_embs.append(hidden[j])
-                    word += tokens[j][2:]
-                    j += 1
-
-                if target_set is not None and word not in target_set:
-                    i = j
-                    continue
-
-                word_emb = torch.stack(piece_embs, dim=0).mean(dim=0)
-                if word in sums:
-                    sums[word] += word_emb
-                    counts[word] += 1
-                else:
-                    sums[word] = word_emb.clone()
-                    counts[word] = 1
-                i = j
-
-    return {w: (sums[w] / counts[w]).cpu().numpy() for w in sums}
-```
-
-```python
-#Function to clean and preprocess text
-def clean_text(text):
-    
-    text = text.lower()
-    text = re.sub(r'[^\w\s]', '', text)
-    
-    return text.strip()
-```
-
-```python
-warnings.filterwarnings("ignore")
-
-nlp = spacy.load("en_core_web_sm")
-
-grouped_texts = df.groupby('group')['text'].apply(lambda x: ' '.join(x)).reset_index()
-
-grouped_texts = pd.concat(
-    [grouped_texts, pd.DataFrame([{'group': 'All', 'text': ' '.join(df['text'])}])],
-    ignore_index=True
-)
-
-grouped_texts['word_tokens'] = grouped_texts['text'].apply(lambda x: word_tokenize(clean_text(x)))
-
-grouped_texts['sentence_tokens'] = grouped_texts['text'].apply(lambda x: [sent.text for sent in nlp(x).sents])
-
-grouped_texts['sentence_tokens'] = grouped_texts['sentence_tokens'].apply(
-    lambda x: [clean_text(sent) for sent in x]
-)
-```
-
-```python
-# grouped_texts['word_embeddings'] = grouped_texts['sentence_tokens'].apply(
-#     lambda x: embed_words(x)
-#     )
-
-# grouped_texts.to_pickle("data/word_embeddings.pkl")
-```
-
-```python
-grouped_texts['num_unique_words'] = grouped_texts['word_tokens'].apply(lambda x: len(set(x)))
-
-grouped_texts.head()
-```
-
-```python
-grouped_texts = pd.read_pickle("data/word_embeddings.pkl")
-```
-
-The code above created word embeddings of all tokens in each group, respectively. The word embeddings are stored in a dictionary format, where each key is a word and the value is its corresponding embedding vector.
-
-It is clear that the word embeddings of the same word in different groups are different, which reflects the contextualized meaning of the word in each group. 
-
-- For example, the word "Chinese" has a different embedding in Crease's writings compared to Begbie's writings, indicating that the two authors used the word in different contexts and with different connotations.
-- However, since they were embedded using the same model, the word embeddings of the same word in different groups are still similar, which reflects the shared meaning of the word across different contexts.
-- The dimensionality of all word embeddings is 768, which is the size of the hidden layer in the LEGAL-BERT model used here.
-
-```python
-chinese_embedding = grouped_texts[grouped_texts['group'] == 'All']['word_embeddings'].values[0].get('chinese')
-
-print(f"First 20 Dimensions of Word Embedding for 'Chinese' in the Full Corpus:\n {chinese_embedding[:20]}\n")
-print(f"Total Dimensions of Word Embedding for 'Chinese': {len(chinese_embedding)}\n")
-```
-
-```python
-crease_embeddings = grouped_texts[grouped_texts['group'] == 'Crease']['word_embeddings'].values[0]
-
-print(f"First 20 Dimensions of Word Embeddings for 'Chinese' in Crease's Text:\n{crease_embeddings.get('chinese')[:20]}\n") 
-print(f"Total Dimensions of Word Embeddings for 'Chinese' in Crease's Text: {len(crease_embeddings.get('chinese'))}\n")
-```
-
-```python
-begbie_embeddings = grouped_texts[grouped_texts['group'] == 'Begbie']['word_embeddings'].values[0]
-
-print(f"First 20 Dimensions of Word Embeddings for 'Chinese' in Begbie's Text:\n{begbie_embeddings.get('chinese')[:20]}\n")
-print(f"Total Dimensions of Word Embeddings for 'Chinese' in Begbie's Text: {len(begbie_embeddings.get('chinese'))}\n")
-```
-
-### Measurement of Similarity
-
-Another important aspect of word embeddings is the ability to measure the similarity between words based on their embeddings. This can be done using cosine similarity, which calculates the cosine of the angle between two vectors in the embedding space. The cosine similarity ranges from 0 to 1, where:
-
-- 0 indicates no similarity (orthogonal vectors)
-- 1 indicates perfect similarity (identical vectors)
-- The closer the cosine similarity is to 1, the more similar the words are in meaning.
-
-This allows you to identify related words and concepts based on their embeddings, enabling exploration of the semantic relationships between words in the corpus. More importantly, it does not only allow you to measure the similarity between words, but also the similarity between sentences, paragraphs, and even entire documents, as long as they are represented as vectors in the same embedding space.
-
-The math behind cosine similarity is as follows:
 $$
 \text{cosine similarity}(a, b) = \frac{a \cdot b}{||a|| \cdot ||b||}
 $$
-Where $a$ and $b$ are the embedding vectors of the two words, and $||a||$ and $||b||$ are their Pythagorean norms (lengths).
 
-Focusing on the word "Chinese", you can calculate its cosine similarity with other words in the same group to identify related terms. This can help reveal how the word is used in different contexts and how it relates to other concepts. Below, the lesson lists the top 10 most similar words to "Chinese" in each group, along with their cosine similarity scores.
+Cosine similarity ranges from 0 (no similarity) to 1 (identical direction). It applies to word, sentence, or document embeddings as long as they share the same vector space.
 
-**Note**: All words are put into lowercase.
+## Choosing Models for Historical Text
+
+Model selection is a critical decision in any NLP pipeline, especially for historical texts. Two factors matter most: the domain of the training data and the task the model was designed for.
+
+This lesson uses two models, each for a different purpose:
+
+- [Sentence-BERT (all-mpnet-base-v2)](https://huggingface.co/sentence-transformers/all-mpnet-base-v2) for generating text embeddings. This model was trained on over one billion sentence pairs using a contrastive learning objective, producing 768-dimensional vectors optimized for semantic similarity tasks. Unlike domain-specific models such as Legal-BERT, which was pre-trained on modern EU and US legal text, Sentence-BERT's broad training data (drawn from diverse internet sources) gives it robust general-purpose representations. For historical legal texts, this breadth is an advantage: the corpus mixes legal terminology with political and economic language that a narrow legal model may underrepresent. The `sentence-transformers` library also provides a simpler API than manually tokenizing and pooling hidden states from a base BERT model.
+
+- [DeBERTa NLI (v2.0)](https://huggingface.co/MoritzLaurer/deberta-v3-large-zeroshot-v2.0) for zero-shot classification. This model was fine-tuned on multiple natural language inference datasets (MultiNLI, FEVER, ANLI, LingNLI, and additional synthetic data), achieving state-of-the-art performance on zero-shot classification benchmarks. It uses disentangled attention that better captures word-position relationships, which is useful for the complex syntax of legal texts. The v2.0 release adds improved calibration over its predecessor, producing more balanced probability distributions across candidate labels.
+
+When choosing models for your own historical corpus, consider:
+
+- Does the model's training data overlap with your domain? A general-purpose model may lack specialized vocabulary, while a domain-specific model trained on modern legal text may not understand nineteenth-century usage of terms like "alien."
+- Is the model designed for your task? Use sentence embedding models for similarity comparisons and NLI-fine-tuned models for zero-shot classification.
+- Test with known examples. Pass excerpts where you already know the expected result and check whether the model's output aligns with your domain knowledge.
+
+### The Lexicon Mismatch Problem
+
+A fundamental challenge in applying modern NLP to historical texts is that language evolves. The word "alien" in an 1885 Canadian statute means "foreign-born person"; in modern training data it may carry science-fiction connotations. Legal terms like "Chinaman" appear frequently in the corpus but are absent or carry different weight in modern training data.
+
+OCR errors compound this problem. Historical scans may produce garbled tokens that fall outside the model's vocabulary entirely. When this happens, the model relies on subword tokenization to approximate meaning, which can introduce noise.
+
+There is no complete solution to this mismatch. The practical approach is to:
+
+- Verify that key terms in your corpus appear in the model's vocabulary
+- Compare model outputs against passages where the expected stance is clear
+- Treat all computational results as hypotheses that require human validation, not as conclusions
+
+## Generating Stance Embeddings
+
+With the models chosen, you can now generate embeddings that capture how each author discusses Chinese immigration. The strategy is to extract sentences containing immigration-related keywords, then embed each sentence using Sentence-BERT.
 
 ```python
-# Compute top-10 most similar words to target for EVERY group (including "All")
-target = "chinese"
-top_n = 10
-all_results = []
-for _, grp_row in grouped_texts.iterrows():
-    group = grp_row['group']
-    emb_dict = grp_row['word_embeddings']
-    if target not in emb_dict:
-        continue
-    target_vec = emb_dict[target]
-    sims = []
-    for w, vec in emb_dict.items():
-        if w == target:
-            continue
-        try:
-            sim = 1 - cosine(target_vec, vec)
-        except Exception:
-            continue
-        sims.append((w, sim))
-    sims_sorted = sorted(sims, key=lambda x: x[1], reverse=True)[:top_n]
-    for rank, (w, sim) in enumerate(sims_sorted, 1):
-        all_results.append({'group': group, 'rank': rank, 'word': w, 'similarity': sim})  # Use :4f for better readability
-
-similar_words_df = pd.DataFrame(all_results)
-
-sims_wide = similar_words_df.pivot(index='rank', columns='group', values='similarity')
-words_wide = similar_words_df.pivot(index='rank', columns='group', values='word')
-
-wide_combined = pd.concat({'word': words_wide, 'similarity': sims_wide}, axis=1)
-wide_combined = (
-    wide_combined.swaplevel(0,1, axis=1)
-                 .sort_index(axis=1, level=0)
+embed_model = SentenceTransformer(
+    'sentence-transformers/all-mpnet-base-v2'
 )
-
-wide_combined  # Display
-```
-
-## Embedding-Driven Text Analysis
-
-Building on the word embeddings from the previous section, the analysis now turns to capturing each text's stance on specific issues.
-
-### Creating Keyword-Focused Stance Embeddings
-
-In comparison to generating word embeddings, modeling stance of each text is more challenging, as it requires capturing the author's position on a specific issue or topic. Oftentimes, the stance is not explicitly stated in the text, but rather implied through the language used. 
-
-There is not a universal optimum for stance modeling, as it depends on the specific context and the author's perspective. However, you can use a combination of techniques to create focused embeddings that capture the stance of each text. The strategy used here is as follows:
-
-1. Tokenize the text into smaller units and identify the positions of specific keywords or phrases that are relevant to the stance being analyzed.
-2. For each occurrence of the keywords, extract a surrounding "window" of text to capture the context in which the keywords are used.
-3. Represent the text in the window as numerical vectors using a pre-trained language model, which encodes the meaning of the words and their relationships.
-4. Combine the vectors within each window using a pooling method (e.g., averaging or selecting the maximum value) to create a single representation for the context around the keyword.
-5. If multiple occurrences of the keywords are found, average their representations to create a unified vector that captures the overall stance in the text.
-6. If no keywords are found, use a fallback representation based on the overall text.
-
-This approach allows you to create focused embeddings that capture the stance of each text focusing on specific keywords or phrases. The sentence is used as the basic unit of analysis here, but larger chunks of text can also be used if needed. 
-
-In the end, the lists of embeddings are stored in a dictionary format, where each key is the author and the value is a list of embeddings for each text authored by that author.
-
-```python
-def embed_text(
-    text,
-    focus_token=None,
-    window=10,
-    pooling="mean", 
-    tokenizer=tokenizer,
-    model=model):
-
-    stop_words = set(stopwords.words('english'))
-    
-    inputs = tokenizer(text, return_tensors="pt", truncation=True)
-    with torch.no_grad():
-        outputs = model(**inputs)
-    hidden = outputs.last_hidden_state.squeeze(0) 
-
-    if focus_token is None:
-        return hidden[0].cpu().numpy()
-    
-    keywords = (
-        [focus_token] if isinstance(focus_token, str)
-        else focus_token
-    )
-
-    kw_token_ids = {
-        kw: tokenizer.convert_tokens_to_ids(tokenizer.tokenize(kw))
-        for kw in keywords
-    }
-
-    input_ids = inputs["input_ids"].squeeze(0).tolist()
-    tokens = tokenizer.convert_ids_to_tokens(input_ids)
-    spans = []  
-
-    for kw, sub_ids in kw_token_ids.items():
-        L = len(sub_ids)
-        for i in range(len(input_ids) - L + 1):
-            if input_ids[i:i+L] == sub_ids:
-                spans.append((i, i+L))
-
-    if not spans:
-        return hidden[0].cpu().numpy()
-
-    vecs = []
-    for (start, end) in spans:
-        lo = max(1, start - window)
-        hi = min(hidden.size(0), end + window)
-        
-        non_stop_indices = [i for i in range(lo, hi) 
-                           if tokens[i] not in stop_words and not tokens[i].startswith('##')]
-        
-        if not non_stop_indices:
-            span_vec = hidden[lo:hi]
-        else:
-            span_vec = hidden[non_stop_indices]
-        
-        if pooling == "mean":
-            pooled = span_vec.mean(dim=0)
-        elif pooling == "max":
-            pooled = span_vec.max(dim=0).values
-        elif pooling == "min":
-            pooled = span_vec.min(dim=0).values
-        else:
-            raise ValueError(f"Unknown pooling method: {pooling}")
-        
-        vecs.append(pooled.cpu().numpy())
-
-    return np.mean(np.stack(vecs, axis=0), axis=0)
+print(
+    "Embedding dimension:",
+    embed_model
+    .get_sentence_embedding_dimension(),
+)
 ```
 
 ```python
-crease_cases = df[(df['author'] == 'Crease') & (df['type'] == 'case')]['text'].tolist()
-begbie_cases = df[(df['author'] == 'Begbie') & (df['type'] == 'case')]['text'].tolist()
-act_1884 = df[df['type'] == 'act']['text'].tolist()
+nlp = spacy.load("en_core_web_sm")
+warnings.filterwarnings("ignore")
+```
+
+The `SentenceTransformer` model handles tokenization, hidden-state extraction, and pooling in a single call, producing a 768-dimensional vector per input sentence. This is simpler and more robust than manually extracting and averaging hidden states from a base BERT model.
+
+Now extract sentences mentioning Chinese immigration keywords and separate them by author:
+
+```python
+crease_cases = df[
+    (df['author'] == 'Crease')
+    & (df['type'] == 'case')
+]['text'].tolist()
+begbie_cases = df[
+    (df['author'] == 'Begbie')
+    & (df['type'] == 'case')
+]['text'].tolist()
+act_1884 = df[
+    df['type'] == 'act'
+]['text'].tolist()
 
 act_dict = {
     'Crease': crease_cases,
     'Begbie': begbie_cases,
-    'Act 1884': act_1884}
-```
+    'Act 1884': act_1884,
+}
 
-```python
+keywords = [
+    "Chinese", "China", "Chinaman",
+    "Chinamen", "immigrant", "immigrants",
+    "alien", "aliens", "immigration",
+]
+
 act_snippets = {}
-
-keywords = ["Chinese", "China", "Chinaman", "Chinamen", 
-            "immigrant", "immigrants", "alien", "aliens", 
-            "immigration"]
-
 for auth, texts in act_dict.items():
     snippets = []
     for txt in texts:
-        # Sentence tokenize using Spacy
-        sentence = [sent.text for sent in nlp(txt).sents]
-        for sent in sentence:
-            if any(keyword in sent for keyword in keywords):
-                snippets.append(sent)
+        sents = [s.text for s in nlp(txt).sents]
+        for s in sents:
+            if any(kw in s for kw in keywords):
+                snippets.append(s)
     act_snippets[auth] = snippets
+
+for auth, snips in act_snippets.items():
+    print(f"{auth}: {len(snips)} snippets")
 ```
 
-```python
-n_snippet = {auth: len(snippets) for auth, snippets in act_snippets.items()}
-
-print("Snippet size by author:")
-for auth, num in n_snippet.items():
-    print(f"{auth}: {num}")
-```
+Embedding all snippets takes a few seconds with Sentence-BERT. Pre-computed embeddings are also provided in `case_snippet_embeddings.npz`:
 
 ```python
-# embeddings_dict = {'Crease': [], 'Begbie': [], 'Act 1884': []}
-
-# for auth, snippets in act_snippets.items():
-#     for snip in snippets:
-#         v = embed_text(snip, focus_token=keywords, window=15)
-#         embeddings_dict[auth].append(v) 
-
-# # Save the embeddings dictionary to a pickle file
-# with open("data/case_snippet_embeddings.pkl", "wb") as f:
-#     pickle.dump(embeddings_dict, f)
-```
-
-```python
-with open("data/case_snippet_embeddings.pkl", "rb") as f:
-    embeddings_dict = pickle.load(f)
+with np.load(
+    "data/case_snippet_embeddings.npz",
+    allow_pickle=True,
+) as data:
+    embeddings_dict = {
+        k: list(data[k]) for k in data.files
+    }
 ```
 
 ### Measuring Stance Similarity
 
-Just like word embeddings, cosine similarity can also be used to measure the stance similarity between texts. The interpretation of cosine similarity in this context is similar to that of word embeddings, where a higher cosine similarity indicates a stronger alignment in stance between two texts.
-
-With the sentence as the basic unit of analysis, you can calculate the overall cosine similarity between each pair of authors' texts in various ways. This lesson focuses on two of them:
-1. **Mean Embeddings**: Calculate the mean embedding for each author's texts and then compute the cosine similarity between these mean embeddings. This gives a single similarity score for each pair of authors, reflecting their overall stance alignment.
-2. **Pairwise Embeddings**: Calculate the cosine similarity between each pair of texts authored by different authors, then average the scores to get a more comprehensive view of stance alignment across all texts.
-
-Note that similarity scores are not deterministic, as they depend on the specific texts and the context in which the keywords are used. However, they can provide valuable insights into the stance of each author and how it relates to other authors' positions. This reinforces the idea that **stance is not a fixed attribute**, but rather a dynamic and context-dependent aspect of language.
+With embeddings in hand, you can compute the mean embedding for each author and measure cosine similarity between them. Higher similarity indicates that two authors discuss Chinese immigration in more semantically similar ways.
 
 ```python
-mean_crease = np.mean(embeddings_dict["Crease"], axis=0, keepdims=True)
-mean_begbie = np.mean(embeddings_dict["Begbie"], axis=0, keepdims=True)
-mean_act_1884 = np.mean(embeddings_dict["Act 1884"], axis=0, keepdims=True)
+mean_crease = np.mean(
+    embeddings_dict["Crease"], axis=0,
+    keepdims=True,
+)
+mean_begbie = np.mean(
+    embeddings_dict["Begbie"], axis=0,
+    keepdims=True,
+)
+mean_act = np.mean(
+    embeddings_dict["Act 1884"], axis=0,
+    keepdims=True,
+)
 
-sim_crease_begbie = cosine_similarity(mean_crease, mean_begbie)[0, 0]
-sim_crease_act_1884 = cosine_similarity(mean_crease, mean_act_1884)[0, 0]
-sim_begbie_act_1884 = cosine_similarity(mean_begbie, mean_act_1884)[0, 0]
-
-print(f"Cosine similarity between mean Crease and mean Begbie: {sim_crease_begbie:.4f}")
-print(f"Cosine similarity between mean Crease and mean Act 1884: {sim_crease_act_1884:.4f}")
-print(f"Cosine similarity between mean Begbie and mean Act 1884: {sim_begbie_act_1884:.4f}")
+pairs = [
+    ("Crease", "Begbie", mean_crease, mean_begbie),
+    ("Crease", "Act 1884", mean_crease, mean_act),
+    ("Begbie", "Act 1884", mean_begbie, mean_act),
+]
+for a, b, va, vb in pairs:
+    sim = cosine_similarity(va, vb)[0, 0]
+    print(f"Cosine sim ({a} vs {b}): {sim:.4f}")
 ```
 
-```python
-crease_embeddings = embeddings_dict["Crease"]
-begbie_embeddings = embeddings_dict["Begbie"]
-act_1884_embeddings = embeddings_dict["Act 1884"]
+### Visualizing Embeddings with UMAP
 
-def mean_cosine_similarity(embeddings1, embeddings2):
-    similarities = [
-        1 - cosine(e1, e2)
-        for e1 in embeddings1
-        for e2 in embeddings2
-    ]
-    return sum(similarities) / len(similarities)
-
-crease_emb = embeddings_dict["Crease"]
-begbie_emb = embeddings_dict["Begbie"]
-act_1884_emb = embeddings_dict["Act 1884"]
-
-crease_begbie_sim = mean_cosine_similarity(crease_emb, begbie_emb)
-crease_act_sim = mean_cosine_similarity(crease_emb, act_1884_emb)
-begbie_act_sim = mean_cosine_similarity(begbie_emb, act_1884_emb)
-
-print(f"Mean cosine similarity between Crease and Begbie embeddings: {crease_begbie_sim:.4f}")
-print(f"Mean cosine similarity between Crease and Act 1884 embeddings: {crease_act_sim:.4f}")
-print(f"Mean cosine similarity between Begbie and Act 1884 embeddings: {begbie_act_sim:.4f}")
-```
-
-### Visualizing Text Embeddings
-
-While the embeddings themselves are high-dimensional vectors (in this case, 768-dimensional), you can visualize them in a lower-dimensional space (e.g., 2D or 3D) using **[dimensionality reduction](https://en.wikipedia.org/wiki/Dimensionality_reduction)** techniques such as **UMAP** (Uniform Manifold Approximation and Projection). 
-
-**UMAP** is a dimensionality reduction technique that projects high-dimensional embeddings into a 2D space while preserving local structure, making it ideal for visualizing these embeddings. 
-
-Using **Plotly Express**, the code creates an interactive scatter plot where each point represents a text snippet, colored by author, with hover functionality to display the corresponding sentence. This visualization highlights clusters and relationships between snippets, offering insights into semantic similarities across authors.
+[UMAP](https://en.wikipedia.org/wiki/Nonlinear_dimensionality_reduction#Uniform_manifold_approximation_and_projection) (Uniform Manifold Approximation and Projection) is a [dimensionality reduction](https://en.wikipedia.org/wiki/Dimensionality_reduction) technique that projects high-dimensional vectors into 2D while preserving local structure. This allows you to visually inspect whether different authors' texts cluster together or apart.
 
 ```python
-all_vecs = np.vstack(embeddings_dict["Crease"] + embeddings_dict["Begbie"] + embeddings_dict["Act 1884"])
-labels  = (["Crease"] * len(embeddings_dict["Crease"])) + (["Begbie"] * len(embeddings_dict["Begbie"])) + (['Act 1884'] * len(embeddings_dict["Act 1884"]))
+all_vecs = np.vstack(
+    embeddings_dict["Crease"]
+    + embeddings_dict["Begbie"]
+    + embeddings_dict["Act 1884"]
+)
+labels = (
+    ["Crease"] * len(embeddings_dict["Crease"])
+    + ["Begbie"] * len(embeddings_dict["Begbie"])
+    + ["Act 1884"]
+    * len(embeddings_dict["Act 1884"])
+)
 
-reducer = umap.UMAP(n_neighbors=15, min_dist=0.1, random_state=42)
-proj = reducer.fit_transform(all_vecs) 
+reducer = umap.UMAP(
+    n_neighbors=15,
+    min_dist=0.1,
+    random_state=42,
+)
+proj = reducer.fit_transform(all_vecs)
 
-def wrap_text(text, width=60):
-    return '<br>'.join(textwrap.wrap(text, width=width))
-```
-
-```python
-pio.renderers.default = "plotly_mimetype+notebook_connected"
-
-umap_df = pd.DataFrame(proj, columns=['UMAP 1', 'UMAP 2'])
-umap_df['Author'] = labels
-umap_df['Text'] = [snip for auth in act_snippets for snip in act_snippets[auth]]
-umap_df['Text'] = umap_df['Text'].apply(lambda t: wrap_text(t, width=60))
-
-fig = px.scatter(umap_df, x='UMAP 1', y='UMAP 2', 
-                 color='Author', hover_data=['Text'], 
-                 width=800, height=500 )
-fig.update_traces(marker=dict(size=5))
-fig.update_layout(title='UMAP Projection of Stance Embeddings by Author')
-fig.show()
-```
-
-### Investigating Texts
-
-The stance embeddings ultimately serve as analytical tools to support the text analysis objectives. 
-
-- By calculating the "conceptual mean stance" for each author, you gain a quantitative basis for comparing the positions of different authors. 
-- However, embeddings alone cannot fully capture the nuances of language or the complexity of an author's stance. To truly understand the perspectives reflected in the texts, it is essential to investigate the sentences that are most similar to the conceptual average position of each author.
-
-Below, the lesson examines the top 10 sentences with the highest stance similarity to the mean stance of each author. 
-
-This approach allows you to delve deeper into the texts, uncovering how the language used aligns with the calculated average stance and providing richer insights into the authors' positions on the issue of Chinese immigrants.
-
-```python
-#Find the 10 most similar embedding sentences to Crease's mean embedding
-
-crease_similarity_df = pd.DataFrame(columns=['Author', 'Text', 'Similarity Score'])
-
-for auth, snippets in act_snippets.items():
-    for snippet, emb in zip(snippets, embeddings_dict[auth]):
-        similarity = cosine_similarity(emb.reshape(1, -1), mean_crease)[0][0]
-        crease_similarity_df.loc[len(crease_similarity_df)] = [auth, snippet, similarity]
-        
-crease_sorted_similarity = crease_similarity_df.sort_values(by='Similarity Score', ascending=False)
-
-print("Top 10 most similar sentences to Crease's mean embedding:\n")
-for _, row in crease_sorted_similarity.head(10).iterrows():
-    wrapped_para = textwrap.fill(row['Text'], width=100)
-    print(f"Author: {row['Author']}\nSentence: {wrapped_para}\nSimilarity Score: {row['Similarity Score']:.4f}\n")
-```
-
-```python
-# Find the 10 most similar embedding sentences to Begbie's mean embedding
-
-begbie_similarity_df = pd.DataFrame(columns=['Author', 'Text', 'Similarity Score'])
-
-for auth, snippets in act_snippets.items():
-    for snippet, emb in zip(snippets, embeddings_dict[auth]):
-        similarity = cosine_similarity(emb.reshape(1, -1), mean_begbie)[0][0]
-        begbie_similarity_df.loc[len(begbie_similarity_df)] = [auth, snippet, similarity]
-        
-begbie_sorted_similarity = begbie_similarity_df.sort_values(by='Similarity Score', ascending=False)
-
-print("Top 10 most similar sentences to Begbie's mean embedding:\n")
-for _, row in begbie_sorted_similarity.head(10).iterrows():
-    wrapped_para = textwrap.fill(row['Text'], width=100)
-    print(f"Author: {row['Author']}\nSentence: {wrapped_para}\nSimilarity Score: {row['Similarity Score']:.4f}\n")
-```
-
-```python
-regulation_similarity_df = pd.DataFrame(columns=['Author', 'Text', 'Similarity Score'])
-
-for auth, snippets in act_snippets.items():
-    for snippet, emb in zip(snippets, embeddings_dict[auth]):
-        similarity = cosine_similarity(emb.reshape(1, -1), mean_act_1884)[0][0]
-        regulation_similarity_df.loc[len(regulation_similarity_df)] = [auth, snippet, similarity]
-        
-regulation_sorted_similarity = regulation_similarity_df.sort_values(by='Similarity Score', ascending=False)
-
-print("Top 10 most similar sentences to the Regulation Act's mean embedding:\n")
-for _, row in regulation_sorted_similarity.head(10).iterrows():
-    wrapped_para = textwrap.fill(row['Text'], width=100)
-    print(f"Author: {row['Author']}\nSentence: {wrapped_para}\nSimilarity Score: {row['Similarity Score']:.4f}\n")
-```
-
-## Topic Modeling and Alignment Analysis
-
-Before proceeding, here is a summary of the TF-IDF results computed earlier, which will serve as the basis for identifying key terms to anchor the topic analysis.
-
-```python
-final_wide_df
-```
-
-In the TF-IDF analysis, the word "Chinese" was a prominent term across all groups, indicating its centrality to the discussions in all texts. Following "Chinese", you may notice that "labor", "white", "legislation", and "taxation" were all significant terms reflected in all texts. This raises the question: **How do these topics relate to each other, and how do they align with the stances of different authors?**
-
-In natural language processing, **topic modeling** is a technique used to identify and extract topics from a collection of documents. It involves analyzing the words and phrases in the text to identify patterns and themes that can be grouped together into topics. Oftentimes, topic modeling is performed using unsupervised learning algorithms such as [Latent Dirichlet Allocation (LDA)](https://en.wikipedia.org/wiki/Latent_Dirichlet_allocation). However, these methods may not be suitable for this corpus, as they require a large amount of text data and may not capture the nuances of legal language.
-
-Therefore, the lesson uses a different approach to explore the topics in the corpus, leveraging the word embeddings already generated. The strategy is as follows:
-
-1. **Identify Key Terms**: Focus on the key terms identified in the TF-IDF analysis, such as "Chinese", "labor", "white", "legislation", and "taxation". These terms serve as anchors for the topic analysis.
-2. **Calculate cosine similarity**: For each key term, calculate its cosine similarity with other words in the same group to identify related terms. This helps reveal how the key terms are used in different contexts and how they relate to other concepts.
-3. **Aggregate Related Terms**: Aggregate the related terms for each key term to form a topic. This allows identification of the main topics discussed in each group and how they align with the stances of different authors.
-4. **Analyze Topic Alignment**: Analyze the alignment of the identified topics with the stances of different authors. This helps reveal how the topics reflect the authors' positions on the issue of Chinese immigrants.
-
-
-```python
-target_words = ["labor", "legislation", "license", "taxation"]
-
-all_emb = grouped_texts.loc[grouped_texts['group'] == 'All', 'word_embeddings'].values
-if len(all_emb) == 0:
-    raise ValueError("No 'All' group found in grouped_texts")
-all_emb = all_emb[0]
-
-top_n = 10
-results = {}
-
-for target in target_words:
-    target_vec = all_emb.get(target)
-    if target_vec is None:
-        results[target] = [np.nan] * top_n
-        continue
-
-    sims = []
-    for w, vec in all_emb.items():
-        if w == target:
-            continue
-        try:
-            sim = 1 - cosine(target_vec, vec)
-        except Exception:
-            continue
-        sims.append((w, sim))
-
-    sims_sorted = sorted(sims, key=lambda x: x[1], reverse=True)[:top_n]
-    results[target] = [w for w, _ in sims_sorted]
-
-similar_words_df = pd.DataFrame(results)
-similar_words_df
-```
-
-```python
-def create_anchor(topic, similar_df=similar_words_df, top_n=10):
-
-    t = topic
-
-    similar_words = similar_df[t].astype(str).tolist()[:top_n]
-    words = [t] + [w.lower() for w in similar_words]
-
-    seen = set()
-    uniq_words = []
-    for w in words:
-        if w not in seen:
-            seen.add(w)
-            uniq_words.append(w)
-
-    vecs = []
-    for w in uniq_words:
-        emb = embed_text(w)  
-        vecs.append(emb)
-
-    return np.mean(np.stack(vecs, axis=0), axis=0)
-```
-
-```python
-labor_anchor = create_anchor("labor")
-legislation_anchor = create_anchor("legislation")
-license_anchor = create_anchor("license")
-taxation_anchor = create_anchor("taxation")
-
-anchors_df = pd.DataFrame({
-    'Topic': ['labor', 'legislation', 'license', 'taxation'],
-    'Anchor Vector': [labor_anchor, legislation_anchor, license_anchor, taxation_anchor]
-})
-
-anchors_df
-```
-
-```python
-# Calculate the cosine similarity between each anchor and the mean embeddings of Crease, Begbie, and the Act 1884
-def calculate_similarity(anchor, embeddings):
-    return cosine_similarity(anchor.reshape(1, -1), embeddings).flatten()
-
-similarity_scores = {
-    'Author': [],
-    'Topic': [],
-    'Text': [],
-    'Similarity Score': []
+color_map = {
+    "Crease": "#1f77b4",
+    "Begbie": "#d62728",
+    "Act 1884": "#2ca02c",
 }
-
-for topic in anchors_df['Topic']:
-    anchor_vector = anchors_df.loc[anchors_df['Topic'] == topic, 'Anchor Vector'].values[0]
-
-    for author in ['Crease', 'Begbie', 'Act 1884']:
-        emb_list = embeddings_dict.get(author, [])
-        texts = act_snippets.get(author, [])
-
-        if len(emb_list) == 0:
-            continue
-
-        embeddings = np.vstack(emb_list)
-        sim_scores = calculate_similarity(anchor_vector, embeddings)
-
-        for idx, score in enumerate(sim_scores):
-            similarity_scores['Author'].append(author)
-            similarity_scores['Topic'].append(topic)
-            similarity_scores['Text'].append(texts[idx] if idx < len(texts) else "")
-            similarity_scores['Similarity Score'].append(float(score))
-
-similarity_df = pd.DataFrame(similarity_scores)
-```
-
-```python
-preferred_order = ['Crease', 'Begbie', 'Act 1884']
-authors = [a for a in preferred_order if a in similarity_df['Author'].unique()]
-topics = list(similarity_df['Topic'].unique())[:4] 
-
-author_palette = sns.color_palette("colorblind", n_colors=len(authors))
-
-sns.set(style="whitegrid", context="notebook")
-fig, axes = plt.subplots(2, 2, figsize=(8, 6), sharey=False)
-
-for i in range(4):
-    ax = axes.flat[i]
-    if i < len(topics):
-        topic = topics[i]
-        df_t = similarity_df[similarity_df['Topic'] == topic]
-
-        # draw boxplot
-        sns.boxplot(
-            data=df_t,
-            x='Author',
-            y='Similarity Score',
-            order=authors,
-            palette=author_palette,
-            width=0.6,
-            fliersize=0,
-            ax=ax,
-            boxprops=dict(linewidth=0.9),
-            medianprops=dict(linewidth=1.1, color='black'),
-            whiskerprops=dict(linewidth=0.9),
-            capprops=dict(linewidth=0.9)
-        )
-
-        means = df_t.groupby('Author')['Similarity Score'].mean().reindex(authors)
-        x_positions = list(range(len(authors)))
-        ax.scatter(x_positions, means.values, marker='D', s=60,
-                   facecolors='white', edgecolors='black', zorder=10)
-
-        vals = df_t['Similarity Score'].dropna()
-        if len(vals) == 0:
-            ymin, ymax = -1.0, 1.0
-        else:
-            q1 = vals.quantile(0.25)
-            q3 = vals.quantile(0.75)
-            iqr = q3 - q1
-            if iqr == 0:
-                whisker_low = float(vals.min())
-                whisker_high = float(vals.max())
-            else:
-                whisker_low = float(q1 - 1.5 * iqr)
-                whisker_high = float(q3 + 1.5 * iqr)
-
-            span = max(whisker_high - whisker_low, 1e-6)
-            pad = max(span * 0.08, 0.03)
-            ymin = max(-1.0, whisker_low - pad)
-            ymax = min(1.0, whisker_high + pad)
-            if ymin >= ymax:
-                mid = float(vals.median())
-                ymin = max(-1.0, mid - 0.05)
-                ymax = min(1.0, mid + 0.05)
-
-        ax.set_ylim(ymin, ymax)
-
-        ax.set_title(f"Topic: {topic}", fontsize=12, weight='semibold')
-        ax.set_xlabel('')
-        ax.set_ylabel('Cosine Similarity' if i % 2 == 0 else '')
-        ax.axhline(0.0, color='grey', linestyle='--', linewidth=0.8, alpha=0.6)
-        ax.tick_params(axis='x', rotation=0, labelsize=10)
-        ax.tick_params(axis='y', labelsize=9)
-        for spine in ax.spines.values():
-            spine.set_linewidth(0.8)
-        sns.despine(ax=ax, trim=True, left=False, bottom=False)
-    else:
-        ax.set_visible(False)
-
-legend_handles = [Patch(facecolor=author_palette[idx], label=authors[idx]) for idx in range(len(authors))]
-fig.legend(handles=legend_handles, title='Author', loc='upper right', frameon=True)
-
-plt.tight_layout(rect=[0, 0, 0.95, 0.96])
-fig.suptitle('Topic Similarity by Author\n(Mean Labeled by Diamond)', fontsize=14, y=0.99)
+fig, ax = plt.subplots(figsize=(8, 5))
+for author, color in color_map.items():
+    mask = [lb == author for lb in labels]
+    ax.scatter(
+        proj[mask, 0], proj[mask, 1],
+        c=color, label=author,
+        s=15, alpha=0.8,
+    )
+ax.set_xlabel("UMAP 1")
+ax.set_ylabel("UMAP 2")
+ax.set_title(
+    "UMAP Projection of Stance Embeddings"
+)
+ax.legend()
+plt.tight_layout()
+plt.savefig(
+    "data/umap-projection-stance.png",
+    dpi=150,
+)
 plt.show()
 ```
 
+{% include figure.html filename="data/natural-language-inference-historical-text-01.png" alt="A 2D UMAP projection scatter plot showing legal text embeddings colored by author: Crease (blue), Begbie (red), and Act 1884 (green)" caption="Figure 1: UMAP projection of stance embeddings by author. Crease and Begbie snippets partially overlap, while the Act forms a more distinct cluster." %}
+
+### Investigating Key Sentences
+
+Embeddings provide a quantitative summary, but you should ground those numbers in the actual text. The function below retrieves the sentences most similar to a given author's mean embedding, letting you verify what the model considers representative.
+
+```python
+def top_similar_sentences(
+    mean_emb, label, n=10
+):
+    rows = []
+    for auth, snippets in act_snippets.items():
+        for snippet, emb in zip(
+            snippets, embeddings_dict[auth]
+        ):
+            sim = cosine_similarity(
+                emb.reshape(1, -1), mean_emb
+            )[0][0]
+            rows.append([auth, snippet, sim])
+    result = pd.DataFrame(
+        rows,
+        columns=["Author", "Text", "Similarity"],
+    )
+    result = result.sort_values(
+        "Similarity", ascending=False
+    )
+    print(
+        f"Top {n} sentences closest to"
+        f" {label}'s mean embedding:\n"
+    )
+    for _, row in result.head(n).iterrows():
+        txt = textwrap.fill(
+            row["Text"], width=78
+        )
+        print(
+            f"Author: {row['Author']}\n"
+            f"Text: {txt}\n"
+            f"Similarity: "
+            f"{row['Similarity']:.4f}\n"
+        )
+```
+
+```python
+top_similar_sentences(mean_crease, "Crease")
+```
+
+```python
+top_similar_sentences(mean_begbie, "Begbie")
+```
+
+```python
+top_similar_sentences(mean_act, "Act 1884")
+```
+
+## Topic Alignment Analysis
+
+The TF-IDF analysis identified key themes: "labor", "legislation", "license", and "taxation." You can now measure how closely each author's sentences align with these topics by creating topic anchor vectors from descriptive phrases and computing cosine similarity against each snippet embedding.
+
+Rather than building anchors from individual word embeddings (which discard phrasal context), you define each topic with a short descriptive sentence and embed it directly with the same Sentence-BERT model used for the snippets. This produces anchors in the same vector space, making the similarity scores directly comparable.
+
+```python
+topic_descriptions = {
+    "labor": (
+        "Labor, employment, workers,"
+        " workforce, economic contribution"
+        " of laborers"
+    ),
+    "legislation": (
+        "Legislation, laws, statutes,"
+        " legal enactment, parliamentary"
+        " authority"
+    ),
+    "license": (
+        "License, permit, fee,"
+        " registration, business regulation"
+    ),
+    "taxation": (
+        "Taxation, tax, revenue, duty,"
+        " tariff, fiscal policy"
+    ),
+}
+
+topic_anchors = {
+    topic: embed_model.encode(desc)
+    for topic, desc in topic_descriptions.items()
+}
+```
+
+```python
+similarity_scores = []
+for topic, anchor in topic_anchors.items():
+    for author in ['Crease', 'Begbie',
+                    'Act 1884']:
+        emb_list = embeddings_dict.get(
+            author, []
+        )
+        texts = act_snippets.get(author, [])
+        if not emb_list:
+            continue
+        sims = cosine_similarity(
+            anchor.reshape(1, -1),
+            np.vstack(emb_list),
+        ).flatten()
+        for idx, score in enumerate(sims):
+            similarity_scores.append({
+                'Author': author,
+                'Topic': topic,
+                'Text': (
+                    texts[idx]
+                    if idx < len(texts)
+                    else ""
+                ),
+                'Similarity Score': float(score),
+            })
+
+similarity_df = pd.DataFrame(
+    similarity_scores
+)
+```
+
+{% include figure.html filename="data/natural-language-inference-historical-text-02.png" alt="Four box plots showing cosine similarity to topic anchors (labor, legislation, license, taxation) by author, with diamond markers for means" caption="Figure 2: Topic similarity distributions by author. Crease shows higher alignment with labor and taxation topics, while Begbie aligns more with license." %}
+
 ## Zero-Shot Classification
 
-Another powerful technique for text analysis is **[zero-shot classification](https://huggingface.co/tasks/zero-shot-classification)**, which allows you to classify text into predefined categories without requiring labeled training data, with the help of large language models (LLMs). This approach is particularly useful when there is a limited amount of labeled data or when the categories are not well-defined.
+Zero-shot classification is the core analytical technique of this lesson. It uses a [natural language inference](https://en.wikipedia.org/wiki/Textual_entailment) model to classify text into categories defined at inference time, requiring no labeled training data. This is particularly valuable for historical research, where labeled datasets rarely exist.
 
-In addition to classifying text into specific categories, zero-shot classification can also evaluate the stance of a text towards a particular issue or topic by **calculating the probability of the text belonging to each category**. The calculated probabilities will sum to 1 and they can be interpreted as the model's confidence in each category. In this lesson, the focus is on the second aspect, which allows you to assess the stance of each text. 
+### How Zero-Shot NLI Works
 
-The lesson uses the [Hugging Face](https://en.wikipedia.org/wiki/Hugging_Face) Transformers library to implement zero-shot classification using [the DeBERTa-based NLI model](https://huggingface.co/MoritzLaurer/DeBERTa-v3-large-mnli-fever-anli-ling-wanli), a pre-trained DeBERTa-based natural language inference model fine-tuned on multiple NLI datasets including MultiNLI, FEVER, ANLI, and LingNLI. The model classifies text by evaluating hypothesis-premise pairs, learning to determine whether a given hypothesis is entailed by, contradicts, or is neutral with respect to a premise. This allows the model to classify text based on its semantic meaning and context, which is particularly useful for the analysis of historical texts.
+NLI models are trained to evaluate pairs of texts: a premise (the input text) and a hypothesis (a candidate label). The model predicts whether the premise *entails* the hypothesis (supports it), *contradicts* it, or is *neutral*. In zero-shot classification, each candidate label is converted into a hypothesis using a template, and the model scores how well the premise entails each hypothesis.
 
-The key steps in the zero-shot classification process are as follows:
+For example, given the premise "The Chinese laborer contributes greatly to the economic development of the province" and the hypothesis "In this text, the author advocates for equal legal treatment of Chinese immigrants," the model would likely assign a high entailment score, classifying the sentence as "Pro."
 
-1. **Define the zero-shot pipeline**: Create a zero-shot classification pipeline using the pre-trained model and tokenizer from Hugging Face Transformers, and specify a hypothesis template "In this snippet of a historical legal text, the author {}" that will be used to generate hypotheses for classification.
-2. **Define the candidate labels**: Define a set of candidate labels that represent the stance categories to classify the text into, which correspond to the basic stance categories of interest, such as "pro", "neutral" or "cons" the equal rights of Chinese immigrants.
-3. **Classify the text**: Apply the zero-shot classification pipeline to each text in the corpus, generating a probability distribution over the candidate labels for each text.
-4. **Investigate the results**: Analyze the classification results to identify the stance of each text, focusing on the highest probability label for each text. Also calculate the average probability for each candidate label across all texts to compare the overall stance of different authors and documents.
+The key advantage is flexibility: you can define any set of labels without retraining the model; the key risk is that results depend heavily on how you phrase those labels. 
 
-```python
-act_1884_full = " ".join(act_1884)
-crease_cases_full = " ".join(crease_cases)
-begbie_cases_full = " ".join(begbie_cases)
+### Designing Effective Labels
 
-full_cases = {"Crease": crease_cases_full, "Begbie": begbie_cases_full, "Act 1884": act_1884_full}
-```
+Label design is a form of prompt engineering. Vague labels like "positive" or "negative" produce noisy results because the model cannot determine *what* the text is positive or negative about. Labels must specify the exact stance dimension you are measuring.
 
-```python
-full_snippets = {}
-for author, text in full_cases.items():
-    sentence = [sent.text for sent in nlp(text).sents]
-    snippets = []
-    for sent in sentence:
-        if len(sent) > 30:  
-            snippets.append(sent)
-            
-    full_snippets[author] = snippets
-```
+For this case study, the following labels capture the three positions of interest:
 
-```python
-snippet_sizes = [{'Author': auth, 'Snippet Count': len(snippets)} for auth, snippets in full_snippets.items()]
-snippet_sizes_df = pd.DataFrame(snippet_sizes)
+- Pro: "advocates for equal legal treatment of Chinese immigrants compared to white or European settlers, opposing racial discrimination"
+- Neutral: "describes or retells the status or treatment of Chinese immigrants without expressing support or opposition to racial inequality, is unrelated to Chinese immigrants, or cannot be classified as either"
+- Cons: "justifies or reinforces unequal legal treatment of Chinese immigrants relative to white or European settlers, supporting racially discriminatory policies"
 
-print(snippet_sizes_df)
-```
+Each label is phrased as a completion of the hypothesis template "In this snippet of a historical legal text, the author {}." This grounds the model in the specific domain and authorial framing of the texts.
 
-To ensure that the zero-shot classification results are meaningful, the candidate labels are carefully treated as prompts that guide the model's understanding of the stance categories. This leverages the model's ability to generalize and adapt to new tasks without requiring extensive retraining or fine-tuning. The following candidate labels are used:
-- Pro: "... advocates for equal legal treatment of Chinese immigrants compared to white or European settlers, opposing racial discrimination"
-- Neutral: "... describes or retells the status or treatment of Chinese immigrants without expressing support or opposition to racial inequality, is unrelated to Chinese immigrants, or cannot be classified as either"
-- Cons: "... justifies or reinforces unequal legal treatment of Chinese immigrants relative to white or European settlers, supporting racially discriminatory policies"
+A major limitation: results depend heavily on label quality. Labels poorly aligned with the stance categories produce misleading classifications, especially for historical texts whose rhetorical conventions differ from modern usage.
 
-Note that this is also a major limitation of the zero-shot classification approach, as it relies on the quality and relevance of the candidate labels to the text being classified. If the labels are not well-defined or do not accurately reflect the stance categories, the classification results may be misleading or inaccurate. This is particularly important when working with historical texts, where the language and context may differ significantly from modern usage. Therefore, it is essential to carefully select and define the candidate labels to ensure that they accurately reflect the stance categories of interest.
+### Setting Up the Pipeline
 
 ```python
 warnings.filterwarnings("ignore")
 
+model_name = (
+    "MoritzLaurer/"
+    "deberta-v3-large-zeroshot-v2.0"
+)
 zero_shot = pipeline(
     "zero-shot-classification",
-    model="MoritzLaurer/DeBERTa-v3-large-mnli-fever-anli-ling-wanli",
-    tokenizer="MoritzLaurer/DeBERTa-v3-large-mnli-fever-anli-ling-wanli",
-    hypothesis_template="In this snippet of a historical legal text, the author {}.",
-    device=0 if torch.cuda.is_available() else -1  # Use GPU if available
+    model=model_name,
+    tokenizer=model_name,
+    hypothesis_template=(
+        "In this snippet of a historical"
+        " legal text, the author {}."
+    ),
+    device=(
+        0 if torch.cuda.is_available()
+        else -1
+    ),
 )
 
-
-labels = [
-    "advocates for equal legal treatment of Chinese immigrants compared to white or European settlers, opposing racial discrimination",
-    "describes or retells the status or treatment of Chinese immigrants without expressing support or opposition to racial inequality, is unrelated to Chinese immigrants, or cannot be classified as either",
-    "justifies or reinforces unequal legal treatment of Chinese immigrants relative to white or European settlers, supporting racially discriminatory policies"
+zs_labels = [
+    (
+        "advocates for equal legal treatment"
+        " of Chinese immigrants compared to"
+        " white or European settlers,"
+        " opposing racial discrimination"
+    ),
+    (
+        "describes or retells the status or"
+        " treatment of Chinese immigrants"
+        " without expressing support or"
+        " opposition to racial inequality,"
+        " is unrelated to Chinese immigrants,"
+        " or cannot be classified as either"
+    ),
+    (
+        "justifies or reinforces unequal"
+        " legal treatment of Chinese"
+        " immigrants relative to white or"
+        " European settlers, supporting"
+        " racially discriminatory policies"
+    ),
 ]
 
 def get_scores(snippet, max_length=512):
     if not snippet or len(snippet.strip()) < 10:
-        return {label: 0.33 for label in labels}  
-
-    if len(snippet) > max_length * 4:  
-        snippet = snippet[:max_length * 4]
-
-    out = zero_shot(snippet, candidate_labels=labels, truncation=True, max_length=max_length)
-
-    score_dict = dict(zip(out["labels"], out["scores"]))
-
-    for label in labels:
-        if label not in score_dict:
-            score_dict[label] = 0.0
-
-    return score_dict
+        return {l: 0.33 for l in zs_labels}
+    if len(snippet) > max_length * 4:
+        snippet = snippet[: max_length * 4]
+    out = zero_shot(
+        snippet,
+        candidate_labels=zs_labels,
+        truncation=True,
+        max_length=max_length,
+    )
+    return dict(zip(out["labels"], out["scores"]))
 ```
 
-You can test the zero-shot classification pipeline on a sample text to see how it works. For example, here is a paragraph from Sir Chapleau's report to the Royal Commission on Chinese immigration:
+### Testing with a Known Example
 
-> That assuming Chinese immigrants of the laboring class will persist in retaining their present characteristics of Asiatic life, where these are strikingly peculiar and distinct from western, and that the influx will continue to increase, this immigration should be dealt with by Parliament ; but no legislation should be such as would give a shock to great interests and enterprises established before any probability that Parliament would interfere with that immigration arose. Questions of vested rights might come up, and these ought to be carefully considered before action is taken.
+Before running the pipeline on the full corpus, test it on a passage with a known stance. This paragraph from Sir Chapleau's Royal Commission report discusses Chinese immigration in cautiously economic terms:
 
-```python
-chapleau_snippet = "That assuming Chinese immigrants of the laboring class will persist in retaining their present characteristics of Asiatic life, where these are strikingly peculiar and distinct from western, and that the influx will continue to increase, this immigration should be dealt with by Parliament; but no legislation should be such as would give a shock to great interests and enterprises established before any probability that Parliament would interfere with that immigration arose. Questions of vested rights might come up, and these ought to be carefully considered before action is taken."
-
-chapleau_scores = get_scores(chapleau_snippet)
-
-print("Classification Scores for Chapleau's Snippet:")
-for label, score in chapleau_scores.items():
-    print(f"{score:.4f}: {label}")
-```
-
-### Sentence Approach
-
-Another limitation of zero-shot classification is that the number of tokens in the text is limited, which means you cannot classify the entire text at once if it exceeds the token limit. To avoid exceeding the token limit, you can split the text into smaller chunks, such as sentences or windows of text, and classify each chunk separately.
-
-The **sentence approach** classifies each sentence in the text separately, capturing the stance of each sentence and its relationship to the overall text. This approach is particularly useful when the text is long or complex, as it allows you to analyze the stance of each sentence in isolation.
-
-However, it has limitations in understanding the overall stance of the text, as it does not consider the context in which the sentences are used and therefore may capture too much variation in the stance of the text.
+> That assuming Chinese immigrants of the laboring class will persist in retaining their present characteristics of Asiatic life, where these are strikingly peculiar and distinct from western, and that the influx will continue to increase, this immigration should be dealt with by Parliament; but no legislation should be such as would give a shock to great interests and enterprises established before any probability that Parliament would interfere with that immigration arose.
 
 ```python
-# # Run zero-shot classification on the snippets from the Chinese Regulation Act 1884
-# act_scores = {}
-
-# for auth, snippets in full_snippets.items():
-#     scores = []
-#     for snip in snippets:
-#         score = get_scores(snip)
-#         scores.append(score)
-#     act_scores[auth] = scores
-
-# rows = []
-
-# for auth, snippets in full_snippets.items():
-#     for snip, score_dict in zip(snippets, act_scores[auth]):
-#         row = {
-#             "Author": auth,
-#             "Text": snip,
-#             "Pro": score_dict[labels[0]],
-#             "Neutral": score_dict[labels[1]],
-#             "Cons": score_dict[labels[2]]
-#         }
-#         rows.append(row)
-
-# df_scores = pd.DataFrame(rows)
-
-# df_scores.to_csv("data/zero_shot_sentence_scores.csv", index=False)
-```
-
-```python
-df_scores = pd.read_csv("data/zero_shot_sentence_scores.csv")
-
-top_pro_sentences = df_scores.nlargest(10, 'Pro')
-
-print("\nTop 10 sentences with the highest 'Pro' scores:\n")
-
-for _, row in top_pro_sentences.iterrows():
-    wrapped_para = textwrap.fill(row['Text'], width=100)
-    print(f"Author: {row['Author']}\nSentence: {wrapped_para}\nPro Score: {row['Pro']:.4f}\n")
-```
-
-```python
-top_cons_sentences = df_scores.nlargest(10, 'Cons')
-
-print("\nTop 10 sentences with the highest 'Cons' scores:\n")
-
-for _, row in top_cons_sentences.iterrows():
-    wrapped_para = textwrap.fill(row['Text'], width=100)
-    print(f"Author: {row['Author']}\nSentence: {wrapped_para}\nCons Score: {row['Cons']:.4f}\n")
-```
-
-```python
-mean_scores = df_scores.groupby("Author")[["Pro", "Neutral", "Cons"]].mean()
-median_scores = df_scores.groupby("Author")[["Pro", "Neutral", "Cons"]].median()
-
-print("Mean scores by author:")
-print(mean_scores)
-
-print("\nMedian scores by author:")
-print(median_scores)
-```
-
-```python
-df_scores['Wrapped Text'] = df_scores['Text'].apply(lambda t: wrap_text(t, width = 50))
-
-fig = px.scatter(
-    df_scores,
-    x="Pro",
-    y="Cons",
-    color="Author",
-    hover_data=["Wrapped Text"],
-    title="Pros vs Cons Scores by Author",
-    width=800,
-    height=600
+chapleau_snippet = (
+    "That assuming Chinese immigrants of the"
+    " laboring class will persist in retaining"
+    " their present characteristics of Asiatic"
+    " life, where these are strikingly peculiar"
+    " and distinct from western, and that the"
+    " influx will continue to increase, this"
+    " immigration should be dealt with by"
+    " Parliament; but no legislation should be"
+    " such as would give a shock to great"
+    " interests and enterprises established"
+    " before any probability that Parliament"
+    " would interfere with that immigration"
+    " arose."
 )
 
-fig.update_traces(marker=dict(size=5))
-fig.show()
+scores = get_scores(chapleau_snippet)
+print("Scores for Chapleau snippet:")
+for label, score in scores.items():
+    print(f"  {score:.4f}: {label[:50]}...")
 ```
 
-### Window Approach
+The model should assign a relatively high "Neutral" score to this passage, which discusses immigration policy without explicitly advocating for or against equal treatment.
 
-In comparison to the sentence approach, the **window approach** classifies larger chunks of text that contain multiple sentences with an overlapping context between windows. This captures the stance of the text in a more holistic way, while still classifying each window separately.
+### Validating Against Ground Truth
 
-The limitation of this approach is that it may not capture the nuances of each sentence, as it treats the window containing multiple sentences as a single unit. However, it does capture the overall stance of the text while still classifying each window separately.
+Before interpreting the zero-shot results on the full corpus, it is important to measure the model's accuracy on a labeled sample. A ground truth set of 44 manually labeled snippets (23 contradiction, 18 neutral, 3 entailment) from the corpus provides a benchmark. The model achieves 72.7% accuracy (32 out of 44 correct), with per-class F1 scores of 0.75 for contradiction, 0.65 for neutral, and 1.00 for entailment. This is a reasonable baseline for zero-shot classification on nineteenth-century legal text, but the neutral category shows the most confusion, reflecting the difficulty of distinguishing genuinely neutral passages from passages whose stance depends on rhetorical context.
 
-Below, the function splits the text into overlapping windows of a specified size (maximum number of tokens) with a certain overlap (stride that overlaps between consecutive windows). The zero-shot classification pipeline is then applied to each window and the results are averaged to obtain the final classification for the entire text.
+### Sentence-Level Classification
+
+One limitation of transformer models is a fixed token limit (typically 512 tokens). For longer documents, you must split text into smaller units. The sentence approach classifies each sentence individually, capturing fine-grained variation in stance.
+
+Classification of all sentences takes approximately 20 to 40 minutes on CPU. Pre-computed results are provided in `zero_shot_sentence_scores.csv`:
 
 ```python
-def chunk_into_windows(text, max_tokens=512, stride=128):
-    
+df_scores = pd.read_csv(
+    "data/zero_shot_sentence_scores.csv"
+)
+```
+
+```python
+mean_scores = (
+    df_scores
+    .groupby("Author")[["Pro", "Neutral", "Cons"]]
+    .mean()
+)
+print("Mean scores by author (sentence):")
+print(mean_scores.round(4))
+```
+
+```python
+top_pro = df_scores.nlargest(5, 'Pro')
+print("\nTop 5 Pro sentences:\n")
+for _, row in top_pro.iterrows():
+    txt = textwrap.fill(row['Text'], width=78)
+    print(
+        f"Author: {row['Author']}\n"
+        f"Text: {txt}\n"
+        f"Pro: {row['Pro']:.4f}\n"
+    )
+```
+
+{% include figure.html filename="data/natural-language-inference-historical-text-03.png" alt="Scatter plot of Pro versus Cons zero-shot classification scores colored by author, showing that Act 1884 points cluster toward higher Cons scores" caption="Figure 3: Pro versus Cons classification scores by author (sentence level). The Act clusters toward higher Cons scores, while Crease and Begbie sentences distribute more broadly." %}
+
+### Window-Level Classification
+
+The sentence approach captures variation but loses context. The window approach classifies larger overlapping chunks of text, providing a more holistic stance assessment at the cost of per-sentence nuance.
+
+The windowing function uses the NLI tokenizer to measure token lengths, ensuring each chunk fits within the model's 512-token limit:
+
+```python
+nli_tokenizer = AutoTokenizer.from_pretrained(
+    model_name
+)
+
+def chunk_into_windows(
+    text, max_tokens=512, stride=128
+):
     sents = sent_tokenize(text)
-    windows = []
-    current = ""
+    windows, current = [], ""
     for sent in sents:
-        cand = current + " " + sent if current else sent
-        n_tokens = len(tokenizer.encode(cand, add_special_tokens=False))
-        if n_tokens <= max_tokens:
+        cand = (
+            current + " " + sent
+            if current else sent
+        )
+        n = len(nli_tokenizer.encode(
+            cand, add_special_tokens=False
+        ))
+        if n <= max_tokens:
             current = cand
         else:
             windows.append(current)
-            tail_ids = tokenizer.encode(current, add_special_tokens=False)[-stride:]
-            tail_text = tokenizer.decode(tail_ids)
-            current = tail_text + " " + sent
+            tail = nli_tokenizer.encode(
+                current,
+                add_special_tokens=False,
+            )[-stride:]
+            current = (
+                nli_tokenizer.decode(tail)
+                + " " + sent
+            )
     if current:
         windows.append(current)
     return windows
 ```
 
-```python
-# rows = []
-# for author, text in full_cases.items():
-    
-#     windows = chunk_into_windows(text, max_tokens=256, stride=64)
-    
-#     for win in windows:
-#         out = zero_shot(win, candidate_labels=labels, truncation=True, max_length=256)
-#         # Extract scores and labels
-#         score_dict = dict(zip(out["labels"], out["scores"]))
-#         rows.append({
-#             "Author": author,
-#             "Text": win,
-#             "Pro": score_dict[labels[0]],
-#             "Neutral": score_dict[labels[1]],
-#             "Cons": score_dict[labels[2]]
-#         })
-
-# all_scores = pd.DataFrame(rows)
-
-# all_scores.to_csv("data/zero_shot_windowed_scores.csv", index=False)
-```
+Pre-computed windowed scores are provided:
 
 ```python
-all_scores = pd.read_csv("data/zero_shot_windowed_scores.csv")
-
-top_pro_windows = all_scores.nlargest(5, 'Pro')
-
-print("\nTop 5 windows with the highest 'Pro' scores:\n")
-for _, row in top_pro_windows.iterrows():
-    wrapped_para = textwrap.fill(row['Text'], width=100)
-    print(f"Author: {row['Author']}\nWindow: {wrapped_para}\nPro Score: {row['Pro']:.4f}\n")
-```
-
-```python
-top_cons_windows = all_scores.nlargest(5, 'Cons')
-
-print("\nTop 5 windows with the highest 'Cons' scores:\n")
-for _, row in top_cons_windows.iterrows():
-    wrapped_para = textwrap.fill(row['Text'], width=100)
-    print(f"Author: {row['Author']}\nWindow: {wrapped_para}\nCons Score: {row['Cons']:.4f}\n")
-```
-
-```python
-mean_scores = all_scores.groupby("Author")[["Pro", "Neutral", "Cons"]].mean()
-median_scores = all_scores.groupby("Author")[["Pro", "Neutral", "Cons"]].median()
-
-print("Mean scores by author:")
-print(mean_scores)
-
-print("\nMedian scores by author:")
-print(median_scores)
-```
-
-```python
-all_scores['Text'] = all_scores['Text'].apply(lambda t: wrap_text(t, width = 50))
-
-fig = px.scatter(
-    all_scores,
-    x="Pro",
-    y="Cons",
-    color="Author",
-    hover_data=["Text"],
-    title="Pros vs Cons Scores by Author",
-    width=800,
-    height=600
+all_scores = pd.read_csv(
+    "data/zero_shot_windowed_scores.csv"
 )
 
-fig.update_traces(marker=dict(size=5))
-fig.show()
+mean_w = (
+    all_scores
+    .groupby("Author")[["Pro", "Neutral", "Cons"]]
+    .mean()
+)
+print("Mean scores by author (window):")
+print(mean_w.round(4))
 ```
 
-While both approaches successfully identified that the 1884 Chinese Regulation Act was more discriminatory towards Chinese people, and the relative positions of the three authors matched expectations, note that the zero-shot classification results are not deterministic, as they still depend on the specific language used in defining the candidate labels and the context in which the text is used.
+### Interpreting and Evaluating Results
 
-For instance, the window
+Both the sentence and window approaches correctly identified the 1884 Chinese Regulation Act as more discriminatory and placed the three authors in the expected relative order. However, the results require careful human evaluation.
 
-> ...act the legal presumption of innocence until conviction is reversed ; in every case the onus probandi, though in a statute highly penal, is shifted from the informant on to the shoulders of the accused, and he a foreigner not knowing one word of the law, or even the language of the accuser. In other words, every Chinese is guilty until proved innocent—a provision which fills one conversant with subjects with alarm; for if such a law can be tolerated as against Chinese, the precedent is set, and in time of any popular outcry can easily be acted on for putting any other foreigners or even special classes among ourselves, as coloured people, or French, Italians, Americans, or Germans, under equally the same law. That certainly is interfering with aliens. The proposition that it is a Provincial tax for revenue purposes, supposing it to be so intended under the provisions of the Act, is so manifestly calculated to defeat that object, by diminishing the numbers of the members of the persons to be affected by it, that it is difficult to regard it in that light, or in any other light than an indirect mode of getting rid of persons whom it affects out of the country.
+Consider this example from Crease's ruling: "...every Chinese is guilty until proved innocent, a provision which fills one conversant with subjects with alarm..." The model classifies this as "Cons" because the surface language describes discriminatory treatment. But in context, Crease is *condemning* the Act's presumption of guilt. This illustrates a fundamental limitation: zero-shot models struggle with complex rhetorical devices where an author describes discriminatory provisions precisely in order to criticize them.
 
-is classified as "cons" by the zero-shot classification, which is not accurate, as it essentially reflects Crease's criticism of the discriminatory nature of the law, and there is no indication that he supports the unequal treatment of Chinese immigrants in this passage.
+To evaluate zero-shot results responsibly:
 
-This highlights the limitations of zero-shot classification when dealing with historical legal texts: because the semantics and context of these texts are not obvious, and the rhetorical devices used in them are difficult for models to accurately capture. 
-
-This example emphasizes the importance of human interpretation and analysis in understanding the positions in historical texts. It also highlights the need for caution when selecting and defining candidate labels to ensure that they accurately reflect the position categories of interest. Machine learning techniques should still only be used as an auxiliary tool in research.
+1. Examine high-confidence predictions and verify them against the source text
+2. Look for systematic misclassifications (e.g., all quotations from the Act within a critique being labeled "Cons")
+3. Compare sentence-level and window-level results; disagreements indicate context-sensitive passages
+4. Treat the aggregate statistics (mean scores by author) as more reliable than individual sentence scores
 
 ## Putting It All Together
 
-Now that the lesson has examined topic alignment and quantified stances toward Chinese immigrants using zero-shot classification, the next step is to synthesize the results and evaluate how thematic emphasis correlates with expressed stance. By combining TF-IDF keywords, embedding-based topic anchors, and zero-shot probabilities, you can assess whether focus on themes such as "labor", "taxation", or "legislation" corresponds with pro-, neutral, or anti-discriminatory language across authors and documents.
+The final step combines topic alignment with stance scores. For sentences that appear in both the embedding analysis and the zero-shot classification, you can compute [Pearson correlation coefficients](https://en.wikipedia.org/wiki/Pearson_correlation_coefficient) between topic similarity and stance scores:
 
-The steps are as follows:
-1. **Aggregate Topic Alignment Scores**: For each sentence, aggregate the topic alignment scores to each topic previously identified using TF-IDF. 
-2. **Combine with Zero-Shot Scores**: Combine the aggregated topic alignment scores with the zero-shot classification scores to create a paired dataset of topic alignment and stance scores for each sentence.
-3. **Analyze Correlation**: Analyze the correlation between the topic alignment scores and the zero-shot classification scores to identify patterns and relationships between the topics and the stances expressed in the texts. The lesson also calculates the correlation coefficients for each author to see how their topic alignments relate to their stances.
+$$
+r = \frac{\text{cov}(X, Y)}{\sigma_X \cdot \sigma_Y}
+$$
 
 ```python
 def clean_text(text):
     text = text.lower()
-    text = re.sub(r'[^\w\s]', '', text)  
-    return text.strip()
+    return re.sub(r'[^\w\s]', '', text).strip()
 
-similarity_wide = similarity_df.pivot(index=['Author','Text'], columns='Topic', values='Similarity Score').reset_index()
+similarity_wide = similarity_df.pivot(
+    index=['Author', 'Text'],
+    columns='Topic',
+    values='Similarity Score',
+).reset_index()
+similarity_wide['key'] = (
+    similarity_wide['Text'].apply(clean_text)
+)
 
-similarity_wide['Clean Text'] = similarity_wide['Text'].apply(clean_text)
+df_scores['key'] = (
+    df_scores['Text'].apply(clean_text)
+)
 
-print(f"The total size of our corpus is {len(similarity_wide)} sentences.")
+merged_df = similarity_wide.merge(
+    df_scores[['key', 'Pro', 'Neutral', 'Cons']],
+    on='key',
+    how='inner',
+)
+print(
+    f"Merged corpus: {len(merged_df)} sentences"
+)
 ```
 
 ```python
-df_scores['Clean Text'] = df_scores['Text'].apply(clean_text)
-
-matched_rows = []
-for _, row in similarity_wide.iterrows():
-    match = df_scores[df_scores['Clean Text'] == row['Clean Text']]
-    if not match.empty:
-        matched_row = {
-            'Author': row['Author'],
-            'Text': row['Text'],
-            'Pro': match['Pro'].values[0] if 'Pro' in match else None,
-            'Neutral': match['Neutral'].values[0] if 'Neutral' in match else None,
-            'Cons': match['Cons'].values[0] if 'Cons' in match else None,
-            **row.drop(['Author', 'Text', 'Clean Text']).to_dict()
-        }
-        matched_rows.append(matched_row)
-        
-merged_df = pd.DataFrame(matched_rows)
-
-print(f"The size of our merged corpus is {len(merged_df)} sentences.")
-
-
-merged_df.head()
-```
-
-```python
-merged_df['wrapped_text'] = merged_df['Text'].apply(lambda t: wrap_text(t, width=50))
-
-author_order = ['Crease', 'Begbie', 'Act 1884']
-color_map = {'Crease': '#1f77b4', 'Begbie': '#d62728', 'Act 1884': '#2ca02c'}
-
-def plot_topic_vs_stance(df, topic='labor', authors=None, color_map=None, show_regression=True,
-                         width=800, height=800):
-    
-    pio.renderers.default = "plotly_mimetype+notebook_connected"
-
-    df = df.copy()
-
-    if 'wrapped_text' not in df.columns:
-        df['wrapped_text'] = df['Text'].apply(lambda t: wrap_text(t, width=50))
-
-    if authors is None:
-        authors = df['Author'].unique()
-
-    def darken_color(color, factor=0.7):
-        
-        if isinstance(color, str) and color.startswith('#'):
-            hex_color = color.lstrip('#')
-            rgb = tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
-            darkened_rgb = tuple(int(c * factor) for c in rgb)
-            return f"rgb({darkened_rgb[0]}, {darkened_rgb[1]}, {darkened_rgb[2]})"
-        return color  
-
-    default_colors = [
-        '#2E86C1', '#E74C3C', '#28B463', '#F39C12', '#8E44AD',
-        '#17A2B8', '#FD7E14', '#20C997', "#87020F", '#6F42C1'
-    ]
-
-    if color_map is None:
-        color_map = {author: default_colors[i % len(default_colors)]
-                     for i, author in enumerate(authors)}
-
-    symbols = ['circle', 'square', 'diamond', 'triangle-up', 'star', 'hexagon']
-    author_symbols = {author: symbols[i % len(symbols)] for i, author in enumerate(authors)}
-
-    fig = make_subplots(
-        rows=2, cols=1,
-        shared_xaxes=True,
-        subplot_titles=(f"Pro Score vs {topic.title()} Similarity",
-                        f"Cons Score vs {topic.title()} Similarity"),
-        horizontal_spacing=0.06,
-        vertical_spacing=0.06
-    )
-
-    authors_with_data = set()
-
-    for author in authors:
-        df_author = df[df['Author'] == author]
-        author_color = color_map.get(author, '#7F8C8D')
-        author_symbol = author_symbols.get(author, 'circle')
-
-        df_pro = df_author.dropna(subset=['Pro', topic])
-        if len(df_pro) > 0:
-            authors_with_data.add(author)
-
-            fig.add_trace(
-                go.Scatter(
-                    x=df_pro[topic],
-                    y=df_pro['Pro'],
-                    mode='markers',
-                    marker=dict(
-                        color=author_color,
-                        size=8,
-                        opacity=0.85,
-                        symbol=author_symbol,
-                        line=dict(color='white', width=1.25)
-                    ),
-                    name=author,
-                    legendgroup=author,
-                    hovertext=df_pro['wrapped_text'],
-                    hovertemplate=(
-                        f"<b>{author}</b><br>"
-                        f"{topic.title()} Similarity: %{{x:.3f}}<br>"
-                        "Pro Score: %{y:.3f}<br>"
-                        "%{hovertext}<br>"
-                        "<extra></extra>"
-                    ),
-                ),
-                row=1, col=1
-            )
-
-            # Regression
-            if show_regression and len(df_pro) >= 3:
-                x_vals = df_pro[topic].values
-                y_vals = df_pro['Pro'].values
-                coeffs = np.polyfit(x_vals, y_vals, 1)
-                x_range = np.linspace(x_vals.min(), x_vals.max(), 100)
-                y_pred = np.polyval(coeffs, x_range)
-
-                fig.add_trace(
-                    go.Scatter(
-                        x=x_range,
-                        y=y_pred,
-                        mode='lines',
-                        line=dict(
-                            color=darken_color(author_color),
-                            width=2,
-                            dash='dot'
-                        ),
-                        name=f"{author} trend",
-                        legendgroup=author,
-                        showlegend=False,
-                        hoverinfo='skip'
-                    ),
-                    row=1, col=1
-                )
-
-        df_cons = df_author.dropna(subset=['Cons', topic])
-        if len(df_cons) > 0:
-            fig.add_trace(
-                go.Scatter(
-                    x=df_cons[topic],
-                    y=df_cons['Cons'],
-                    mode='markers',
-                    marker=dict(
-                        color=author_color,
-                        size=8,
-                        opacity=0.85,
-                        symbol=author_symbol,
-                        line=dict(color='white', width=1.25)
-                    ),
-                    name=author,
-                    legendgroup=author,
-                    showlegend=False, 
-                    hovertext=df_cons['wrapped_text'],
-                    hovertemplate=(
-                        f"<b>{author}</b><br>"
-                        f"{topic.title()} Similarity: %{{x:.3f}}<br>"
-                        "Cons Score: %{y:.3f}<br>"
-                        "%{hovertext}<br>"
-                        "<extra></extra>"
-                    ),
-                ),
-                row=2, col=1
-            )
-
-            if show_regression and len(df_cons) >= 3:
-                x_vals = df_cons[topic].values
-                y_vals = df_cons['Cons'].values
-                coeffs = np.polyfit(x_vals, y_vals, 1)
-                x_range = np.linspace(x_vals.min(), x_vals.max(), 100)
-                y_pred = np.polyval(coeffs, x_range)
-
-                fig.add_trace(
-                    go.Scatter(
-                        x=x_range,
-                        y=y_pred,
-                        mode='lines',
-                        line=dict(
-                            color=darken_color(author_color),
-                            width=2,
-                            dash='dot'
-                        ),
-                        showlegend=False,
-                        hoverinfo='skip'
-                    ),
-                    row=2, col=1
-                )
-
-    fig.update_xaxes(
-        title_text="",
-        showgrid=True,
-        gridwidth=1,
-        gridcolor='rgba(128,128,128,0.18)',
-        zeroline=True,
-        zerolinewidth=1,
-        zerolinecolor='rgba(128,128,128,0.25)',
-        row=1, col=1
-    )
-    
-    fig.update_xaxes(
-        title_text=f"{topic.title()} Topic Similarity",
-        showgrid=True,
-        gridwidth=1,
-        gridcolor='rgba(128,128,128,0.18)',
-        zeroline=True,
-        zerolinewidth=1,
-        zerolinecolor='rgba(128,128,128,0.25)',
-        row=2, col=1
-    )
-
-    fig.update_yaxes(
-        title_text="Pro Score",
-        showgrid=True,
-        gridwidth=1,
-        gridcolor='rgba(128,128,128,0.18)',
-        zeroline=True,
-        zerolinewidth=1,
-        zerolinecolor='rgba(128,128,128,0.25)',
-        row=1, col=1
-    )
-
-    fig.update_yaxes(
-        title_text="Cons Score",
-        showgrid=True,
-        gridwidth=1,
-        gridcolor='rgba(128,128,128,0.18)',
-        zeroline=True,
-        zerolinewidth=1,
-        zerolinecolor='rgba(128,128,128,0.25)',
-        row=2, col=1
-    )
-
-    fig.update_layout(
-        width=width,
-        height=height,
-        title=dict(
-            text=f"Stance Towards Chinese Immigrants vs {topic.title()} Topic Similarity",
-            x=0.02,  
-            xanchor='left',
-            font=dict(size=16, color='#2C3E50'),
-            pad=dict(t=12, b=20)
-        ),
-        legend=dict(
-            title=None,
-            orientation='v',  
-            y=0.98,  
-            yanchor='top',
-            x=0.98,  
-            xanchor='right',
-            bgcolor='rgba(255,255,255,0.92)',
-            bordercolor='rgba(52,73,94,0.12)',
-            borderwidth=1,
-            font=dict(size=11),
-            traceorder='normal'
-        ),
-        template="plotly_white",
-        plot_bgcolor='rgba(248,249,250,0.95)',
-        margin=dict(t=90, b=80, l=60, r=60),
-        font=dict(family="Arial, sans-serif", color='#2C3E50')
-    )
-
-    if len(fig.layout.annotations) >= 2:
-        fig.layout.annotations[0].update(font=dict(size=13, color='#34495E'))
-        fig.layout.annotations[1].update(font=dict(size=13, color='#34495E'))
-
-    fig.show()
-    return
-```
-
-```python
-# Example usage for all four topics:
-plot_topic_vs_stance(merged_df, topic="labor", color_map=color_map, show_regression=True)
-```
-
-```python
-plot_topic_vs_stance(merged_df, topic="legislation", color_map=color_map, show_regression=True)
-```
-
-```python
-plot_topic_vs_stance(merged_df, topic="license", color_map=color_map, show_regression=True)
-```
-
-```python
-plot_topic_vs_stance(merged_df, topic="taxation", color_map=color_map, show_regression=True)
-```
-
-Correlation coefficients will be calculated to quantify the strength and direction of the relationship between topic alignment and each stance scores. A positive correlation indicates that as the topic alignment score increases, the stance score also tends to increase (e.g., more pro‑discriminatory language), while a negative correlation indicates the opposite (e.g., more anti‑discriminatory language). The closer the correlation coefficient is to 1 or -1, the stronger the relationship between the topic alignment and stance scores.
-
-The math behind correlation coefficients is as follows:
-$$
-\text{corr}(X, Y) = \frac{\text{cov}(X, Y)}{\sigma_X \cdot \sigma_Y}
-$$
-Where $X$ and $Y$ are the topic alignment scores and stance scores, respectively, $\text{cov}(X, Y)$ is the covariance between the two variables, and $\sigma_X$ and $\sigma_Y$ are their standard deviations.
-
-```python
-correlation_results = []
-
-for topic in ['labor', 'legislation', 'license', 'taxation']:
-    for stance in ['Pro', 'Cons']:
-        corr = merged_df[[topic, stance]].corr().iloc[0, 1]
-        correlation_results.append({
-            'Author': 'All Authors',
-            'Topic': topic,
-            'Stance': stance,
-            'Correlation': corr
-        })
-
+topics = [
+    'labor', 'legislation',
+    'license', 'taxation',
+]
+results = []
 for author in merged_df['Author'].unique():
-    author_data = merged_df[merged_df['Author'] == author]
-    for topic in ['labor', 'legislation', 'license', 'taxation']:
+    sub = merged_df[
+        merged_df['Author'] == author
+    ]
+    for topic in topics:
         for stance in ['Pro', 'Cons']:
-            corr = author_data[[topic, stance]].corr().iloc[0, 1]
-            correlation_results.append({
+            corr = (
+                sub[[topic, stance]]
+                .corr().iloc[0, 1]
+            )
+            results.append({
                 'Author': author,
                 'Topic': topic,
                 'Stance': stance,
-                'Correlation': corr
+                'Correlation': round(corr, 4),
             })
-        
-correlation_df = pd.DataFrame(correlation_results)
 
-correlation_pivot = correlation_df.pivot_table(
-    index=['Author', 'Topic'], 
-    columns='Stance', 
-    values='Correlation'
-).reset_index()
-
-correlation_pivot.columns.name = None 
-
-correlation_wide = correlation_pivot.pivot_table(
+corr_df = pd.DataFrame(results)
+corr_wide = corr_df.pivot_table(
     index='Author',
-    columns='Topic',
-    values=['Pro', 'Cons']
-).round(4)
-
-print("\nCorrelation Coefficients of Topic Alignments and Pro/Cons Scores by Each Author:")
-correlation_wide
+    columns=['Topic', 'Stance'],
+    values='Correlation',
+)
+print("\nCorrelation: topic alignment"
+      " vs stance by author:")
+print(corr_wide)
 ```
 
-These results show how different topics relate to the stances expressed in the texts, and whether certain topics are more associated with pro-, neutral, or anti-discriminatory language.
+These correlations reveal whether emphasis on certain topics (e.g., labor, taxation) corresponds with more pro- or anti-discriminatory language. Combined with the qualitative evidence from the sentence-level analysis, this provides a multi-faceted view of each author's stance.
+
+## Robustness Checks
+
+Computational results from zero-shot NLI should be treated as hypotheses, not conclusions. Three robustness checks help assess how stable the findings are: quote sensitivity analysis, label sensitivity analysis, and bootstrap confidence intervals.
+
+### Quote Sensitivity
+
+Even after removing near-exact quotations of the Act from Crease's text, some paraphrased passages may remain. To test whether residual quotations drive the results, you can apply progressively stricter similarity thresholds and check whether Crease's mean scores change substantially:
+
+```python
+crease_sc = df_scores[
+    df_scores['Author'] == 'Crease'
+].copy()
+crease_sc['quote_sim'] = [
+    compute_quote_similarity(t, act_sents)
+    for t in crease_sc['Text']
+]
+
+for threshold in [0.3, 0.4, 0.5, 0.6]:
+    filtered = crease_sc[
+        crease_sc['quote_sim'] <= threshold
+    ]
+    n_removed = (
+        len(crease_sc) - len(filtered)
+    )
+    means = filtered[
+        ['Pro', 'Neutral', 'Cons']
+    ].mean()
+    print(
+        f"Threshold {threshold:.1f}: "
+        f"{n_removed} removed, "
+        f"Pro={means['Pro']:.4f} "
+        f"Neutral={means['Neutral']:.4f} "
+        f"Cons={means['Cons']:.4f}"
+    )
+```
+
+If the mean scores remain stable across thresholds, the results are not driven by residual Act quotations.
+
+### Label Sensitivity
+
+Zero-shot classification results depend heavily on how candidate labels are phrased. Testing alternative label sets helps determine whether the ranking of authors is an artifact of specific wording or a robust finding:
+
+```python
+alt_labels_1 = [
+    "supports equal rights for Chinese"
+    " immigrants",
+    "is neutral or unrelated to Chinese"
+    " immigrant rights",
+    "supports discriminatory treatment"
+    " of Chinese immigrants",
+]
+
+alt_labels_2 = [
+    "argues that Chinese immigrants"
+    " deserve the same legal protections"
+    " as other residents",
+    "discusses Chinese immigration without"
+    " taking a clear legal position for"
+    " or against",
+    "argues that restricting Chinese"
+    " immigrants through law is justified"
+    " or necessary",
+]
+```
+
+If the relative ordering of authors (e.g., Act > Begbie > Crease on "Cons") holds across all three label sets, the finding is more likely to reflect genuine textual patterns rather than label-dependent artifacts.
+
+### Bootstrap Confidence Intervals
+
+With small sample sizes, mean scores can be misleading. Bootstrap resampling provides 95% confidence intervals that quantify the uncertainty in each estimate:
+
+```python
+def bootstrap_ci(
+    data, n_boot=1000, ci=0.95, seed=42
+):
+    rng = np.random.default_rng(seed)
+    means = []
+    for _ in range(n_boot):
+        sample = rng.choice(
+            data, size=len(data), replace=True
+        )
+        means.append(np.mean(sample))
+    lo = np.percentile(
+        means, (1 - ci) / 2 * 100
+    )
+    hi = np.percentile(
+        means, (1 + ci) / 2 * 100
+    )
+    return np.mean(data), lo, hi
+
+for author in ['Crease', 'Begbie',
+               'Act 1884']:
+    sub = df_scores[
+        df_scores['Author'] == author
+    ]
+    print(f"\n{author} (n={len(sub)}):")
+    for stance in ['Pro', 'Neutral', 'Cons']:
+        m, lo, hi = bootstrap_ci(
+            sub[stance].values
+        )
+        print(
+            f"  {stance}: {m:.4f}"
+            f" [{lo:.4f}, {hi:.4f}]"
+        )
+```
+
+{% include figure.html filename="data/natural-language-inference-historical-text-04.png" alt="Dot-and-whisker plot showing bootstrap 95 percent confidence intervals for Pro, Neutral, and Cons mean scores by author" caption="Figure 4: Bootstrap 95% confidence intervals for mean stance scores. Begbie's wide intervals reflect the smaller sample size (18 snippets versus 83 for Crease)." %}
+
+Wide confidence intervals (especially for Begbie with only 18 snippets) indicate that the point estimates should be interpreted cautiously. Where intervals for different authors overlap on a given stance, the difference between them is not statistically reliable.
 
 ## Conclusion
 
-This lesson explored how to effectively digitize aged text documents, as well as how to use various computational techniques to analyze historical legal texts, focusing on the stance of different authors towards Chinese immigrants in British Columbia. The analysis applied a range of methods, including TF-IDF analysis, word embeddings, stance embeddings, zero-shot classification, and topic modeling, to gain insights into the language used in these texts and the positions expressed by different authors. 
+This lesson demonstrated a complete NLP workflow for historical text analysis: from exploratory keyword analysis (TF-IDF) through contextual embeddings (Sentence-BERT), dimensionality reduction (UMAP), zero-shot NLI classification (DeBERTa v2.0), and robustness checks (quote sensitivity, label sensitivity, and bootstrap confidence intervals). The analysis confirmed that Crease and Begbie used semantically similar language when discussing Chinese immigration, while the 1884 Chinese Regulation Act showed a distinctly more discriminatory profile.
 
-The results matched the expectations based on previous historical research, confirming that Crease and Begbie indeed held similar positions on the issue, while the Chinese Regulation Act reflected a more discriminatory stance (with higher "Cons" scores overall). In addition, the analysis found interesting clustering patterns in the UMAP projection of the stance embeddings, which poses further questions for investigation, such as what each UMAP cluster represents and what each axis in the UMAP projection means. Several key topics were also identified as prominent in the texts, and the lesson explored how these topics relate to the stances expressed using zero-shot classification scores and topic alignment scores.
+The results also highlighted significant limitations. Pre-trained models encode modern semantic associations and may misinterpret historical language, rhetorical devices, and legal conventions. Zero-shot classification is sensitive to label phrasing and cannot reliably distinguish between describing discrimination and endorsing it. The lexicon mismatch between nineteenth-century legal texts and modern training data introduces systematic uncertainty that robustness checks can quantify but not eliminate.
 
-Keep in mind that these techniques are not perfect and have limitations, as the pre-trained models may contain biases and may not accurately capture the nuances of historical legal language. As noted above, the topic alignment scores and zero-shot classification scores are not deterministic, as they depend on the specific language used in defining the candidate labels and the context in which the text is used. Therefore, it is essential to interpret the results with caution and consider the limitations of the models used. Machine learning techniques should be used as auxiliary tools in research, and human interpretation and analysis are still crucial for understanding the positions expressed in historical texts.
-
-In conclusion, this lesson demonstrated a new perspective on how to quantitatively analyze classical historical materials, but it also highlighted the limitations of these techniques and the importance of human interpretation in understanding the positions expressed in historical texts. The techniques and approaches covered here should provide valuable insights into how computational methods can be used to analyze historical legal texts, and how they can complement traditional research methods in the humanities and social sciences.
+These techniques should be used as discovery tools that generate hypotheses for further investigation, not as substitutes for close reading. The computational workflow narrows the search space and identifies patterns across large corpora, but human expertise remains essential for interpreting what those patterns mean in historical context.
 
 ## Endnotes
 
@@ -1788,7 +1017,7 @@ In conclusion, this lesson demonstrated a new perspective on how to quantitative
 [^7]: Canada, Royal Commission on Chinese Immigration, *Report of the Royal Commission on Chinese Immigration: Report and Evidence* (Ottawa: Printed by order of the Commission, 1885).
 [^8]: Paul Thomas, "Courts of Last Resort: The Judicialization of Asian Canadian Politics 1878 to 1913" (paper presented at the Annual Conference of the Canadian Political Science Association, University of Alberta, Edmonton, Canada, June 12-14, 2012), https://cpsa-acsp.ca/papers-2012/Thomas-Paul.pdf.
 [^9]: John P.S. McLaren, "The Early British Columbia Supreme Court and the 'Chinese Question': Echoes of the Rule of Law," *Manitoba Law Journal* 20, no. 1 (1991): 107-47, https://www.canlii.org/w/canlii/1991CanLIIDocs168.pdf.
-[^10]: Ilias Chalkidis, Manos Fergadiotis, Prodromos Malakasiotis, Nikolaos Aletras, and Ion Androutsopoulos, "LEGAL-BERT: The Muppets Straight Out of Law School," arXiv:2010.02559 (2020), https://doi.org/10.48550/arXiv.2010.02559.
+[^10]: Nils Reimers and Iryna Gurevych, "Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks," in *Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing* (Hong Kong: Association for Computational Linguistics, 2019), 3982-92, https://doi.org/10.18653/v1/D19-1410.
 [^11]: Tina Loo, "Crease, Sir Henry Pering Pellew," in *Dictionary of Canadian Biography*, vol. 13 (University of Toronto/Université Laval, 1994), https://www.biographi.ca/en/bio/crease_henry_pering_pellew_13E.html.
 [^12]: David R. Williams, "Begbie, Sir Matthew Baillie," in *Dictionary of Canadian Biography*, vol. 12 (University of Toronto/Université Laval, 1990), https://www.biographi.ca/en/bio/begbie_matthew_baillie_12E.html.
 [^13]: Fatemeh Ariai, Joel Mackenzie, and Guido De Martini, "Natural Language Processing for the Legal Domain: A Survey of Tasks, Datasets, Models and Challenges," arXiv:2410.21306 (2025).
