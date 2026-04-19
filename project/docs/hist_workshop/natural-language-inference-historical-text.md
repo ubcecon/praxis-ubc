@@ -9,7 +9,7 @@ authors:
 - Kaiyan Zhang
 - Alex Ronczewski
 - Irene Berezin
-date: 2026-05-xx
+date: 2026-05-01
 reviewers:
 - TBD
 editors:
@@ -124,13 +124,23 @@ import warnings
 from collections import defaultdict, Counter
 ```
 
+### Downloading the Data
+
+Download the lesson data files from the [Programming Historian repository](https://github.com/programminghistorian/ph-submissions). Create a `data/` directory in your working folder and place all files there. The dataset includes:
+
+- `metadata_cleaned.csv` -- a table listing the ten source documents with author, group, and type metadata
+- Thirteen `.txt` files -- the OCR-transcribed historical texts (legal rulings, the 1884 Chinese Regulation Act, and Royal Commission reports)
+- `stance_lexicon.csv` -- a domain-specific lexicon of approximately 120 terms in six stance categories
+- `labelled_snippets.csv` -- 44 hand-labelled sentence excerpts used for ground truth validation
+- `quotations_removed/` -- versions of Crease's texts with direct quotations of the Act removed
+
 ## Case Study: Chinese Immigration Law in British Columbia
 
-While the techniques demonstrated in this lesson are general-purpose; you will go through a case study that provides concrete material to work with.
+While the techniques demonstrated in this lesson are general-purpose, you will go through a case study that provides concrete material to work with.
 
 The *1884 Chinese Regulation Act* in British Columbia (a province on the Pacific coast of Canada) was provincial legislation targeting Chinese residents, part of a broader wave of anti-Chinese laws across western North America in the late nineteenth century. It was challenged and declared unconstitutional in the 1885 case of *R v. Wing Chong* by [Henry Pering Pellew Crease](https://www.biographi.ca/en/bio/crease_henry_pering_pellew_13E.html), a judge on the Supreme Court of British Columbia.[^1] Justice Crease struck down the legislation on economic grounds, finding that it infringed on federal authority over immigration, trade, commerce, and taxation.
 
-However, Crease was not considered straightforwardly sympathetic to Chinese immigrants. Historian Tina Loo notes that he displayed mistrust toward Canadians, referred to them as "North American Chinamen," and feared they would "rule the country and job its offices."[^11] This raises the question: did Crease oppose the Act out of genuine anti-discrimination concern, or because he valued the Chinese immigrant labor force for economic growth?
+However, Crease was not considered straightforwardly sympathetic to Chinese immigrants. Historian Tina Loo notes that he displayed mistrust toward Chinese residents, referred to them as "North American Chinamen," and feared they would "rule the country and job its offices."[^11] This raises the question: did Crease oppose the Act out of genuine anti-discrimination concern, or because he valued the Chinese immigrant labor force for economic growth?
 
 To explore this question computationally, you will compare the language of Crease's rulings with two reference points: the discriminatory Act itself, and Justice [Matthew Baillie Begbie](https://www.biographi.ca/en/bio/begbie_matthew_baillie_12E.html),[^12] the first Chief Justice of British Columbia. Unlike Crease, historical accounts describe Begbie as protective of marginalized peoples, including Chinese immigrants.[^8][^9] Begbie struck down discriminatory municipal by-laws in Victoria targeting Chinese-owned businesses in the 1888 case of *R v. Victoria*.[^4]
 
@@ -160,11 +170,16 @@ df[['filename', 'doc_length']]
 
 ## Detecting and Removing Direct Quotations
 
-Crease's ruling in *R v. Wing Chong* quotes passages from the 1884 Chinese Regulation Act verbatim. If these quoted passages remain in the corpus, the NLI model will classify them as discriminatory language attributable to Crease, when in fact they are the Act's own words that Crease cited in order to critique them. To avoid this contamination, you need to detect and remove directly quoted sentences.
+Crease's ruling in *R v. Wing Chong* quotes passages from the 1884 Chinese Regulation Act verbatim. If these quoted passages remain in the corpus, the NLI model will classify them as language attributable to Crease, when in fact they are the Act's own words that Crease cited, maybe in order to critique them. To avoid this contamination, you need to detect and remove directly quoted sentences.
 
-The approach uses fuzzy string matching via Python's `difflib.SequenceMatcher`, which computes a similarity ratio between two strings based on the longest contiguous matching subsequences. For each sentence in Crease's text, you compute its similarity to every sentence in the Act and retain the highest score:
+The approach uses fuzzy string matching via Python's [`difflib.SequenceMatcher`](https://docs.python.org/3/library/difflib.html), which computes a similarity ratio between two strings based on the longest contiguous matching subsequences. For each sentence in Crease's text, you compute its similarity to every sentence in the Act and retain the highest score:
 
 ```python
+import spacy
+import difflib
+
+nlp = spacy.load("en_core_web_sm")
+
 act_text = df.loc[
     df['type'] == 'act', 'text'
 ].values[0]
@@ -201,11 +216,31 @@ def compute_quote_similarity(
     return best
 ```
 
-A threshold of 0.6 catches near-exact quotes (accounting for OCR errors), while 0.4 catches looser paraphrases. The `act_quote_sentences_removed` column in the metadata records how many sentences were removed from each document at the 0.6 threshold.
+A threshold of 0.6 catches near-exact quotes (accounting for OCR errors), while 0.4 catches looser paraphrases. The `act_quote_sentences_removed` column in the metadata records how many sentences were removed from each document at the 0.6 threshold. For your own analyses, you may try experimenting with different thresholds to see which one works best for your data.
 
 ## Exploratory Analysis: TF-IDF
 
-Before applying complex models, it is useful to identify the most distinctive terms in each author's texts using a count-based method. [Term Frequency-Inverse Document Frequency (TF-IDF)](https://en.wikipedia.org/wiki/Tf%E2%80%93idf) assigns high scores to words that are frequent within a document but rare across the corpus, surfacing terms that distinguish one group from another.
+Before applying complex models, it is useful to identify the most distinctive terms in each author's texts using a count-based method. The simplest approach is raw term frequency: for term $t$ in document $d$, count how many times $t$ appears:
+
+$$
+\text{TF}(t, d) = \frac{\text{count of } t \text{ in } d}{\text{total terms in } d}
+$$
+
+However, raw frequency alone over-weights common words. A term like "court" may appear frequently in every legal document, telling you nothing about what distinguishes one author from another. [Term Frequency-Inverse Document Frequency (TF-IDF)](https://en.wikipedia.org/wiki/Tf%E2%80%93idf) corrects for this by multiplying term frequency by a factor that penalizes terms appearing across many documents:
+
+$$
+\text{IDF}(t, D) = \log \frac{|D|}{|\{d \in D : t \in d\}|}
+$$
+
+where $|D|$ is the total number of documents and the denominator counts how many documents contain $t$. A term appearing in every document gets an IDF near zero; a term appearing in only one document gets a high IDF. The combined score is:
+
+$$
+\text{TF-IDF}(t, d, D) = \text{TF}(t, d) \times \text{IDF}(t, D)
+$$
+
+Intuitively, TF-IDF captures a form of semantic specificity: words that characterize a particular author's vocabulary (high TF, low document frequency) receive high scores, while words shared across all documents are down-weighted. This makes it a useful first pass for identifying distinctive themes before applying more computationally expensive embedding models. 
+
+However, TF-IDF remains a "bag-of-words" method (a representation that counts words without regard to their order or context): it treats each word as an isolated token and cannot capture word order, polysemy, or contextual nuance.
 
 ```python
 stop_words = set(stopwords.words('english'))
@@ -266,11 +301,78 @@ for group in ['Crease', 'Begbie',
     print(top)
 ```
 
-The TF-IDF results reveal that "Chinese" is prominent across all groups. Crease's writings emphasize "labor" and "taxation", Begbie's emphasize "license", and the Act focuses on "dollars." However, TF-IDF treats each word as an isolated token; it cannot distinguish between "labor" used to describe economic contribution and "labor" used in a regulatory context. To capture such semantic nuances, you need contextual embeddings.
+The TF-IDF results reveal that "Chinese" (or "Chinaman") is prominent across all groups. Crease's writings emphasize "labor" and "taxation", Begbie's emphasize "license", and the Act focuses on "dollars." However, TF-IDF treats each word as an isolated token; it cannot distinguish between "labor" used to describe economic contribution and "labor" used in a regulatory context. To capture such semantic nuances, you often need contextual embeddings.
+
+## Lexicon-Based Baseline
+
+Before moving to embedding models, it is worth testing a simpler approach: a domain-specific lexicon that counts occurrences of curated word lists. This strategy follows the [Loughran-McDonald (LM) lexicon](https://sraf.nd.edu/loughranmcdonald-master-dictionary/) used in financial text analysis.[^18] Loughran and McDonald (2011) showed that general-purpose sentiment dictionaries misclassified nearly three-quarters of "negative" words in financial filings — words like *liability*, *tax*, and *cost* are neutral in a 10-K but flagged as negative by general lexicons. Their solution was to build a domain-specific lexicon directly from the corpus: extract candidate terms by frequency, have domain experts categorize each term in context, and publish the full list with metadata for reproducibility. The LM lexicon uses six categories tailored to financial disclosure (*Negative*, *Positive*, *Uncertainty*, *Litigious*, *Strong Modal*, *Weak Modal*), not generic sentiment polarity.
+
+The same principle applies here: a word like "alien" is neutral in modern usage but carries specific legal meaning in nineteenth-century statutes. No equivalent lexicon exists for historical legal discourse on immigration, so the lesson includes a purpose-built one (`stance_lexicon.csv`) containing approximately 120 terms organized into six stance and rhetorical categories:
+
+| Category | Description | Examples |
+|----------|-------------|---------|
+| EXCLUSIONARY | Language supporting restriction | pestilential, invasion, prohibit |
+| RIGHTS_AFFIRMING | Language supporting legal rights | treaty, unconstitutional, entitled |
+| DEHUMANIZING | Racialized or derogatory terms | Chinaman, coolie, heathen |
+| LEGAL_PROCEDURAL | Neutral legal terminology | statute, legislature, jurisdiction |
+| ECONOMIC | Economic framing | labor, wages, commerce, taxation |
+| SANITARY_MEDICAL | Health-threat framing | infected, quarantine, smallpox |
+
+These terms were extracted from the TF-IDF analysis above and manually categorized using domain knowledge of the period. The scoring function counts lexicon hits per 1,000 tokens in each document:
+
+```python
+from collections import Counter
+
+lexicon = pd.read_csv("data/stance_lexicon.csv")
+lex_dict = {
+    row['term'].strip().lower():
+        row['category'].strip()
+    for _, row in lexicon.iterrows()
+}
+
+CATS = [
+    'EXCLUSIONARY', 'RIGHTS_AFFIRMING',
+    'DEHUMANIZING', 'LEGAL_PROCEDURAL',
+    'ECONOMIC', 'SANITARY_MEDICAL',
+]
+
+def score_document(text, lex):
+    tokens = re.findall(
+        r'\b[a-z]+\b', text.lower()
+    )
+    total = len(tokens)
+    if total == 0:
+        return {c: 0.0 for c in CATS}
+    counts = Counter()
+    for t in tokens:
+        if t in lex:
+            counts[lex[t]] += 1
+    return {
+        c: counts.get(c, 0) / total * 1000
+        for c in CATS
+    }
+
+scores = df['text'].apply(
+    lambda t: score_document(t, lex_dict)
+)
+lex_df = pd.DataFrame(scores.tolist())
+lex_df['group'] = df['group'].values
+
+print(
+    lex_df.groupby('group')[CATS]
+    .mean().round(2)
+)
+```
+
+{% include figure.html filename="data/natural-language-inference-historical-text-05.png" alt="Grouped bar chart showing lexicon category hit rates per 1,000 tokens for each author group, with the Regulation Act showing the highest Exclusionary and Economic scores" caption="Figure 5: Lexicon category profiles by author group. The Regulation Act dominates the Exclusionary and Economic categories, while Begbie shows the highest Dehumanizing count (reflecting his frequent use of 'Chinaman' and 'Chinamen' in case rulings)." %}
+
+The lexicon correctly identifies the Act as having the highest EXCLUSIONARY score (10.4 per 1,000 tokens) and the highest ECONOMIC score (26.1). However, it has critical blind spots. The word "taxation" appears when Crease *critiques* unequal taxation and when the Act *imposes* it; the lexicon counts both as ECONOMIC. When Crease quotes the Act to condemn it, the lexicon scores those quoted words as if Crease endorses them. And the approximately 120 terms capture only a fraction of the vocabulary: many stance-bearing phrases such as "fills one with alarm" or "rule the country" use common words that no lexicon would flag.
+
+These limitations motivate the shift to contextual embedding models and zero-shot NLI, which capture meaning at the sentence level rather than word level. The lexicon remains useful as a transparent, interpretable baseline against which to compare the more opaque model-based results.
 
 ## How Text Embeddings Work
 
-[Text embeddings](https://en.wikipedia.org/wiki/Word_embedding) represent words or passages as dense numerical vectors in a high-dimensional space (typically 768 dimensions for BERT-family models). Unlike TF-IDF, which counts word occurrences, embedding models like [BERT](https://en.wikipedia.org/wiki/BERT_(language_model)) produce vectors that encode contextual meaning: the same word receives different vectors depending on its surrounding text.
+[Text embeddings](https://en.wikipedia.org/wiki/Word_embedding) represent words or passages as dense numerical vectors in a high-dimensional space (typically 768 dimensions for BERT-family models). Unlike TF-IDF, which naively counts word occurrences, embedding models like [BERT](https://en.wikipedia.org/wiki/BERT_(language_model)) produce vectors that encode contextual meaning: the same word receives different vectors depending on its surrounding text.
 
 The basic workflow for generating embeddings is:
 
@@ -291,9 +393,9 @@ Model selection is a critical decision in any NLP pipeline, especially for histo
 
 This lesson uses two models, each for a different purpose:
 
-- [Sentence-BERT (all-mpnet-base-v2)](https://huggingface.co/sentence-transformers/all-mpnet-base-v2) for generating text embeddings. This model was trained on over one billion sentence pairs using a contrastive learning objective, producing 768-dimensional vectors optimized for semantic similarity tasks. Unlike domain-specific models such as Legal-BERT, which was pre-trained on modern EU and US legal text, Sentence-BERT's broad training data (drawn from diverse internet sources) gives it robust general-purpose representations. For historical legal texts, this breadth is an advantage: the corpus mixes legal terminology with political and economic language that a narrow legal model may underrepresent. The `sentence-transformers` library also provides a simpler API than manually tokenizing and pooling hidden states from a base BERT model.
+- [Sentence-BERT (all-mpnet-base-v2)](https://huggingface.co/sentence-transformers/all-mpnet-base-v2) for generating text embeddings. This model was trained on over one billion sentence pairs using a contrastive learning objective (a training method where the model learns to pull similar sentences closer together and push dissimilar ones apart in vector space), producing 768-dimensional vectors optimized for semantic similarity tasks. Unlike domain-specific models such as Legal-BERT, which was pre-trained on modern EU and US legal text, Sentence-BERT's broad training data (drawn from diverse internet sources) gives it robust general-purpose representations. For historical legal texts, this breadth is an advantage: the corpus mixes legal terminology with political and economic language that a narrow legal model may underrepresent. The `sentence-transformers` library also provides a simpler API than manually tokenizing and pooling hidden states from a base BERT model.
 
-- [DeBERTa NLI (v2.0)](https://huggingface.co/MoritzLaurer/deberta-v3-large-zeroshot-v2.0) for zero-shot classification. This model was fine-tuned on multiple natural language inference datasets (MultiNLI, FEVER, ANLI, LingNLI, and additional synthetic data), achieving state-of-the-art performance on zero-shot classification benchmarks. It uses disentangled attention that better captures word-position relationships, which is useful for the complex syntax of legal texts. The v2.0 release adds improved calibration over its predecessor, producing more balanced probability distributions across candidate labels.
+- [DeBERTa NLI (v2.0)](https://huggingface.co/MoritzLaurer/deberta-v3-large-zeroshot-v2.0) for zero-shot classification. This model was fine-tuned on multiple natural language inference datasets (MultiNLI, FEVER, ANLI, LingNLI, and additional synthetic data), achieving state-of-the-art performance on zero-shot classification benchmarks. It uses disentangled attention (a mechanism that separately encodes word content and position, then combines them during attention calculation) that better captures word-position relationships, which is useful for the complex syntax of legal texts. The v2.0 release adds improved calibration over its predecessor, producing more balanced probability distributions across candidate labels.
 
 When choosing models for your own historical corpus, consider:
 
@@ -312,6 +414,20 @@ There is no complete solution to this mismatch. The practical approach is to:
 - Verify that key terms in your corpus appear in the model's vocabulary
 - Compare model outputs against passages where the expected stance is clear
 - Treat all computational results as hypotheses that require human validation, not as conclusions
+
+### Digital Resources for Historical Semantics
+
+Several open digital resources can help you investigate how word meanings have shifted between the period of your corpus and the modern training data your models rely on:
+
+- The [Historical Thesaurus of English](https://ht.ac.uk/) (University of Glasgow) organizes nearly every recorded English word into hierarchies of meaning with dated attestations, allowing you to trace when a word acquired or lost a specific sense.[^14] For example, you can verify that "alien" carried its legal sense of "foreign-born person" throughout the nineteenth century, rather than its later science-fiction connotation.
+
+- [Google Books Ngram Viewer](https://books.google.com/ngrams) charts word and phrase frequencies across millions of digitized books from the 1500s to the present.[^15] By comparing how terms like "Chinaman" or "immigration" were used in the 1880s versus the 2000s, you can identify periods where usage frequency or context shifted dramatically, which indicates where a modern model's training data may diverge from your corpus.
+
+- [EarlyPrint](https://earlyprint.org/) provides linguistically annotated and searchable texts of early English print (1473 to the early 1700s), with tools for lemmatization and morphological analysis.[^16] While its temporal coverage predates this lesson's corpus, its methods for handling archaic spelling and OCR artifacts (including the "blackdot" strategy for unrecognizable characters) are directly relevant to any historical NLP project.
+
+- The [Corpus of Historical American English (COHA)](https://www.english-corpora.org/coha/) contains 475 million words of American English from the 1820s to the 2010s, balanced by decade and genre.[^17] Searching for key terms in the 1880s decade can reveal collocates and usage patterns that differ from modern English.
+
+These resources cannot automatically correct a model's modern biases, but they can inform your label design and help you anticipate where the model is likely to misinterpret historical language. For instance, if the Historical Thesaurus confirms that "labor" in nineteenth-century Canadian legal texts primarily denoted physical work rather than the modern political sense of labor movements, you can phrase your classification labels accordingly.
 
 ## Generating Stance Embeddings
 
@@ -461,7 +577,8 @@ ax.set_title(
 ax.legend()
 plt.tight_layout()
 plt.savefig(
-    "data/umap-projection-stance.png",
+    "data/natural-language-inference"
+    "-historical-text-01.png",
     dpi=150,
 )
 plt.show()
@@ -709,7 +826,7 @@ The model should assign a relatively high "Neutral" score to this passage, which
 
 ### Validating Against Ground Truth
 
-Before interpreting the zero-shot results on the full corpus, it is important to measure the model's accuracy on a labeled sample. A ground truth set of 44 manually labeled snippets (23 contradiction, 18 neutral, 3 entailment) from the corpus provides a benchmark. The model achieves 72.7% accuracy (32 out of 44 correct), with per-class F1 scores of 0.75 for contradiction, 0.65 for neutral, and 1.00 for entailment. This is a reasonable baseline for zero-shot classification on nineteenth-century legal text, but the neutral category shows the most confusion, reflecting the difficulty of distinguishing genuinely neutral passages from passages whose stance depends on rhetorical context.
+Before interpreting the zero-shot results on the full corpus, it is important to measure the model's accuracy on a labeled sample. A ground truth set of 44 manually labeled snippets (23 contradiction, 18 neutral, 3 entailment) from the corpus provides a benchmark. The model achieves 72.7% accuracy (32 out of 44 correct), with per-class F1 scores (the harmonic mean of precision and recall, where 1.0 is perfect) of 0.75 for contradiction, 0.65 for neutral, and 1.00 for entailment. This is a reasonable baseline for zero-shot classification on nineteenth-century legal text, but the neutral category shows the most confusion, reflecting the difficulty of distinguishing genuinely neutral passages from passages whose stance depends on rhetorical context.
 
 ### Sentence-Level Classification
 
@@ -889,6 +1006,14 @@ print(corr_wide)
 
 These correlations reveal whether emphasis on certain topics (e.g., labor, taxation) corresponds with more pro- or anti-discriminatory language. Combined with the qualitative evidence from the sentence-level analysis, this provides a multi-faceted view of each author's stance.
 
+### Comparing Lexicon and NLI Results
+
+Following the practice in computational finance of comparing dictionary-based and model-based classifiers, you can now score each sentence with both the lexicon and the NLI model. Where both methods agree, confidence is higher. Where they disagree, the passage likely involves rhetorical complexity — quotation for critique, legal description, or contextual reversal — that merits close reading.
+
+{% include figure.html filename="data/natural-language-inference-historical-text-06.png" alt="Two scatter plots comparing lexicon category scores against NLI classification scores per sentence, showing that many sentences with high NLI Cons scores have zero lexicon hits" caption="Figure 6: Lexicon scores versus NLI scores at the sentence level. The left panel shows that many sentences classified as discriminatory by NLI have zero Exclusionary lexicon hits, indicating the NLI model captures contextual meaning the lexicon misses. The right panel shows weak correlation between Rights-Affirming vocabulary and NLI Pro scores." %}
+
+The comparison reveals that the lexicon and NLI model capture different aspects of stance. Sentences with high NLI Cons scores but zero lexicon hits express discriminatory meaning through phrasing rather than keywords. Sentences where the lexicon flags Exclusionary vocabulary but NLI classifies as Neutral or Pro often involve quotation or description of discriminatory provisions. These disagreements are precisely the passages a historian should examine through close reading.
+
 ## Robustness Checks
 
 Computational results from zero-shot NLI should be treated as hypotheses, not conclusions. Three robustness checks help assess how stable the findings are: quote sensitivity analysis, label sensitivity analysis, and bootstrap confidence intervals.
@@ -999,6 +1124,34 @@ for author in ['Crease', 'Begbie',
 
 Wide confidence intervals (especially for Begbie with only 18 snippets) indicate that the point estimates should be interpreted cautiously. Where intervals for different authors overlap on a given stance, the difference between them is not statistically reliable.
 
+### Further Robustness Strategies
+
+The three checks above (quote sensitivity, label sensitivity, and bootstrap confidence intervals) are the minimum recommended for any zero-shot NLI analysis. Depending on the scope of your project, several additional strategies can strengthen confidence in the results:
+
+- Model comparison: re-run classification with a different NLI model (such as `facebook/bart-large-mnli` or `cross-encoder/nli-deberta-v3-base`) and check whether the relative ordering of authors is preserved. If rankings change substantially across models, the finding may be an artifact of one model's training biases rather than a genuine textual pattern.
+
+- Aggregation granularity: compare results at different levels of analysis (sentence, window, full document). Consistent rankings across all levels provide stronger evidence than results that appear only at one granularity.
+
+- Hypothesis template variation: the hypothesis template ("In this snippet of a historical legal text, the author {}") frames how the model interprets each label. Testing alternative templates (such as "The author of this text {}" or "This passage {}") reveals whether the template wording introduces systematic bias.
+
+- Inter-annotator agreement: have two or more domain experts independently label a sample of sentences, then compare the model's classifications against each annotator and against inter-annotator agreement (using metrics like [Cohen's kappa](https://en.wikipedia.org/wiki/Cohen%27s_kappa) or [Krippendorff's alpha](https://en.wikipedia.org/wiki/Krippendorff%27s_alpha), which measure the degree of agreement beyond what would be expected by chance). This grounds the model's error rate in human disagreement rather than a single annotator's judgment.
+
+- Temporal sub-sampling: if the corpus spans multiple time periods, classify each period separately and check whether the model's behavior is consistent across decades. Shifts in language conventions over time may affect the model differently for different sub-corpora.
+
+- Permutation testing: randomly shuffle the author labels across sentences and re-compute mean scores. If the observed difference between authors exceeds 95% of the permuted differences, the finding is unlikely to be due to chance.
+
+None of these checks require re-training a model. They can all be implemented with the same zero-shot pipeline demonstrated above, making them accessible additions to any NLI-based historical text analysis.
+
+## Discussion
+
+Returning to the historiographical question: did Crease oppose the 1884 Chinese Regulation Act out of principled concern for Chinese immigrants' rights, or primarily for economic and jurisdictional reasons?
+
+The computational evidence suggests a nuanced answer. The lexicon baseline showed that Crease's texts score higher on ECONOMIC and SANITARY_MEDICAL categories than the other judges, while Begbie's texts carry the highest DEHUMANIZING count (driven by frequent use of "Chinaman" in case rulings — a term that, in the conventions of the period, did not necessarily signal hostility). The embedding-based similarity analysis revealed that Crease and Begbie occupy overlapping regions of semantic space, both distinct from the Act's cluster. Zero-shot NLI classification confirmed that the Act consistently scores highest on discriminatory labels, while Crease and Begbie show more mixed profiles.
+
+Yet the analysis also exposed important limitations. Crease's frequent use of economic vocabulary may reflect his legal strategy — arguing that immigration regulation fell under federal rather than provincial authority — rather than a genuine concern for the economic welfare of Chinese residents. The NLI model cannot distinguish between these motivations because both produce similar surface-level language. Similarly, when Crease quotes the Act to critique it, lexicon-based methods count those words as if they were his own, inflating discriminatory scores unless quotations are carefully removed.
+
+These ambiguities are not failures of the method; they are precisely the kind of interpretive questions that computational analysis is designed to surface. The workflow narrowed the search space from over 80,000 words of legal text to a small set of sentences and patterns that merit close reading. A historian might now focus on the specific passages where Crease's language most closely resembles the Act's, or where Begbie's seemingly protective rulings still employ dehumanizing terminology. The computational pipeline transforms an open-ended question into a tractable set of leads.
+
 ## Conclusion
 
 This lesson demonstrated a complete NLP workflow for historical text analysis: from exploratory keyword analysis (TF-IDF) through contextual embeddings (Sentence-BERT), dimensionality reduction (UMAP), zero-shot NLI classification (DeBERTa v2.0), and robustness checks (quote sensitivity, label sensitivity, and bootstrap confidence intervals). The analysis confirmed that Crease and Begbie used semantically similar language when discussing Chinese immigration, while the 1884 Chinese Regulation Act showed a distinctly more discriminatory profile.
@@ -1007,12 +1160,20 @@ The results also highlighted significant limitations. Pre-trained models encode 
 
 These techniques should be used as discovery tools that generate hypotheses for further investigation, not as substitutes for close reading. The computational workflow narrows the search space and identifies patterns across large corpora, but human expertise remains essential for interpreting what those patterns mean in historical context.
 
+## Further Reading
+
+- Underwood, Ted. *Distant Horizons: Digital Evidence and Literary Change*. Chicago: University of Chicago Press, 2019. An accessible introduction to using computational methods for historical literary analysis.
+- Yin, Wenpeng, Jamaal Hay, and Dan Roth. "Benchmarking Zero-shot Text Classification: Datasets, Evaluation, and Entailment Approach." In *Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing*, 3914-23. Hong Kong: Association for Computational Linguistics, 2019. The foundational paper on using NLI for zero-shot text classification.
+- Lazer, David, et al. "Computational Social Science." *Science* 323, no. 5915 (2009): 721-23. A landmark article on the promises and pitfalls of computational approaches to social questions.
+- Hamilton, William L., Jure Leskovec, and Dan Jurafsky. "Diachronic Word Embeddings Reveal Statistical Laws of Semantic Change." In *Proceedings of the 54th Annual Meeting of the Association for Computational Linguistics*, 1489-1501. Berlin: ACL, 2016. Describes the HistWords approach to tracking semantic shifts over time.
+
 ## Endnotes
 
 [^1]: *Regina v. Wing Chong*, 1 B.C.R. Pt. II 150 (1885).
 [^2]: *Wong Hoy Woon v. Duncan*, 3 B.C.R. 318 (1894).
 [^3]: *Regina v. Mee Wah*, 3 B.C.R. 403 (1886).
 [^4]: *Regina v. Corporation of Victoria*, 1 B.C.R. Pt. II 331 (1888).
+[^5]: *An Act to Regulate the Chinese Population of British Columbia* (S.B.C. 1884, c. 4).
 [^6]: Law Society of British Columbia, *The British Columbia Reports: Being Reports of Cases Determined in the Supreme and County Courts and in Admiralty and on Appeal in the Full Court and Divisional Court*, vol. 3 (Victoria, BC: The Province Publishing Company, 1896).
 [^7]: Canada, Royal Commission on Chinese Immigration, *Report of the Royal Commission on Chinese Immigration: Report and Evidence* (Ottawa: Printed by order of the Commission, 1885).
 [^8]: Paul Thomas, "Courts of Last Resort: The Judicialization of Asian Canadian Politics 1878 to 1913" (paper presented at the Annual Conference of the Canadian Political Science Association, University of Alberta, Edmonton, Canada, June 12-14, 2012), https://cpsa-acsp.ca/papers-2012/Thomas-Paul.pdf.
@@ -1021,3 +1182,8 @@ These techniques should be used as discovery tools that generate hypotheses for 
 [^11]: Tina Loo, "Crease, Sir Henry Pering Pellew," in *Dictionary of Canadian Biography*, vol. 13 (University of Toronto/Université Laval, 1994), https://www.biographi.ca/en/bio/crease_henry_pering_pellew_13E.html.
 [^12]: David R. Williams, "Begbie, Sir Matthew Baillie," in *Dictionary of Canadian Biography*, vol. 12 (University of Toronto/Université Laval, 1990), https://www.biographi.ca/en/bio/begbie_matthew_baillie_12E.html.
 [^13]: Fatemeh Ariai, Joel Mackenzie, and Guido De Martini, "Natural Language Processing for the Legal Domain: A Survey of Tasks, Datasets, Models and Challenges," arXiv:2410.21306 (2025).
+[^14]: Marc Alexander, ed., *Historical Thesaurus of English*, 2nd ed. (Glasgow: University of Glasgow, 2020), https://ht.ac.uk/.
+[^15]: Jean-Baptiste Michel et al., "Quantitative Analysis of Culture Using Millions of Digitized Books," *Science* 331, no. 6014 (2011): 176-82, https://doi.org/10.1126/science.1199644.
+[^16]: EarlyPrint Project, *EarlyPrint: Curating and Exploring Early Printed English* (Northwestern University and Washington University in St. Louis), https://earlyprint.org/.
+[^17]: Mark Davies, *Corpus of Historical American English (COHA): 475 Million Words, 1820s–2010s* (Provo, UT: Brigham Young University, 2010–), https://www.english-corpora.org/coha/.
+[^18]: Tim Loughran and Bill McDonald, "When Is a Liability Not a Liability? Textual Analysis, Dictionaries, and 10-Ks," *Journal of Finance* 66, no. 1 (2011): 35-65, https://doi.org/10.1111/j.1540-6261.2010.01625.x.
