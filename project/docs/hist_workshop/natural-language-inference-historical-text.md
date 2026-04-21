@@ -28,7 +28,7 @@ abstract: "This lesson demonstrates how to use text embeddings, zero-shot classi
 
 ## Lesson Goals
 
-This lesson teaches you how to apply [Natural Language Inference (NLI)](https://en.wikipedia.org/wiki/Textual_entailment) techniques to historical documents using Python. NLI allows a model to determine whether a given text entails, contradicts, or is neutral toward a hypothesis, making it a powerful tool for stance analysis in historical corpora where labeled training data is unavailable, or where manual labeling is expensive.
+This lesson teaches you how to apply [Natural Language Inference (NLI)](https://en.wikipedia.org/wiki/Textual_entailment) techniques to historical documents using Python. NLI allows a model to determine whether a given text entails, contradicts, or is neutral toward a specific historical claim. This framework circumvents the need to build and train custom classifiers for every unique historical debate. Instead of mapping a document to a fixed label, NLI leverages pre-trained semantic reasoning to dynamically assess stances, making it a highly adaptable and powerful tool for historical corpora where labeled training data is unavailable or manual labeling is expensive.
 
 By the end, you will be able to:
 
@@ -112,12 +112,10 @@ import umap
 import textwrap
 import difflib
 import matplotlib.pyplot as plt
-import seaborn as sns
 from nltk import sent_tokenize
 from nltk.corpus import stopwords
 import spacy
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics import accuracy_score, classification_report
 from sklearn.metrics.pairwise import cosine_similarity
 from sentence_transformers import SentenceTransformer
 from transformers import AutoTokenizer, pipeline
@@ -179,10 +177,12 @@ The approach uses fuzzy string matching via Python's [`difflib.SequenceMatcher`]
 ```python
 nlp = spacy.load("en_core_web_sm")
 
-act_text = df.loc[df['type'] == 'act', 'text'].values[0]
-act_sents = [
+regulation_act_text = df.loc[
+    df['type'] == 'act', 'text'
+].values[0]
+regulation_act_sents = [
     s.text.strip()
-    for s in nlp(act_text).sents
+    for s in nlp(regulation_act_text).sents
     if len(s.text.strip()) > 20
 ]
 
@@ -261,6 +261,9 @@ df['processed_text'] = (
     df['text'].apply(preprocess_text)
 )
 
+ACT_LABEL = 'Regulation Act'
+LEGACY_ACT_LABEL = 'Act 1884'
+
 df['group'] = 'Other'
 df.loc[
     df['author'] == 'Crease', 'group'
@@ -269,8 +272,8 @@ df.loc[
     df['author'] == 'Begbie', 'group'
 ] = 'Begbie'
 df.loc[
-    df['author'] == 'Others', 'group'
-] = 'Regulation Act'
+    df['type'] == 'act', 'group'
+] = ACT_LABEL
 
 vectorizer = TfidfVectorizer(
     max_features=1000, ngram_range=(1, 3)
@@ -291,7 +294,7 @@ tfidf_df['group'] = df['group'].values
 
 mean_tfidf = tfidf_df.groupby('group').mean()
 
-for group in ['Crease', 'Begbie', 'Regulation Act', 'Other']:
+for group in ['Crease', 'Begbie', ACT_LABEL, 'Other']:
     top = (
         mean_tfidf.loc[group]
         .sort_values(ascending=False)
@@ -302,7 +305,7 @@ for group in ['Crease', 'Begbie', 'Regulation Act', 'Other']:
     print(top)
 ```
 
-The TF-IDF results reveal that "Chinese" (or "Chinaman") is prominent across all groups. Crease's writings emphasize "labor" and "taxation", Begbie's emphasize "license", and the Act focuses on "dollars." However, TF-IDF treats each word as an isolated token; it cannot distinguish between "labor" used to describe economic contribution and "labor" used in a regulatory context. To capture such semantic nuances, you often need contextual embeddings.
+The TF-IDF results reveal that "Chinese" (or "Chinaman") is prominent across all groups. Crease's writings emphasize "labor" and "taxation", Begbie's emphasize "license", and the Regulation Act focuses on "dollars." However, TF-IDF treats each word as an isolated token; it cannot distinguish between "labor" used to describe economic contribution and "labor" used in a regulatory context. To capture such semantic nuances, you often need contextual embeddings.
 
 ## Lexicon-Based Baseline
 
@@ -433,7 +436,7 @@ embed_model = SentenceTransformer(
 )
 print(
     "Embedding dimension:",
-    embed_model.get_sentence_embedding_dimension(),
+    embed_model.get_embedding_dimension(),
 )
 ```
 
@@ -457,43 +460,87 @@ begbie_cases = df[
     & (df['type'] == 'case')
 ]['text'].tolist()
 
-act_1884 = df[
+regulation_act_texts = df[
     df['type'] == 'act'
 ]['text'].tolist()
 
 corpus_by_author = {
     'Crease': crease_cases,
     'Begbie': begbie_cases,
-    'Act 1884': act_1884,
+    ACT_LABEL: regulation_act_texts,
 }
 
 keywords = [
-    "Chinese", "China", "Chinaman",
-    "Chinamen", "immigrant", "immigrants",
+    "chinese", "china", "chinaman",
+    "chinamen", "immigrant", "immigrants",
     "alien", "aliens", "immigration",
 ]
 
 keyword_snippets = {}
-for auth, texts in corpus_by_author.items():
+for author, texts in corpus_by_author.items():
     snippets = []
-    for txt in texts:
-        sents = [s.text for s in nlp(txt).sents]
-        for s in sents:
-            if any(kw in s for kw in keywords):
-                snippets.append(s)
-    keyword_snippets[auth] = snippets
+    for text in texts:
+        for sentence in nlp(text).sents:
+            sentence_text = sentence.text.strip()
+            sentence_lower = sentence_text.lower()
+            if any(keyword in sentence_lower for keyword in keywords):
+                snippets.append(sentence_text)
+    keyword_snippets[author] = snippets
 
-for auth, snips in keyword_snippets.items():
-    print(f"{auth}: {len(snips)} snippets")
+def encode_snippets(snippets_by_author):
+    embeddings = {}
+    for author, snippets in snippets_by_author.items():
+        if not snippets:
+            embeddings[author] = np.array([])
+            continue
+        embeddings[author] = embed_model.encode(
+            snippets,
+            batch_size=32,
+            show_progress_bar=True,
+        )
+    return embeddings
+
+def normalize_embeddings_dict(embeddings):
+    if (
+        ACT_LABEL not in embeddings
+        and LEGACY_ACT_LABEL in embeddings
+    ):
+        embeddings[ACT_LABEL] = embeddings.pop(
+            LEGACY_ACT_LABEL
+        )
+    return embeddings
+
+def normalize_author_frame(frame):
+    frame = frame.copy()
+    frame['Author'] = frame['Author'].replace(
+        {LEGACY_ACT_LABEL: ACT_LABEL}
+    )
+    return frame
+
+for author, snippets in keyword_snippets.items():
+    print(f"{author}: {len(snippets)} snippets")
 ```
 
-Embedding all snippets takes a few seconds with Sentence-BERT. Pre-computed embeddings are also provided in `case_snippet_embeddings.npz`:
+Embedding all snippets takes a few seconds with Sentence-BERT. Pre-computed embeddings are provided in `case_snippet_embeddings.npz`. If you want to regenerate them, uncomment the next cell, run it once, and then load the saved file in the following cell:
 
 ```python
-with np.load(
-    "data/case_snippet_embeddings.npz"
-) as data:
-    embeddings_dict = dict(data)
+# embeddings_path = "data/case_snippet_embeddings.npz"
+# embeddings_dict = encode_snippets(keyword_snippets)
+# np.savez(
+#     embeddings_path,
+#     **{
+#         key: np.array(value)
+#         for key, value in embeddings_dict.items()
+#     },
+# )
+```
+
+```python
+embeddings_path = "data/case_snippet_embeddings.npz"
+with np.load(embeddings_path) as data:
+    embeddings_dict = normalize_embeddings_dict(
+        dict(data)
+    )
 ```
 
 ### Measuring Stance Similarity
@@ -509,15 +556,15 @@ mean_begbie = np.mean(
     embeddings_dict["Begbie"], axis=0,
     keepdims=True,
 )
-mean_act = np.mean(
-    embeddings_dict["Act 1884"], axis=0,
+mean_regulation_act = np.mean(
+    embeddings_dict[ACT_LABEL], axis=0,
     keepdims=True,
 )
 
 pairs = [
     ("Crease", "Begbie", mean_crease, mean_begbie),
-    ("Crease", "Act 1884", mean_crease, mean_act),
-    ("Begbie", "Act 1884", mean_begbie, mean_act),
+    ("Crease", ACT_LABEL, mean_crease, mean_regulation_act),
+    ("Begbie", ACT_LABEL, mean_begbie, mean_regulation_act),
 ]
 
 for a, b, va, vb in pairs:
@@ -533,14 +580,14 @@ for a, b, va, vb in pairs:
 all_vecs = np.vstack([
     embeddings_dict["Crease"],
     embeddings_dict["Begbie"],
-    embeddings_dict["Act 1884"],
+    embeddings_dict[ACT_LABEL],
 ])
 
 labels = (
     ["Crease"] * len(embeddings_dict["Crease"])
     + ["Begbie"] * len(embeddings_dict["Begbie"])
-    + ["Act 1884"]
-    * len(embeddings_dict["Act 1884"])
+    + [ACT_LABEL]
+    * len(embeddings_dict[ACT_LABEL])
 )
 
 reducer = umap.UMAP(
@@ -554,7 +601,7 @@ proj = reducer.fit_transform(all_vecs)
 color_map = {
     "Crease": "#1f77b4",
     "Begbie": "#d62728",
-    "Act 1884": "#2ca02c",
+    ACT_LABEL: "#2ca02c",
 }
 
 fig, ax = plt.subplots(figsize=(8, 5))
@@ -582,7 +629,7 @@ plt.savefig(
 plt.show()
 ```
 
-{% include figure.html filename="data/natural-language-inference-historical-text-01.png" alt="A 2D UMAP projection scatter plot showing legal text embeddings colored by author: Crease (blue), Begbie (red), and Act 1884 (green)" caption="Figure 1: UMAP projection of stance embeddings by author. Crease and Begbie snippets partially overlap, while the Act forms a more distinct cluster." %}
+{% include figure.html filename="data/natural-language-inference-historical-text-01.png" alt="A 2D UMAP projection scatter plot showing legal text embeddings colored by author: Crease (blue), Begbie (red), and Regulation Act (green)" caption="Figure 1: UMAP projection of stance embeddings by author. Crease and Begbie snippets partially overlap, while the Regulation Act forms a more distinct cluster." %}
 
 ### Investigating Key Sentences
 
@@ -636,7 +683,7 @@ top_similar_sentences(mean_begbie, "Begbie")
 ```
 
 ```python
-top_similar_sentences(mean_act, "Act 1884")
+top_similar_sentences(mean_regulation_act, ACT_LABEL)
 ```
 
 ## Topic Alignment Analysis
@@ -678,7 +725,7 @@ similarity_scores = []
 
 for topic, anchor in topic_anchors.items():
     for author in ['Crease', 'Begbie',
-                    'Act 1884']:
+                    ACT_LABEL]:
         emb_list = embeddings_dict.get(
             author, []
         )
@@ -802,10 +849,33 @@ def get_scores(snippet, labels=None):
         candidate_labels=labels,
         truncation=True,
     )
-    return dict(zip(out["labels"], out["scores"]))
+    raw = dict(zip(out["labels"], out["scores"]))
+    return {label: raw.get(label, 0.0) for label in labels}
+
+SCORE_COLS = ['Pro', 'Neutral', 'Cons']
+
+def score_texts(texts_by_author, labels=None):
+    if labels is None:
+        labels = zs_labels
+    rows = []
+    for author, texts in texts_by_author.items():
+        for text in texts:
+            score_map = get_scores(text, labels=labels)
+            rows.append(
+                {
+                    'Author': author,
+                    'Text': text,
+                    'Pro': score_map[labels[0]],
+                    'Neutral': score_map[labels[1]],
+                    'Cons': score_map[labels[2]],
+                }
+            )
+    return pd.DataFrame(rows)
 ```
 
 This CPU-first pattern keeps the notebook reproducible across environments. If you want acceleration, set `ACCELERATOR_MODE=gpu` before running.
+
+For longer stages, the lesson shows the calculation cell commented out and then loads the pre-computed file in the next cell. To regenerate a file, uncomment the calculation cell, run it once, and then run the load cell.
 
 ### Testing with a Known Example
 
@@ -844,7 +914,7 @@ Before interpreting zero-shot results on the full corpus, it is important to mea
 
 The evaluation reports overall accuracy, per-class precision/recall/F1 (the harmonic mean of precision and recall, where 1.0 is perfect), and a majority-class baseline. Reporting the baseline is essential: if a trivial classifier can perform well by always predicting one class, apparent gains in accuracy may be misleading. The notebook also reports per-author breakdowns so you can see whether performance is concentrated in one source type or generalizes across legal voices.
 
-In this run, overall accuracy on the 45-sentence set is 0.667 (30/45), compared with a majority-class baseline of 0.333. Per-class F1 scores are 0.500 (Pro), 0.686 (Neutral), and 0.743 (Cons). Per-author accuracy is highest for Commission snippets (1.000), followed by Crease (0.733) and Act 1884 (0.700), and lower for Begbie (0.467), which is consistent with the rhetorical complexity discussed below.
+In this run, overall accuracy on the 45-sentence set is 0.667 (30/45), compared with a majority-class baseline of 0.333. Per-class F1 scores are 0.500 (Pro), 0.686 (Neutral), and 0.743 (Cons). Per-author accuracy is highest for Commission snippets (1.000), followed by Crease (0.733) and the Regulation Act (0.700), and lower for Begbie (0.467), which is consistent with the rhetorical complexity discussed below.
 
 For interpretive tasks, this level of performance is usable but not definitive. Treat these scores as decision support for close reading, not automated ground truth.[^22][^23][^24][^26]
 
@@ -852,18 +922,25 @@ For interpretive tasks, this level of performance is usable but not definitive. 
 
 One limitation of transformer models is a fixed token limit (typically 512 tokens). For longer documents, you must split text into smaller units. The sentence approach classifies each sentence individually, capturing fine-grained variation in stance.
 
-Classification of all sentences takes approximately 20 to 40 minutes on CPU. Pre-computed results are provided in `zero_shot_sentence_scores.csv`:
+Classification of all sentences takes approximately 20 to 40 minutes on CPU. Pre-computed results are provided in `zero_shot_sentence_scores.csv`. If you want to regenerate them, uncomment the next cell, run it once, and then load the saved file in the following cell:
 
 ```python
-df_scores = pd.read_csv(
-    "data/zero_shot_sentence_scores.csv"
+# sentence_scores_path = "data/zero_shot_sentence_scores.csv"
+# df_scores = score_texts(keyword_snippets, labels=zs_labels)
+# df_scores.to_csv(sentence_scores_path, index=False)
+```
+
+```python
+sentence_scores_path = "data/zero_shot_sentence_scores.csv"
+df_scores = normalize_author_frame(
+    pd.read_csv(sentence_scores_path)
 )
 ```
 
 ```python
 mean_scores = (
     df_scores
-    .groupby("Author")[["Pro", "Neutral", "Cons"]]
+    .groupby("Author")[SCORE_COLS]
     .mean()
 )
 print("Mean scores by author (sentence):")
@@ -882,7 +959,7 @@ for _, row in top_pro.iterrows():
     )
 ```
 
-{% include figure.html filename="data/natural-language-inference-historical-text-03.png" alt="Scatter plot of Pro versus Cons zero-shot classification scores colored by author, showing that Act 1884 points cluster toward higher Cons scores" caption="Figure 3: Pro versus Cons classification scores by author (sentence level). The Act clusters toward higher Cons scores, while Crease and Begbie sentences distribute more broadly." %}
+{% include figure.html filename="data/natural-language-inference-historical-text-03.png" alt="Scatter plot of Pro versus Cons zero-shot classification scores colored by author, showing that Regulation Act points cluster toward higher Cons scores" caption="Figure 3: Pro versus Cons classification scores by author (sentence level). The Regulation Act clusters toward higher Cons scores, while Crease and Begbie sentences distribute more broadly." %}
 
 ### Window-Level Classification
 
@@ -925,16 +1002,34 @@ def chunk_into_windows(
     return windows
 ```
 
-Pre-computed windowed scores are provided:
+Pre-computed windowed scores are provided. If you want to regenerate them, uncomment the next cell, run it once, and then load the saved file in the following cell:
 
 ```python
-all_scores = pd.read_csv(
-    "data/zero_shot_windowed_scores.csv"
+# window_scores_path = "data/zero_shot_windowed_scores.csv"
+# window_texts_by_author = {
+#     author: [
+#         window_text
+#         for doc_text in docs
+#         for window_text in chunk_into_windows(doc_text)
+#     ]
+#     for author, docs in corpus_by_author.items()
+# }
+# window_scores_df = score_texts(
+#     window_texts_by_author,
+#     labels=zs_labels,
+# )
+# window_scores_df.to_csv(window_scores_path, index=False)
+```
+
+```python
+window_scores_path = "data/zero_shot_windowed_scores.csv"
+window_scores_df = normalize_author_frame(
+    pd.read_csv(window_scores_path)
 )
 
 mean_w = (
-    all_scores
-    .groupby("Author")[["Pro", "Neutral", "Cons"]]
+    window_scores_df
+    .groupby("Author")[SCORE_COLS]
     .mean()
 )
 print("Mean scores by author (window):")
@@ -943,7 +1038,7 @@ print(mean_w.round(4))
 
 ### Interpreting and Evaluating Results
 
-Both sentence and window approaches identify the 1884 Chinese Regulation Act as the most discriminatory source. However, interpretation requires careful human evaluation and explicit treatment of model uncertainty.
+Both sentence and window approaches identify the Regulation Act as the most discriminatory source. However, interpretation requires careful human evaluation and explicit treatment of model uncertainty.
 
 Consider this example from Crease's ruling: "...every Chinese is guilty until proved innocent, a provision which fills one conversant with subjects with alarm..." The model may classify this as "Cons" because the sentence contains discriminatory language. In context, however, Crease is *condemning* the law. This pattern appears repeatedly in Begbie as well and forms a central interpretive issue in this workflow.
 
@@ -1049,7 +1144,7 @@ crease_sc = df_scores[
     df_scores['Author'] == 'Crease'
 ].copy()
 crease_sc['quote_sim'] = [
-    compute_quote_similarity(t, act_sents)
+    compute_quote_similarity(t, regulation_act_sents)
     for t in crease_sc['Text']
 ]
 
@@ -1076,46 +1171,76 @@ If the mean scores remain stable across thresholds, the results are not driven b
 
 ### Label Sensitivity
 
-Zero-shot classification results depend heavily on how candidate labels are phrased. Testing alternative label sets helps determine whether the ranking of authors is an artifact of specific wording or a robust finding:
+Zero-shot classification results depend heavily on how candidate labels are phrased. Testing alternative label sets helps determine whether the ranking of authors is an artifact of specific wording or a robust finding. Pre-computed label-sensitivity results are provided in `label_sensitivity_summary.csv`. If you want to regenerate them, uncomment the next cell, run it once, and then load the saved file in the following cell:
 
 ```python
-alt_labels_1 = [
-    "supports equal rights for Chinese immigrants",
-    "is neutral or unrelated to Chinese immigrant rights",
-    "supports discriminatory treatment of Chinese immigrants",
-]
-
-alt_labels_2 = [
-    (
-        "argues that Chinese immigrants deserve the same legal"
-        " protections as other residents"
-    ),
-    (
-        "discusses Chinese immigration without taking a clear"
-        " legal position for or against"
-    ),
-    (
-        "argues that restricting Chinese immigrants through law"
-        " is justified or necessary"
-    ),
-]
-
-label_sens_csv = "data/label_sensitivity_summary.csv"
-regen_label_sens = os.getenv("REGENERATE_LABEL_SENS", "0") == "1"
-
-if os.path.exists(label_sens_csv) and not regen_label_sens:
-    label_sens_df = pd.read_csv(label_sens_csv)
-else:
-    # Keep this step bounded for stable end-to-end runs.
-    max_per_author = int(os.getenv("LABEL_SENS_MAX_PER_AUTHOR", "2"))
-    sample = (
-        df_scores.groupby("Author", group_keys=False)
-        .head(max_per_author)
-    )
-    # Score sample under each label set and compare author means.
+# alt_labels_1 = [
+#     "supports equal rights for Chinese immigrants",
+#     "is neutral or unrelated to Chinese immigrant rights",
+#     "supports discriminatory treatment of Chinese immigrants",
+# ]
+#
+# alt_labels_2 = [
+#     (
+#         "argues that Chinese immigrants deserve the same legal"
+#         " protections as other residents"
+#     ),
+#     (
+#         "discusses Chinese immigration without taking a clear"
+#         " legal position for or against"
+#     ),
+#     (
+#         "argues that restricting Chinese immigrants through law"
+#         " is justified or necessary"
+#     ),
+# ]
+#
+# label_sets = {
+#     "Primary": zs_labels,
+#     "Alt-short": alt_labels_1,
+#     "Alt-legal": alt_labels_2,
+# }
+# sample = (
+#     df_scores.groupby("Author", group_keys=False)
+#     .head(2)
+# )
+# sample_texts = {
+#     author: sub["Text"].fillna("").tolist()
+#     for author, sub in sample.groupby("Author")
+# }
+#
+# frames = []
+# for set_name, labels in label_sets.items():
+#     mean_scores = (
+#         score_texts(sample_texts, labels=labels)
+#         .groupby("Author")[SCORE_COLS]
+#         .mean()
+#         .reset_index()
+#     )
+#     mean_scores["LabelSet"] = set_name
+#     frames.append(
+#         mean_scores[
+#             ["LabelSet", "Author", "Pro", "Neutral", "Cons"]
+#         ]
+#     )
+#
+# label_sens_df = pd.concat(frames, ignore_index=True)
+# label_sens_df.to_csv(
+#     "data/label_sensitivity_summary.csv",
+#     index=False,
+# )
 ```
 
-If the relative ordering of authors (e.g., Act > Begbie > Crease on "Cons") holds across all three label sets, the finding is more likely to reflect genuine textual patterns rather than label-dependent artifacts.
+```python
+label_sens_csv = "data/label_sensitivity_summary.csv"
+label_sens_df = normalize_author_frame(
+    pd.read_csv(label_sens_csv)
+)
+
+print(label_sens_df)
+```
+
+If the relative ordering of authors (e.g., Regulation Act > Begbie > Crease on "Cons") holds across all three label sets, the finding is more likely to reflect genuine textual patterns rather than label-dependent artifacts.
 
 ### Bootstrap Confidence Intervals
 
@@ -1140,7 +1265,7 @@ def bootstrap_ci(data, n_boot=1000, ci=0.95, seed=42):
     return np.mean(data), lo, hi
 
 for author in ['Crease', 'Begbie',
-               'Act 1884']:
+               ACT_LABEL]:
     sub = df_scores[
         df_scores['Author'] == author
     ]
@@ -1173,13 +1298,22 @@ None of these checks require re-training a model.
 
 ## Discussion
 
-Returning to the historiographical question, the results are mixed rather than binary. The Act is consistently most discriminatory, while Crease and Begbie show overlapping but internally varied profiles. This supports a cautious interpretation: legal argument, quotation, and rhetorical framing all shape the scores. The method is most useful for prioritizing passages for close reading, not for replacing interpretation.
+Returning to the historiographical question, the results are mixed rather than binary. The Regulation Act is consistently most discriminatory, while Crease and Begbie show overlapping but internally varied profiles. This supports a cautious interpretation: legal argument, quotation, and rhetorical framing all shape the scores. The method is most useful for prioritizing passages for close reading, not for replacing interpretation.
 
 ## Conclusion
 
-This lesson demonstrated a full, reproducible workflow: TF-IDF for exploratory signal, Sentence-BERT for semantic similarity, DeBERTa NLI for stance scoring, and robustness checks for uncertainty. The core finding is stable across methods: the Act is the clearest discriminatory source, while judicial texts are more ambiguous and context-dependent. Use these outputs as structured evidence for historical interpretation, not as final verdicts.
+This lesson demonstrated a full, reproducible workflow: TF-IDF for exploratory signal, Sentence-BERT for semantic similarity, DeBERTa NLI for stance scoring, and robustness checks for uncertainty. The core finding is stable across methods: the Regulation Act is the clearest discriminatory source, while judicial texts are more ambiguous and context-dependent. Use these outputs as structured evidence for historical interpretation, not as final verdicts.
 
-To adapt this workflow to a new corpus, a researcher must make five decisions: (1) select and digitize the corpus; (2) define a keyword list that identifies the thematic focus; (3) design classification labels that name the specific stance dimensions of interest; (4) choose a pre-trained model whose training domain approximates the target corpus; and (5) assemble a small labeled sample -- even 30 to 50 sentences -- to measure and report classification accuracy. Each of these decisions shapes what the pipeline can and cannot reveal, and each warrants explicit justification in any publication that uses these methods.
+To adapt this workflow to a new corpus, a researcher must make five decisions:
+1. Select and digitize the corpus; 
+2. Define a keyword list that identifies the thematic focus; 
+3. Design classification labels that name the specific stance dimensions of interest; 
+4. Choose a pre-trained model whose training domain approximates the target corpus; and
+5. Assemble a small labeled sample -- even 30 to 50 sentences -- to measure and report classification accuracy. 
+
+Each of these decisions shapes what the pipeline can and cannot reveal, and each warrants explicit justification in any publication that uses these methods.
+
+Ultimately, deploying Natural Language Inference within historical research does not supplant traditional hermeneutics; rather, it significantly scales the historian's analytical capacity. While transformer-based models can efficiently parse vast archives to surface latent ideological alignments or textual contradictions, they remain inherently agnostic to the temporally bound, cultural nuances of historical discourse. Consequently, NLI should be treated as a sophisticated heuristic mechanism. It excels at directing researchers toward critical junctures of conflict or consensus within a corpus, but the final burden of interpretation, contextualization, and causal inference remains firmly with the human scholar.
 
 ## Further Reading
 
