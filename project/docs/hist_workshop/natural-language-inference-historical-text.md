@@ -13,15 +13,18 @@ date: 2026-05-01
 reviewers:
 - TBD
 editors:
-- Laura Chapot
+- Laura Alice Chapot
 review-ticket: https://github.com/programminghistorian/ph-submissions/issues/699
 activity: analyzing
 difficulty: 3
 topics:
 - python
-- natural-language-processing
+- distant-reading
 - machine-learning
 abstract: "This lesson demonstrates how to use text embeddings, zero-shot classification, and dimensionality reduction in Python to analyze historical legal texts, using nineteenth-century British Columbia court rulings on Chinese immigration as a case study."
+mathjax: true
+avatar_alt: A UMAP scatter plot of legal text embeddings colored by author group.
+doi: pending
 ---
 
 {% include toc.html %}
@@ -46,7 +49,7 @@ The lesson uses nineteenth-century British Columbia court rulings on Chinese imm
 
 ## Prerequisites
 
-You will need intermediate Python experience: working with pandas, writing functions, and using pip. If you are newer to Python, start with the [Programming Historian's Introduction to Python](https://programminghistorian.org/en/lessons/introduction-and-installation). For background knowledge in word embeddings, see [Programming Historian's Understanding and Creating Word Embeddings](https://programminghistorian.org/en/lessons/understanding-creating-word-embeddings).
+You will need intermediate Python experience: working with pandas, writing functions, and using pip. If you are newer to Python, start with the [Programming Historian's Introduction to Python](/en/lessons/introduction-and-installation). For background knowledge in word embeddings, see [Programming Historian's Understanding and Creating Word Embeddings](/en/lessons/understanding-creating-word-embeddings).
 
 Python 3.10 or later is required, along with at least 8GB of RAM. A GPU or iGPU is not required but will substantially speed up model inference.
 
@@ -106,10 +109,8 @@ Load the required libraries:
 ```python
 import pandas as pd
 import numpy as np
-import os
 import re
 import umap
-import textwrap
 import difflib
 import matplotlib.pyplot as plt
 from nltk import sent_tokenize
@@ -160,12 +161,13 @@ The OCR process produced a `.csv` file with the following structure:
 
 ```python
 df = pd.read_csv("data/metadata_cleaned.csv")
-df[['filename', 'author', 'type']].head(10)
-```
 
-```python
-df['doc_length'] = df['text'].apply(len)
-df[['filename', 'doc_length']]
+ACT_LABEL = "Regulation Act"
+
+df["group"] = "Other"
+df.loc[df["author"] == "Crease", "group"] = "Crease"
+df.loc[df["author"] == "Begbie", "group"] = "Begbie"
+df.loc[df["type"] == "act", "group"] = ACT_LABEL
 ```
 
 ## Detecting and Removing Direct Quotations
@@ -177,34 +179,24 @@ The approach uses fuzzy string matching via Python's [`difflib.SequenceMatcher`]
 ```python
 nlp = spacy.load("en_core_web_sm")
 
-regulation_act_text = df.loc[
-    df['type'] == 'act', 'text'
-].values[0]
+regulation_act_text = df.loc[df["type"] == "act", "text"].iloc[0]
 regulation_act_sents = [
     s.text.strip()
     for s in nlp(regulation_act_text).sents
     if len(s.text.strip()) > 20
 ]
 
-crease_orig_path = ("data/Regina_V_Wing_Chong.txt")
+crease_orig_path = "data/Regina_V_Wing_Chong.txt"
 
-with open(crease_orig_path, encoding='utf-8') as f:
+with open(crease_orig_path, encoding="utf-8") as f:
     crease_orig = f.read()
 
-crease_sents = [
-    s.text.strip()
-    for s in nlp(crease_orig).sents
-    if len(s.text.strip()) > 20
-]
-
 def compute_quote_similarity(sent, reference_sents):
-
     best = 0.0
     s_lower = sent.lower()
+
     for ref in reference_sents:
-        ratio = difflib.SequenceMatcher(
-            None, s_lower, ref.lower()
-        ).ratio()
+        ratio = difflib.SequenceMatcher(None, s_lower, ref.lower()).ratio()
         if ratio > best:
             best = ratio
 
@@ -246,6 +238,7 @@ stop_words.update(
 )
 
 def preprocess_text(text_string):
+
     text = text_string.lower()
     text = re.sub(r'[^a-z\s]', '', text)
     tokens = text.split()
@@ -253,56 +246,28 @@ def preprocess_text(text_string):
         w for w in tokens
         if w not in stop_words and len(w) > 4
     ]
+
     return " ".join(filtered)
 ```
 
 ```python
-df['processed_text'] = (
-    df['text'].apply(preprocess_text)
-)
+df["processed_text"] = df["text"].apply(preprocess_text)
 
-ACT_LABEL = 'Regulation Act'
-LEGACY_ACT_LABEL = 'Act 1884'
-
-df['group'] = 'Other'
-df.loc[
-    df['author'] == 'Crease', 'group'
-] = 'Crease'
-df.loc[
-    df['author'] == 'Begbie', 'group'
-] = 'Begbie'
-df.loc[
-    df['type'] == 'act', 'group'
-] = ACT_LABEL
-
-vectorizer = TfidfVectorizer(
-    max_features=1000, ngram_range=(1, 3)
-)
-
-tfidf_matrix = vectorizer.fit_transform(
-    df['processed_text']
-)
-
-feature_names = vectorizer.get_feature_names_out()
+vectorizer = TfidfVectorizer(max_features=1000, ngram_range=(1, 3))
+tfidf_matrix = vectorizer.fit_transform(df["processed_text"])
 
 tfidf_df = pd.DataFrame(
     tfidf_matrix.toarray(),
-    columns=feature_names,
+    columns=vectorizer.get_feature_names_out(),
 )
 
-tfidf_df['group'] = df['group'].values
+tfidf_df["group"] = df["group"].values
 
-mean_tfidf = tfidf_df.groupby('group').mean()
-
-for group in ['Crease', 'Begbie', ACT_LABEL, 'Other']:
-    top = (
-        mean_tfidf.loc[group]
-        .sort_values(ascending=False)
-        .head(10)
-    )
-
-    print(f"\n--- {group} ---")
-    print(top)
+mean_tfidf = tfidf_df.groupby("group").mean()
+top_tfidf = {
+    group: mean_tfidf.loc[group].sort_values(ascending=False).head(10)
+    for group in ["Crease", "Begbie", ACT_LABEL, "Other"]
+}
 ```
 
 The TF-IDF results reveal that "Chinese" (or "Chinaman") is prominent across all groups. Crease's writings emphasize "labor" and "taxation", Begbie's emphasize "license", and the Regulation Act focuses on "dollars." However, TF-IDF treats each word as an isolated token; it cannot distinguish between "labor" used to describe economic contribution and "labor" used in a regulatory context. To capture such semantic nuances, you often need contextual embeddings.
@@ -340,9 +305,7 @@ CATS = [
 ]
 
 def score_document(text, lex):
-    tokens = re.findall(
-        r'\b[a-z]+\b', text.lower()
-    )
+    tokens = re.findall(r'\b[a-z]+\b', text.lower())
     total = len(tokens)
     if total == 0:
         return {c: 0.0 for c in CATS}
@@ -355,17 +318,11 @@ def score_document(text, lex):
         for c in CATS
     }
 
-scores = df['text'].apply(
-    lambda t: score_document(t, lex_dict)
-)
+scores = df['text'].apply(lambda text: score_document(text, lex_dict))
 
 lex_df = pd.DataFrame(scores.tolist())
 lex_df['group'] = df['group'].values
-
-print(
-    lex_df.groupby('group')[CATS]
-    .mean().round(2)
-)
+lexicon_summary = lex_df.groupby('group')[CATS].mean().round(2)
 ```
 
 {% include figure.html filename="data/natural-language-inference-historical-text-05.png" alt="Grouped bar chart showing lexicon category hit rates per 1,000 tokens for each author group, with the Regulation Act showing the highest Exclusionary and Economic scores" caption="Figure 5: Lexicon category profiles by author group. The Regulation Act dominates the Exclusionary and Economic categories, while Begbie shows the highest Dehumanizing count (reflecting his frequent use of 'Chinaman' and 'Chinamen' in case rulings)." %}
@@ -434,10 +391,6 @@ With the models chosen, you can now generate embeddings that capture how each au
 embed_model = SentenceTransformer(
     'sentence-transformers/all-mpnet-base-v2'
 )
-print(
-    "Embedding dimension:",
-    embed_model.get_embedding_dimension(),
-)
 ```
 
 ```python
@@ -450,19 +403,9 @@ The `SentenceTransformer` model handles tokenization, hidden-state extraction, a
 Now extract sentences mentioning Chinese immigration keywords and separate them by author:
 
 ```python
-crease_cases = df[
-    (df['author'] == 'Crease')
-    & (df['type'] == 'case')
-]['text'].tolist()
-
-begbie_cases = df[
-    (df['author'] == 'Begbie')
-    & (df['type'] == 'case')
-]['text'].tolist()
-
-regulation_act_texts = df[
-    df['type'] == 'act'
-]['text'].tolist()
+crease_cases = df[(df['author'] == 'Crease') & (df['type'] == 'case')]['text'].tolist()
+begbie_cases = df[(df['author'] == 'Begbie') & (df['type'] == 'case')]['text'].tolist()
+regulation_act_texts = df[df['type'] == 'act']['text'].tolist()
 
 corpus_by_author = {
     'Crease': crease_cases,
@@ -499,48 +442,17 @@ def encode_snippets(snippets_by_author):
             show_progress_bar=True,
         )
     return embeddings
-
-def normalize_embeddings_dict(embeddings):
-    if (
-        ACT_LABEL not in embeddings
-        and LEGACY_ACT_LABEL in embeddings
-    ):
-        embeddings[ACT_LABEL] = embeddings.pop(
-            LEGACY_ACT_LABEL
-        )
-    return embeddings
-
-def normalize_author_frame(frame):
-    frame = frame.copy()
-    frame['Author'] = frame['Author'].replace(
-        {LEGACY_ACT_LABEL: ACT_LABEL}
-    )
-    return frame
-
-for author, snippets in keyword_snippets.items():
-    print(f"{author}: {len(snippets)} snippets")
 ```
 
-Embedding all snippets takes a few seconds with Sentence-BERT. Pre-computed embeddings are provided in `case_snippet_embeddings.npz`. If you want to regenerate them, uncomment the next cell, run it once, and then load the saved file in the following cell:
-
-```python
-# embeddings_path = "data/case_snippet_embeddings.npz"
-# embeddings_dict = encode_snippets(keyword_snippets)
-# np.savez(
-#     embeddings_path,
-#     **{
-#         key: np.array(value)
-#         for key, value in embeddings_dict.items()
-#     },
-# )
-```
+Embedding all snippets takes a few seconds with Sentence-BERT. The notebook demo loads pre-computed embeddings, but the lesson shows the full generation step directly:
 
 ```python
 embeddings_path = "data/case_snippet_embeddings.npz"
-with np.load(embeddings_path) as data:
-    embeddings_dict = normalize_embeddings_dict(
-        dict(data)
-    )
+embeddings_dict = encode_snippets(keyword_snippets)
+np.savez(
+    embeddings_path,
+    **{key: np.array(value) for key, value in embeddings_dict.items()},
+)
 ```
 
 ### Measuring Stance Similarity
@@ -548,28 +460,32 @@ with np.load(embeddings_path) as data:
 With embeddings in hand, you can compute the mean embedding for each author and measure cosine similarity between them. Higher similarity indicates that two authors discuss Chinese immigration in more semantically similar ways.
 
 ```python
-mean_crease = np.mean(
-    embeddings_dict["Crease"], axis=0,
-    keepdims=True,
-)
-mean_begbie = np.mean(
-    embeddings_dict["Begbie"], axis=0,
-    keepdims=True,
-)
+mean_crease = np.mean(embeddings_dict["Crease"], axis=0, keepdims=True)
+mean_begbie = np.mean(embeddings_dict["Begbie"], axis=0, keepdims=True)
 mean_regulation_act = np.mean(
-    embeddings_dict[ACT_LABEL], axis=0,
-    keepdims=True,
+    embeddings_dict[ACT_LABEL], axis=0, keepdims=True
 )
 
-pairs = [
-    ("Crease", "Begbie", mean_crease, mean_begbie),
-    ("Crease", ACT_LABEL, mean_crease, mean_regulation_act),
-    ("Begbie", ACT_LABEL, mean_begbie, mean_regulation_act),
-]
-
-for a, b, va, vb in pairs:
-    sim = cosine_similarity(va, vb)[0, 0]
-    print(f"Cosine sim ({a} vs {b}): {sim:.4f}")
+embedding_similarity = pd.DataFrame(
+    [
+        {
+            "comparison": "Crease vs Begbie",
+            "similarity": cosine_similarity(mean_crease, mean_begbie)[0, 0],
+        },
+        {
+            "comparison": f"Crease vs {ACT_LABEL}",
+            "similarity": cosine_similarity(
+                mean_crease, mean_regulation_act
+            )[0, 0],
+        },
+        {
+            "comparison": f"Begbie vs {ACT_LABEL}",
+            "similarity": cosine_similarity(
+                mean_begbie, mean_regulation_act
+            )[0, 0],
+        },
+    ]
+)
 ```
 
 ### Visualizing Embeddings with UMAP
@@ -636,8 +552,7 @@ plt.show()
 Embeddings provide a quantitative summary, but you should ground those numbers in the actual text. The function below retrieves the sentences most similar to a given author's mean embedding, letting you verify what the model considers representative.
 
 ```python
-def top_similar_sentences(mean_emb, label, n=10):
-
+def top_similar_sentences(mean_emb, n=10):
     rows = []
     for auth, snippets in keyword_snippets.items():
         for snippet, emb in zip(
@@ -648,42 +563,14 @@ def top_similar_sentences(mean_emb, label, n=10):
             )[0][0]
             rows.append([auth, snippet, sim])
 
-    result = pd.DataFrame(
+    return pd.DataFrame(
         rows,
         columns=["Author", "Text", "Similarity"],
-    )
-
-    result = result.sort_values(
-        "Similarity", ascending=False
-    )
-
-    print(
-        f"Top {n} sentences closest to"
-        f" {label}'s mean embedding:\n"
-    )
-
-    for _, row in result.head(n).iterrows():
-        txt = textwrap.fill(
-            row["Text"], width=78
-        )
-        print(
-            f"Author: {row['Author']}\n"
-            f"Text: {txt}\n"
-            f"Similarity: "
-            f"{row['Similarity']:.4f}\n"
-        )
+    ).sort_values("Similarity", ascending=False).head(n)
 ```
 
 ```python
-top_similar_sentences(mean_crease, "Crease")
-```
-
-```python
-top_similar_sentences(mean_begbie, "Begbie")
-```
-
-```python
-top_similar_sentences(mean_regulation_act, ACT_LABEL)
+representative_crease = top_similar_sentences(mean_crease)
 ```
 
 ## Topic Alignment Analysis
@@ -695,22 +582,16 @@ Rather than building anchors from individual word embeddings (which discard phra
 ```python
 topic_descriptions = {
     "labor": (
-        "Labor, employment, workers,"
-        " workforce, economic contribution"
-        " of laborers"
+        "Labor, employment, workers, workforce, economic contribution "
+        "of laborers"
     ),
     "legislation": (
-        "Legislation, laws, statutes,"
-        " legal enactment, parliamentary"
-        " authority"
+        "Legislation, laws, statutes, legal enactment, parliamentary "
+        "authority"
     ),
-    "license": (
-        "License, permit, fee,"
-        " registration, business regulation"
-    ),
+    "license": "License, permit, fee, registration, business regulation",
     "taxation": (
-        "Taxation, tax, revenue, duty,"
-        " tariff, fiscal policy"
+        "Taxation, tax, revenue, duty, tariff, fiscal policy"
     ),
 }
 
@@ -724,11 +605,8 @@ topic_anchors = {
 similarity_scores = []
 
 for topic, anchor in topic_anchors.items():
-    for author in ['Crease', 'Begbie',
-                    ACT_LABEL]:
-        emb_list = embeddings_dict.get(
-            author, []
-        )
+    for author in ["Crease", "Begbie", ACT_LABEL]:
+        emb_list = embeddings_dict.get(author, [])
         texts = keyword_snippets.get(author, [])
         if len(emb_list) == 0:
             continue
@@ -737,20 +615,16 @@ for topic, anchor in topic_anchors.items():
             np.vstack(emb_list),
         ).flatten()
         for idx, score in enumerate(sims):
-            similarity_scores.append({
-                'Author': author,
-                'Topic': topic,
-                'Text': (
-                    texts[idx]
-                    if idx < len(texts)
-                    else ""
-                ),
-                'Similarity Score': float(score),
-            })
+            similarity_scores.append(
+                {
+                    'Author': author,
+                    'Topic': topic,
+                    'Text': texts[idx],
+                    'Similarity Score': float(score),
+                }
+            )
 
-similarity_df = pd.DataFrame(
-    similarity_scores
-)
+similarity_df = pd.DataFrame(similarity_scores)
 ```
 
 {% include figure.html filename="data/natural-language-inference-historical-text-02.png" alt="Four box plots showing cosine similarity to topic anchors (labor, legislation, license, taxation) by author, with diamond markers for means" caption="Figure 2: Topic similarity distributions by author. Crease shows higher alignment with labor and taxation topics, while Begbie aligns more with license." %}
@@ -787,63 +661,39 @@ A major limitation is results depend heavily on label quality. Labels poorly ali
 
 ### Setting Up the Pipeline
 
-The pipeline should prioritize reliability: run on CPU by default, and allow GPU explicitly when desired.
+The lesson presents the pipeline in its simplest form. The notebook demo keeps the extra environment controls needed for repeatable execution.
 
 ```python
 warnings.filterwarnings("ignore")
-
-ACCELERATOR_MODE = os.getenv("ACCELERATOR_MODE", "cpu").lower()
-
-def get_device():
-    if ACCELERATOR_MODE == "cpu":
-        return -1
-    if torch.cuda.is_available():
-        return 0
-    return -1
-
-model_name = (
-    "MoritzLaurer/deberta-v3-large-zeroshot-v2.0"
-)
+model_name = "MoritzLaurer/deberta-v3-large-zeroshot-v2.0"
 zero_shot = pipeline(
     "zero-shot-classification",
     model=model_name,
     tokenizer=model_name,
-    hypothesis_template=(
-        "In this snippet of a historical"
-        " legal text, the author {}."
-    ),
-    device=get_device(),
+    hypothesis_template="In this snippet of a historical legal text, the author {}.",
+    device=0 if torch.cuda.is_available() else -1,
 )
 
 zs_labels = [
     (
-        "advocates for equal legal treatment"
-        " of Chinese immigrants compared to"
-        " white or European settlers,"
-        " opposing racial discrimination"
+        "advocates for equal legal treatment of Chinese immigrants "
+        "compared to white or European settlers, opposing racial "
+        "discrimination"
     ),
     (
-        "describes or retells the status or"
-        " treatment of Chinese immigrants"
-        " without expressing support or"
-        " opposition to racial inequality,"
-        " is unrelated to Chinese immigrants,"
-        " or cannot be classified as either"
+        "describes or retells the status or treatment of Chinese "
+        "immigrants without expressing support or opposition to racial "
+        "inequality, is unrelated to Chinese immigrants, or cannot be "
+        "classified as either"
     ),
     (
-        "justifies or reinforces unequal"
-        " legal treatment of Chinese"
-        " immigrants relative to white or"
-        " European settlers, supporting"
-        " racially discriminatory policies"
+        "justifies or reinforces unequal legal treatment of Chinese "
+        "immigrants relative to white or European settlers, supporting "
+        "racially discriminatory policies"
     ),
 ]
 
-def get_scores(snippet, labels=None):
-    if labels is None:
-        labels = zs_labels
-    if not snippet or len(snippet.strip()) < 10:
-        return dict.fromkeys(labels, 1 / len(labels))
+def get_scores(snippet, labels):
     out = zero_shot(
         snippet,
         candidate_labels=labels,
@@ -854,9 +704,7 @@ def get_scores(snippet, labels=None):
 
 SCORE_COLS = ['Pro', 'Neutral', 'Cons']
 
-def score_texts(texts_by_author, labels=None):
-    if labels is None:
-        labels = zs_labels
+def score_texts(texts_by_author, labels):
     rows = []
     for author, texts in texts_by_author.items():
         for text in texts:
@@ -873,9 +721,7 @@ def score_texts(texts_by_author, labels=None):
     return pd.DataFrame(rows)
 ```
 
-This CPU-first pattern keeps the notebook reproducible across environments. If you want acceleration, set `ACCELERATOR_MODE=gpu` before running.
-
-For longer stages, the lesson shows the calculation cell commented out and then loads the pre-computed file in the next cell. To regenerate a file, uncomment the calculation cell, run it once, and then run the load cell.
+The notebook demo keeps the pre-computed load path for faster execution, but the lesson shows the direct calculation steps.
 
 ### Testing with a Known Example
 
@@ -885,25 +731,16 @@ Before running the pipeline on the full corpus, test it on a passage with a know
 
 ```python
 chapleau_snippet = (
-    "That assuming Chinese immigrants of the"
-    " laboring class will persist in retaining"
-    " their present characteristics of Asiatic"
-    " life, where these are strikingly peculiar"
-    " and distinct from western, and that the"
-    " influx will continue to increase, this"
-    " immigration should be dealt with by"
-    " Parliament; but no legislation should be"
-    " such as would give a shock to great"
-    " interests and enterprises established"
-    " before any probability that Parliament"
-    " would interfere with that immigration"
-    " arose."
+    "That assuming Chinese immigrants of the laboring class will persist "
+    "in retaining their present characteristics of Asiatic life, where "
+    "these are strikingly peculiar and distinct from western, and that the "
+    "influx will continue to increase, this immigration should be dealt "
+    "with by Parliament; but no legislation should be such as would give "
+    "a shock to great interests and enterprises established before any "
+    "probability that Parliament would interfere with that immigration arose."
 )
 
-scores = get_scores(chapleau_snippet)
-print("Scores for Chapleau snippet:")
-for label, score in scores.items():
-    print(f"  {score:.4f}: {label[:50]}...")
+chapleau_scores = get_scores(chapleau_snippet, zs_labels)
 ```
 
 The model should assign a relatively high "Neutral" score to this passage, which discusses immigration policy without explicitly advocating for or against equal treatment.
@@ -922,41 +759,14 @@ For interpretive tasks, this level of performance is usable but not definitive. 
 
 One limitation of transformer models is a fixed token limit (typically 512 tokens). For longer documents, you must split text into smaller units. The sentence approach classifies each sentence individually, capturing fine-grained variation in stance.
 
-Classification of all sentences takes approximately 20 to 40 minutes on CPU. Pre-computed results are provided in `zero_shot_sentence_scores.csv`. If you want to regenerate them, uncomment the next cell, run it once, and then load the saved file in the following cell:
-
-```python
-# sentence_scores_path = "data/zero_shot_sentence_scores.csv"
-# df_scores = score_texts(keyword_snippets, labels=zs_labels)
-# df_scores.to_csv(sentence_scores_path, index=False)
-```
+Classification of all sentences takes approximately 20 to 40 minutes on CPU. The lesson shows the full scoring step directly, while the notebook demo loads the saved CSV.
 
 ```python
 sentence_scores_path = "data/zero_shot_sentence_scores.csv"
-df_scores = normalize_author_frame(
-    pd.read_csv(sentence_scores_path)
-)
-```
+df_scores = score_texts(keyword_snippets, labels=zs_labels)
+df_scores.to_csv(sentence_scores_path, index=False)
 
-```python
-mean_scores = (
-    df_scores
-    .groupby("Author")[SCORE_COLS]
-    .mean()
-)
-print("Mean scores by author (sentence):")
-print(mean_scores.round(4))
-```
-
-```python
-top_pro = df_scores.nlargest(5, 'Pro')
-print("\nTop 5 Pro sentences:\n")
-for _, row in top_pro.iterrows():
-    txt = textwrap.fill(row['Text'], width=78)
-    print(
-        f"Author: {row['Author']}\n"
-        f"Text: {txt}\n"
-        f"Pro: {row['Pro']:.4f}\n"
-    )
+sentence_summary = df_scores.groupby("Author")[SCORE_COLS].mean().round(4)
 ```
 
 {% include figure.html filename="data/natural-language-inference-historical-text-03.png" alt="Scatter plot of Pro versus Cons zero-shot classification scores colored by author, showing that Regulation Act points cluster toward higher Cons scores" caption="Figure 3: Pro versus Cons classification scores by author (sentence level). The Regulation Act clusters toward higher Cons scores, while Crease and Begbie sentences distribute more broadly." %}
@@ -972,68 +782,39 @@ nli_tokenizer = AutoTokenizer.from_pretrained(
     model_name
 )
 
-def chunk_into_windows(
-    text, max_tokens=512, stride=128
-):
+def chunk_into_windows(text, max_tokens=512, stride=128):
     sents = sent_tokenize(text)
     windows, current = [], ""
     for sent in sents:
-        cand = (
-            current + " " + sent
-            if current else sent
-        )
-        n = len(nli_tokenizer.encode(
-            cand, add_special_tokens=False
-        ))
+        cand = current + " " + sent if current else sent
+        n = len(nli_tokenizer.encode(cand, add_special_tokens=False))
         if n <= max_tokens:
             current = cand
         else:
             windows.append(current)
-            tail = nli_tokenizer.encode(
-                current,
-                add_special_tokens=False,
-            )[-stride:]
-            current = (
-                nli_tokenizer.decode(tail)
-                + " " + sent
-            )
+            tail = nli_tokenizer.encode(current, add_special_tokens=False)[-stride:]
+            current = nli_tokenizer.decode(tail) + " " + sent
     if current:
         windows.append(current)
     return windows
 ```
 
-Pre-computed windowed scores are provided. If you want to regenerate them, uncomment the next cell, run it once, and then load the saved file in the following cell:
-
-```python
-# window_scores_path = "data/zero_shot_windowed_scores.csv"
-# window_texts_by_author = {
-#     author: [
-#         window_text
-#         for doc_text in docs
-#         for window_text in chunk_into_windows(doc_text)
-#     ]
-#     for author, docs in corpus_by_author.items()
-# }
-# window_scores_df = score_texts(
-#     window_texts_by_author,
-#     labels=zs_labels,
-# )
-# window_scores_df.to_csv(window_scores_path, index=False)
-```
+The same pattern works for larger windows. The notebook demo loads the saved CSV, but the lesson shows the direct calculation:
 
 ```python
 window_scores_path = "data/zero_shot_windowed_scores.csv"
-window_scores_df = normalize_author_frame(
-    pd.read_csv(window_scores_path)
-)
+window_texts_by_author = {
+    author: [
+        window_text
+        for doc_text in docs
+        for window_text in chunk_into_windows(doc_text)
+    ]
+    for author, docs in corpus_by_author.items()
+}
+window_scores_df = score_texts(window_texts_by_author, labels=zs_labels)
+window_scores_df.to_csv(window_scores_path, index=False)
 
-mean_w = (
-    window_scores_df
-    .groupby("Author")[SCORE_COLS]
-    .mean()
-)
-print("Mean scores by author (window):")
-print(mean_w.round(4))
+window_summary = window_scores_df.groupby("Author")[SCORE_COLS].mean().round(4)
 ```
 
 ### Interpreting and Evaluating Results
@@ -1063,8 +844,7 @@ $$
 
 ```python
 def clean_text(text):
-    text = text.lower()
-    return re.sub(r'[^\w\s]', '', text).strip()
+    return re.sub(r'[^\w\s]', '', text.lower()).strip()
 
 similarity_wide = similarity_df.pivot_table(
     index=['Author', 'Text'],
@@ -1072,22 +852,16 @@ similarity_wide = similarity_df.pivot_table(
     values='Similarity Score',
     aggfunc='mean',
 ).reset_index()
-similarity_wide['key'] = (
-    similarity_wide['Text'].apply(clean_text)
-)
+similarity_wide['key'] = similarity_wide['Text'].apply(clean_text)
 
-df_scores['key'] = (
-    df_scores['Text'].apply(clean_text)
-)
+df_scores['key'] = df_scores['Text'].apply(clean_text)
 
 merged_df = similarity_wide.merge(
     df_scores[['key', 'Pro', 'Neutral', 'Cons']],
     on='key',
     how='inner',
 )
-print(
-    f"Merged corpus: {len(merged_df)} sentences"
-)
+merged_size = len(merged_df)
 ```
 
 ```python
@@ -1116,9 +890,6 @@ corr_wide = corr_df.pivot_table(
     columns=['Topic', 'Stance'],
     values='Correlation',
 )
-print("\nCorrelation: topic alignment"
-      " vs stance by author:")
-print(corr_wide)
 ```
 
 These correlations reveal whether emphasis on certain topics (e.g., labor, taxation) corresponds with more pro- or anti-discriminatory language. Combined with the qualitative evidence from the sentence-level analysis, this provides a multi-faceted view of each author's stance.
@@ -1137,107 +908,77 @@ Computational results from zero-shot NLI should be treated as hypotheses, not co
 
 ### Quote Sensitivity
 
-Even after removing near-exact quotations of the Act from Crease's text, some paraphrased passages may remain. To test whether residual quotations drive the results, you can apply progressively stricter similarity thresholds and check whether Crease's mean scores change substantially:
+Even after removing near-exact quotations of the Act from Crease's text, some paraphrased passages may remain. To test whether residual quotations drive the results, you can apply progressively stricter similarity thresholds and store the filtered means for comparison:
 
 ```python
-crease_sc = df_scores[
-    df_scores['Author'] == 'Crease'
-].copy()
+crease_sc = df_scores[df_scores['Author'] == 'Crease'].copy()
 crease_sc['quote_sim'] = [
     compute_quote_similarity(t, regulation_act_sents)
     for t in crease_sc['Text']
 ]
 
+quote_sensitivity = []
 for threshold in [0.3, 0.4, 0.5, 0.6]:
-    filtered = crease_sc[
-        crease_sc['quote_sim'] <= threshold
-    ]
-    n_removed = (
-        len(crease_sc) - len(filtered)
+    filtered = crease_sc[crease_sc['quote_sim'] <= threshold]
+    means = filtered[['Pro', 'Neutral', 'Cons']].mean()
+    quote_sensitivity.append(
+        {
+            'threshold': threshold,
+            'removed': len(crease_sc) - len(filtered),
+            'Pro': means['Pro'],
+            'Neutral': means['Neutral'],
+            'Cons': means['Cons'],
+        }
     )
-    means = filtered[
-        ['Pro', 'Neutral', 'Cons']
-    ].mean()
-    print(
-        f"Threshold {threshold:.1f}: "
-        f"{n_removed} removed, "
-        f"Pro={means['Pro']:.4f} "
-        f"Neutral={means['Neutral']:.4f} "
-        f"Cons={means['Cons']:.4f}"
-    )
+
+quote_sensitivity = pd.DataFrame(quote_sensitivity)
 ```
 
 If the mean scores remain stable across thresholds, the results are not driven by residual Act quotations.
 
 ### Label Sensitivity
 
-Zero-shot classification results depend heavily on how candidate labels are phrased. Testing alternative label sets helps determine whether the ranking of authors is an artifact of specific wording or a robust finding. Pre-computed label-sensitivity results are provided in `label_sensitivity_summary.csv`. If you want to regenerate them, uncomment the next cell, run it once, and then load the saved file in the following cell:
+Zero-shot classification results depend heavily on how candidate labels are phrased. Testing alternative label sets helps determine whether the ranking of authors is an artifact of specific wording or a robust finding. The notebook demo loads a saved summary, but the lesson shows the direct comparison step:
 
 ```python
-# alt_labels_1 = [
-#     "supports equal rights for Chinese immigrants",
-#     "is neutral or unrelated to Chinese immigrant rights",
-#     "supports discriminatory treatment of Chinese immigrants",
-# ]
-#
-# alt_labels_2 = [
-#     (
-#         "argues that Chinese immigrants deserve the same legal"
-#         " protections as other residents"
-#     ),
-#     (
-#         "discusses Chinese immigration without taking a clear"
-#         " legal position for or against"
-#     ),
-#     (
-#         "argues that restricting Chinese immigrants through law"
-#         " is justified or necessary"
-#     ),
-# ]
-#
-# label_sets = {
-#     "Primary": zs_labels,
-#     "Alt-short": alt_labels_1,
-#     "Alt-legal": alt_labels_2,
-# }
-# sample = (
-#     df_scores.groupby("Author", group_keys=False)
-#     .head(2)
-# )
-# sample_texts = {
-#     author: sub["Text"].fillna("").tolist()
-#     for author, sub in sample.groupby("Author")
-# }
-#
-# frames = []
-# for set_name, labels in label_sets.items():
-#     mean_scores = (
-#         score_texts(sample_texts, labels=labels)
-#         .groupby("Author")[SCORE_COLS]
-#         .mean()
-#         .reset_index()
-#     )
-#     mean_scores["LabelSet"] = set_name
-#     frames.append(
-#         mean_scores[
-#             ["LabelSet", "Author", "Pro", "Neutral", "Cons"]
-#         ]
-#     )
-#
-# label_sens_df = pd.concat(frames, ignore_index=True)
-# label_sens_df.to_csv(
-#     "data/label_sensitivity_summary.csv",
-#     index=False,
-# )
-```
+alt_labels_1 = [
+    "supports equal rights for Chinese immigrants",
+    "is neutral or unrelated to Chinese immigrant rights",
+    "supports discriminatory treatment of Chinese immigrants",
+]
 
-```python
-label_sens_csv = "data/label_sensitivity_summary.csv"
-label_sens_df = normalize_author_frame(
-    pd.read_csv(label_sens_csv)
+alt_labels_2 = [
+    "argues that Chinese immigrants deserve the same legal protections as other residents",
+    "discusses Chinese immigration without taking a clear legal position for or against",
+    "argues that restricting Chinese immigrants through law is justified or necessary",
+]
+
+label_sets = {
+    "Primary": zs_labels,
+    "Alt-short": alt_labels_1,
+    "Alt-legal": alt_labels_2,
+}
+
+sample = df_scores.groupby("Author", group_keys=False).head(2)
+sample_texts = {
+    author: sub["Text"].fillna("").tolist()
+    for author, sub in sample.groupby("Author")
+}
+
+label_sens_df = pd.concat(
+    [
+        score_texts(sample_texts, labels=labels)
+        .groupby("Author")[SCORE_COLS]
+        .mean()
+        .reset_index()
+        .assign(LabelSet=set_name)
+        [["LabelSet", "Author", "Pro", "Neutral", "Cons"]]
+        for set_name, labels in label_sets.items()
+    ],
+    ignore_index=True,
 )
 
-print(label_sens_df)
+label_sens_df.to_csv("data/label_sensitivity_summary.csv", index=False)
 ```
 
 If the relative ordering of authors (e.g., Regulation Act > Begbie > Crease on "Cons") holds across all three label sets, the finding is more likely to reflect genuine textual patterns rather than label-dependent artifacts.
@@ -1248,7 +989,6 @@ With small sample sizes, mean scores can be misleading. Bootstrap resampling pro
 
 ```python
 def bootstrap_ci(data, n_boot=1000, ci=0.95, seed=42):
-    
     rng = np.random.default_rng(seed)
     means = []
     for _ in range(n_boot):
@@ -1264,20 +1004,24 @@ def bootstrap_ci(data, n_boot=1000, ci=0.95, seed=42):
     )
     return np.mean(data), lo, hi
 
-for author in ['Crease', 'Begbie',
-               ACT_LABEL]:
-    sub = df_scores[
-        df_scores['Author'] == author
-    ]
-    print(f"\n{author} (n={len(sub)}):")
+bootstrap_rows = []
+for author in ['Crease', 'Begbie', ACT_LABEL]:
+    sub = df_scores[df_scores['Author'] == author]
     for stance in ['Pro', 'Neutral', 'Cons']:
         m, lo, hi = bootstrap_ci(
             sub[stance].values
         )
-        print(
-            f"  {stance}: {m:.4f}"
-            f" [{lo:.4f}, {hi:.4f}]"
+        bootstrap_rows.append(
+            {
+                'Author': author,
+                'Stance': stance,
+                'Mean': m,
+                'CI_low': lo,
+                'CI_high': hi,
+            }
         )
+
+bootstrap_summary = pd.DataFrame(bootstrap_rows)
 ```
 
 {% include figure.html filename="data/natural-language-inference-historical-text-04.png" alt="Dot-and-whisker plot showing bootstrap 95 percent confidence intervals for Pro, Neutral, and Cons mean scores by author" caption="Figure 4: Bootstrap 95% confidence intervals for mean stance scores. Begbie's wide intervals reflect the smaller sample size (18 snippets versus 83 for Crease)." %}
