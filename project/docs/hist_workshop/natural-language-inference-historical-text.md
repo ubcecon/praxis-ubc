@@ -53,10 +53,11 @@ You will need intermediate Python experience: working with pandas, writing funct
 
 Python 3.10 or later is required, along with at least 8GB of RAM. A GPU or iGPU is not required but will substantially speed up model inference.
 
-> **Warning**
-> This lesson uses transformer models and needs at least 8GB of RAM. Running every zero-shot step from scratch can take 60 to 90 minutes on CPU. Pre-computed CSV and NumPy outputs are included so you can complete the lesson without full recomputation.
->
-> If you have NVIDIA CUDA, PyTorch can use it automatically. On some Windows systems with AMD or Intel integrated GPUs, `torch-directml` may help, but stability varies by model. The notebook is written to run safely on CPU first, then use acceleration where stable.
+<div class="alert alert-warning">
+This lesson uses transformer models and needs at least 8GB of RAM. Running every zero-shot step from scratch can take 60 to 90 minutes on CPU. Pre-computed CSV and NumPy outputs are included so you can complete the lesson without full recomputation.
+
+If you have NVIDIA CUDA, PyTorch can use it automatically. On some Windows systems with AMD or Intel integrated GPUs, <code>torch-directml</code> may help, but stability varies by model. The notebook is written to run safely on CPU first, then use acceleration where stable.
+</div>
 
 ## Software and Setup
 
@@ -95,12 +96,6 @@ This lesson was tested with:
 - transformers 4.51
 - torch 2.6
 - sentence-transformers 4.1
-- scikit-learn 1.6
-- umap-learn 0.5
-- pandas 2.2
-- matplotlib 3.10
-- nltk 3.9
-- spacy 3.8
 - Sentence-BERT: `sentence-transformers/all-mpnet-base-v2` (Hugging Face)
 - DeBERTa NLI: `MoritzLaurer/deberta-v3-large-zeroshot-v2.0` (Hugging Face)
 
@@ -139,7 +134,9 @@ Download the lesson data files from the [Programming Historian repository](https
 
 While the techniques demonstrated in this lesson are general-purpose, you will go through a case study that provides concrete material to work with.
 
-The *1884 Chinese Regulation Act* in British Columbia (a province on the Pacific coast of Canada) was provincial legislation targeting Chinese residents, part of a broader wave of anti-Chinese laws across western North America in the late nineteenth century. It was challenged and declared unconstitutional in the 1885 case of *R v. Wing Chong* by [Henry Pering Pellew Crease](https://www.biographi.ca/en/bio/crease_henry_pering_pellew_13E.html), a judge on the Supreme Court of British Columbia.[^1] Justice Crease struck down the legislation on economic grounds, finding that it infringed on federal authority over immigration, trade, commerce, and taxation.
+**A note on language**: This lesson reproduces historical racist terminology from the source documents (*Chinaman*, *Chinamen*, *coolie*, *heathen*, and *alien* in its nineteenth-century legal sense). These terms appear in direct quotations, keyword lists, and the lexicon because accurate computational analysis of nineteenth-century anti-Chinese legislation requires working with the source vocabulary. They are presented here as historical evidence.
+
+The *1884 Chinese Regulation Act* in British Columbia (a province on the Pacific coast of Canada) was provincial legislation targeting Chinese residents, part of a broader wave of anti-Chinese laws across western North America in the late nineteenth century. It was challenged and declared unconstitutional in the 1885 case of *R v. Wing Chong* by [Henry Pering Pellew Crease](https://www.biographi.ca/en/bio/crease_henry_pering_pellew_13E.html), a judge on the Supreme Court of British Columbia.[^1] Justice Crease struck down the legislation on economic grounds, finding that it infringed on federal authority over immigration, trade, commerce, and taxation. In Commonwealth legal naming convention, *R* (or *Regina*, Latin for 'the Queen') denotes a criminal or constitutional case brought by the Crown against a private party.
 
 However, Crease was not considered straightforwardly sympathetic to Chinese immigrants. Historian Tina Loo notes that he displayed mistrust toward Chinese residents, referred to them as "North American Chinamen," and feared they would "rule the country and job its offices."[^11] This raises the question: did Crease oppose the Act out of genuine anti-discrimination concern, or because he valued the Chinese immigrant labor force for economic growth?
 
@@ -274,7 +271,7 @@ The TF-IDF results reveal that "Chinese" (or "Chinaman") is prominent across all
 
 ## Lexicon-Based Baseline
 
-Before moving to embedding models, it is worth testing a simpler approach: a domain-specific lexicon that counts occurrences of curated word lists. This strategy follows the [Loughran-McDonald (LM) lexicon](https://sraf.nd.edu/loughranmcdonald-master-dictionary/) used in financial text analysis.[^18] Loughran and McDonald (2011) showed that general-purpose sentiment dictionaries misclassified nearly three-quarters of "negative" words in financial filings — words like *liability*, *tax*, and *cost* are neutral in a 10-K but flagged as negative by general lexicons. Their solution was to build a domain-specific lexicon directly from the corpus: extract candidate terms by frequency, have domain experts categorize each term in context, and publish the full list with metadata for reproducibility. The LM lexicon uses six categories tailored to financial disclosure (*Negative*, *Positive*, *Uncertainty*, *Litigious*, *Strong Modal*, *Weak Modal*), not generic sentiment polarity.
+Before moving to embedding models, it is worth testing a simpler approach: a domain-specific lexicon that counts occurrences of curated word lists. This strategy follows the [Loughran-McDonald (LM) lexicon](https://sraf.nd.edu/loughranmcdonald-master-dictionary/) used in financial text analysis.[^18] Tim Loughran and Bill McDonald (2011) showed that general-purpose sentiment dictionaries misclassified nearly three-quarters of "negative" words in financial filings — words like *liability*, *tax*, and *cost* are neutral in a 10-K but flagged as negative by general lexicons. Their solution was to build a domain-specific lexicon directly from the corpus: extract candidate terms by frequency, have domain experts categorize each term in context, and publish the full list with metadata for reproducibility. The LM lexicon uses six categories tailored to financial disclosure (*Negative*, *Positive*, *Uncertainty*, *Litigious*, *Strong Modal*, *Weak Modal*), not generic sentiment polarity.
 
 The same principle applies here: a word like "alien" is neutral in modern usage but carries specific legal meaning in nineteenth-century statutes. No equivalent lexicon exists for historical legal discourse on immigration, so the lesson includes a purpose-built one (`stance_lexicon.csv`) containing approximately 120 terms organized into six stance and rhetorical categories:
 
@@ -325,7 +322,7 @@ lex_df['group'] = df['group'].values
 lexicon_summary = lex_df.groupby('group')[CATS].mean().round(2)
 ```
 
-{% include figure.html filename="data/natural-language-inference-historical-text-05.png" alt="Grouped bar chart showing lexicon category hit rates per 1,000 tokens for each author group, with the Regulation Act showing the highest Exclusionary and Economic scores" caption="Figure 5: Lexicon category profiles by author group. The Regulation Act dominates the Exclusionary and Economic categories, while Begbie shows the highest Dehumanizing count (reflecting his frequent use of 'Chinaman' and 'Chinamen' in case rulings)." %}
+{% include figure.html filename="data/natural-language-inference-historical-text-05.png" alt="Grouped bar chart showing lexicon category hit rates per 1,000 tokens for each author group, with the Regulation Act showing the highest Exclusionary and Economic scores" caption="Figure 1: Lexicon category profiles by author group. The Regulation Act dominates the Exclusionary and Economic categories, while Begbie shows the highest Dehumanizing count (reflecting his frequent use of 'Chinaman' and 'Chinamen' in case rulings)." %}
 
 The lexicon correctly identifies the Act as having the highest EXCLUSIONARY score (10.4 per 1,000 tokens) and the highest ECONOMIC score (26.1). However, it has critical blind spots. The word "taxation" appears when Crease *critiques* unequal taxation and when the Act *imposes* it; the lexicon counts both as ECONOMIC. When Crease quotes the Act to condemn it, the lexicon scores those quoted words as if Crease endorses them. And the approximately 120 terms capture only a fraction of the vocabulary: many stance-bearing phrases such as "fills one with alarm" or "rule the country" use common words that no lexicon would flag.
 
@@ -403,8 +400,12 @@ The `SentenceTransformer` model handles tokenization, hidden-state extraction, a
 Now extract sentences mentioning Chinese immigration keywords and separate them by author:
 
 ```python
-crease_cases = df[(df['author'] == 'Crease') & (df['type'] == 'case')]['text'].tolist()
-begbie_cases = df[(df['author'] == 'Begbie') & (df['type'] == 'case')]['text'].tolist()
+crease_cases = df[
+    (df['author'] == 'Crease') & (df['type'] == 'case')
+]['text'].tolist()
+begbie_cases = df[
+    (df['author'] == 'Begbie') & (df['type'] == 'case')
+]['text'].tolist()
 regulation_act_texts = df[df['type'] == 'act']['text'].tolist()
 
 corpus_by_author = {
@@ -545,7 +546,7 @@ plt.savefig(
 plt.show()
 ```
 
-{% include figure.html filename="data/natural-language-inference-historical-text-01.png" alt="A 2D UMAP projection scatter plot showing legal text embeddings colored by author: Crease (blue), Begbie (red), and Regulation Act (green)" caption="Figure 1: UMAP projection of stance embeddings by author. Crease and Begbie snippets partially overlap, while the Regulation Act forms a more distinct cluster." %}
+{% include figure.html filename="data/natural-language-inference-historical-text-01.png" alt="A 2D UMAP projection scatter plot showing legal text embeddings colored by author: Crease (blue), Begbie (red), and Regulation Act (green)" caption="Figure 2: UMAP projection of stance embeddings by author. Crease and Begbie snippets partially overlap, while the Regulation Act forms a more distinct cluster." %}
 
 ### Investigating Key Sentences
 
@@ -627,7 +628,7 @@ for topic, anchor in topic_anchors.items():
 similarity_df = pd.DataFrame(similarity_scores)
 ```
 
-{% include figure.html filename="data/natural-language-inference-historical-text-02.png" alt="Four box plots showing cosine similarity to topic anchors (labor, legislation, license, taxation) by author, with diamond markers for means" caption="Figure 2: Topic similarity distributions by author. Crease shows higher alignment with labor and taxation topics, while Begbie aligns more with license." %}
+{% include figure.html filename="data/natural-language-inference-historical-text-02.png" alt="Four box plots showing cosine similarity to topic anchors (labor, legislation, license, taxation) by author, with diamond markers for means" caption="Figure 3: Topic similarity distributions by author. Crease shows higher alignment with labor and taxation topics, while Begbie aligns more with license." %}
 
 ## Zero-Shot Classification
 
@@ -723,28 +724,6 @@ def score_texts(texts_by_author, labels):
 
 The notebook demo keeps the pre-computed load path for faster execution, but the lesson shows the direct calculation steps.
 
-### Testing with a Known Example
-
-Before running the pipeline on the full corpus, test it on a passage with a known stance. This paragraph from Sir Chapleau's Royal Commission report discusses Chinese immigration in cautiously economic terms:
-
-> That assuming Chinese immigrants of the laboring class will persist in retaining their present characteristics of Asiatic life, where these are strikingly peculiar and distinct from western, and that the influx will continue to increase, this immigration should be dealt with by Parliament; but no legislation should be such as would give a shock to great interests and enterprises established before any probability that Parliament would interfere with that immigration arose.
-
-```python
-chapleau_snippet = (
-    "That assuming Chinese immigrants of the laboring class will persist "
-    "in retaining their present characteristics of Asiatic life, where "
-    "these are strikingly peculiar and distinct from western, and that the "
-    "influx will continue to increase, this immigration should be dealt "
-    "with by Parliament; but no legislation should be such as would give "
-    "a shock to great interests and enterprises established before any "
-    "probability that Parliament would interfere with that immigration arose."
-)
-
-chapleau_scores = get_scores(chapleau_snippet, zs_labels)
-```
-
-The model should assign a relatively high "Neutral" score to this passage, which discusses immigration policy without explicitly advocating for or against equal treatment.
-
 ### Validating Against Ground Truth
 
 Before interpreting zero-shot results on the full corpus, it is important to measure performance on a labeled sample that matches the task definition. The evaluation set used here contains 45 manually labeled snippets balanced across the three pipeline labels (Pro, Neutral, Cons), with representation from Act text, Crease, Begbie, and Commission material. This design evaluates the same three-way classification problem used in the analysis pipeline, rather than a separate single-hypothesis entailment task.
@@ -769,7 +748,7 @@ df_scores.to_csv(sentence_scores_path, index=False)
 sentence_summary = df_scores.groupby("Author")[SCORE_COLS].mean().round(4)
 ```
 
-{% include figure.html filename="data/natural-language-inference-historical-text-03.png" alt="Scatter plot of Pro versus Cons zero-shot classification scores colored by author, showing that Regulation Act points cluster toward higher Cons scores" caption="Figure 3: Pro versus Cons classification scores by author (sentence level). The Regulation Act clusters toward higher Cons scores, while Crease and Begbie sentences distribute more broadly." %}
+{% include figure.html filename="data/natural-language-inference-historical-text-03.png" alt="Scatter plot of Pro versus Cons zero-shot classification scores colored by author, showing that Regulation Act points cluster toward higher Cons scores" caption="Figure 4: Pro versus Cons classification scores by author (sentence level). The Regulation Act clusters toward higher Cons scores, while Crease and Begbie sentences distribute more broadly." %}
 
 ### Window-Level Classification
 
@@ -792,7 +771,8 @@ def chunk_into_windows(text, max_tokens=512, stride=128):
             current = cand
         else:
             windows.append(current)
-            tail = nli_tokenizer.encode(current, add_special_tokens=False)[-stride:]
+            tokens = nli_tokenizer.encode(current, add_special_tokens=False)
+            tail = tokens[-stride:]
             current = nli_tokenizer.decode(tail) + " " + sent
     if current:
         windows.append(current)
@@ -898,7 +878,7 @@ These correlations reveal whether emphasis on certain topics (e.g., labor, taxat
 
 Following the practice in computational finance of comparing dictionary-based and model-based classifiers, you can now score each sentence with both the lexicon and the NLI model. Where both methods agree, confidence is higher. Where they disagree, the passage likely involves rhetorical complexity, quotation for critique, legal description, or contextual reversal, that merits close reading.
 
-{% include figure.html filename="data/natural-language-inference-historical-text-06.png" alt="Two scatter plots comparing lexicon category scores against NLI classification scores per sentence, showing that many sentences with high NLI Cons scores have zero lexicon hits" caption="Figure 6: Lexicon scores versus NLI scores at the sentence level. The left panel shows that many sentences classified as discriminatory by NLI have zero Exclusionary lexicon hits, indicating the NLI model captures contextual meaning the lexicon misses. The right panel shows weak correlation between Rights-Affirming vocabulary and NLI Pro scores." %}
+{% include figure.html filename="data/natural-language-inference-historical-text-06.png" alt="Two scatter plots comparing lexicon category scores against NLI classification scores per sentence, showing that many sentences with high NLI Cons scores have zero lexicon hits" caption="Figure 5: Lexicon scores versus NLI scores at the sentence level. The left panel shows that many sentences classified as discriminatory by NLI have zero Exclusionary lexicon hits, indicating the NLI model captures contextual meaning the lexicon misses. The right panel shows weak correlation between Rights-Affirming vocabulary and NLI Pro scores." %}
 
 The comparison reveals that the lexicon and NLI model capture different aspects of stance. Sentences with high NLI Cons scores but zero lexicon hits express discriminatory meaning through phrasing rather than keywords. Sentences where the lexicon flags Exclusionary vocabulary but NLI classifies as Neutral or Pro often involve quotation or description of discriminatory provisions. These disagreements are precisely the passages a historian should examine through close reading.
 
@@ -1024,21 +1004,9 @@ for author in ['Crease', 'Begbie', ACT_LABEL]:
 bootstrap_summary = pd.DataFrame(bootstrap_rows)
 ```
 
-{% include figure.html filename="data/natural-language-inference-historical-text-04.png" alt="Dot-and-whisker plot showing bootstrap 95 percent confidence intervals for Pro, Neutral, and Cons mean scores by author" caption="Figure 4: Bootstrap 95% confidence intervals for mean stance scores. Begbie's wide intervals reflect the smaller sample size (18 snippets versus 83 for Crease)." %}
+{% include figure.html filename="data/natural-language-inference-historical-text-04.png" alt="Dot-and-whisker plot showing bootstrap 95 percent confidence intervals for Pro, Neutral, and Cons mean scores by author" caption="Figure 6: Bootstrap 95% confidence intervals for mean stance scores. Begbie's wide intervals reflect the smaller sample size (18 snippets versus 83 for Crease)." %}
 
 Wide confidence intervals (especially for Begbie with only 18 snippets) indicate that the point estimates should be interpreted cautiously. Where intervals for different authors overlap on a given stance, the difference between them is not statistically reliable.
-
-### Further Robustness Strategies
-
-The three checks above are the minimum recommended for any zero-shot NLI analysis. Additional strategies include:
-
-- Model comparison: re-run with a different NLI model (such as `facebook/bart-large-mnli`) and check whether author rankings are preserved.
-- Aggregation granularity: compare results at sentence, window, and document levels. Consistent rankings across levels provide stronger evidence.
-- Hypothesis template variation: test alternative templates (such as "The author of this text {}" or "This passage {}") to reveal whether template wording introduces systematic bias.
-- Inter-annotator agreement: have domain experts independently label a sample, then compare the model against each annotator using [Cohen's kappa](https://en.wikipedia.org/wiki/Cohen%27s_kappa) or [Krippendorff's alpha](https://en.wikipedia.org/wiki/Krippendorff%27s_alpha).
-- Permutation testing: randomly shuffle author labels and re-compute mean scores. If observed differences exceed 95% of permuted differences, the finding is unlikely due to chance.
-
-None of these checks require re-training a model.
 
 ## Discussion
 
@@ -1049,11 +1017,11 @@ Returning to the historiographical question, the results are mixed rather than b
 This lesson demonstrated a full, reproducible workflow: TF-IDF for exploratory signal, Sentence-BERT for semantic similarity, DeBERTa NLI for stance scoring, and robustness checks for uncertainty. The core finding is stable across methods: the Regulation Act is the clearest discriminatory source, while judicial texts are more ambiguous and context-dependent. Use these outputs as structured evidence for historical interpretation, not as final verdicts.
 
 To adapt this workflow to a new corpus, a researcher must make five decisions:
-1. Select and digitize the corpus; 
-2. Define a keyword list that identifies the thematic focus; 
-3. Design classification labels that name the specific stance dimensions of interest; 
-4. Choose a pre-trained model whose training domain approximates the target corpus; and
-5. Assemble a small labeled sample -- even 30 to 50 sentences -- to measure and report classification accuracy. 
+1. Select and digitize the corpus
+2. Define a keyword list that identifies the thematic focus
+3. Design classification labels that name the specific stance dimensions of interest
+4. Choose a pre-trained model whose training domain approximates the target corpus
+5. Assemble a small labeled sample of even 30 to 50 sentences to measure and report classification accuracy
 
 Each of these decisions shapes what the pipeline can and cannot reveal, and each warrants explicit justification in any publication that uses these methods.
 
