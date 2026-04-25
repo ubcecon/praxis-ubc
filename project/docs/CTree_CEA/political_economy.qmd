@@ -61,7 +61,6 @@ warnings.filterwarnings("ignore")
 import urllib.request
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import plotly.express as px
 import nltk
 import gensim.downloader as api
@@ -116,10 +115,11 @@ df.head()
 
 ### Classifying Regimes
 
-We classify countries as autocratic or democratic using a manual list. Our list of autocratic countries is based on countries classified as "closed/electoral autocracies" by V-Dem's Regimes of the World index. It is important to note that this is a simplification; a country's constitution may have been drafted under a different regime than the current one. This is sufficient for a workshop, but for a research paper we would have to check V-Dem's Regimes of the World index at the time of drafting the constitution or its most recent update. You can see the list of autocracies in the code cell below. 
+We classify countries as autocratic or democratic using a manual list, derived from V-Dem's *Regimes of the World* (RoW) index (Coppedge et al. 2023, V-Dem Dataset v13), specifically countries the index classifies as "closed autocracies" or "electoral autocracies". This is a simplification; a country's constitution may have been drafted under a different regime than the current one. This is sufficient for a workshop, but for a research paper we would have to check V-Dem's Regimes of the World index at the time of drafting the constitution or its most recent update. You can see the list of autocracies in the code cell below.
 
 ```{python}
-# List of Autocracies
+# Source: V-Dem Regimes of the World index v13 (Coppedge et al. 2023)
+# Countries classified as "closed autocracy" or "electoral autocracy"
 autocracy_ids = {
     "China", "Russian_Federation__the", "Saudi_Arabia", "Iran_Islamic_Rep_of_",
     "Cuba", "Syrian_Arab_Republic_the", "Libya", "Belarus", "Venezuela",
@@ -145,7 +145,7 @@ df.groupby("regime")["word_count"].agg(["mean", "median", "min", "max"]).round(0
 Please discuss in small groups with your classmates:
 
 - What gets lost in a binary regime classification? 
-- Can you think of countries that don't fit neatly into either category? S
+- Can you think of countries that don't fit neatly into either category?
 - Since these constitutions were drafted at different times under different regimes, why might the *current* regime type not match the constitution's language?
 
 ## 3 Text Preprocessing
@@ -267,23 +267,28 @@ for word in target_words:
     wv = model[word].reshape(1, -1)
     sim_auto = cosine_similarity(wv, auto_vecs).flatten()
     sim_demo = cosine_similarity(wv, demo_vecs).flatten()
-    pooled_std = np.sqrt((sim_auto.std()**2 + sim_demo.std()**2) / 2)
+    n1, n2 = len(sim_auto), len(sim_demo)
+    var_auto = sim_auto.var(ddof=1)
+    var_demo = sim_demo.var(ddof=1)
+    pooled_std = np.sqrt(((n1 - 1) * var_auto + (n2 - 1) * var_demo) / (n1 + n2 - 2))
     d = (sim_auto.mean() - sim_demo.mean()) / pooled_std if pooled_std > 0 else 0
+    t_stat, p_val = stats.ttest_ind(sim_auto, sim_demo, equal_var=False)
     results.append({
         "word": word,
         "mean_autocratic": round(sim_auto.mean(), 4),
         "mean_democratic": round(sim_demo.mean(), 4),
         "difference": round(sim_auto.mean() - sim_demo.mean(), 4),
         "cohens_d": round(d, 3),
+        "p_value": round(p_val, 4),
     })
 
 results_df = pd.DataFrame(results).sort_values("cohens_d", key=abs, ascending=False)
 results_df
 ```
 
-Cohen's d measures the size of the difference in standard deviations: values above 0.2 are considered small, 0.5 medium, and 0.8 large. Positive values mean the word is closer to autocratic constitutions.
+Cohen's d measures the size of the difference in standard deviations (values above 0.2 small, 0.5 medium, 0.8 large). The p-value tells us how likely we'd see a difference this large by chance if the two groups truly used the same language. Positive d values mean the word is closer to autocratic constitutions.
 
-The standout finding: "democracy," "equality," and "freedom" all show large effect sizes toward autocratic constitutions. This is in line with our hypothesis that autocratic constitutions more heavily lean on language around equality and human rights, which they then do not uphold. The only word which significantly leans towards democratic constitutions is "property," consistent with the emphasis on individual economic rights in democratic nations.
+The standout finding: "democracy," "equality," and "freedom" all show large effect sizes toward autocratic constitutions, with p-values small enough to suggest the difference is unlikely to be due to chance. This is in line with our hypothesis that autocratic constitutions more heavily lean on language around equality and human rights, which they then do not uphold. The only word which significantly leans towards democratic constitutions is "property," consistent with the emphasis on individual economic rights in democratic nations. With only ~19 autocratic constitutions, statistical power is limited and individual constitutions have outsized influence -- so treat p-values as suggestive rather than definitive.
 
 ::: callout-tip
 ## Try It Yourself
@@ -326,6 +331,14 @@ We can see many of the autocratic constitutions are on the right side of the vis
 ## Discussion
 
 - Find your home country on the plot. Are you surprised by its position? What might explain where it ended up?
+:::
+
+::: callout-tip
+## Try It Yourself: Ambiguous Cases
+
+Hungary, Turkey, and Singapore are often described as "hybrid" or "competitive authoritarian" regimes. They don't fit cleanly into the binary classification we used. Find them on the PCA plot. Where do they land relative to the autocratic and democratic clusters? What does this tell you about the limits of binary regime classification, and about what word embeddings can and can't detect?
+
+Optional: modify `highlight_ids` in the cell above to include `"Hungary"`, `"Turkey"`, and `"Singapore"` so they're labelled directly on the plot.
 :::
 
 ## 9 Conclusion

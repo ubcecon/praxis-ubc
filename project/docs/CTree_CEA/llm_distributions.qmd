@@ -1,7 +1,7 @@
 ---
 title: "How Do Large Language Models Predict?"
 date: 2025-08-26
-author: PrAxIs UBC Team <br> _Irene Berezin, Zhihan Dong, Katherine Karapetrovic, Krishaant Pathmananathan, Yash Mali, Kaiyan Zhang, Jonathan Graves, Laura Nelson_
+author: PrAxIs UBC Team <br> _Irene Berezin, Zhihan Dong, Katherine Karapetrovic, Krishaant Pathmananathan, Yash Mali, Kaiyan Zhang, Alex Ronczewski, Jonathan Graves, Laura Nelson_
 image: media/next_word_prediction.png
 categories:
   - ECON 227
@@ -25,6 +25,16 @@ format:
 ---
 
 This notebook explores how large language models (LLMs) work by linking their probability-based predictions to real-world applications. We start with the basics of next-word prediction, then extend the idea to forecasting stock prices using news sentiment.
+
+### Learning Outcomes
+
+By the end of this notebook, students will be able to:
+
+1. Understand next-word prediction as a conditional probability distribution over a model's vocabulary
+2. Explain how temperature controls the sharpness of that distribution and shapes a model's outputs
+3. Apply a pretrained sentiment classifier to financial text and evaluate it with a confusion matrix
+4. Interpret confidence scores and their relationship to accuracy
+5. Use sentiment features in a simple linear regression to predict stock returns
 
 ### Prerequisites
 
@@ -54,29 +64,17 @@ Before you start, make sure you have the required libraries installed, if not, *
 ```{python}
 # load libraries we need to run this notebook
 import os
-import glob
 import warnings
-from datetime import datetime, timedelta
-from math import sqrt
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import yfinance as yf
-import datasets
 from datasets import load_dataset
 from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM
-from statsmodels.tsa.statespace.sarimax import SARIMAX
-import holidays
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-import ipywidgets as widgets
-from IPython.display import display, clear_output
-from sklearn.metrics import mean_squared_error, mean_absolute_error
-from forecast_plot import create_plot
 import torch
 import torch.nn.functional as F
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay,classification_report    
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, classification_report
 ```
 
 ### 1 Introduction: The Mathematics of LLM Predictions
@@ -99,7 +97,7 @@ The model tries to learn the **probability distribution** of the next word given
 
 Given the previous words $w_1, w_2, \ldots, w_{t-1}$, the probability of predicting the next word $w_{t}$ is called **conditional probability**: it measures for all words in the vocabulary "the probability of this word being next, based on what was already said".
 
-Mathematically, this is given by **Bayes' theorem** as:
+Mathematically, this is just the **definition of a conditional probability**:
 
 $$
 P(w_t \mid w_1, w_2, \ldots, w_{t-1}) = \frac{P(w_1, w_2, \ldots, w_{t-1}, w_t)}{P(w_1, w_2, \ldots, w_{t-1})}
@@ -108,6 +106,8 @@ $$
 LLMs estimate this probability by learning from training datasets.  When they make predictions, they will select the word at position $t$ as the word with the highest probability to be the next word.  Some models also choose likely words at random, which can lead to more creative outputs.
 
 Let's see how this works in practice.  The code below sets up a simple example of assigning the next word in the sentence "Bob went to the..." at each step, and shows how the probability distribution changes as we add more words to the sentence.  We use a very small vocabulary to make it easier to visualize.
+
+> *Note*: the probabilities below are hand-picked to illustrate the idea; in a real model, these would be learned from training data.
 
 ```{python}
 warnings.filterwarnings("ignore")
@@ -204,7 +204,7 @@ predict_next_word("The cat sat on the")
 
 ### 2 Sampling and Temperature
 
-The example above (“Bob went to...”) shows the process of generating a short sentence.  At each step, the model calculates the conditional probability of the next word and then selects the word with the highest probability to insert into the sentence. The final output we obtain is "buy some milk".
+The example above (“Bob went to...”) shows the process of generating a short sentence.  At each step, the model calculates the conditional probability of the next word and then selects the word with the highest probability to insert into the sentence. The final output we obtain — in our hand-picked example — is "buy some milk".
 
 To get more creative responses you can change the way you pick the next word: pick a "likely" word but not necessarily the most probable one.  Simply put, this involves making the conditional distribution sharper or flatter. If you make the distribution sharper, you are more likely to pick the word with the highest probability. If you make it flatter, you are more likely to pick a word that is not the most probable one.
 
@@ -397,7 +397,7 @@ Intuitively, we are asking the model:
 - Based on the words and their context, it calculates the probability of the headline being positive, negative, or neutral.
 - It then assigns the headline to the category with the highest probability, and also gives us a confidence score (the probability of that category).
 
-To do this, we will use some models that have already been trained to do this task well.  Specifically, we will use a model called `RoBERTa` (short for *Robust Bidirectional Encoder Representations from Transformers*).  `RoBERTa` is a pretrained language model that learns a word's meaning by looking at the words *before and after* it, so it understands context and tone well. It is also specifically trained on tweets and social media text, so it tends to be well-suited to handling short, non-technical texts like news headlines.
+To do this, we will use some models that have already been trained to do this task well.  Specifically, we will use a model called `RoBERTa` (short for *Robustly Optimized BERT Pretraining Approach*).  `RoBERTa` is a pretrained language model that learns a word's meaning by looking at the words *before and after* it, so it understands context and tone well. It is also specifically trained on tweets and social media text, so it tends to be well-suited to handling short, non-technical texts like news headlines.
 
 Our plan is to build on our earlier discussion of LLMs predicting **probability distributions**, but here, the prediction is over **sentiment classes** rather than words.  This process converts unstructured text into structured sentiment labels that we can analyze quantitatively, making it a useful complement to other kinds of data in economic or statistical analysis.
 
@@ -694,15 +694,16 @@ Naturally, an important question we'd want to ask is if positive social media co
 #| echo: false
 
 warnings.filterwarnings("ignore")
-end_date = pd.Timestamp.today()
+# Anchor stock returns to the time period of the sentiment dataset (Twitter financial news, 2019)
+end_date = pd.Timestamp("2019-12-31")
 start_date = end_date - pd.DateOffset(months=3)
 
 tickers_list = ticker_sentiment_df["ticker"].tolist()
 
-if os.path.exists("datasets/returns_3m.csv"): 
+if os.path.exists("datasets/returns_3m_2019.csv"): 
 # this is complicated to read, but we're just downloading the data from yfinance 
 # and trying to avoid rate limits by caching the data the second time this cell is ran
-    returns_df = pd.read_csv("datasets/returns_3m.csv")
+    returns_df = pd.read_csv("datasets/returns_3m_2019.csv")
 else:
     raw = yf.download(tickers_list, start=start_date.strftime('%Y-%m-%d'),
                           end=end_date.strftime('%Y-%m-%d'), progress=False, auto_adjust=True)
@@ -718,7 +719,7 @@ else:
         returns_rows.append({"ticker": ticker, "return_3m": float(ret)})
     returns_df = pd.DataFrame(returns_rows) if returns_rows else pd.DataFrame(columns=["ticker", "return_3m"])
     if not returns_df.empty:
-        returns_df.to_csv("datasets/returns_3m.csv", index=False)
+        returns_df.to_csv("datasets/returns_3m_2019.csv", index=False)
 
 plot_df = pd.merge(ticker_sentiment_df, returns_df, on="ticker")
 
@@ -759,8 +760,6 @@ $$
 
 This kind of mirrors the core idea from section 1. The model looks at what is known (sentiment and recent momentum of each stock ticker) and assigns weights to produce a prediction. The "vocabulary" here is just two features instead of thousands of words. 
 
-> _Note_: the stock returns are being pulled using today's date, but our sentiment data is from 2019, so the results are a bit wonky. 
-
 ```{python}
 #| echo: false
 
@@ -769,8 +768,8 @@ from sklearn.linear_model import LinearRegression
 past_end = start_date
 past_start = past_end - pd.DateOffset(months=1)
 
-if os.path.exists("datasets/returns_1m.csv"): #same thing here; getting returns for 1 month average before the 3 month window
-    past_returns_df = pd.read_csv("datasets/returns_1m.csv")
+if os.path.exists("datasets/returns_1m_2019.csv"): #same thing here; getting returns for 1 month average before the 3 month window
+    past_returns_df = pd.read_csv("datasets/returns_1m_2019.csv")
 else:
     past_raw = yf.download(top_tickers, start=past_start.strftime('%Y-%m-%d'),
                                end=past_end.strftime('%Y-%m-%d'), progress=False, auto_adjust=True)
@@ -786,7 +785,7 @@ else:
         past_returns_rows.append({"ticker": ticker, "past_1m_return": float(ret)})
     past_returns_df = pd.DataFrame(past_returns_rows) if past_returns_rows else pd.DataFrame(columns=["ticker", "past_1m_return"])
     if not past_returns_df.empty:
-        past_returns_df.to_csv("datasets/returns_1m.csv", index=False)
+        past_returns_df.to_csv("datasets/returns_1m_2019.csv", index=False)
 ```
 
 ```{python}
@@ -850,10 +849,19 @@ This notebook showed how large language models process and make predictions abou
 ### Glossary
 
 - **Large Language Model (LLM)**: A type of AI model that predicts the next word in a sequence based on the context of previous words.
+- **Token**: A chunk of text the model processes: typically a word, part of a word, or punctuation. The phrase "the cat" might be split into two or three tokens depending on the model.
+- **Tokenizer**: The component that splits raw text into tokens before the model sees it. Different models use different tokenizers, which is why the same sentence can produce different token counts.
+- **Word embedding**: A list of numbers (a vector) representing a word's meaning. Words used in similar contexts end up with similar vectors, so "profit" and "earnings" are close while "profit" and "elephant" are far apart. This is what lets a model relate words to each other.
 - **Next Word Prediction**: The task of predicting the next word in a sequence given the previous words.
+- **Logits**: The raw output scores a model produces for every possible next token, before they're converted into probabilities. They can be any real number, positive or negative.
+- **Softmax**: A function that converts logits into a valid probability distribution — every score becomes a number between 0 and 1, and they all sum to 1.
+- **Temperature**: A knob that flattens or sharpens the probability distribution before the model picks a token. Low temperatures make the model pick the most likely word almost every time; high temperatures spread probability across more options, producing more varied outputs.
+- **Pretrained model**: A model that has already been trained on a large dataset and saved, so you can use it directly without retraining. We use pretrained models in this notebook because training one from scratch would take enormous data and compute.
+- **Hugging Face**: A popular platform that hosts and distributes pretrained ML models, including the ones used in this notebook. Think of it as a public library for models.
+- **RoBERTa**: The specific pretrained model we use for sentiment classification (short for *Robustly Optimized BERT Pretraining Approach*). It reads the words before *and* after each target word, which helps it pick up on context and tone.
 - **Sentiment Analysis**: The process of determining the emotional tone behind a series of words, used to understand the sentiment expressed in text.
 - **Confidence Score:** The probability a model assigns to its top prediction; higher confidence correlates with higher accuracy on average.
-- **Confusion Matrix:** A table that shows how often a classifier’s predictions agree or disagree with ground-truth labels, broken down by class.
+- **Confusion Matrix:** A table that shows how often a classifier's predictions agree or disagree with ground-truth labels, broken down by class.
 
 
 ### References
