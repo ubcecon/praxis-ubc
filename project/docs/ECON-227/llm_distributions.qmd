@@ -196,7 +196,19 @@ def predict_next_word(sentence, k=5, temperature=1.0):
 
 Let's use the model to predict the next word in a sentence.
 
-> *Try changing the sentence below to see how the predicted next word changes.*
+Before running the code, try predicting the next word yourself. Here are a few sentences — what do you think the model will say comes next?
+
+| Sentence | Your guess | What the model might predict |
+|---|---|---|
+| `"The cat sat on the"` | ? | mat, floor, chair... |
+| `"The Federal Reserve raised interest"` | ? | rates, rate... |
+| `"Consumer prices rose faster than"` | ? | expected, forecast... |
+| `"The company reported record"` | ? | profits, losses, revenue... |
+| `"Inflation in the third quarter was"` | ? | high, lower, rising... |
+
+Notice how your intuition and the model's predictions align — or don't. The model has learned from a huge amount of text, but it doesn't "know" anything in the way a human does. It just knows which words tend to follow which other words.
+
+> *Try changing the sentence below to one of the examples in the table above to see how the predicted next word changes.*
 
 ```{python}
 predict_next_word("The cat sat on the")
@@ -322,13 +334,36 @@ def plot_next_token_distribution(sentence, k=20, temperature=1.0):
     plt.show()
 ```
 
-Now, let's apply the same idea to our own sentence using a real language model.
+Now, let's apply the same idea to our own sentence using a real language model. 
 
 > *Try changing the sentence or the temperature below to see how the distribution changes.*
 
 ```{python}
-# change the value after "temperature = " to see how the distribution changes with different temperatures
-plot_next_token_distribution("The cat sat on the", temperature = 1.0)
+# change the value after "temperature = " to see how the distribution changes with different temperatures:
+plot_next_token_distribution("Stock prices have been ", temperature = 1.0)
+```
+
+Now let's go one step further. Instead of looking at just the next token, we will let the model generate a whole paragraph by repeatedly sampling the next word. Here, each word is chosen according to the probability distribution we just saw, shaped by the temperature:
+
+> *Try changing the starting sentence or the temperature below to see how the output changes. How does a low temperature (e.g. `0.3`) compare to a high one (e.g. `1.5`)?*
+
+```{python}
+#| echo: false
+def generate_paragraph(prompt, temperature=1.0, max_new_tokens=100):
+    inputs = tokenizer(prompt, return_tensors="pt").to(device)
+    with torch.no_grad():
+        output_ids = model.generate(
+            **inputs, max_new_tokens=max_new_tokens, do_sample=True,
+            temperature=temperature,
+            pad_token_id=tokenizer.eos_token_id)
+    generated = tokenizer.decode(output_ids[0], skip_special_tokens=True)
+    print(f"Temperature: {temperature}\n")
+    print(generated)
+```
+
+```{python}
+# change the sentence or the temperature to see how the generated paragraph changes:
+generate_paragraph("Stock prices have been ", temperature=1.0, max_new_tokens=100) # change number of tokens for more/less words too
 ```
 
 If you are interested in understanding the inner workings of these models, take a look at the interactive visualization at [The Illustrated Transformer](https://poloclub.github.io/transformer-explainer/). It provides an excellent, hands-on way to explore the core ideas behind modern language models.
@@ -407,7 +442,7 @@ We now apply our pre-trained model to each headline.  It will return either:
 - `NEGATIVE`: news that sounds bad (e.g., "lawsuit filed")
 - `NEUTRAL`: news that is neither clearly negative nor positive.
 
-> *Can you think of a positive and negative news headline?*
+> *Can you think of a positive and negative news headline, without using specifically positive/negative words?*
 
 ```{python}
 warnings.filterwarnings("ignore")
@@ -425,18 +460,33 @@ def classify_with_score(text):
     return result["label"].upper(), result["score"]
 ```
 
-Before seeing what the model says, let's test our own intuition. Given the headlines below, would you say they are positive, negative, or neutral?
+Given the headlines below, would you say they are positive, negative, or neutral?
+
+| Headline | 
+|---|---|---|
+| "Google to lay off 12,000 people, memo from CEO Sundar Pichai says." |
+| "Spotify stock plummets after earnings beat expectations as guidance disappoints." | 
+| "Dow tumbles 500 points, posts worst day since March 2023 after hot inflation report. | 
+| "Fed holds rates steady, indicates three cuts coming in 2024." | 
+| "Amazon says it will cut over 18,000 jobs, more than initially planned." | 
+| "Judge blocks JetBlue-Spirit merger after DOJ antitrust challenge." | 
+| "Quarterly revenue in line with market expectations." |
+
+Some of these are deliberately tricky! For example, "in line with expectations" sounds neutral, but markets often react negatively to anything that isn't a positive surprise. Another example is layoffs-- layoffs sound bad, but the market in recent months has been rewarding tech layoffs for cost-cutting. Does the model pick up on that? You can also add your own headlines to the list in the code cell below. Try headlines from different contexts:
+
+- An ambiguous one: *"The merger talks collapsed after three months of negotiations."* (bad news or relief? maybe the merger was a bad thing?)
+- A macro headline: *"The unemployment rate fell to a 50-year low."*
+- Something sarcastic or informal: *"Great, another rate hike."* (does the model handle tone?)
 
 ```{python}
 headlines = [
-    "Operating profit rose to EUR 17.1 mn from EUR 14.8 mn in the corresponding period of 2007.",
-    "The company was ordered to pay damages worth 8.8 million euros.",
-    "Sales for the third quarter were flat compared to the same period last year.",
-    "The rights issue was subscribed to 102 percent.",
-    "The company faces a wave of new lawsuits following the product recall.",
-    "Quarterly revenue in line with market expectations.",
-    "SVB Financial Group, the former parent company of Silicon Valley Bank, filed for Chapter 11 bankruptcy in March 2023 following the bank's collapse and FDIC receivership"
-]
+ "Google to lay off 12,000 people, memo from CEO Sundar Pichai says.",
+ "Spotify stock plummets after earnings beat expectations as guidance disappoints.", 
+ "Dow tumbles 500 points, posts worst day since March 2023 after hot inflation report.", 
+ "Fed holds rates steady, indicates three cuts coming in 2024.",
+ "Amazon says it will cut over 18,000 jobs, more than initially planned.",
+ "Judge blocks JetBlue-Spirit merger after DOJ antitrust challenge.",
+ "Quarterly revenue in line with market expectations." ]
 
 ```
 
@@ -452,6 +502,13 @@ for headline in headlines:
 ```
 
 Do you agree with the model's predictions?  Why or why not?  If it seems to have got it wrong, can you think of why?  What words or phrases might have confused the model?
+
+Here are some patterns worth looking for as you experiment:
+
+- **Formal vs. informal language:** The model was trained heavily on Twitter. Does it handle formal financial prose as well as casual phrasing?
+- **Numbers vs. words:** *"Profit rose 17%"* vs. *"Profit rose significantly"* — does one confuse it more?
+- **Negation:** *"Not a bad quarter"* — does the model understand double negatives?
+- **Context-dependent sentiment:** *"The central bank held rates steady"* can be good or bad news depending on what the market expected. Can the model capture that?
 
 ### 4 Applying Sentiment Classification to Real News
 
@@ -535,6 +592,16 @@ print(classification_report(phrasebank_df["true_label"], phrasebank_df["pred_lab
 ```
 
 > Which class does the model struggle with the most? Why might that be?
+
+Here is how to read the confusion matrix: each row is the **true label** (what the expert said), and each column is the **model's prediction**. Numbers on the diagonal are correct predictions. Numbers off the diagonal are mistakes.
+
+For example, if you see a large number in the row `NEUTRAL` and the column `POSITIVE`, that means the model often called neutral sentences positive. Think about why that might happen. What does a neutral financial sentence tend to sound like? Jargony? 
+
+Some things to look for:
+
+- **Which error is more common:** the model calling something NEGATIVE when it's actually NEUTRAL, or NEUTRAL when it's actually NEGATIVE? Does that asymmetry make sense given how the model was trained? 
+- **From an investor's perspective:** which mistake is more costly? A false positive (predicting good news when it's neutral) or a false negative (predicting neutral when it's actually bad)? The answer might depend on whether you're a buyer or a seller.
+- **Try changing the sample size:** the code above draws 150 sentences per class. Try changing that to `50` or `300` and re-running . Does the confusion matrix look meaningfully different, or roughly the same?
 
 #### Does confidence necessarily predict accuracy?
 
@@ -686,6 +753,14 @@ plt.show()
 
 What do you notice about the sentiment distribution across companies?  Do some companies have more positive sentiment than others?  Can you think of any reasons why that might be the case?
 
+Look at the bar chart and try to answer these questions without running any additional code:
+
+- Which company has the most positive social media sentiment? Does that surprise you?
+- Is any company predominantly negative? What might explain that?
+- The bar chart only shows companies with at least 5 mentions. In the code above, try changing `counts >= 5` to `counts >= 20` — how does the list of companies change? Are the remaining tickers ones you'd expect to see discussed heavily on financial Twitter?
+
+You can also change `head(20)` to a different number (try `head(30)` or `head(10)`) to see more or fewer companies in the chart.
+
 #### Does social media sentiment track stock performance?
 
 Naturally, an important question we'd want to ask is if positive social media coverage correlates with better stock performance. For this, we'll get 3-month stock returns for our tickers using the `yfinance` package and compare them to their sentiment. 
@@ -833,6 +908,15 @@ plt.show()
 ```
 
 Points close to the dashed line are well predicted, while points far from it are errors. Based on the coefficients, does sentiment or short-term past returns have a stronger effect? This model was fit and evaluated on the same data. Why is in-sample $R^2$ an optimistic measure of how well our model is performing? What would a proper evaluation require?
+
+Look at the scatter plot and the regression output and try to answer these without additional code:
+
+- Find a ticker that sits far above the dashed line (model predicted a much higher return than actually happened). What does that tell you about the model's confidence vs. its accuracy?
+- Find a ticker close to the dashed line. Does its sentiment score seem like a reasonable predictor for its return?
+- The regression uses two features: sentiment score and past 1-month return. Based on the printed coefficients, which one has a larger effect? Is that what you expected?
+- The $R^2$ here is computed in-sample — meaning the model is evaluated on the exact same data it was trained on. Why is that a problem? What would happen if you tried to use this model to predict returns for companies not in this dataset?
+
+Try changing `months=3` in the returns download cell to `months=6` or `months=1` — how does using a different return window change the relationship? Does sentiment seem to predict short or long-term movements better?
 
 > Think about the following: does a strong correlation here mean social media drives stock prices, or the other way around? What would you need to do, or could do, to make a causal claim? 
 
