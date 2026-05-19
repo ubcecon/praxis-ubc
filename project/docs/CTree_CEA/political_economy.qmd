@@ -1,0 +1,361 @@
+---
+title: "Word Embeddings and National Constitutions"
+subtitle: "Do autocratic and democratic constitutions use language differently?"
+author: Alex Ronczewski
+date: '2026-04-24'
+categories:
+  - Python
+  - political economy
+  - word embeddings
+  - text analysis
+description: "Using word embeddings to compare the language of autocratic and democratic national constitutions."
+execute:
+  eval: true
+  echo: true
+  output: true
+format:
+  html:
+    code-fold: true
+    code-summary: "Show the code"
+    embed-resources: true
+    self-contained-math: true
+  ipynb:
+    jupyter:
+      kernelspec:
+        display_name: Python
+        language: python3
+        name: python3
+---
+
+## 1 Introduction + Setup
+
+Word embeddings transform words into numerical vectors, where distance reflects similarity of meaning. They are a core tool in Natural Language Processing (NLP), the field concerned with how computers handle human language. The key property is that similar words end up near each other in this vector space: "economy" and "trade" are close; "economy" and "zebra" are not. For economists, this makes language quantitative.
+
+In this notebook we load national constitutions from the Comparative Constitutions Project, classify them by regime type, and use word embeddings to ask whether autocratic and democratic constitutions use language differently. This is built off of the notion that autocratic constitutions are dominated with rights language they don't enforce. For example: North Korea's constitution guarantees freedom of speech. Can word embeddings detect these patterns, or do all constitutions sound the same?
+
+### Learning Outcomes
+
+By the end of this notebook, students will be able to:
+
+1. Explain what word embeddings are and why they make language quantitative
+2. Load and preprocess a text corpus from a public API
+3. Use TF-IDF and cosine similarity to compare groups of documents
+4. Interpret PCA visualizations of high-dimensional text data
+5. Critically evaluate the limitations of NLP methods applied to political texts
+
+### Prerequisites
+
+- **Python**: Basic familiarity with Python syntax (variables, loops, functions). No NLP or machine learning experience required.
+- **Statistics**: Comfort with means, standard deviations, and the idea of statistical significance.
+- **Internet connection**: Required to fetch constitution texts from the API and download the Word2Vec model (~1.7 GB on first run).
+
+Install our libraries
+```{python}
+!pip install gensim scikit-learn pandas numpy matplotlib plotly nltk scipy --quiet
+```
+
+Load our libraries
+```{python}
+import re, json, time, warnings
+warnings.filterwarnings("ignore")
+import urllib.request
+import numpy as np
+import pandas as pd
+import plotly.express as px
+import nltk
+import gensim.downloader as api
+from scipy import stats
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.decomposition import PCA
+from sklearn.feature_extraction.text import TfidfVectorizer
+nltk.download("stopwords", quiet=True)
+from nltk.corpus import stopwords
+```
+
+## 2 Load the Data
+
+We use the **Comparative Constitutions Project** (constituteproject.org), which provides English-language texts of every available national constitution. We use their public API. 
+
+::: callout-note
+All texts are English translations. Translation decisions bring their own set of biases; we need to keep this in mind when interpreting results.
+:::
+
+We load the .json data from the Comparative Constitutions Project API and print the number of constitutions. 
+```{python}
+def fetch_json(url):
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    return json.loads(urllib.request.urlopen(req).read())
+
+constitutions = fetch_json("https://www.constituteproject.org/service/constitutions?lang=en")
+in_force = [c for c in constitutions if c.get("in_force")]
+print(f"Number of Constitutions: {len(in_force)}")
+```
+
+For each constitution, we fetch the full HTML text from the API, strip the tags to get plain text, and collect everything into a DataFrame. To avoid overloading their server and respect their ratelimit we wait 0.3 seconds between calls. This cell will take a bit longer to run due to this. Our result is a dataframe made up of 4 variables: country, country_id, id and the **text** which represents the full text of the constitution. 
+
+```{python}
+rows = []
+for i, c in enumerate(in_force):
+    url = f"https://www.constituteproject.org/service/html?cons_id={c['id']}"
+    try:
+        data = fetch_json(url)
+        text = re.sub(r"<[^>]+>", " ", data["html"])
+        text = re.sub(r"\s+", " ", text).strip()
+        rows.append({"country": c["country"], "country_id": c["country_id"], "id": c["id"], "text": text})
+    except Exception:
+        pass
+    time.sleep(0.3)
+    if (i + 1) % 50 == 0:
+        print(f"Fetched {i + 1}/{len(in_force)}")
+
+df = pd.DataFrame(rows)
+print(f"Loaded {len(df)} constitutions")
+df.head()
+```
+
+### Classifying Regimes
+
+We classify countries as autocratic or democratic using a manual list, derived from V-Dem's *Regimes of the World* (RoW) index (Coppedge et al. 2023, V-Dem Dataset v13), specifically countries the index classifies as "closed autocracies" or "electoral autocracies". This is a simplification; a country's constitution may have been drafted under a different regime than the current one. This is sufficient for a workshop, but for a research paper we would have to check V-Dem's Regimes of the World index at the time of drafting the constitution or its most recent update. You can see the list of autocracies in the code cell below.
+
+```{python}
+# Source: V-Dem Regimes of the World index v13 (Coppedge et al. 2023)
+# Countries classified as "closed autocracy" or "electoral autocracy"
+autocracy_ids = {
+    "China", "Russian_Federation__the", "Saudi_Arabia", "Iran_Islamic_Rep_of_",
+    "Cuba", "Syrian_Arab_Republic_the", "Libya", "Belarus", "Venezuela",
+    "Myanmar", "Eritrea", "Turkmenistan", "Uzbekistan", "Sudan_the",
+    "Zimbabwe", "Chad", "Equatorial_Guinea", "Tajikistan", "Bahrain",
+}
+
+df["regime"] = df["country_id"].apply(lambda x: "autocratic" if x in autocracy_ids else "democratic")
+df["regime"].value_counts()
+```
+
+::: callout-note
+Our sample is heavily imbalanced: 19 autocratic constitutions vs 174 democratic ones. This roughly 1:9 ratio means patterns in the autocratic group are driven by a small number of documents, and any single constitution has outsized influence on the group average. Keep this asymmetry in mind when interpreting results.
+:::
+
+Constitutions vary enormously in length. A quick look at word counts by regime helps us understand the corpus before we start analysing it.
+
+```{python}
+df["word_count"] = df["text"].apply(lambda t: len(t.split()))
+df.groupby("regime")["word_count"].agg(["mean", "median", "min", "max"]).round(0)
+```
+
+Please discuss in small groups with your classmates:
+
+- What gets lost in a binary regime classification? 
+- Can you think of countries that don't fit neatly into either category?
+- Since these constitutions were drafted at different times under different regimes, why might the *current* regime type not match the constitution's language?
+
+## 3 Text Preprocessing
+
+Raw constitution text is full of noise that doesn't carry meaning: punctuation, inconsistent capitalisation ("The" vs "the"), and high-frequency filler words like "the," "of," "and," and "shall." These words appear in every constitution regardless of regime type, so they would dominate the analysis without telling us anything useful. We strip punctuation, lowercase everything so "Rights" and "rights" are treated as the same word, and remove English stopwords (standard list of ~180 common words that carry grammatical function but little semantic content).
+
+```{python}
+stop_words = set(stopwords.words("english"))
+
+def preprocess(text):
+    text = text.lower()
+    text = re.sub(r"[^\w\s]", "", text)
+    tokens = text.split()
+    return [t for t in tokens if t not in stop_words]
+
+df["tokens"] = df["text"].apply(preprocess)
+```
+
+Consider: we removed stopwords like "shall" and "the." Could removing certain words bias our analysis? Are there words you'd want to keep that a standard stopword list removes?
+
+## 4 Load Pre-trained Word2Vec Embeddings
+
+We use Google's pre-trained Word2Vec (Mikolov et al. 2013). This model has 3 million words, 300 dimensions, trained on ~100 billion words of Google News. We use this pre-trained model to avoid training (we would need a far larger corpus of legal/political text than 193 constitutions). The tradeoff is that the model learned language from Google News, not from legal/constitutional text. So its sense of what "sovereignty" or "rights" means is shaped by journalism. It is important to note this bias. 
+
+::: callout-warning
+This download is roughly **1.7 GB** the first time. Gensim caches it locally after that.
+:::
+
+We load the model
+```{python}
+model = api.load("word2vec-google-news-300")
+```
+
+```{python}
+model.most_similar("constitution", topn=5)
+```
+
+## 5 TF-IDF Baseline: Most Distinctive Words
+
+Before using embeddings, let's look at which words are most distinctive to both democracies and autocracies using Term Frequency-Inverse Document Frequency (TF-IDF) scores alone. TF-IDF is a numerical statistic used in NLP to measure a word's relevance to a specific document within a collection. It looks for unique meaningful terms.
+
+```{python}
+tfidf = TfidfVectorizer(max_features=5000)
+tfidf_matrix = tfidf.fit_transform(df["tokens"].apply(lambda t: " ".join(t)))
+feature_names = tfidf.get_feature_names_out()
+
+auto_mask = (df["regime"] == "autocratic").values
+demo_mask = (df["regime"] == "democratic").values
+
+auto_mean = tfidf_matrix[auto_mask].mean(axis=0).A1
+demo_mean = tfidf_matrix[demo_mask].mean(axis=0).A1
+diff = auto_mean - demo_mean
+
+top_auto_idx = diff.argsort()[-10:][::-1]
+top_demo_idx = diff.argsort()[:10]
+
+print("Top 10 overrepresented in AUTOCRATIC constitutions:")
+display(pd.DataFrame({"word": feature_names[top_auto_idx], "tfidf_difference": diff[top_auto_idx].round(4)}))
+
+print("\nTop 10 overrepresented in DEMOCRATIC constitutions:")
+display(pd.DataFrame({"word": feature_names[top_demo_idx], "tfidf_difference": abs(diff[top_demo_idx]).round(4)}))
+```
+
+The autocratic list is mostly country names which we classify as autocratic (Turkmenistan, Uzbekistan, Belarus, Zimbabwe) and country-specific legislative terms (hluttaw is Myanmar's parliament, majlisi is Tajikistan's). That's because with only 19 autocratic constitutions, unique country references dominate the TF-IDF scores. The democratic list shows more generic institutional vocabulary (parliament, court, office) since those terms are spread across 174 countries rather than concentrated in a few.
+
+We found that country names dominate the autocratic list: what does this tell us about TF-IDF with small sample sizes? How might you address this?
+
+::: callout-tip
+## Try It Yourself
+Add 3 more countries to the `autocracy_ids` set that you think should be classified as autocratic. Re-run the TF-IDF cell. Do the top words change?
+:::
+
+## 6 Create Document Vectors
+
+Simple averaging treats every word equally, but words like "article" and "shall" appear in every constitution and carry no distinctive meaning. We weight each word by its **TF-IDF score** before averaging. This is like weighting a price index where not all items matter equally.
+
+```{python}
+tfidf_full = TfidfVectorizer()
+tfidf_full.fit(df["tokens"].apply(lambda t: " ".join(t)))
+idf_values = dict(zip(tfidf_full.get_feature_names_out(), tfidf_full.idf_))
+
+def get_weighted_doc_vector(tokens, wv_model, idf_dict):
+    vecs, weights = [], []
+    for t in tokens:
+        if t in wv_model and t in idf_dict:
+            vecs.append(wv_model[t])
+            weights.append(idf_dict[t])
+    if not vecs:
+        return np.zeros(wv_model.vector_size)
+    return np.average(vecs, axis=0, weights=np.array(weights))
+
+df["doc_vector"] = df["tokens"].apply(lambda t: get_weighted_doc_vector(t, model, idf_values))
+
+zero_mask = df["doc_vector"].apply(lambda v: np.allclose(v, 0))
+df = df[~zero_mask].copy()
+print(f"Constitutions with valid embeddings: {len(df)}")
+```
+
+## 7 Analysis: Comparing Constitutional Language
+
+For this part we compare **distributions**. For each target word, we compute its **cosine similarity** to every individual constitution vector in each regime group, then test whether the means differ significantly. Cosine similarity measures how much two vectors point in the same direction. If two constitutions use similar language, their vectors point roughly the same way and the score is close to 1. If they have nothing in common, the score is near 0. It ignores how long a document is and focuses purely on whether the content is similar.
+
+The mathematical formula for cosine similarity is: $$\text{cos}(\theta) = \frac{\mathbf{A} \cdot \mathbf{B}}{\|\mathbf{A}\| \|\mathbf{B}\|}$$
+
+```{python}
+target_words = [
+    "sovereignty", "freedom", "rights", "security", "justice",
+    "equality", "democracy", "power", "protection", "welfare",
+    "property", "military", "religion", "party",
+]
+
+auto_vecs = np.stack(df.loc[df["regime"] == "autocratic", "doc_vector"].values)
+demo_vecs = np.stack(df.loc[df["regime"] == "democratic", "doc_vector"].values)
+
+results = []
+for word in target_words:
+    if word not in model:
+        continue
+    wv = model[word].reshape(1, -1)
+    sim_auto = cosine_similarity(wv, auto_vecs).flatten()
+    sim_demo = cosine_similarity(wv, demo_vecs).flatten()
+    n1, n2 = len(sim_auto), len(sim_demo)
+    var_auto = sim_auto.var(ddof=1)
+    var_demo = sim_demo.var(ddof=1)
+    pooled_std = np.sqrt(((n1 - 1) * var_auto + (n2 - 1) * var_demo) / (n1 + n2 - 2))
+    d = (sim_auto.mean() - sim_demo.mean()) / pooled_std if pooled_std > 0 else 0
+    t_stat, p_val = stats.ttest_ind(sim_auto, sim_demo, equal_var=False)
+    results.append({
+        "word": word,
+        "mean_autocratic": round(sim_auto.mean(), 4),
+        "mean_democratic": round(sim_demo.mean(), 4),
+        "difference": round(sim_auto.mean() - sim_demo.mean(), 4),
+        "cohens_d": round(d, 3),
+        "p_value": round(p_val, 4),
+    })
+
+results_df = pd.DataFrame(results).sort_values("cohens_d", key=abs, ascending=False)
+results_df
+```
+
+Cohen's d measures the size of the difference in standard deviations (values above 0.2 small, 0.5 medium, 0.8 large). The p-value tells us how likely we'd see a difference this large by chance if the two groups truly used the same language. Positive d values mean the word is closer to autocratic constitutions.
+
+The standout finding: "democracy," "equality," and "freedom" all show large effect sizes toward autocratic constitutions, with p-values small enough to suggest the difference is unlikely to be due to chance. This is in line with our hypothesis that autocratic constitutions more heavily lean on language around equality and human rights, which they then do not uphold. The only word which significantly leans towards democratic constitutions is "property," consistent with the emphasis on individual economic rights in democratic nations. With only 19 autocratic constitutions, statistical power is limited and individual constitutions have outsized influence -- so treat p-values as suggestive rather than definitive.
+
+::: callout-tip
+## Try It Yourself
+Add 3-5 words to `target_words` that you think would differ between regime types. Re-run the analysis. What did you find?
+:::
+
+## 8 Analysis: Visualising with PCA
+
+Our embeddings live in 300 dimensions which we can't visualize. Instead we use **Principal Component Analysis (PCA)** that finds the two directions in that 300-dimensional space where our data varies the most, and projects everything onto those two axes. The axes (PC1 and PC2) don't correspond to any single word or concept; they simply capture the most spread in the data. Points that are close together on the plot have constitutions with similar language; points far apart use language differently.
+
+```{python}
+all_vectors = np.stack(df["doc_vector"].values)
+coords = PCA(n_components=2).fit_transform(all_vectors)
+
+plot_df = pd.DataFrame(coords, columns=["PC1", "PC2"])
+plot_df["regime"] = df["regime"].values
+plot_df["country"] = df["country"].values
+plot_df["country_id"] = df["country_id"].values
+
+highlight_ids = {"China", "Russian_Federation__the", "Cuba", "Iran_Islamic_Rep_of_",
+                 "United_States_of_America", "Canada"}
+plot_df["label"] = plot_df.apply(
+    lambda r: r["country"] if r["country_id"] in highlight_ids else "", axis=1
+)
+
+fig = px.scatter(
+    plot_df, x="PC1", y="PC2", color="regime",
+    color_discrete_map={"autocratic": "red", "democratic": "blue"},
+    hover_data=["country"], opacity=0.5, text="label",
+    title="National Constitutions in Embedding Space (PCA)",
+)
+fig.update_traces(marker_size=8, textposition="top center")
+fig.update_layout(width=800, height=600)
+fig.show()
+```
+
+We can see many of the autocratic constitutions are on the right side of the visualization and most of the democratic constitutions lean left. You can hover over the dots to see which country they correspond to.
+
+::: callout-tip
+## Discussion
+
+- Find your home country on the plot. Are you surprised by its position? What might explain where it ended up?
+:::
+
+::: callout-tip
+## Try It Yourself: Ambiguous Cases
+
+Hungary, Turkey, and Singapore are often described as "hybrid" or "competitive authoritarian" regimes. They don't fit cleanly into the binary classification we used. Find them on the PCA plot. Where do they land relative to the autocratic and democratic clusters? What does this tell you about the limits of binary regime classification, and about what word embeddings can and can't detect?
+
+Optional: modify `highlight_ids` in the cell above to include `"Hungary"`, `"Turkey"`, and `"Singapore"` so they're labelled directly on the plot.
+:::
+
+## 9 Conclusion
+
+In this notebook we used word embeddings to compare the constitutional language of autocratic and democratic regimes. We built TF-IDF weighted document vectors using Google's pre-trained Word2Vec model and compared how politically meaningful words relate to each group's language.
+
+The results support our original hypothesis that autocratic constitutions lean heavily on democratic vocabulary and notions of equality. Words like "democracy," "equality," and "freedom" showed large effect sizes toward autocratic constitutions. This is consistent with a well-documented pattern in politics: authoritarian regimes highlight rights they do not enforce. The one word that meaningfully tilted toward democratic constitutions was "property," reflecting the emphasis on individual economic rights in democracies.
+
+Further Discussion Questions:
+
+- What are some other corpora that you could apply this method to, possible examples are: trade agreements, UN General Assembly speeches, or party platforms. 
+- Given that our model was trained on Google News, how might results differ with a model trained on legal or constitutional text? If you were advising a policy organization, what would you need to validate before drawing conclusions from an analysis like this?
+
+## 10 References
+
+- Elkins, Z., Ginsburg, T., & Melton, J. (2014). Constitute: The world's constitutions to read, search, and compare. Comparative Constitutions Project. [https://constituteproject.org](https://constituteproject.org)
+- Mikolov, T., Chen, K., Corrado, G., & Dean, J. (2013). Efficient estimation of word representations in vector space. *arXiv preprint arXiv:1301.3781*. [https://arxiv.org/abs/1301.3781](https://arxiv.org/abs/1301.3781)
+- Coppedge, M., Gerring, J., Knutsen, C. H., Lindberg, S. I., Teorell, J., et al. (2023). V-Dem Dataset v13. Varieties of Democracy (V-Dem) Project. [https://www.v-dem.net/](https://www.v-dem.net/)
+- Rodriguez, P. L., & Spirling, A. (2022). Word embeddings: What works, what doesn't, and how to tell the difference for applied research. *Journal of Politics*, 84(1), 101-115. [https://doi.org/10.1086/715162](https://doi.org/10.1086/715162)
+- Spirling, A., & Rodriguez, P. L. (2019). Word embeddings for the analysis of ideological placement in parliamentary corpora. *Political Analysis*, 28(1), 112-133. [https://doi.org/10.1017/pan.2019.26](https://doi.org/10.1017/pan.2019.26)
