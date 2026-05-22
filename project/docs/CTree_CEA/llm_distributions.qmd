@@ -70,7 +70,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import yfinance as yf
-from datasets import load_dataset
 from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM
 import torch
 import torch.nn.functional as F
@@ -462,21 +461,10 @@ To answer that, we'll use the **financial phrasebank**, a benchmark dataset freq
 Here are the details of the dataset:
 
 ```{python}
-#We'll load the data directly from huggingface. 
-phrasebank = load_dataset(
-    "takala/financial_phrasebank", "sentences_75agree",
-    split="train", trust_remote_code=True)
-phrasebank_df = phrasebank.to_pandas()
-
-label_names = phrasebank.features["label"].names  #labels are one of positive, negative, or neutral.
-true_labels = []
-for label in phrasebank_df["label"]:
-    true_labels.append(label_names[label].upper())
-phrasebank_df["true_label"] = true_labels
+phrasebank_df = pd.read_csv("datasets/phrasebank_full.csv")
 
 print(f"size of dataset: {len(phrasebank_df)} sentences")
-print(f"\n")
-print(f"label distribution:")
+print(f"\nlabel distribution:")
 print(phrasebank_df["true_label"].value_counts())
 phrasebank_df[["sentence", "true_label"]].head()
 ```
@@ -495,18 +483,14 @@ We'll now apply the `RoBERTa` model to each sentence. This will give us both a p
 > _Note_: running this code may take some time.  If you're running this code a second time, feel free to comment out the first 5 lines 
 
 ```{python}
-
-phrasebank_df["true_label"] = phrasebank_df["label"].apply(lambda x:          
-  label_names[x].upper())                                                       
-                                                                                
-sample_df = pd.concat(                 
-        [grp.sample(min(150, len(grp)), random_state=42)                          
-        for _, grp in phrasebank_df.groupby("true_label")],                      
+sample_df = pd.concat(
+        [grp.sample(min(150, len(grp)), random_state=42)
+        for _, grp in phrasebank_df.groupby("true_label")],
         ignore_index=True) #don't reassign sample_df to phrasebank_df if you don't want a sample, or change 150 to some other number for a larger (or smaller) sample.
 
 results = [classify_with_score(x) for x in sample_df["sentence"]]
 sample_df["pred_label"] = [r[0] for r in results]
-sample_df["confidence"] = [r[1] for r in results] 
+sample_df["confidence"] = [r[1] for r in results]
 sample_df.to_csv("datasets/phrasebank_predictions.csv", index=False)
 phrasebank_df = sample_df
 
@@ -577,11 +561,7 @@ This lets us:
 Will the model do better?  Or worse?  Let's find out.
 
 ```{python}
-from datasets import concatenate_datasets
-twitter_raw = concatenate_datasets([
-    load_dataset("zeroshot/twitter-financial-news-topic", split="train"),
-    load_dataset("zeroshot/twitter-financial-news-topic", split="validation")])
-twitter_df = twitter_raw.to_pandas()
+twitter_df = pd.read_csv("datasets/twitter_full.csv")
 
 print(f"Dataset size is {len(twitter_df)} posts")
 twitter_df[["text"]].head()
