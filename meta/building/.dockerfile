@@ -27,6 +27,12 @@ RUN mkdir output
 # Quarto render all documents + stub
 RUN quarto render --output-dir /app/output
 
+# Strip the compromised polyfill.io shim that Quarto <1.4 injects into MathJax pages.
+# polyfill.io was taken over by a malicious operator (2024 supply-chain attack); the
+# shim is unnecessary for MathJax 3 on modern browsers. Version-independent safety net.
+RUN find /app/output -name '*.html' -exec \
+    sed -i 's#<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>##g' {} +
+
 # Copy pre-rendered HTML file
 COPY ./project/docs/SOCI-415/soci_415_network_analysis.html /app/output/docs/SOCI-415/
 COPY ./project/docs/SOCI-415/kinmatrix.html /app/output/docs/SOCI-415/
