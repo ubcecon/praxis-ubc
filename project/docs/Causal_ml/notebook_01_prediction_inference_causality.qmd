@@ -1,0 +1,405 @@
+---
+title: "Prediction, Inference, and Causality"
+author: Alex Ronczewski
+date: 2026-05-30
+description: "The first notebook in the Causal ML stream. We meet the supervised-learning way of thinking: prediction versus inference, train/test splits, loss functions, k-nearest-neighbours regression, the bias-variance tradeoff, and cross-validation, and we set up the causal questions to come."
+categories:
+  - Python
+  - machine learning
+  - prediction
+  - causal inference
+  - cross-validation
+execute:
+  eval: true
+  echo: true
+  output: true
+format:
+  html:
+    embed-resources: true
+    self-contained-math: true
+  ipynb:
+    jupyter:
+      kernelspec:
+        display_name: Python
+        language: python3
+        name: python3
+---
+
+## Outline
+
+### Prerequisites
+
+- Multiple regression and OLS (COMET Intermediate: *Introduction to Regression*, *Multiple Regression*)
+- Comfort with `pandas` and basic Python at the COMET-intermediate level
+- You do **not** need any prior machine-learning background. Train/test splits, cross-validation, and the "ML" framing of statistics are all introduced here from scratch.
+
+### Outcomes
+
+By the end of this notebook you will be able to:
+
+1. Explain the difference between **prediction** and **inference** as goals of statistical modelling.
+2. Set up a supervised learning problem: identify the target $Y$, the features $X$, and the function $\hat{f}$ we are trying to learn.
+3. Split data into **training** and **test** sets, and explain *why* we do this.
+4. Define **mean squared error (MSE)** and compute training and test loss.
+5. Fit a **k-nearest-neighbours (KNN)** regression and describe in one sentence what it does.
+6. State the **bias-variance tradeoff** and recognise it on a U-shaped test-error plot.
+7. Use **k-fold cross-validation** to select a hyperparameter.
+8. Articulate why a good *predictor* is **not** an answer to a *causal* question.
+
+```{python}
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.model_selection import train_test_split, KFold, cross_val_score
+from sklearn.metrics import mean_squared_error
+
+RANDOM_STATE = 42  # fix randomness so splits and folds are reproducible
+```
+
+## 1. Two kinds of questions
+
+Imagine we hand you a dataset of workers with their schooling, work experience, age, where they live and each person's wage. There are two very different questions you might ask of it:
+
+- **Prediction.** *Given a person's age, education, and background, what wage should we expect them to earn?*
+- **Inference / causal.** *What is the effect of one extra year of schooling on a person's wage?*
+
+These look almost the same. They are not. The first asks for a good *guess* of the outcome. The second asks for a *cause-and-effect* number: what would happen to **the same person's** wage if we reached in and gave them one more year of school, holding everything else fixed?
+
+Most of your econometrics training so far (ECON 226, 325, 326) was really aimed at the **second** kind of question. This stream deliberately switches focus for a few notebooks. We are going to get very good at the **first** kind of question first, build a real prediction toolkit, and only *then* (from Notebook 4 onward) turn that toolkit into something that can answer causal questions.
+
+This notebook is entirely about the prediction question, and prediction turns out to be everywhere: almost every machine-learning system you interact with is a prediction system, whether it is credit scoring guessing who will repay, ad targeting guessing what you will click, or a recommendation engine guessing what you will watch next. None of them is built to tell you *why*.
+
+## 2. The supervised learning setup
+
+Machine learning has its own vocabulary for ideas you already know. Here is the translation:
+
+| Econometrics | Machine learning |
+|---|---|
+| dependent variable / outcome | **target**, written $Y$ |
+| independent variables / regressors | **features**, written $X$ |
+| the coefficients $\beta$ | mostly invisible instead we care about the **function** $\hat{f}$ |
+
+The goal of **supervised learning** is to learn a function $\hat{f}$ so that
+
+$$
+\hat{f}(X) \approx Y
+$$
+
+on data we **have not seen before**. That last part matters more than it looks: a flexible enough model can always make its in-sample fit look good, so the real test is whether it predicts well on data it has not been trained on.
+
+When the target $Y$ is continuous (like wages), the task is called **regression**. When $Y$ is a category (employed / not, default / repay), it is called **classification**. In this notebook we focus on regression. 
+
+::: {.callout-important}
+## The key reframing
+
+In OLS we asked: *what is the coefficient on education?* In machine learning we ask: *how well can we predict the outcome?* Same data, different goal. This is the main difference from ECON 326.
+:::
+
+### The data
+
+We will use the dataset from Card (1993): a sample of young men in the United States, with their wages and a handful of background characteristics. The outcome variable which we model is `lwage`, the **log of the hourly wage**. 
+
+```{python}
+wages = pd.read_csv("datasets/card.csv")
+
+# The features (X) we will predict from, and the target (y) we want to predict.
+features = ["educ", "exper", "age", "black", "south", "smsa", "married"]
+target = "lwage"
+
+wages = wages.dropna(subset=features + [target]).reset_index(drop=True)
+wages[features + [target]].head()
+```
+
+We will print summary statistics for the dataset: 
+
+```{python}
+print("Number of workers:", len(wages))
+print(wages[["lwage", "educ", "exper", "black", "south", "smsa"]].describe().round(2))
+```
+
+Here `educ` is years of schooling, `exper` is years of work experience, `age` is in years, and `black`, `south`, `smsa` (lives in a metro area), and `married` are 0/1 indicators. One thing to keep in mind: `exper` in this dataset is built as roughly `age - educ - 6`, so `age`, `educ`, and `exper` are highly collinear. That would be a problem if we were after a clean coefficient, but for prediction it is harmless, since KNN never reads off a coefficient in the first place.
+
+Before we fit anything, one small piece of preparation. Some of the models we are about to use compare workers by measuring the distance between them, and distance is sensitive to scale: if one feature runs from 0 to 18 (education) and another is just 0/1 (married), the big-numbered feature dominates for no good reason. So we put every feature on the same footing, subtracting its mean and dividing by its standard deviation.
+
+```{python}
+y = wages[target].to_numpy()
+X = wages[features]
+X = (X - X.mean()) / X.std()
+
+X.head().round(2)
+```
+
+## 3. The fundamental problem: in-sample fit lies
+
+The point of this section is short:
+
+> A model can look **perfect** on the data you fit it to and be **useless** on new data.
+
+To see this we need new data. We do not have a second sample of workers, so we set one aside: we randomly hold out a chunk of our data, fit the model on the rest, and judge it on the held-out chunk it never saw. This is the **train/test split**.
+
+```{python}
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.3, random_state=RANDOM_STATE)
+
+print("Training workers:", len(X_train))
+print("Test workers    :", len(X_test))
+```
+
+The model we use to show this is **k-nearest-neighbours (KNN)**. To predict a worker's wage, KNN finds the $k$ workers in the training data who are most similar to them (their nearest *neighbours*, measured by how close their features are) and returns the average wage of that group. The number $k$ is ours to choose, and we look at that choice closely in section 5.
+
+To see this in action we fit a 1-nearest-neighbour model: to predict any worker's wage, it copies the wage of the single most-similar worker in the training data. On the training set it can lean on the closest possible match for every worker, so it fits the training data about as tightly as KNN ever can.
+
+```{python}
+knn1 = KNeighborsRegressor(n_neighbors=1)
+knn1.fit(X_train, y_train)
+
+train_mse = mean_squared_error(y_train, knn1.predict(X_train))
+test_mse = mean_squared_error(y_test, knn1.predict(X_test))
+
+print(f"1-NN training MSE: {train_mse:.4f}")
+print(f"1-NN test MSE    : {test_mse:.4f}")
+```
+
+Those two numbers already tell the story, and it is easier to believe once you see it. The plot below compares the model's predictions to the actual wages, on the training set (left) and on the held-out test set (right).
+
+```{python}
+train_pred = knn1.predict(X_train)
+test_pred = knn1.predict(X_test)
+
+lims = [min(y.min(), train_pred.min(), test_pred.min()),
+        max(y.max(), train_pred.max(), test_pred.max())]
+
+fig, axes = plt.subplots(1, 2, figsize=(11, 5), sharex=True, sharey=True)
+for ax, actual, predicted, name in [
+        (axes[0], y_train, train_pred, "training set"),
+        (axes[1], y_test, test_pred, "test set")]:
+    ax.scatter(actual, predicted, s=10, alpha=0.3, color="grey")
+    ax.plot(lims, lims, color="black", linewidth=1)  # identity line y = x
+    ax.set_xlim(lims)
+    ax.set_ylim(lims)
+    ax.set_xlabel("actual log wage")
+    ax.set_title(f"1-NN on the {name}")
+axes[0].set_ylabel("predicted log wage")
+plt.show()
+```
+
+A small puzzle first. With $k = 1$ the model predicts each training worker's wage by copying the wage of their single nearest neighbour. If every worker had a unique combination of features, that nearest neighbour would always be the worker themselves, and the training error would be exactly zero. So why is it not?
+
+The answer is in the features. `educ`, `age`, and `exper` are whole numbers, and `black`, `south`, `smsa`, and `married` are just 0/1, so plenty of workers end up with *identical* feature values. When that happens a worker's nearest neighbour is some *other* person who looks the same on paper but earned a different wage, and 1-NN has no way to tell the two apart. It copies that neighbour's wage and picks up some training error along the way.
+
+Even so, the contrast between the two panels is the point. On the training set the predictions sit much closer to the 45° line than on the test set, where the scatter spreads out. A low error on the data the model was fit to is the model flattering itself; the wider scatter on the right is its honest skill on workers it has never seen. The ability to do well on **new** data is called **generalization**, and it is the only thing we actually care about.
+
+::: {.callout-tip}
+## Self-test
+
+Why can we not just report MSE on the data we fit the model to and call it a day?
+
+Because a flexible enough model can drive training error to zero by memorising the data, without learning anything that transfers to new cases. Training error measures *memorisation*; test error measures *generalization*. Only the second is what we want.
+:::
+
+## 4. Loss functions
+
+To say one model is "better" than another we need a number. For regression, the standard one is **mean squared error**:
+
+$$
+\text{MSE} = \frac{1}{n} \sum_{i=1}^{n} \left( Y_i - \hat{f}(X_i) \right)^2
+$$
+
+This is exactly the quantity OLS minimises: the average squared gap between the truth $Y_i$ and the prediction $\hat{f}(X_i)$. The only new idea is *which data* we compute it on:
+
+- **Training loss**: MSE on the data the model was fit to. Measures memorisation.
+- **Test loss**: MSE on held-out data. Measures generalization.
+
+## 5. KNN, our worked example
+
+To predict a worker's wage with **k-nearest-neighbours regression**, we do the simplest thing imaginable. We measure how similar that worker is to every worker in the training data, using all of the features, find the $k$ closest matches, and report the average of their wages. There is no equation to estimate and no coefficients to read off. We just look up the most similar people and average their outcomes.
+
+The number $k$, how many neighbours to average, is something we choose. A value we set ourselves rather than estimate from the data, the way OLS estimates $\beta$, is called a **hyperparameter**. Pick $k$ too small and the model leans on one or two idiosyncratic neighbours; pick $k$ too large and it averages over workers who are not really comparable. The rest of this notebook is about how to choose $k$ honestly. This is also why we put the features on a common scale back in section 2: KNN decides who counts as a neighbour by measuring distance, so a feature measured in big numbers would otherwise dominate that distance.
+
+To *see* what $k$ does, let us strip the problem down to a single feature, `educ`, and watch the predicted wage curve change as we dial $k$ up.
+
+```{python}
+# Only choose the educ variable
+educ_train = X_train[["educ"]]
+
+# A smooth grid of education values to predict across.
+educ_grid = np.linspace(educ_train["educ"].min(),
+                        educ_train["educ"].max(), 300).reshape(-1, 1)
+
+plt.figure(figsize=(9, 6))
+plt.scatter(educ_train["educ"], y_train, s=10, alpha=0.2,
+            color="grey", label="training workers")
+
+for k in [1, 5, 50, 500]:
+    model = KNeighborsRegressor(n_neighbors=k).fit(educ_train, y_train)
+    plt.plot(educ_grid, model.predict(educ_grid), linewidth=2,
+             label=f"k = {k}")
+
+plt.xlabel("education (standardized years)")
+plt.ylabel("log wage")
+plt.title("What k does in KNN: from jagged (k=1) to flat (k=500)")
+plt.legend()
+plt.show()
+```
+
+Notice the pattern:
+
+- **`k = 1`** zig-zags through every point, following the training data exactly.
+- **`k = 500`** averages over so many workers that the curve is much flater, ignoring real structure.
+- Somewhere in between is a sensible middle ground.
+
+## 6. The bias-variance tradeoff
+
+The picture above is the bias-variance tradeoff in disguise. Expected test error splits into three pieces:
+
+$$
+\text{Expected test error} = \underbrace{\text{bias}^2}_{\text{too rigid}} + \underbrace{\text{variance}}_{\text{too jumpy}} + \underbrace{\text{irreducible noise}}_{\text{unavoidable}}
+$$
+
+- **Bias** is systematic error from a model that is too rigid to capture the real pattern.
+- **Variance** is error from a model so flexible it fits the noise, changing wildly if the data changed a little.
+- **Irreducible noise** is the part no model can ever explain. Even with a perfect model and infinite data, two workers with the same age, education, and region can still earn different wages, whether through luck, the day they happened to apply, or some skill we never measured. That leftover variation is the irreducible part, and no amount of cleverness drives it to zero.
+
+In KNN this maps straight onto the choice of $k$: a small $k$ is flexible (low bias, high variance, so it overfits) and a large $k$ is rigid (high bias, low variance, so it underfits). We sweep $k$ across a wide range and record **both** training and test MSE at every value, which lets us find a sensible $k$ to choose.
+
+```{python}
+neighbour_grid = range(1, 151)
+
+train_errors = []
+test_errors = []
+for k in neighbour_grid:
+    model = KNeighborsRegressor(n_neighbors=k).fit(X_train, y_train)
+    train_errors.append(mean_squared_error(y_train, model.predict(X_train)))
+    test_errors.append(mean_squared_error(y_test, model.predict(X_test)))
+
+best_k_by_test = list(neighbour_grid)[int(np.argmin(test_errors))]
+
+plt.figure(figsize=(9, 6))
+plt.plot(list(neighbour_grid), train_errors, label="training MSE")
+plt.plot(list(neighbour_grid), test_errors, label="test MSE")
+plt.axvline(best_k_by_test, color="black", linestyle="--",
+            label=f"lowest test MSE at k = {best_k_by_test}")
+plt.xlabel("k (number of neighbours)")
+plt.ylabel("mean squared error")
+plt.title("The bias-variance tradeoff: training MSE vs test MSE")
+plt.legend()
+plt.show()
+```
+
+Two things stand out in this plot:
+
+- **Training MSE** (lower line) is at its **lowest** at $k=1$, the model is leaning hardest on individual neighbours. It rises steadily as $k$ grows and the model must average over more workers.
+- **Test MSE** is **U-shaped**. Too small a $k$ overfits (high variance); too large a $k$ underfits (high bias); the bottom of the U is the sweet spot.
+
+**Think Deeper.** You have actually seen a version of this in ECON 326. Adding more regressors to an OLS model *always* raises in-sample $R^2$ (the training fit looks better), but that does not always improve genuine, out-of-sample performance. Same situation here.
+
+There is a catch, and it is important: we found the bottom of that U **by peeking at the test set**. If we use the test set to *choose* $k$, we have used it up. It is no longer an honest estimate of performance on new data. We need a cleaner way to choose $k$. That is the next section.
+
+## 7. Cross-validation
+
+The fix is to leave the test set in a sealed envelope and choose $k$ using **only the training data**. The trick is **k-fold cross-validation** (*k* here refers to fold and is not the same *k* as in k-nearest neighbours).
+
+We split the training data into 5 equal **folds**. Use 4 of them to fit and the 5th to score, then rotate which fold is held out, five times. Average the five scores. Every worker gets used for scoring exactly once, and we never touched the real test set.
+
+```{python}
+n_splits = 5
+fig, ax = plt.subplots(figsize=(9, 3))
+for round_idx in range(n_splits):
+    for fold_idx in range(n_splits):
+        held_out = (fold_idx == round_idx)
+        ax.barh(round_idx, 1, left=fold_idx, height=0.8,
+                color="tab:orange" if held_out else "tab:blue",
+                edgecolor="white")
+ax.set_yticks(range(n_splits))
+ax.set_yticklabels([f"round {i+1}" for i in range(n_splits)])
+ax.set_xticks([])
+ax.set_xlabel("the 5 folds of the training data")
+ax.set_title("5-fold cross-validation (orange = held out for scoring)")
+plt.show()
+```
+
+Now we run it for real. For each candidate $k$ (neighbours), `cross_val_score` returns the 5 fold scores; we average them. 
+
+```{python}
+kfold = KFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
+
+candidate_k = range(1, 151)
+cv_errors = []
+for k in candidate_k:
+    scores = cross_val_score(
+        KNeighborsRegressor(n_neighbors=k),
+        X_train, y_train,
+        cv=kfold, scoring="neg_mean_squared_error")
+    cv_errors.append(-scores.mean())
+
+best_k = list(candidate_k)[int(np.argmin(cv_errors))]
+
+plt.figure(figsize=(9, 6))
+plt.plot(list(candidate_k), cv_errors, label="5-fold CV MSE")
+plt.axvline(best_k, color="black", linestyle="--",
+            label=f"CV picks k = {best_k}")
+plt.xlabel("k (number of neighbours)")
+plt.ylabel("cross-validated MSE")
+plt.title("Choosing k with cross-validation (no peeking at the test set)")
+plt.legend()
+plt.show()
+
+print("Cross-validation chose k =", best_k)
+```
+
+Only **now**, with $k$ chosen, do we break the seal on the test set, in order to get an honest estimate of how this model performs on new data.
+
+```{python}
+final_model = KNeighborsRegressor(n_neighbors=best_k).fit(X_train, y_train)
+final_test_mse = mean_squared_error(y_test, final_model.predict(X_test))
+
+print(f"Final model: KNN with k = {best_k}")
+print(f"Test MSE: {final_test_mse:.4f}")
+```
+
+You have just run the **standard machine-learning recipe**, and every later notebook reuses it:
+
+1. **Split** off a test set and seal it away.
+2. **Cross-validate** on the training data to choose hyperparameters.
+3. **Pick** the hyperparameter with the best CV score.
+4. **Evaluate once** on the sealed test set.
+
+::: {.callout-tip}
+## Self-test
+
+Why not just run cross-validation on the *whole* dataset and skip the separate test split entirely?
+
+<details><summary>Show / hide answer</summary>
+Because we used those cross-validation scores to *choose* $k$. Once a set of scores has been used to make a modelling decision, it no longer represents honest performance; it reflects a choice tuned to that very data. The sealed test set is the only data untouched by any decision, so it is the only honest final report.
+</details>
+:::
+
+## 8. So have we answered the wage question?
+
+We built a model that predicts log wages. Now the crucial question:
+
+> Does that model tell us the **effect** of one extra year of schooling on wages?
+
+**No.** This is the concept the stream turns on, so it is worth three precise reasons, which Notebook 4 returns to:
+
+1. **Prediction can lean on correlates, not causes.** Our model can predict wages well by leaning on features that merely travel *alongside* schooling: the neighbourhood someone lives in, their family background, their occupation. Schooling itself might be doing little of the causal work, and a predictive model cannot tell the difference.
+2. **A predictive coefficient is not a causal one.** Even a tidy coefficient on `educ` from a model that predicts wages well is a *prediction* coefficient. It blends the true effect of schooling with **selection**: people who get more schooling already differ from those who do not in many other ways.
+3. **A prediction model cannot imagine anyone any differently.** A causal question is a *counterfactual* one: what would happen to *this worker's* wage if they got one more year of school, holding everything else fixed? A prediction model never answers that. The best it can do is tell us about a *different* worker who already has the extra year. Those two things, the same worker under a different treatment versus a different worker who already had it, are not the same, and telling them apart is the heart of what makes causal estimation hard. It is what Notebook 4 begins to fix.
+
+Prediction is one job. Causal estimation is a different job. The next two notebooks sharpen the prediction toolkit; from Notebook 4 onward we turn that toolkit into something that can actually answer causal questions.
+
+
+## Connections
+
+- **Back:** COMET Intermediate Econometrics — *Introduction to Regression*, *Multiple Regression*, *Issues in Regression*. Those notebooks asked "what is the coefficient?"; this stream asks "how well can we predict?"
+- **Forward to Notebook 2:** we used KNN here because the bias-variance tradeoff is so easy to *see*. Next we apply the same train / test / cross-validate discipline to **linear** models with many features, and meet **ridge** and **lasso**.
+- **Forward to Notebook 4:** the idea we set up here, that *a good predictor is not an explanation*, is exactly what Notebook 4 cashes in, when we finally return to the causal question about the returns to schooling.
+
+### References
+
+- Card, D. (1993). *Using geographic variation in college proximity to estimate the return to schooling.* National Bureau of Economic Research. The dataset used here (`card.csv`) is the same one used in the COMET *Instrumental Variables* notebook.
+- James, G., Witten, D., Hastie, T., & Tibshirani, R. (2021). *An Introduction to Statistical Learning.* Springer. (Chapters 2 and 5.)
+
+---
