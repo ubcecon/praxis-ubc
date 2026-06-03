@@ -1,6 +1,6 @@
 # Taken from COMET will have to be adapted for Praxis
 # Build stage 2025-06-04
-FROM jlgraves/comet-test:test AS builder
+FROM alexr951/comet-base:safe AS builder
 
 WORKDIR /app
 
