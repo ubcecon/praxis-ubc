@@ -5,8 +5,6 @@ FROM rocker/tidyverse:4.2.2 AS builder
 WORKDIR /app
 
 # Install system dependencies with versions
-# curl and python3-pip are unpinned: their exact jammy versions were purged from the
-# Ubuntu archive by later security updates, so an exact pin no longer resolves.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     gdebi-core=0.9.5.7+nmu6 \
