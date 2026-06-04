@@ -20,7 +20,6 @@ RUN rm -f ./docs/SOCI-280/soci_280_bert.qmd
 RUN rm -f ./docs/OCR/ocr_notebook.qmd
 RUN rm -f ./docs/image_analysis/image_analysis.qmd
 RUN rm -f ./docs/CTree_CEA/political_economy.qmd
-RUN rm -f ./docs/CTree_CEA/llm_distributions.qmd
 
 RUN mkdir output
 
@@ -47,7 +46,6 @@ COPY ./project/docs/SOCI-280/soci_280_bert.html /app/output/docs/SOCI-280/
 COPY ./project/docs/OCR/ocr_notebook.html /app/output/docs/OCR/
 COPY ./project/docs/image_analysis/image_analysis.html /app/output/docs/image_analysis/
 COPY ./project/docs/CTree_CEA/political_economy.html /app/output/docs/CTree_CEA/
-COPY ./project/docs/CTree_CEA/llm_distributions.html /app/output/docs/CTree_CEA/
 
 #Final Stage on lightweight linux
 FROM nginx:alpine
