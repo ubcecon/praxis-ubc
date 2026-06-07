@@ -1,7 +1,7 @@
 ---
 title: "Prediction, Inference, and Causality"
 author: Alex Ronczewski
-date: 2026-05-30
+date: 2026-06-06
 description: "The first notebook in the Causal ML stream. We meet the supervised-learning way of thinking: prediction versus inference, train/test splits, loss functions, k-nearest-neighbours regression, the bias-variance tradeoff, and cross-validation, and we set up the causal questions to come."
 categories:
   - Python
@@ -51,7 +51,10 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+from sklearn.datasets import fetch_california_housing
 from sklearn.neighbors import KNeighborsRegressor
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import make_pipeline
 from sklearn.model_selection import train_test_split, KFold, cross_val_score
 from sklearn.metrics import mean_squared_error
 
@@ -60,12 +63,12 @@ RANDOM_STATE = 42  # fix randomness so splits and folds are reproducible
 
 ## 1. Two kinds of questions
 
-Imagine we hand you a dataset of workers with their schooling, work experience, age, where they live and each person's wage. There are two very different questions you might ask of it:
+Imagine we hand you a dataset of neighbourhoods, each with its median income, the age of its houses, the average number of rooms, where it sits on the map, and the median value of its homes. There are two very different questions you might ask of it:
 
-- **Prediction.** *Given a person's age, education, and background, what wage should we expect them to earn?*
-- **Inference / causal.** *What is the effect of one extra year of schooling on a person's wage?*
+- **Prediction.** *Given a neighbourhood's income, house age, and location, what median home value should we expect?*
+- **Inference / causal.** *What is the effect of one extra room on a neighbourhood's home value?*
 
-These look almost the same. They are not. The first asks for a good *guess* of the outcome. The second asks for a *cause-and-effect* number: what would happen to **the same person's** wage if we reached in and gave them one more year of school, holding everything else fixed?
+These look almost the same. They are not. The first asks for a good *guess* of the outcome. The second asks for a *cause-and-effect* number: what would happen to **the same neighbourhood's** value if we reached in and added one more room to its houses, holding everything else fixed?
 
 Most of your econometrics training so far (ECON 226, 325, 326) was really aimed at the **second** kind of question. This stream deliberately switches focus for a few notebooks. We are going to get very good at the **first** kind of question first, build a real prediction toolkit, and only *then* (from Notebook 4 onward) turn that toolkit into something that can answer causal questions.
 
@@ -79,7 +82,7 @@ Machine learning has its own vocabulary for ideas you already know. Here is the 
 |---|---|
 | dependent variable / outcome | **target**, written $Y$ |
 | independent variables / regressors | **features**, written $X$ |
-| the coefficients $\beta$ | mostly invisible instead we care about the **function** $\hat{f}$ |
+| the coefficients $\beta$ | mostly invisible; we care about the **function** $\hat{f}$ instead |
 
 The goal of **supervised learning** is to learn a function $\hat{f}$ so that
 
@@ -89,70 +92,73 @@ $$
 
 on data we **have not seen before**. That last part matters more than it looks: a flexible enough model can always make its in-sample fit look good, so the real test is whether it predicts well on data it has not been trained on.
 
-When the target $Y$ is continuous (like wages), the task is called **regression**. When $Y$ is a category (employed / not, default / repay), it is called **classification**. In this notebook we focus on regression. 
+When the target $Y$ is continuous (like home values), the task is called **regression**. When $Y$ is a category (employed / not, default / repay), it is called **classification**. In this notebook we focus on regression.
 
 ::: {.callout-important}
 ## The key reframing
 
-In OLS we asked: *what is the coefficient on education?* In machine learning we ask: *how well can we predict the outcome?* Same data, different goal. This is the main difference from ECON 326.
+In OLS we asked: *what is the coefficient on income?* In machine learning we ask: *how well can we predict the outcome?* Same data, different goal. This is the main difference from ECON 326.
 :::
 
 ### The data
 
-We will use the dataset from Card (1993): a sample of young men in the United States, with their wages and a handful of background characteristics. The outcome variable which we model is `lwage`, the **log of the hourly wage**. 
+We will use the **California housing** dataset: one row per census block group from the 1990 U.S. census, with the median home value in the block and a handful of characteristics of the houses and the people living in them. It ships inside scikit-learn, so there is no file to download. The outcome we model is `MedHouseVal`, the **median home value** in the block, measured in units of $100,000.
 
 ```{python}
-wages = pd.read_csv("datasets/card.csv")
+housing = fetch_california_housing(as_frame=True)
+data = housing.frame
 
 # The features (X) we will predict from, and the target (y) we want to predict.
-features = ["educ", "exper", "age", "black", "south", "smsa", "married"]
-target = "lwage"
+features = ["MedInc", "HouseAge", "AveRooms", "AveBedrms",
+            "Population", "AveOccup", "Latitude", "Longitude"]
+target = "MedHouseVal"
 
-wages = wages.dropna(subset=features + [target]).reset_index(drop=True)
-wages[features + [target]].head()
+data[features + [target]].head()
 ```
 
-We will print summary statistics for the dataset: 
+We will print summary statistics for the dataset:
 
 ```{python}
-print("Number of workers:", len(wages))
-print(wages[["lwage", "educ", "exper", "black", "south", "smsa"]].describe().round(2))
+print("Number of block groups:", len(data))
+print(data[["MedHouseVal", "MedInc", "HouseAge", "AveRooms", "AveOccup", "Population"]].describe().round(2))
 ```
 
-Here `educ` is years of schooling, `exper` is years of work experience, `age` is in years, and `black`, `south`, `smsa` (lives in a metro area), and `married` are 0/1 indicators. One thing to keep in mind: `exper` in this dataset is built as roughly `age - educ - 6`, so `age`, `educ`, and `exper` are highly collinear. That would be a problem if we were after a clean coefficient, but for prediction it is harmless, since KNN never reads off a coefficient in the first place.
+Here `MedInc` is median income in the block (in tens of thousands of dollars), `HouseAge` is the median age of the houses, `AveRooms` and `AveBedrms` are the average number of rooms and bedrooms per household, `Population` and `AveOccup` describe how many people live there and how crowded the homes are, and `Latitude` and `Longitude` place the block on the map. Every feature is continuous, which suits the model we are about to use: it decides which blocks count as similar by measuring distance between them, and distance is most natural when features vary smoothly. One thing to keep in mind: `MedHouseVal` is capped at 5.0 (\$500,000), so the most expensive blocks all pile up at that ceiling. It is harmless for what we do here.
 
-Before we fit anything, one small piece of preparation. Some of the models we are about to use compare workers by measuring the distance between them, and distance is sensitive to scale: if one feature runs from 0 to 18 (education) and another is just 0/1 (married), the big-numbered feature dominates for no good reason. So we put every feature on the same footing, subtracting its mean and dividing by its standard deviation.
+Before we fit anything, one small piece of preparation. The model we are about to use compares blocks by measuring the distance between them, and distance is sensitive to scale: if one feature runs into the thousands (population) and another is a single digit (rooms), the big-numbered feature dominates. So we put every feature on the same footing, subtracting its mean and dividing by its standard deviation. There is a subtlety we have to respect: those means and standard deviations must be computed on the training data only, never on data we are about to test on, or information leaks across the split we are about to make. The clean way to enforce this is to bundle the scaling step together with the model into a single object, a **pipeline**, so that every time we fit, the scaling is recomputed on exactly the data being fit and nothing else.
 
 ```{python}
-y = wages[target].to_numpy()
-X = wages[features]
-X = (X - X.mean()) / X.std()
+y = data[target].to_numpy()
+X = data[features]
+
+# Bundle "standardize, then KNN" into one object. Fitting the pipeline fits the
+# scaler and the model together, on whatever data we hand it and nothing else.
+def make_knn(k):
+    return make_pipeline(StandardScaler(), KNeighborsRegressor(n_neighbors=k))
 
 X.head().round(2)
 ```
 
 ## 3. The fundamental problem: in-sample fit lies
 
-The point of this section is short:
-
 > A model can look **perfect** on the data you fit it to and be **useless** on new data.
 
-To see this we need new data. We do not have a second sample of workers, so we set one aside: we randomly hold out a chunk of our data, fit the model on the rest, and judge it on the held-out chunk it never saw. This is the **train/test split**.
+To see this we need new data. We do not have a second sample of neighbourhoods, so we set one aside: we randomly hold out a chunk of our data, fit the model on the rest, and judge it on the held-out chunk it never saw. This is the **train/test split**.
 
 ```{python}
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.3, random_state=RANDOM_STATE)
 
-print("Training workers:", len(X_train))
-print("Test workers    :", len(X_test))
+print("Training blocks:", len(X_train))
+print("Test blocks    :", len(X_test))
 ```
 
-The model we use to show this is **k-nearest-neighbours (KNN)**. To predict a worker's wage, KNN finds the $k$ workers in the training data who are most similar to them (their nearest *neighbours*, measured by how close their features are) and returns the average wage of that group. The number $k$ is ours to choose, and we look at that choice closely in section 5.
+The model we use to show this is **k-nearest-neighbours (KNN)**. To predict a block's value, KNN finds the $k$ blocks in the training data that are most similar to it (its nearest *neighbours*, measured by how close their features are) and returns the average value of that group. The number $k$ is ours to choose, and we look at that choice closely in section 5.
 
-To see this in action we fit a 1-nearest-neighbour model: to predict any worker's wage, it copies the wage of the single most-similar worker in the training data. On the training set it can lean on the closest possible match for every worker, so it fits the training data about as tightly as KNN ever can.
+To see this in action we fit a 1-nearest-neighbour model: to predict any block's value, it copies the value of the single most-similar block in the training data.
 
 ```{python}
-knn1 = KNeighborsRegressor(n_neighbors=1)
+knn1 = make_knn(1)
 knn1.fit(X_train, y_train)
 
 train_mse = mean_squared_error(y_train, knn1.predict(X_train))
@@ -162,7 +168,9 @@ print(f"1-NN training MSE: {train_mse:.4f}")
 print(f"1-NN test MSE    : {test_mse:.4f}")
 ```
 
-Those two numbers already tell the story, and it is easier to believe once you see it. The plot below compares the model's predictions to the actual wages, on the training set (left) and on the held-out test set (right).
+The training MSE is nearly zero, and that is the whole point. With $k = 1$ the model predicts each training block by looking for its single nearest neighbour, and in the training data every block is its own nearest neighbour, so the model simply hands back the value it already saw. It has memorised the training set. The test MSE is the honest number: on blocks the model was never fit to, copying the single closest match is far less accurate.
+
+The plot below makes the gap visible. It compares the model's predictions to the actual values, on the training set (left) and on the held-out test set (right).
 
 ```{python}
 train_pred = knn1.predict(X_train)
@@ -179,17 +187,13 @@ for ax, actual, predicted, name in [
     ax.plot(lims, lims, color="black", linewidth=1)  # identity line y = x
     ax.set_xlim(lims)
     ax.set_ylim(lims)
-    ax.set_xlabel("actual log wage")
+    ax.set_xlabel("actual median value")
     ax.set_title(f"1-NN on the {name}")
-axes[0].set_ylabel("predicted log wage")
+axes[0].set_ylabel("predicted median value")
 plt.show()
 ```
 
-A small puzzle first. With $k = 1$ the model predicts each training worker's wage by copying the wage of their single nearest neighbour. If every worker had a unique combination of features, that nearest neighbour would always be the worker themselves, and the training error would be exactly zero. So why is it not?
-
-The answer is in the features. `educ`, `age`, and `exper` are whole numbers, and `black`, `south`, `smsa`, and `married` are just 0/1, so plenty of workers end up with *identical* feature values. When that happens a worker's nearest neighbour is some *other* person who looks the same on paper but earned a different wage, and 1-NN has no way to tell the two apart. It copies that neighbour's wage and picks up some training error along the way.
-
-Even so, the contrast between the two panels is the point. On the training set the predictions sit much closer to the 45° line than on the test set, where the scatter spreads out. A low error on the data the model was fit to is the model flattering itself; the wider scatter on the right is its honest skill on workers it has never seen. The ability to do well on **new** data is called **generalization**, and it is the only thing we actually care about.
+On the training set every prediction lands exactly on the 45° line, because the model is reading back values it memorised. On the test set the scatter spreads out, and that spread is the model's honest skill on blocks it has never seen. A low error on the data the model was fit to is the model flattering itself; the wider scatter on the right is the truth. The ability to do well on **new** data is called **generalization**, and it is the only thing we actually care about.
 
 ::: {.callout-tip}
 ## Self-test
@@ -214,32 +218,32 @@ This is exactly the quantity OLS minimises: the average squared gap between the 
 
 ## 5. KNN, our worked example
 
-To predict a worker's wage with **k-nearest-neighbours regression**, we do the simplest thing imaginable. We measure how similar that worker is to every worker in the training data, using all of the features, find the $k$ closest matches, and report the average of their wages. There is no equation to estimate and no coefficients to read off. We just look up the most similar people and average their outcomes.
+To predict a block's value with **k-nearest-neighbours regression**, we do the simplest thing imaginable. We measure how similar that block is to every block in the training data, using all of the features, find the $k$ closest matches, and report the average of their values. There is no equation to estimate and no coefficients to read off. We just look up the most similar blocks and average their outcomes.
 
-The number $k$, how many neighbours to average, is something we choose. A value we set ourselves rather than estimate from the data, the way OLS estimates $\beta$, is called a **hyperparameter**. Pick $k$ too small and the model leans on one or two idiosyncratic neighbours; pick $k$ too large and it averages over workers who are not really comparable. The rest of this notebook is about how to choose $k$ honestly. This is also why we put the features on a common scale back in section 2: KNN decides who counts as a neighbour by measuring distance, so a feature measured in big numbers would otherwise dominate that distance.
+The number $k$, how many neighbours to average, is something we choose. A value we set ourselves rather than estimate from the data, the way OLS estimates $\beta$, is called a **hyperparameter**. Pick $k$ too small and the model leans on one or two idiosyncratic neighbours; pick $k$ too large and it averages over blocks that are not really comparable. The rest of this notebook is about how to choose $k$ honestly. This is also why we scaled the features back in section 2: KNN decides who counts as a neighbour by measuring distance, so a feature measured in big numbers would otherwise dominate that distance.
 
-To *see* what $k$ does, let us strip the problem down to a single feature, `educ`, and watch the predicted wage curve change as we dial $k$ up.
+To *see* what $k$ does, let us strip the problem down to a single feature, `MedInc`, and watch the predicted value curve change as we dial $k$ up.
 
 ```{python}
-# Only choose the educ variable
-educ_train = X_train[["educ"]]
+# Only choose the median-income variable
+inc_train = X_train[["MedInc"]]
 
-# A smooth grid of education values to predict across.
-educ_grid = np.linspace(educ_train["educ"].min(),
-                        educ_train["educ"].max(), 300).reshape(-1, 1)
+# A smooth grid of income values to predict across, kept as a DataFrame
+inc_grid = pd.DataFrame({"MedInc": np.linspace(
+    inc_train["MedInc"].min(), inc_train["MedInc"].max(), 300)})
 
 plt.figure(figsize=(9, 6))
-plt.scatter(educ_train["educ"], y_train, s=10, alpha=0.2,
-            color="grey", label="training workers")
+plt.scatter(inc_train["MedInc"], y_train, s=10, alpha=0.2,
+            color="grey", label="training blocks")
 
-for k in [1, 5, 50, 500]:
-    model = KNeighborsRegressor(n_neighbors=k).fit(educ_train, y_train)
-    plt.plot(educ_grid, model.predict(educ_grid), linewidth=2,
+for k in [1, 50, 500, 10000]:
+    model = make_knn(k).fit(inc_train, y_train)
+    plt.plot(inc_grid["MedInc"], model.predict(inc_grid), linewidth=2,
              label=f"k = {k}")
 
-plt.xlabel("education (standardized years)")
-plt.ylabel("log wage")
-plt.title("What k does in KNN: from jagged (k=1) to flat (k=500)")
+plt.xlabel("median income ($10,000s)")
+plt.ylabel("median home value ($100,000s)")
+plt.title("What k does in KNN: from jagged (k=1) to flat (k=10,000)")
 plt.legend()
 plt.show()
 ```
@@ -247,7 +251,7 @@ plt.show()
 Notice the pattern:
 
 - **`k = 1`** zig-zags through every point, following the training data exactly.
-- **`k = 500`** averages over so many workers that the curve is much flater, ignoring real structure.
+- **`k = 10,000`** averages over so many blocks that the curve is much flatter, ignoring real structure.
 - Somewhere in between is a sensible middle ground.
 
 ## 6. The bias-variance tradeoff
@@ -260,17 +264,17 @@ $$
 
 - **Bias** is systematic error from a model that is too rigid to capture the real pattern.
 - **Variance** is error from a model so flexible it fits the noise, changing wildly if the data changed a little.
-- **Irreducible noise** is the part no model can ever explain. Even with a perfect model and infinite data, two workers with the same age, education, and region can still earn different wages, whether through luck, the day they happened to apply, or some skill we never measured. That leftover variation is the irreducible part, and no amount of cleverness drives it to zero.
+- **Irreducible noise** is the part no model can ever explain. Even with a perfect model and infinite data, two blocks with the same income, house age, and location can still have different values, whether through the quirks of a particular street, the month a house sold, or something we never measured. That leftover variation is the irreducible part, and no amount of cleverness drives it to zero.
 
 In KNN this maps straight onto the choice of $k$: a small $k$ is flexible (low bias, high variance, so it overfits) and a large $k$ is rigid (high bias, low variance, so it underfits). We sweep $k$ across a wide range and record **both** training and test MSE at every value, which lets us find a sensible $k$ to choose.
 
 ```{python}
-neighbour_grid = range(1, 151)
+neighbour_grid = range(1, 101)
 
 train_errors = []
 test_errors = []
 for k in neighbour_grid:
-    model = KNeighborsRegressor(n_neighbors=k).fit(X_train, y_train)
+    model = make_knn(k).fit(X_train, y_train)
     train_errors.append(mean_squared_error(y_train, model.predict(X_train)))
     test_errors.append(mean_squared_error(y_test, model.predict(X_test)))
 
@@ -290,18 +294,18 @@ plt.show()
 
 Two things stand out in this plot:
 
-- **Training MSE** (lower line) is at its **lowest** at $k=1$, the model is leaning hardest on individual neighbours. It rises steadily as $k$ grows and the model must average over more workers.
+- **Training MSE** (lower line) is at its **lowest** at $k=1$, in fact zero, since each block is its own neighbour. It rises steadily as $k$ grows and the model must average over more blocks.
 - **Test MSE** is **U-shaped**. Too small a $k$ overfits (high variance); too large a $k$ underfits (high bias); the bottom of the U is the sweet spot.
 
 **Think Deeper.** You have actually seen a version of this in ECON 326. Adding more regressors to an OLS model *always* raises in-sample $R^2$ (the training fit looks better), but that does not always improve genuine, out-of-sample performance. Same situation here.
 
-There is a catch, and it is important: we found the bottom of that U **by peeking at the test set**. If we use the test set to *choose* $k$, we have used it up. It is no longer an honest estimate of performance on new data. We need a cleaner way to choose $k$. That is the next section.
+There is a catch: we found the bottom of that U **by peeking at the test set**. If we use the test set to *choose* $k$, we have used it up. It is no longer an honest estimate of performance on new data. We need a cleaner way to choose $k$. That is the next section.
 
 ## 7. Cross-validation
 
 The fix is to leave the test set in a sealed envelope and choose $k$ using **only the training data**. The trick is **k-fold cross-validation** (*k* here refers to fold and is not the same *k* as in k-nearest neighbours).
 
-We split the training data into 5 equal **folds**. Use 4 of them to fit and the 5th to score, then rotate which fold is held out, five times. Average the five scores. Every worker gets used for scoring exactly once, and we never touched the real test set.
+We split the training data into 5 equal **folds**. Use 4 of them to fit and the 5th to score, then rotate which fold is held out, five times. Average the five scores. Every block gets used for scoring exactly once, and we never touched the real test set.
 
 ```{python}
 n_splits = 5
@@ -320,16 +324,16 @@ ax.set_title("5-fold cross-validation (orange = held out for scoring)")
 plt.show()
 ```
 
-Now we run it for real. For each candidate $k$ (neighbours), `cross_val_score` returns the 5 fold scores; we average them. 
+Now we run it for real. For each candidate $k$ (neighbours), `cross_val_score` returns the 5 fold scores; we average them. Because the scaler lives inside the pipeline, each fold standardizes using only its own four training folds, and the held-out fold is scaled with those same numbers without ever contributing to them. The test set, sealed away earlier, is untouched throughout.
 
 ```{python}
 kfold = KFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
 
-candidate_k = range(1, 151)
+candidate_k = range(1, 101)
 cv_errors = []
 for k in candidate_k:
     scores = cross_val_score(
-        KNeighborsRegressor(n_neighbors=k),
+        make_knn(k),
         X_train, y_train,
         cv=kfold, scoring="neg_mean_squared_error")
     cv_errors.append(-scores.mean())
@@ -352,7 +356,7 @@ print("Cross-validation chose k =", best_k)
 Only **now**, with $k$ chosen, do we break the seal on the test set, in order to get an honest estimate of how this model performs on new data.
 
 ```{python}
-final_model = KNeighborsRegressor(n_neighbors=best_k).fit(X_train, y_train)
+final_model = make_knn(best_k).fit(X_train, y_train)
 final_test_mse = mean_squared_error(y_test, final_model.predict(X_test))
 
 print(f"Final model: KNN with k = {best_k}")
@@ -376,30 +380,29 @@ Because we used those cross-validation scores to *choose* $k$. Once a set of sco
 </details>
 :::
 
-## 8. So have we answered the wage question?
+## 8. So have we answered the housing question?
 
-We built a model that predicts log wages. Now the crucial question:
+We built a model that predicts median home values. Now the question this stream is really about:
 
-> Does that model tell us the **effect** of one extra year of schooling on wages?
+> Does that model tell us the **effect** of one extra room on a block's value?
 
 **No.** This is the concept the stream turns on, so it is worth three precise reasons, which Notebook 4 returns to:
 
-1. **Prediction can lean on correlates, not causes.** Our model can predict wages well by leaning on features that merely travel *alongside* schooling: the neighbourhood someone lives in, their family background, their occupation. Schooling itself might be doing little of the causal work, and a predictive model cannot tell the difference.
-2. **A predictive coefficient is not a causal one.** Even a tidy coefficient on `educ` from a model that predicts wages well is a *prediction* coefficient. It blends the true effect of schooling with **selection**: people who get more schooling already differ from those who do not in many other ways.
-3. **A prediction model cannot imagine anyone any differently.** A causal question is a *counterfactual* one: what would happen to *this worker's* wage if they got one more year of school, holding everything else fixed? A prediction model never answers that. The best it can do is tell us about a *different* worker who already has the extra year. Those two things, the same worker under a different treatment versus a different worker who already had it, are not the same, and telling them apart is the heart of what makes causal estimation hard. It is what Notebook 4 begins to fix.
+1. **Prediction can lean on correlates, not causes.** Our model can predict values well by leaning on features that merely travel *alongside* the number of rooms: the income of the neighbourhood, where it sits on the map, the age of its houses. The rooms themselves might be doing little of the causal work, and a predictive model cannot tell the difference.
+2. **A predictive number is not a causal one.** Even if we read a number for the effect of an extra room out of a model that predicts value well, that number is a *prediction* quantity. It blends the true effect of a room with **selection**: blocks with more rooms already differ from blocks with fewer in many other ways, richer, newer, further from the city centre.
+3. **A prediction model cannot imagine anything any differently.** A causal question is a *counterfactual* one: what would happen to *this block's* value if its houses had one more room, holding everything else fixed? A prediction model never answers that. The best it can do is point to a *different* block that already has more rooms. Those two things, the same block under a change versus a different block that already had it, are not the same, and telling them apart is the heart of what makes causal estimation hard. It is what Notebook 4 begins to fix.
 
 Prediction is one job. Causal estimation is a different job. The next two notebooks sharpen the prediction toolkit; from Notebook 4 onward we turn that toolkit into something that can actually answer causal questions.
 
 
 ## Connections
 
-- **Back:** COMET Intermediate Econometrics — *Introduction to Regression*, *Multiple Regression*, *Issues in Regression*. Those notebooks asked "what is the coefficient?"; this stream asks "how well can we predict?"
+- **Back:** COMET Intermediate Econometrics, *Introduction to Regression*, *Multiple Regression*, *Issues in Regression*. Those notebooks asked "what is the coefficient?"; this stream asks "how well can we predict?"
 - **Forward to Notebook 2:** we used KNN here because the bias-variance tradeoff is so easy to *see*. Next we apply the same train / test / cross-validate discipline to **linear** models with many features, and meet **ridge** and **lasso**.
-- **Forward to Notebook 4:** the idea we set up here, that *a good predictor is not an explanation*, is exactly what Notebook 4 cashes in, when we finally return to the causal question about the returns to schooling.
 
 ### References
 
-- Card, D. (1993). *Using geographic variation in college proximity to estimate the return to schooling.* National Bureau of Economic Research. The dataset used here (`card.csv`) is the same one used in the COMET *Instrumental Variables* notebook.
+- Pace, R. K., & Barry, R. (1997). *Sparse spatial autoregressions.* Statistics & Probability Letters, 33(3), 291–297. The source of the California housing dataset, which ships with scikit-learn as `fetch_california_housing`.
 - James, G., Witten, D., Hastie, T., & Tibshirani, R. (2021). *An Introduction to Statistical Learning.* Springer. (Chapters 2 and 5.)
 
 ---
