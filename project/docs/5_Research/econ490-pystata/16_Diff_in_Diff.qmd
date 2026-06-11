@@ -4,8 +4,14 @@ author: Marina Adshade, Paul Corcuera, Giulia Lo Forte, Jane Platt
 date: 2024-05-29
 description: This notebook introduces difference-in-difference analysis. We look the assumptions required to perform this type of analysis, how to run the regressions, how to run event studies, and some common mistakes to avoid.
 categories: [econ 490, pystata, difference-in-differences, panel data, regression, parallel trends, event study]
+execute:
+  eval: true
+  echo: true
+  output: true
 format:
-  html: default
+  html:
+    embed-resources: true
+    self-contained-math: true
   ipynb:
     jupyter:
         kernelspec:
@@ -27,6 +33,12 @@ format:
 4. Conduct a test on the plausibility of the PT whenever there are more than 1 pre-treatment periods.
 
 ## 16.0 Intro
+
+```{python}
+#| output: false
+import stata_setup
+stata_setup.config('D:/Stata', 'se') #Remember to CHANGE THIS to your own path by running display c(sysdir_stata) on the stata app, particularly if you are on a Mac
+```
 
 ```{python}
 >>> import sys
@@ -380,7 +392,7 @@ generate logearn = log(earnings)
 keep if year==2002 | year==2003
 
 * Estimate incorrect specification
-areg logearn treated#2003.year i.year sex, absorb(workerid)
+capture noisily areg logearn treated#2003.year i.year sex, absorb(workerid)
 ```
 
 We cannot estimate the specification above because *sex* does not change over time for the same individual. Remember: in diff-in-diff regressions, we can only add covariates that are time varying by nature (e.g. tenure, experience) or are trends based on fixed characteristics (e.g. time dummies interacted with sex).

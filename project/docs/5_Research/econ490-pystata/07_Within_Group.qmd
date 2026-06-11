@@ -4,8 +4,14 @@ author: Marina Adshade, Paul Corcuera, Giulia Lo Forte, Jane Platt
 date: 2024-05-29
 description: In this notebook, we look at within-group analysis. We see how to summarize data for subgroups, how to generate new variables among subgroups, and how to reshape out data. 
 categories: [econ 490, pystata, generating variables, egen, sort, collapse, reshape]
+execute:
+  eval: true
+  echo: true
+  output: true
 format:
-  html: default
+  html:
+    embed-resources: true
+    self-contained-math: true
   ipynb:
     jupyter:
         kernelspec:
@@ -32,8 +38,9 @@ format:
 ## 7.0 Intro
 
 ```{python}
+#| output: false
 import stata_setup
-stata_setup.config('C:\Program Files\Stata18/','se')
+stata_setup.config('D:/Stata', 'se') #Remember to CHANGE THIS to your own path by running display c(sysdir_stata) on the stata app, particularly if you are on a Mac
 ```
 
 ```{python}
@@ -74,7 +81,7 @@ Let's take a look at our data by using the `browse` command we learned in [Modul
 ```{python}
 %%stata
 
-%browse 10
+list in 1/10
 ```
 
 We can tell here that the data is sorted by the variable *workerid*. 
@@ -87,7 +94,7 @@ If we use variables other than *workerid* (the variable by which the data is sor
 %%stata
 
 capture drop var_one //recall that capture drop tells Stata to ignore any errors if var_one does not exist, and to drop it if it does
-by year: generate var_one = 1 
+capture noisily by year: generate var_one = 1 
 ```
 
 If we want to group by year, Stata expects us to sort the data such that all observations corresponding to the same year are next to each other. We can use the `sort` pre-command as follows.
@@ -103,7 +110,7 @@ Let's take a look at our data now.
 ```{python}
 %%stata
 
-%browse 10
+list in 1/10
 ```
 
 Let's try the command above again, now with the sorted data.
@@ -161,7 +168,7 @@ generate tot_obs = _N
 ```{python}
 %%stata
 
-%browse 10
+list in 1/10
 ```
 
 As expected, the numbering of observations is sensitive to the way that the data is sorted! The cool thing is that whenever we use the pre-command `by`, the scalars <i>_n</i> and <i>_N</i> record the observation number and total number of observations for each group separately. Let's check that below:
@@ -179,7 +186,7 @@ bysort workerid: generate tot_obs = _N
 ```{python}
 %%stata
 
-%browse 10
+list in 1/10
 ```
 
 As we can see, some workers are observed only 2 times in the data (they were only surveyed in two years), whereas other workers are observed 8 times (they were surveyed in 8 years). By knowing (and recording in a variable) the number of times a worker has been observed, we can do some analysis based on this information. For example, in some cases you might be interested in keeping only workers who are observed across all time periods. In this case, you could use the command:
@@ -193,7 +200,7 @@ keep if tot_obs==8
 ```{python}
 %%stata
 
-%browse 10
+list in 1/10
 ```
 
 ## 7.3 Generating Variables Using Extended Generate
@@ -268,13 +275,13 @@ Let's suppose we want to create a data set at the region-year level using inform
 ```{python}
 %%stata
 
-collapse (mean) avg_earnings = earnings (sd) sd_earnings = earnings (count) tot_emp = earnings [pweight = sample_weight], by(region year)
+capture noisily collapse (mean) avg_earnings = earnings (sd) sd_earnings = earnings (count) tot_emp = earnings [pweight = sample_weight], by(region year)
 ```
 
 ```{python}
 %%stata
 
-%browse 10
+list in 1/10
 ```
 
 <div class="alert alert-block alert-warning">
@@ -312,7 +319,7 @@ reshape wide earnings region age start_year sample_weight quarter_birth, i(worke
 ```{python}
 %%stata
 
-%browse 10
+list in 1/10
 ```
 
 There are so many missing values in the data! Should we worry? Not at all. As a matter of fact, we learned at the beginning of this module that many workers are not observed across all years. That's what these missing values are representing.
@@ -330,7 +337,7 @@ reshape long earnings region age  start_year sample_weight, i(workerid) j(year)
 ```{python}
 %%stata
 
-%browse 10
+list in 1/10
 ```
 
 Notice that we now have an observation for every worker in every year, although we know some workers are only observed in a subset of these. This is known as a **balanced panel**.  
@@ -346,7 +353,7 @@ keep if !missing(earnings)
 ```{python}
 %%stata
 
-%browse 10
+list in 1/10
 ```
 
 ## 7.6 Errors
@@ -359,7 +366,7 @@ To develop group-compounded variables, we first need to ensure that we sort the 
 %%stata
 
 capture drop var
-by sex: generate var = _n
+capture noisily by sex: generate var = _n
 ```
 
 The correct method of of generating compounded variables is below:
@@ -393,13 +400,13 @@ use "fake_data.dta", clear
 ```{python}
 %%stata
 
-reshape wide earnings sex, i(year) j(workerid)
+capture noisily reshape wide earnings sex, i(year) j(workerid)
 ```
 
 ```{python}
 %%stata
 
-reshape error
+capture noisily reshape error
 ```
 
 Can you tell what the error is here?

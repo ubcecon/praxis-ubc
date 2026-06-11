@@ -4,8 +4,14 @@ author: Marina Adshade, Paul Corcuera, Giulia Lo Forte, Jane Platt
 date: 2024-05-29
 description: In this notebook, we go over panel data. We look into what it is, how to run regressions with panel data, as well as fixed and random-effects models. We finish by looking at some common mistakes when using panel data.
 categories: [econ 490, pystata, panel data, regression, fixed-effects, random-effects, heteroskedasticity, serial correlation, causality]
+execute:
+  eval: true
+  echo: true
+  output: true
 format:
-  html: default
+  html:
+    embed-resources: true
+    self-contained-math: true
   ipynb:
     jupyter:
         kernelspec:
@@ -31,8 +37,9 @@ format:
 This module uses the [Penn World Tables](https://www.rug.nl/ggdc/productivity/pwt/?lang=en) which measure income, input, output, and productivity, covering 183 countries between 1950 and 2019. Before beginning this module, download this data in the specified Stata format.
 
 ```{python}
+#| output: false
 import stata_setup
-stata_setup.config('C:\Program Files\Stata18/','se')
+stata_setup.config('D:/Stata', 'se') #Remember to CHANGE THIS to your own path by running display c(sysdir_stata) on the stata app, particularly if you are on a Mac
 ```
 
 ```{python}
@@ -79,7 +86,7 @@ We are going to use the Penn World Data (discussed above) in this example. In th
 
 clear*
 *cd ""
-use pwt1001, clear
+use pwt100.dta, clear
 describe country countrycode year
 ```
 
@@ -334,7 +341,7 @@ We can choose any one of these packages and follow the (brief) instructions to i
 ```{python}
 %%stata
 
-xtserial lngdp lnhc
+capture noisily xtserial lngdp lnhc
 ```
 
 The null hypothesis is that there is no serial correlation between residuals. From the output, we can see that we reject the null hypothesis and conclude the variables are correlated with lagged versions of themselves. One method for dealing with this is by using the same Prais-Winsten method to estimate a GLS equation. This is easily implemented by replacing the command `xtreg` with `xtpcse` and including the option `corr(ar1)`.
