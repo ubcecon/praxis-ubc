@@ -1,4 +1,7 @@
 # Converts Quarto callout syntax to HTML in .ipynb markdown cells
+
+# Usage: python convert_ipynb_callouts.py <notebook.ipynb>
+# Takes a single notebook path, no flags. comet_main.yml runs it once per file.
 import json
 import re
 import sys
@@ -25,14 +28,10 @@ CALLOUT_RE = re.compile(
 def _build_html(callout_type: str, content: str) -> str:
     style = CALLOUT_STYLES[callout_type]
     content = content.strip()
-    # >>> NEW: Use a table with legacy `bgcolor` attributes instead of CSS
-    # >>> `style`, since Google Colab's HTML sanitizer strips `style` (and
-    # >>> thus any background/border/padding from a styled <div>) but still
-    # >>> permits `bgcolor`/`width`/`border`/`cellpadding` on tables.
-    # >>> Jupyter renders this identically to the styled div. Blank lines
-    # >>> are still needed around the body so markdown still renders inside
-    # >>> the raw HTML block (CommonMark closes the HTML block at the first
-    # >>> blank line).
+    # Tables with bgcolor instead of a styled div: Colab strips style
+    # attributes but keeps bgcolor, and Jupyter renders both the same.
+    # The blank lines around the body are load-bearing -- the HTML block
+    # ends at the first blank line, so the markdown inside still renders.
     return (
         f'<table border="0" cellpadding="0" cellspacing="0" width="100%">\n'
         f'<tr>\n'
