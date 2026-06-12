@@ -25,15 +25,28 @@ CALLOUT_RE = re.compile(
 def _build_html(callout_type: str, content: str) -> str:
     style = CALLOUT_STYLES[callout_type]
     content = content.strip()
-    # Blank lines around the body so markdown still renders inside the raw
-    # HTML block (CommonMark closes the HTML block at the first blank line)
+    # >>> NEW: Use a table with legacy `bgcolor` attributes instead of CSS
+    # >>> `style`, since Google Colab's HTML sanitizer strips `style` (and
+    # >>> thus any background/border/padding from a styled <div>) but still
+    # >>> permits `bgcolor`/`width`/`border`/`cellpadding` on tables.
+    # >>> Jupyter renders this identically to the styled div. Blank lines
+    # >>> are still needed around the body so markdown still renders inside
+    # >>> the raw HTML block (CommonMark closes the HTML block at the first
+    # >>> blank line).
     return (
-        f'<div style="border-left: 4px solid {style["border"]}; '
-        f'background: {style["background"]}; '
-        f'padding: 12px 16px; border-radius: 4px; margin: 12px 0;">\n\n'
+        f'<table border="0" cellpadding="0" cellspacing="0" width="100%">\n'
+        f'<tr>\n'
+        f'<td bgcolor="{style["border"]}" width="4"></td>\n'
+        f'<td bgcolor="{style["background"]}">\n'
+        f'<table border="0" cellpadding="12" cellspacing="0" width="100%">\n'
+        f'<tr><td bgcolor="{style["background"]}">\n\n'
         f'<strong>{style["emoji"]} {style["label"]}:</strong>\n\n'
         f'{content}\n\n'
-        f'</div>'
+        f'</td></tr>\n'
+        f'</table>\n'
+        f'</td>\n'
+        f'</tr>\n'
+        f'</table>'
     )
 
 def convert_callouts_in_notebook(ipynb_path: str):
