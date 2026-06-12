@@ -144,9 +144,12 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: Convert QMD to IPYNB and clean titles
+      # clean_ipynb_titles.py rewrites the YAML front matter as a title block;
+      # convert_ipynb_callouts.py rewrites ::: callout-* divs as styled HTML so they render correctly Jupyter/Colab from the .ipynb's
+      - name: Convert QMD to IPYNB, clean titles and callouts
         run: |
           cp meta/scripts/clean_ipynb_titles.py final-notebooks/
+          cp meta/scripts/convert_ipynb_callouts.py final-notebooks/
           cd final-notebooks
           find . -name "*.qmd" -type f ! -name "*plan*" ! -name "*stub*" | while read file; do
             echo "Converting: $file"
@@ -155,6 +158,8 @@ jobs:
             if [ -f "$ipynb_file" ] && [[ ! "$ipynb_file" =~ plan ]] && [[ ! "$ipynb_file" =~ stub ]]; then
               echo "  Cleaning: $ipynb_file"
               python clean_ipynb_titles.py "$ipynb_file"
+              echo "  Converting callouts: $ipynb_file"
+              python convert_ipynb_callouts.py "$ipynb_file"
             else
               echo "  Warning: $ipynb_file not created or is a plan/stub"
             fi
