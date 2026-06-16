@@ -53,7 +53,6 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from sklearn.datasets import fetch_california_housing
 from sklearn.tree import DecisionTreeRegressor, plot_tree
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.neighbors import KNeighborsRegressor
@@ -67,52 +66,51 @@ RANDOM_STATE = 42  # fix randomness so splits, folds, and forests are reproducib
 
 ## 1. A different way to be flexible
 
-So far this stream has met flexibility twice. In Notebook 1, k-nearest-neighbours was flexible because it averaged whatever points sat nearby, and the parameter $k$ set how many. In Notebook 2, linear models were flexible because we could pour in covariates, and the penalty $\lambda$ kept their coefficients in check. 
+So far this stream has met flexibility twice. In Notebook 1, k-nearest-neighbours was flexible because it averaged whatever points sat nearby, and the parameter $k$ set how many. In Notebook 2, linear models were flexible because we could pour in covariates, and the penalty $\lambda$ kept their coefficients in check.
 
-This notebook introduces a third kind of flexibility that throws away both of those crutches. A **decision tree** does not measure distance and does not fit a line. It carves the feature space into rectangular boxes by asking a sequence of yes-or-no questions about one feature at a time, and to predict a new case it returns the average outcome of the training points that landed in the same box. 
+This notebook introduces a third kind of flexibility that throws away both of those crutches. A **decision tree** does not measure distance and does not fit a line. It carves the feature space into rectangular boxes by asking a sequence of yes-or-no questions about one feature at a time, and to predict a new case it returns the average outcome of the training points that landed in the same box.
 
-We will build up in the obvious order. First a single tree, which we can draw and read. Then we will watch it overfit, just as $k=1$ KNN overfit in Notebook 1 and OLS overfit with too many controls in Notebook 2. Then we fix the overfitting by averaging many trees into a **random forest**, and we close with a brief look at **boosting**, a second way to combine trees. Throughout, the job is still prediction. The causal turn is Notebook 4.
+We will build up to this. First a single tree, which we can draw and read. Then we will watch it overfit, just as $k=1$ KNN overfit in Notebook 1 and OLS overfit with too many controls in Notebook 2. Then we fix the overfitting by averaging many trees into a **random forest**, and we close with a brief look at **boosting**, a second way to combine trees. Throughout, the job is still prediction. The causal turn is Notebook 4.
 
-## 2. The data: back to California
+## 2. The data: back to the 401(k) households
 
-We return to the **California housing** data from Notebook 1: one row per census block group, the median home value `MedHouseVal` as the target, and eight characteristics of the block as features. Coming back to it is deliberate. We tuned a KNN model on exactly this data and this split and got a test MSE of about 0.41, so we have a real number to beat, and we can ask the only question that matters when choosing between methods: which one predicts new blocks best.
+We return to the **401(k)** data from Notebook 1: one row per U.S. household, the net financial assets `net_tfa` (in thousands of dollars) as the target, and ten characteristics of the household as features, including `e401`, whether it is eligible for a 401(k). Coming back to it is deliberate. We tuned a KNN model on exactly this data and this split and got a test MSE of about 2654, so we have a real number to beat, and we can ask the only question that matters when choosing between methods: which one predicts new households best.
 
 ```{python}
-housing = fetch_california_housing(as_frame=True)
-data = housing.frame
+savings = pd.read_csv("datasets/Pension401k.csv")
 
-features = ["MedInc", "HouseAge", "AveRooms", "AveBedrms",
-            "Population", "AveOccup", "Latitude", "Longitude"]
-target = "MedHouseVal"
+features = ["age", "inc", "educ", "fsize", "marr",
+            "twoearn", "db", "pira", "hown", "e401"]
+target = "net_tfa"
 
-y = data[target].to_numpy()
-X = data[features]
+y = savings[target].to_numpy()
+X = savings[features]
 
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.3, random_state=RANDOM_STATE)
 
-print("Training blocks:", len(X_train))
-print("Test blocks    :", len(X_test))
+print("Training households:", len(X_train))
+print("Test households    :", len(X_test))
 ```
 
-One thing we do **not** have to do this time is scale the features. A tree split is a question like "is median income above 5.03?", and the answer does not change if we measure income in dollars or in thousands of dollars: the ordering of the blocks is all that matters, not the units. This is a real difference from Notebook 1, where KNN measured distance and so needed every feature on a common scale, and from Notebook 2, where the penalty acted on coefficient sizes. Trees are blind to scale, so there is no `StandardScaler` here except inside the KNN model we carry over for comparison.
+One thing we do **not** have to do this time is scale the features. A tree split is a question like "is income above 65?", and the answer does not change if we measure income in dollars or in thousands of dollars: the ordering of the households is all that matters, not the units. This is a real difference from Notebook 1, where KNN measured distance and so needed every feature on a common scale, and from Notebook 2, where the penalty acted on coefficient sizes. Trees are blind to scale, so there is no `StandardScaler` here except inside the KNN model we carry over for comparison.
 
 ```{python}
 baseline_mse = mean_squared_error(y_test, np.full_like(y_test, y_train.mean()))
 
-knn = make_pipeline(StandardScaler(), KNeighborsRegressor(n_neighbors=12))
+knn = make_pipeline(StandardScaler(), KNeighborsRegressor(n_neighbors=15))
 knn.fit(X_train, y_train)
 knn_mse = mean_squared_error(y_test, knn.predict(X_test))
 
-print(f"Predict-the-mean test MSE       : {baseline_mse:.4f}")
-print(f"KNN (k=12, from Notebook 1) test MSE: {knn_mse:.4f}")
+print(f"Predict-the-mean test MSE        : {baseline_mse:.1f}")
+print(f"KNN (k=15, from Notebook 1) test MSE: {knn_mse:.1f}")
 ```
 
-Predicting the average value of every block, ignoring all eight features, gives a test MSE of about 1.31. That is the floor any real model must clear. The KNN model from Notebook 1 clears it comfortably at 0.41. Those two numbers, 1.31 and 0.41, are the goalposts for the rest of the notebook.
+Predicting the average savings of every household, ignoring all ten features, gives a test MSE of about 3708. That is the floor any real model must clear. The KNN model from Notebook 1 clears it at about 2654. Those two numbers, 3708 and 2654, are the goalposts for the rest of the notebook.
 
 ## 3. A single decision tree
 
-A regression tree is built greedily, one split at a time. It looks across every feature and every possible cut point, and chooses the single split that most reduces the mean squared error of the two groups it creates. Then it repeats the search inside each group, and again inside those, and so on. The result is a set of boxes, called **leaves**, and the prediction for any block is just the average training value in whatever leaf the block falls into.
+A regression tree is built greedily, one split at a time. It looks across every feature and every possible cut point, and chooses the single split that most reduces the mean squared error of the two groups it creates. Then it repeats the search inside each group, and again inside those, and so on. The result is a set of boxes, called **leaves**, and the prediction for any household is just the average training value in whatever leaf the household falls into.
 
 The clearest way to see this is to grow a shallow tree, shallow enough to draw, and read it.
 
@@ -123,38 +121,38 @@ tree3.fit(X_train, y_train)
 plt.figure(figsize=(16, 8))
 plot_tree(tree3, feature_names=features, filled=True, rounded=True,
           impurity=False, fontsize=9)
-plt.title("A regression tree of depth 3 (leaf value = predicted median home value)")
+plt.title("A regression tree of depth 3 (leaf value = predicted net financial assets)")
 plt.show()
 ```
 
-Read the tree from the top. The very first question it asks is whether the block's median income is above or below 5.03 (income is in tens of thousands of dollars, so this is about \$50,300). That single split does more to separate cheap blocks from expensive ones than any other it could have made, which is why the tree chose it first. The next questions are mostly about income again, with the average number of rooms (`AveRooms`) and the crowding of the homes (`AveOccup`) deciding the finer splits. Follow any path down to a leaf and you reach a predicted value, and those values climb steadily with income, from a little over 1.0 in the poorest boxes to about 4.7 in the richest. The tree has rediscovered, with no equation, the same fact a regression would: in 1990 California, income tracks home value closely.
+Read the tree from the top. The very first question it asks is whether the household owns an IRA (`pira`): owning one separates committed savers from everyone else more sharply than any other single cut, which is why the tree chose it first. From there the splits are mostly about income, with age deciding some of the finer ones. Follow any path down to a leaf and you reach a predicted value, and those values climb steeply: from a few thousand dollars in the leaves of low-income non-savers up into the hundreds of thousands for older, high-income IRA owners. The tree has rediscovered, with no equation, what a regression would also find: savings track income, age, and whether a household already holds retirement accounts.
 
 ```{python}
-print(f"Depth-3 tree test MSE: {mean_squared_error(y_test, tree3.predict(X_test)):.4f}")
+print(f"Depth-3 tree test MSE: {mean_squared_error(y_test, tree3.predict(X_test)):.1f}")
 ```
 
-This little tree already beats predicting the mean by a wide margin, though it is still well short of KNN. It is also easy to read, which is part of why trees are popular. But the depth-3 limit was ours to impose. What happens if we let the tree grow as deep as it likes?
+This little tree already beats predicting the mean, though it is still short of KNN. It is also easy to read, which is part of why trees are popular. But the depth-3 limit was ours to impose. What happens if we let the tree grow as deep as it likes?
 
 ## 4. Trees overfit
 
-If we remove the depth limit, the tree keeps splitting until it can split no more, in the limit isolating nearly one training block per leaf.
+If we remove the depth limit, the tree keeps splitting until it can split no more, in the limit isolating nearly one training household per leaf.
 
 ```{python}
 deep_tree = DecisionTreeRegressor(random_state=RANDOM_STATE)  # no depth limit
 deep_tree.fit(X_train, y_train)
 
 print(f"Deep tree depth        : {deep_tree.get_depth()}")
-print(f"Deep tree training MSE : {mean_squared_error(y_train, deep_tree.predict(X_train)):.4f}")
-print(f"Deep tree test MSE     : {mean_squared_error(y_test, deep_tree.predict(X_test)):.4f}")
+print(f"Deep tree training MSE : {mean_squared_error(y_train, deep_tree.predict(X_train)):.1f}")
+print(f"Deep tree test MSE     : {mean_squared_error(y_test, deep_tree.predict(X_test)):.1f}")
 ```
 
-The tree grew 34 levels deep, and its training MSE is exactly zero. It has put almost every training block in a leaf of its own and reads the value straight back, so on the training data it is never wrong. We have seen this failure twice already: it is the $k=1$ nearest-neighbour problem from Notebook 1 and the too-many-coefficients problem from Notebook 2, just in tree form. And the consequence is the same. The test MSE, about 0.53, is *worse* than the depth-3 tree and worse than KNN. A tree deep enough to memorise the training blocks carries none of that memorisation over to new ones.
+The tree grew dozens of levels deep, and its training MSE is essentially zero. It has put almost every training household in a leaf of its own and reads the value straight back, so on the training data it is never wrong. We have seen this failure twice already: it is the $k=1$ nearest-neighbour problem from Notebook 1 and the too-many-coefficients problem from Notebook 2, just in tree form. And the consequence is the same. The test MSE, about 4740, is *worse* than the depth-3 tree, worse than KNN, and worse even than predicting the mean. A tree deep enough to memorise the training households carries none of that memorisation over to new ones.
 
 So `max_depth` is the tree's flexibility parameter, playing exactly the role that $k$ played for KNN and $\lambda$ played for ridge and lasso. A shallow tree is rigid and high-bias; a deep tree is flexible and high-variance. Somewhere in between is the depth that predicts best.
 
 ## 5. Choosing the depth
 
-We find that depth the same way we found $k$ in Notebook 1: sweep it and watch both errors.
+We find that depth the same way we found $k$ in Notebook 1: plot it and watch both errors.
 
 ```{python}
 depths = range(1, 21)
@@ -164,9 +162,13 @@ for d in depths:
     train_errors.append(mean_squared_error(y_train, t.predict(X_train)))
     test_errors.append(mean_squared_error(y_test, t.predict(X_test)))
 
+best_depth_by_test = list(depths)[int(np.argmin(test_errors))]
+
 plt.figure(figsize=(9, 6))
 plt.plot(list(depths), train_errors, label="training MSE")
 plt.plot(list(depths), test_errors, label="test MSE")
+plt.axvline(best_depth_by_test, color="black", linestyle="--",
+            label=f"lowest test MSE at depth = {best_depth_by_test}")
 plt.xlabel("max_depth")
 plt.ylabel("mean squared error")
 plt.title("The bias-variance tradeoff for a tree: depth is the flexibility knob")
@@ -174,7 +176,7 @@ plt.legend()
 plt.show()
 ```
 
-It is the same picture as Notebook 1, drawn against depth instead of $k$. Training MSE falls all the way to zero as the tree is allowed to grow, because a deeper tree can always cut the training data more finely. Test MSE is U-shaped: too shallow and the tree is too rigid to capture the structure, too deep and it fits noise, and the bottom of the U is the depth we want.
+It is the same picture as Notebook 1, drawn against depth instead of $k$, though on a single split the bowl is shallow and a little jagged rather than a clean symmetric U. Training MSE falls steadily toward zero as the tree grows, because a deeper tree can always cut the training data more finely. Test MSE traces the bias-variance bowl: shallow trees (depth 1 to 3) are too rigid and sit a little high, the error bottoms out across a flat, noisy stretch from roughly depth 4 to 7, and beyond depth 8 it climbs steadily as the tree fits noise. The dashed line marks the lowest test error here, at depth 4, but several neighbouring depths are within noise of it. That flat, wiggly bottom is exactly why we do not pick the depth by eye, and turn to cross-validation instead.
 
 We choose it with cross-validation, never touching the test set, exactly as before.
 
@@ -193,31 +195,64 @@ tree_best = DecisionTreeRegressor(max_depth=best_depth, random_state=RANDOM_STAT
 tree_mse = mean_squared_error(y_test, tree_best.predict(X_test))
 
 print(f"Cross-validation chose max_depth = {best_depth}")
-print(f"Tuned single-tree test MSE: {tree_mse:.4f}")
+print(f"Tuned single-tree test MSE: {tree_mse:.1f}")
 ```
 
-Cross-validation settles on a depth of 9, and the tuned tree scores about 0.40 on the test set, a hair better than KNN's 0.41. A single well-chosen tree is already a competitive predictor. You ran the same four steps as in Notebook 1: split off a test set, cross-validate on the training data to choose the parameter, pick the best value, and evaluate once on the sealed test set.
+Cross-validation settles on a shallow depth, and the tuned tree scores just behind KNN, close enough that a single well-chosen tree is already a competitive predictor. You ran the same four steps as in Notebook 1: split off a test set, cross-validate on the training data to choose the parameter, pick the best value, and evaluate once on the sealed test set.
 
-The trouble is that even the best single tree is a high-variance object. Shift a few training blocks and the greedy search can pick a different first split, and the whole tree below it rearranges. We can do much better by not trusting any one tree.
+The trouble is that even the best single tree is a high-variance object. Shift a few training households and the greedy search can pick a different first split, and the whole tree below it rearranges. We can see that instability directly. Below we pick five test households spanning low to high savings, and ask forty single trees, each fit to a different bootstrap resample of the training data, to predict each one. **Bootstrapping**: drawing, with replacement, many resamples of the training data the same size as the original (you may have seen this concept in ECON 226 and 326). Every grey dot is one tree's guess; the red mark is the forest's single answer.
+
+```{python}
+forest_demo = RandomForestRegressor(n_estimators=300, random_state=RANDOM_STATE, n_jobs=-1)
+forest_demo.fit(X_train, y_train)
+
+# Five test households spanning low to high predicted savings.
+order = np.argsort(forest_demo.predict(X_test))
+picks = [order[int(q * (len(order) - 1))] for q in [0.2, 0.4, 0.6, 0.8, 0.9]]
+X_pick = X_test.iloc[picks]
+
+# Ask forty single trees, each fit to its own bootstrap resample, about each household.
+rng = np.random.default_rng(0)
+tree_guesses = np.array([
+    DecisionTreeRegressor(random_state=RANDOM_STATE).fit(X_train.iloc[idx], y_train[idx]).predict(X_pick)
+    for idx in (rng.integers(0, len(X_train), len(X_train)) for _ in range(40))
+])
+
+plt.figure(figsize=(9, 6))
+for j in range(len(picks)):
+    xj = (j + 1) + rng.uniform(-0.18, 0.18, len(tree_guesses))
+    plt.scatter(xj, tree_guesses[:, j], s=14, alpha=0.4, color="grey",
+                label="single trees (one dot per tree)" if j == 0 else None)
+plt.scatter(range(1, len(picks) + 1), forest_demo.predict(X_pick), color="tab:red",
+            s=160, marker="_", linewidth=3, zorder=5, label="random forest")
+plt.xticks(range(1, len(picks) + 1), [f"household {i+1}" for i in range(len(picks))])
+plt.ylim(-40, 180)
+plt.ylabel("predicted net financial assets ($1,000s)")
+plt.title("Ask 40 single trees about one household and they scatter; the forest gives one steady answer")
+plt.legend()
+plt.show()
+```
+
+For any one household the grey dots are spread all over: ask a different resample and a single tree shifts its answer by tens of thousands of dollars. The red mark is the forest, the average of trees just like these, and it sits as one steady prediction in the middle of the scatter. The spread grows for the higher-saving households on the right, where a few extreme outcomes make any single tree especially jumpy. That instability is the whole idea of the next section.
 
 ## 6. From one tree to a forest
 
-A single deep tree has low bias and high variance: it captures fine structure, but its predictions swing a lot when the training data changes. The cure for high variance is averaging. If we had many trees, each fit to a slightly different sample, their individual errors would partly cancel when we averaged their predictions, while the structure they agree on would survive.
+A single deep tree has low bias and high variance: it captures fine structure, but its predictions swing a lot when the training data changes, exactly as the grey dots showed. The cure for high variance is averaging. If we had many trees, each fit to a slightly different sample, their individual errors would partly cancel when we averaged their predictions, while the structure they agree on would survive.
 
-We do not have many samples, but we can manufacture them by **bootstrapping**: drawing, with replacement, many resamples of the training data the same size as the original (you may have seen this concept in Econ 226 and 326). We fit a deep tree to each resample and average their predictions. This is called **bagging**, short for bootstrap aggregating, and it keeps the low bias of deep trees while cutting their variance.
+We do not have many samples, but we can manufacture them by **bootstrapping**. We fit a deep tree to each resample and average their predictions. This is called **bagging**, short for bootstrap aggregating, and it keeps the low bias of deep trees while cutting their variance.
 
-A **random forest** adds one more idea. At each split, each tree is allowed to consider only a random handful of the features, not all eight. This stops every tree from opening with the same income split and makes the trees less alike, so their errors cancel more thoroughly when averaged. The cost is a touch more bias per tree; the payoff is a large drop in variance.
+A **random forest** adds one more idea. At each split, each tree is allowed to consider only a random handful of the features, not all ten. This stops every tree from opening with the same IRA split and makes the trees less alike, so their errors cancel more thoroughly when averaged. The cost is a touch more bias per tree; the payoff is a further drop in variance.
 
 ```{python}
 forest = RandomForestRegressor(n_estimators=300, random_state=RANDOM_STATE, n_jobs=-1)
 forest.fit(X_train, y_train)
 
-print(f"Random forest training MSE: {mean_squared_error(y_train, forest.predict(X_train)):.4f}")
-print(f"Random forest test MSE    : {mean_squared_error(y_test, forest.predict(X_test)):.4f}")
 forest_mse = mean_squared_error(y_test, forest.predict(X_test))
+print(f"Random forest training MSE: {mean_squared_error(y_train, forest.predict(X_train)):.1f}")
+print(f"Random forest test MSE    : {forest_mse:.1f}")
 ```
 
-The forest scores about 0.25 on the test set, comfortably below the tuned single tree's 0.40 and KNN's 0.41, and less than half the error of the overfit deep tree from section 4. Notice the training MSE: it is small but not zero, even though each individual tree in the forest still memorises its own bootstrap sample. Averaging across 300 trees pulls the ensemble back from memorisation, and that is exactly why the forest generalizes where a single deep tree did not.
+The forest scores about 2838 on the test set. Notice the training MSE: it is far from zero, even though each individual tree in the forest still memorises its own bootstrap sample. Averaging across 300 trees pulls the ensemble back from memorisation, and that is exactly why the forest generalizes where a single deep tree did not. On this data the forest lands in the same neighbourhood as the tuned tree and KNN rather, a point we come back to in section 8: when an outcome is as noisy as household savings, no method works magically, and the flexible ones cluster together.
 
 A forest cannot be drawn as one readable diagram, but it can tell us how much each feature contributed to reducing MSE across all the splits in all the trees. This is called **feature importance**.
 
@@ -231,52 +266,82 @@ plt.title("Random forest feature importances")
 plt.show()
 ```
 
-Median income is far and away the most useful feature, followed by `AveOccup` and the two location variables. This matches what we read off the single tree, where income was the first split. It is a useful diagnostic, and it is a *predictive* one. Hold that thought: in section 8 we will see why this ranking is not a statement about causes.
+Income is far and away the most useful feature, followed by age and owning an IRA. This matches what we read off the single tree. Look where `e401`, the eligibility variable this whole stream is building toward, lands: near the very bottom, barely used by the forest at all. It is a useful diagnostic, and it is a *predictive* one. Hold that thought, because in section 8 the near-uselessness of `e401` for prediction turns out to say nothing about its effect.
 
 ## 7. Boosting
 
 Bagging and forests build many trees in parallel and average them. **Boosting** builds trees in sequence. The first tree makes its predictions, and the next tree is fit not to the outcome but to the errors the first one left behind, so it spends its effort on the cases the ensemble is getting wrong. Add a third tree fit to what the first two still miss, and so on for many rounds. The trees are kept deliberately shallow, because each one only has to nudge the running prediction a little.
+
+We can watch the running prediction build up. Below we boost on income alone so we can draw it, and plot the ensemble's fit after 1 round, after 5, and after 50.
+
+```{python}
+inc1 = X_train[["inc"]]
+inc_grid = pd.DataFrame({"inc": np.linspace(inc1["inc"].min(), inc1["inc"].max(), 200)})
+
+gb = GradientBoostingRegressor(n_estimators=200, max_depth=2, random_state=RANDOM_STATE)
+gb.fit(inc1, y_train)
+stage_preds = list(gb.staged_predict(inc_grid))
+
+plt.figure(figsize=(9, 6))
+plt.scatter(inc1["inc"], y_train, s=8, alpha=0.1, color="grey")
+for n in [1, 10, 100]:
+    plt.plot(inc_grid["inc"], stage_preds[n - 1], linewidth=2, label=f"{n} round(s)")
+plt.ylim(-10, 120)
+plt.xlabel("income ($1,000s)")
+plt.ylabel("predicted net financial assets ($1,000s)")
+plt.title("Boosting builds up: each round fits the errors the last ones left")
+plt.legend()
+plt.show()
+```
+
+After one round the fit is a crude step. After ten  it has bent toward the data. After one hundred it traces the income-savings relationship closely, having spent each new tree on whatever the running total still got wrong. Now we fit the full boosted model on all ten features.
 
 ```{python}
 boosted = GradientBoostingRegressor(random_state=RANDOM_STATE)
 boosted.fit(X_train, y_train)
 boosted_mse = mean_squared_error(y_test, boosted.predict(X_test))
 
-print(f"Gradient boosting test MSE: {boosted_mse:.4f}")
+print(f"Gradient boosting test MSE: {boosted_mse:.1f}")
 ```
 
-Out of the box, boosting scores about 0.29, between the tuned single tree and the forest, and with some tuning it often edges ahead of the forest. The point for us is not which tree ensemble wins by a few percent, but that both bagging and boosting take the simple overfitting tree from section 4 and turn it into one of the strongest predictors we have built.
+Out of the box, boosting is the best predictor we have built on this data, a touch ahead of KNN and the forest. The gap is small, and it would move around with some fine tuning; the point for us is not which tree ensemble wins by a few percent, but that both bagging and boosting take the overfitting tree from section 4 and turn it into a solid predictor. In practice the boosting idea is taken further by libraries like XGBoost and LightGBM, which are among the most reliable predictors in everyday use, but the mechanism is the one we just drew.
 
-We stop at tree ensembles. Neural networks are another flexible predictor, if you wish to read more about them [In this notebook](https://ubcecon.github.io/praxis-ubc/docs/intro_to_deep_learning/intro_to_fundamental_ML.html).
+We stop at tree ensembles. Neural networks are another flexible predictor, if you wish to read more about them [in this notebook](https://ubcecon.github.io/praxis-ubc/docs/intro_to_deep_learning/intro_to_fundamental_ML.html).
 
-## 8. So have we found the effect of an extra room?
+## 8. So have we found the effect of 401(k) eligibility?
 
 Let us line up every model we have fit on this same split.
 
 ```{python}
 results = pd.DataFrame({
-    "model": ["Predict the mean", "KNN (k=12)", "Single tree (depth 9)",
-              "Gradient boosting", "Random forest"],
-    "test MSE": [baseline_mse, knn_mse, tree_mse, boosted_mse, forest_mse],
+    "model": ["Predict the mean", "KNN (k=15)", "Single tree (tuned)",
+              "Random forest", "Gradient boosting"],
+    "test MSE": [baseline_mse, knn_mse, tree_mse, forest_mse, boosted_mse],
 })
-print(results.round(4).to_string(index=False))
+print(results.round(1).to_string(index=False))
 ```
 
-The random forest is our winner, cutting the test error of our Notebook 1 KNN model by nearly 40%. So we now have an excellent predictor of California home values. Time for the question this stream keeps returning to:
+The flexible methods all beat the baseline and land close together, with boosting a nose ahead. So we now have a decent predictor of household savings. Time for the question this stream keeps returning to:
 
-> Does the forest tell us the **effect** of one extra room on a block's value?
+> Does any of these models tell us the **effect** of 401(k) eligibility on a household's savings?
 
 **No**, and the reasons are the same three as in Notebook 1, sharpened by what trees and forests actually do.
 
-1. **The splits chase prediction, not cause.** The tree opened on income because income predicts value well, not because we showed that income causes value. The forest leans on whatever features cut the error, including features that merely travel alongside the thing we might care about. Predictive usefulness and causal relevance are different properties, and the forest only ever optimises the first.
-2. **Feature importance is not a causal effect.** The importance plot told us income was the most useful feature for prediction. It did not tell us that raising a block's income by a dollar would raise its value by any particular amount, and it said nothing at all about the effect of an extra room. Worse, importances are confounded and unstable: add or drop a correlated feature and the rankings shift, because the forest reshuffles which variable it uses to make a given cut.
-3. **No counterfactual.** A forest predicts the value of blocks that resemble blocks it has seen. It never imagines *this* block with one more room and everything else held fixed. That counterfactual is the causal question, and no predictor, however accurate, answers it.
+1. **The splits chase prediction, not cause.** The tree opened on owning an IRA because that predicts savings well, not because we showed that owning an IRA causes savings. The forest leans on whatever features cut the error, including features that merely travel alongside the thing we care about. Predictive usefulness and causal relevance are different properties, and the forest only ever optimises the first.
+2. **Feature importance is not a causal effect.** The importance plot put `e401` near the bottom: eligibility is almost useless for *predicting* a household's savings, because eligible and ineligible households already look so different that knowing eligibility adds little once income, age, and IRA ownership are in hand. But "useless for prediction" is not "no effect." In Notebook 1 we built a world where eligibility had a real, positive effect that a naive comparison still got wrong, and the public-economics literature finds a real effect too. A low importance and a real effect are entirely compatible, because importance answers a prediction question and effect answers a causal one.
+3. **No counterfactual.** A forest predicts the savings of households that resemble households it has seen. It never imagines *this* household made eligible, with everything else held fixed. That counterfactual is the causal question, and no predictor, however accurate, answers it.
 
-Prediction is one job; causal estimation is another. Notebook 4 makes the turn from one to the other and explains what identifying a treatment effect actually requires. And the random forest does come back later, in a causal disguise: Notebook 8's **causal forest** reuses this same averaging idea, re-aimed from predicting an outcome to estimating how a treatment effect varies across units.
+Prediction is one job; causal estimation is another. Notebook 4 makes the turn from one to the other and explains what identifying a treatment effect actually requires.
+
+::: {.callout-note}
+## Its causal future
+
+The random forest comes back later in a causal disguise. Notebook 8's **causal forest** reuses this exact averaging idea, re-aimed from predicting an outcome to estimating how a treatment effect varies from one household to the next. The machinery is the same; only the target changes.
+:::
 
 ## Connections
 
-- **Back:** Notebook 1 of this stream, on the very same California data and split. There KNN set the bar at a test MSE of 0.41; a tuned tree matched it and a forest cut it roughly in half, using a kind of flexibility that owes nothing to distance. Notebook 2's ridge and lasso were flexible *linear* models; trees are flexible without being linear, which is why they beat the linear fit on this data.
+- **Back:** Notebook 1 of this stream, on the very same 401(k) data and split. There KNN set the bar at a test MSE of about 2654; a tuned tree matched it and the ensembles edged past it, using a kind of flexibility that owes nothing to distance. Notebook 2's ridge and lasso were flexible *linear* models; trees are flexible without being linear.
 - **Forward to Notebook 4:** we now hold three prediction tools and still cannot answer a causal question with any of them. Notebook 4 explains why, and what identification asks for that prediction does not.
 - **Forward to Notebook 8:** the random forest returns as the **causal forest**, the same ensemble of trees turned toward estimating treatment-effect heterogeneity.
 
@@ -286,6 +351,6 @@ Prediction is one job; causal estimation is another. Notebook 4 makes the turn f
 - Breiman, L. (1996). *Bagging predictors.* Machine Learning, 24(2), 123-140.
 - Breiman, L. (2001). *Random forests.* Machine Learning, 45(1), 5-32.
 - Friedman, J. H. (2001). *Greedy function approximation: a gradient boosting machine.* Annals of Statistics, 29(5), 1189-1232.
-- Pace, R. K., & Barry, R. (1997). *Sparse spatial autoregressions.* Statistics & Probability Letters, 33(3), 291-297. The source of the California housing dataset.
+- Chernozhukov, V., Hansen, C., & Spindler, M. (2016). *hdm: High-dimensional metrics.* R Journal, 8(2), 185-199. The source of the 401(k) dataset.
 
 ---

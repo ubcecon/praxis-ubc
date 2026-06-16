@@ -119,6 +119,22 @@ print(f"Predict-the-mean test MSE: {baseline_mse:.5f}")
 
 The training $R^2$ is essentially 1 and the training MSE is essentially 0: OLS fits the countries it was trained on almost perfectly. But the test MSE is about ten times larger than what we would get by ignoring every covariate and just predicting the average growth rate. A model with 61 controls does worse than a model with none. This is Notebook 1's overfitting, the $k=1$ nearest-neighbour problem, just in a different costume: with so little room to spare, OLS fits the noise in the training countries and carries none of it over to new ones.
 
+We can see the symptom directly in the coefficients OLS chose.
+
+```{python}
+ols_coefs = pd.Series(ols[-1].coef_, index=X.columns)
+
+plt.figure(figsize=(9, 6))
+plt.bar(range(len(ols_coefs)), ols_coefs.values, color="tab:red")
+plt.axhline(0, color="black", linewidth=0.8)
+plt.xlabel("covariate (one bar each)")
+plt.ylabel("OLS coefficient (standardized features)")
+plt.title("OLS coefficients run wild")
+plt.show()
+```
+
+The growth outcome is a small number (an annual rate of a few percent), yet some of these coefficients reach into the tens. OLS is throwing large positive and negative weights at correlated covariates so that they nearly cancel on the training countries, which is exactly how it drives training error to zero with no room to spare. Those huge offsetting weights are what fall apart on new countries. Ridge and lasso, next, are nothing more than a way to forbid this.
+
 We cannot drop covariates by hand without knowing which ones matter, and we do not want to throw away information. The fix is to keep all 61 covariates but stop their coefficients from running wild. That is regularization.
 
 ## 4. Ridge regression
@@ -157,6 +173,25 @@ plt.show()
 ```
 
 On the left, where $\lambda$ is small, the coefficients are large and spread out: this is the unstable OLS fit. As we move right and the penalty grows, every line drifts smoothly toward zero. Nothing ever becomes exactly zero, it just gets smaller. The penalty is buying us stability: by refusing to let any coefficient grow large, ridge trades a little bias for a large reduction in variance, which is the bias-variance tradeoff from Notebook 1 seen through a different knob.
+
+In a live session you can feel the penalty work. Drag $\lambda$ below and watch the wild OLS coefficients on the left collapse toward zero as the penalty tightens.
+
+```{python}
+from ipywidgets import interact, FloatLogSlider
+
+def show_ridge(lam):
+    c = Ridge(alpha=lam).fit(X_train_s, y_train).coef_
+    plt.figure(figsize=(9, 5))
+    plt.bar(range(len(c)), c, color="tab:purple")
+    plt.axhline(0, color="black", linewidth=0.8)
+    plt.ylim(-25, 25)
+    plt.xlabel("covariate")
+    plt.ylabel("coefficient")
+    plt.title(f"Ridge at lambda = {lam:.2g}: largest coefficient = {np.abs(c).max():.3f}")
+    plt.show()
+
+interact(show_ridge, lam=FloatLogSlider(value=1e-6, base=10, min=-6, max=-2, step=0.2));
+```
 
 We still have to choose $\lambda$. As in Notebook 1 we let cross-validation do it, which `RidgeCV` runs for us over a grid of candidates.
 
@@ -247,6 +282,27 @@ Both methods solve the problem from section 3, and both will beat OLS by a wide 
 
 Ridge is the better choice when you believe most covariates contribute a little and you mainly want stability, especially when predictors are correlated and OLS cannot tell them apart. Lasso is the better choice when you believe only a few covariates matter and you want a short, interpretable model. The one-line intuition for the difference is geometric: the absolute-value penalty has sharp corners at zero, and those corners are exactly where coefficients get pinned to zero, while the smooth bowl of the squared penalty has no corners to catch them.
 
+Putting the two fitted coefficient vectors side by side makes the difference concrete.
+
+```{python}
+ridge_c = pd.Series(ridge[-1].coef_, index=X.columns)
+lasso_c = pd.Series(lasso[-1].coef_, index=X.columns)
+order = ridge_c.abs().sort_values().index
+
+fig, ax = plt.subplots(1, 2, figsize=(11, 8), sharey=True)
+ax[0].barh(range(len(order)), ridge_c[order].values, color="tab:blue")
+ax[0].set_title("Ridge: all 61 kept, all shrunk")
+ax[1].barh(range(len(order)), lasso_c[order].values, color="tab:green")
+ax[1].set_title("Lasso: most are exactly zero")
+for a in ax:
+    a.axvline(0, color="black", linewidth=0.8)
+    a.set_yticks([])
+ax[0].set_ylabel("the 61 covariates")
+plt.show()
+```
+
+Ridge fills both columns: every covariate keeps a small nonzero weight. Lasso leaves most of its bars at exactly zero and spends real weight on only a handful, which is variable selection drawn as a picture.
+
 ## 7. Choosing $\lambda$ by cross-validation
 
 We leaned on `RidgeCV` and `LassoCV` above without dwelling on what they do, so let us make it explicit, because it is the same discipline as Notebook 1. To choose $\lambda$ we never touch the test set. Instead we split the **training** data into folds, fit at each candidate $\lambda$ on most of the folds, score on the held-out fold, and average. `LassoCV` keeps the whole grid of scores, so we can plot the cross-validation curve and see the choice it made.
@@ -282,12 +338,18 @@ results = pd.DataFrame({
 print(results.round(5).to_string(index=False))
 ```
 
-OLS is far worse than predicting the mean. Ridge and lasso are both about ten times better than OLS and clearly beat the baseline, with very similar test error, lasso doing it with 14 variables and ridge with all 61. You have run the same recipe as Notebook 1:
+OLS is far worse than predicting the mean. Ridge and lasso are both about ten times better than OLS and clearly beat the baseline, with very similar test error, lasso doing it with 14 variables and ridge with all 61. You have run the same recipe as Notebook 1, with $\lambda$ in the role $k$ played there.
+
+::: {.callout-note}
+## The standard machine-learning recipe
+
+Every later notebook in this stream reuses these four steps:
 
 1. **Split** off a test set and seal it away.
-2. **Cross-validate** on the training data to choose the hyperparameter, here $\lambda$.
-3. **Pick** the $\lambda$ with the best CV score.
+2. **Cross-validate** on the training data to choose the hyperparameter.
+3. **Pick** the hyperparameter with the best CV score.
 4. **Evaluate once** on the sealed test set.
+:::
 
 ## 8. So have we found the effect of initial wealth on growth?
 
@@ -299,6 +361,12 @@ Lasso handed us a short list of variables, and `gdpsh465`, the country's initial
 2. **Selecting controls and then reading off a coefficient is biased.** We let lasso choose which controls to keep based on how well they predict growth. But a variable can be a weak predictor of growth and still be essential for *de-confounding* initial wealth, and lasso will happily drop exactly such a variable. Choosing controls by predictive strength and then trusting the treatment coefficient is a known trap, and it has a known fix.
 
 That fix is **post-double-selection lasso**, and it is the subject of Notebook 5. The gap between "lasso picked these variables" and "this is the causal effect" is the gap between prediction and identification, which Notebook 4 sets up in full. Prediction is one job; causal estimation is another.
+
+::: {.callout-note}
+## Its causal future
+
+Lasso's gift, handing us a short list of variables that matter, is exactly what tempts us to misuse it for causal work. Notebook 5's **post-double-selection lasso** keeps the variable-selection machinery but runs it twice, once for the outcome and once for the treatment, precisely to avoid the trap section 8 just described. The prediction tool becomes a causal tool only after that repair.
+:::
 
 ## Connections
 
