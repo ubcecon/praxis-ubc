@@ -25,7 +25,6 @@ RUN rm -f ./docs/SOCI-415/soci_415_network_analysis.qmd \
     ./docs/OCR/ocr_notebook.qmd \
     ./docs/image_analysis/image_analysis.qmd \
     ./docs/CTree_CEA/political_economy.qmd \
-    ./docs/CTree_CEA/llm_distributions.qmd \
     ./docs/1_Getting_Started/getting_started_intro_to_data/getting_started_intro_to_data2.qmd \
     ./docs/1_Getting_Started/getting_started_intro_to_jupyter/getting_started_intro_to_jupyter.qmd \
     ./docs/1_Getting_Started/getting_started_intro_to_python/getting_started_intro_to_python.qmd \
@@ -132,7 +131,6 @@ RUN mkdir -p /app/output/docs && cd /app/docs && cp --parents \
     OCR/ocr_notebook.html \
     image_analysis/image_analysis.html \
     CTree_CEA/political_economy.html \
-    CTree_CEA/llm_distributions.html \
     1_Getting_Started/getting_started_intro_to_data/getting_started_intro_to_data2.html \
     1_Getting_Started/getting_started_intro_to_jupyter/getting_started_intro_to_jupyter.html \
     1_Getting_Started/getting_started_intro_to_python/getting_started_intro_to_python.html \

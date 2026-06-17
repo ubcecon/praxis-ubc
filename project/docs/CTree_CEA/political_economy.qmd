@@ -56,9 +56,8 @@ Install our libraries
 
 Load our libraries
 ```{python}
-import re, json, time, warnings
+import re, warnings
 warnings.filterwarnings("ignore")
-import urllib.request
 import numpy as np
 import pandas as pd
 import plotly.express as px
@@ -74,42 +73,14 @@ from nltk.corpus import stopwords
 
 ## 2 Load the Data
 
-We use the **Comparative Constitutions Project** (constituteproject.org), which provides English-language texts of every available national constitution. We use their public API. 
+The data comes from the **Comparative Constitutions Project** (constituteproject.org), which provides English-language texts of every available national constitution. We've pre-fetched the in-force constitutions to `datasets/constitutions.csv` so the notebook runs offline. The resulting dataframe has 4 columns: country, country_id, id and the **text** of the constitution.
 
 ::: callout-note
 All texts are English translations. Translation decisions bring their own set of biases; we need to keep this in mind when interpreting results.
 :::
 
-We load the .json data from the Comparative Constitutions Project API and print the number of constitutions. 
 ```{python}
-def fetch_json(url):
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-    return json.loads(urllib.request.urlopen(req).read())
-
-constitutions = fetch_json("https://www.constituteproject.org/service/constitutions?lang=en")
-in_force = [c for c in constitutions if c.get("in_force")]
-print(f"Number of Constitutions: {len(in_force)}")
-```
-
-For each constitution, we fetch the full HTML text from the API, strip the tags to get plain text, and collect everything into a DataFrame. To avoid overloading their server and respect their ratelimit we wait 0.3 seconds between calls. This cell will take a bit longer to run due to this. Our result is a dataframe made up of 4 variables: country, country_id, id and the **text** which represents the full text of the constitution. 
-
-```{python}
-rows = []
-for i, c in enumerate(in_force):
-    url = f"https://www.constituteproject.org/service/html?cons_id={c['id']}"
-    try:
-        data = fetch_json(url)
-        text = re.sub(r"<[^>]+>", " ", data["html"])
-        text = re.sub(r"\s+", " ", text).strip()
-        rows.append({"country": c["country"], "country_id": c["country_id"], "id": c["id"], "text": text})
-    except Exception:
-        pass
-    time.sleep(0.3)
-    if (i + 1) % 50 == 0:
-        print(f"Fetched {i + 1}/{len(in_force)}")
-
-df = pd.DataFrame(rows)
-print(f"Loaded {len(df)} constitutions")
+df = pd.read_csv("datasets/constitutions.csv")
 df.head()
 ```
 
@@ -289,6 +260,16 @@ results_df
 Cohen's d measures the size of the difference in standard deviations (values above 0.2 small, 0.5 medium, 0.8 large). The p-value tells us how likely we'd see a difference this large by chance if the two groups truly used the same language. Positive d values mean the word is closer to autocratic constitutions.
 
 The standout finding: "democracy," "equality," and "freedom" all show large effect sizes toward autocratic constitutions, with p-values small enough to suggest the difference is unlikely to be due to chance. This is in line with our hypothesis that autocratic constitutions more heavily lean on language around equality and human rights, which they then do not uphold. The only word which significantly leans towards democratic constitutions is "property," consistent with the emphasis on individual economic rights in democratic nations. With only 19 autocratic constitutions, statistical power is limited and individual constitutions have outsized influence -- so treat p-values as suggestive rather than definitive.
+
+::: callout-note
+## Check
+A word shows `cohens_d = 0.9` but `p_value = 0.5`, off just 19 autocratic constitutions. Reliable finding or not?
+:::
+
+::: {.callout-tip collapse="true"}
+## Answer
+No: big effect size, but p = 0.5 means a gap that size could easily be chance. With 19 documents one outlier can carry the whole result.
+:::
 
 ::: callout-tip
 ## Try It Yourself
