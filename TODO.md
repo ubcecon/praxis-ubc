@@ -1,5 +1,3 @@
-1. Add COMET notebook paths to launch_notebooks.html for individual launch buttons, line 5 var NOTEBOOKS = 
-
 2. Custom code highlighting (Dante)
 
 3. Hover-lift cards + custom listing thumbnails: When inside of a subdirectory like Soci-415 or pystata where the grid of notebooks lives on mouse-hover make them hover and be animated, adds a lot of polish

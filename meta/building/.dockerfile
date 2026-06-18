@@ -217,6 +217,11 @@ RUN mkdir -p /app/output/docs && cd /app/docs && cp --parents \
     && find /app/output -name '*.html' -exec \
     sed -i 's#<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>##g' {} +
 
+# Add the per-notebook launch button (chooses which notebooks get it via launch_notebook.html)
+COPY ./meta/building/launch_notebook.html /launch_notebook.html
+RUN find /app/output -name '*.html' -exec sh -c \
+    'for f; do grep -q "praxis-launch-notebook" "$f" || sed -i "/<body/r /launch_notebook.html" "$f"; done' sh {} +
+
 # Final Stage on lightweight linux
 FROM nginx:alpine
 COPY --from=builder /app/output /usr/share/nginx/html
