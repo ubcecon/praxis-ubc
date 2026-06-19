@@ -7,7 +7,6 @@ import json
 import re
 import sys
 
-
 # Pattern 1: figure blocks like ::: {#fig-x layout-ncol=2} ... :::
 # Group 1 is the attributes, group 2 is everything inside.
 FIGURE_BLOCK_RE = re.compile(
@@ -20,7 +19,6 @@ FIGURE_BLOCK_RE = re.compile(
 _IMAGE_RE = re.compile(r'!\[([^\]]*)\]\(([^)]*)\)')
 _IMAGE_RE_NESTED = re.compile(r'!\[(.*)\]\(([^)]*)\)')
 
-
 def _find_images(content):
     results = []
     for line in content.split('\n'):
@@ -32,16 +30,14 @@ def _find_images(content):
         results.extend(_IMAGE_RE.findall(line))
     return results
 
-
 _COLUMNS_OPEN_RE = re.compile(r'^(:::+)\s*\{\.columns[^}]*\}\s*$')
 _FENCE_RE = re.compile(r'^(:::+)(.*)$')
 
+_COLUMN_SEP = '\x00COLSEP\x00'
 
 def _merge_all_columns_blocks(text: str) -> str:
-    """Walk the cell line by line and handle each ::: {.columns} ... ::: block
-    on its own. We keep a running depth (a ::: with {attrs} opens one level, a
-    bare ::: closes one) so a cell with several column blocks doesn't get
-    swallowed by a single greedy match from the first opener to the last :::."""
+    # Process each .columns block separately using fence-depth tracking.
+    # Prevents multiple column blocks from being merged by a greedy match.
     lines = text.split('\n')
     out = []
     i = 0
@@ -64,10 +60,9 @@ def _merge_all_columns_blocks(text: str) -> str:
         i = j
     return '\n'.join(out)
 
-
 def _merge_columns_block(block_text: str) -> str:
-    """Rewrite one columns block as a {layout-ncol=N} figure block, where N is
-    how many .column children it had. The figure handler takes it from there."""
+    # Convert a .columns block into a figure block and preserve
+    # column boundaries with a sentinel for later processing.
     lines = block_text.split('\n')
     # first line is the .columns opener, last line is its matching closer
     inner_lines = lines[1:-1]
@@ -92,7 +87,7 @@ def _merge_columns_block(block_text: str) -> str:
     if not columns:
         return block_text
     ncol = len(columns)
-    body = '\n'.join(columns)
+    body = f'\n{_COLUMN_SEP}\n'.join(columns)
     return f'::: {{layout-ncol={ncol}}}\n{body}\n:::'
 
 
@@ -100,20 +95,33 @@ def _parse_ncol(attrs: str) -> int:
     m = re.search(r'layout-ncol=(\d+)', attrs)
     return int(m.group(1)) if m else 1
 
+def _split_columns(content: str, ncol: int) -> list[str]:
+    # Recover original column chunks using the sentinel inserted
+    # by _merge_columns_block; otherwise treat content as one column.
+    if _COLUMN_SEP in content:
+        return content.split(_COLUMN_SEP)
+    return [content]
+
 
 def _build_figure_html(attrs: str, content: str) -> str:
-    """Build the HTML table of images for one figure block."""
+    # Convert a figure block into an HTML table of images.
     ncol = _parse_ncol(attrs)
     if ncol == 1 and re.search(r'^\.column\b', attrs.strip()):
         return content.strip()
 
     images = _find_images(content)   # [(alt, src), ...]
+
+ # Split the content into per-column chunks so we can detect text-only columns.
+    col_chunks = _split_columns(content, ncol)
+    text_only = [c for c in col_chunks if not _find_images(c) and c.strip()]
+
     if not images:
         # Nothing to convert here, so hand the text back as-is and lose nothing.
-        return content.strip()
+        return content.replace(_COLUMN_SEP, '').strip()
+        # Marker used to preserve exact column boundaries after flattening.
 
     pct = int(100 / ncol)
-    if ncol > 1 and len(images) == ncol:
+    if ncol > 1 and len(images) == ncol and not text_only:
         headings = re.findall(r'^#{1,6}\s+(.+)$', content, re.MULTILINE)
         cells = ''.join(
             f'<td align="center" width="{pct}%">'
@@ -130,17 +138,19 @@ def _build_figure_html(attrs: str, content: str) -> str:
             for alt, src in images
         )
 
-    return (
+    table = (
         f'<table border="0" cellpadding="8" cellspacing="0" width="100%">\n'
         f'<tr>{cells}</tr>\n'
         f'</table>'
     )
-
-
+    if text_only:
+        trailing = '\n\n'.join(chunk.strip() for chunk in text_only)
+        return f'{table}\n\n{trailing}'
+    return table
+    
 # Pattern 2: images with trailing Quarto attributes like ![alt](src){width="50%"}.
 # Jupyter prints the {...} as literal text, so we just drop it.
 IMAGE_ATTR_RE = re.compile(r'(!\[[^\]]*\]\([^)]*\))\{[^}]*\}')
-
 
 def clean_images_in_notebook(ipynb_path: str):
     with open(ipynb_path, 'r', encoding='utf-8') as f:
@@ -188,7 +198,6 @@ def clean_images_in_notebook(ipynb_path: str):
         print(f"Saved: {ipynb_path}")
     else:
         print(f"No image syntax found: {ipynb_path}")
-
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
