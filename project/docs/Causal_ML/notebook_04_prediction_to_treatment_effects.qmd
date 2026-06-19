@@ -97,7 +97,35 @@ plt.legend()
 plt.show()
 ```
 
-The eligible group sits to the right: its income distribution is shifted rightwards. Some of the $19,600 gap is the effect of eligibility, and some comes from comparing richer households with poorer ones. The naive difference mixes the two together and cannot separate them. To say what we mean by "the effect" precisely enough to fix this, we need a small piece of vocabulary.
+The eligible group sits to the right: its income distribution is shifted rightwards. Some of the $19,600 gap is the effect of eligibility, and some comes from comparing richer households with poorer ones. The naive difference mixes the two together and cannot separate them.
+
+The household's characteristics $X$, its income, age, and the rest, influence both whether it is eligible and how much it saves. A variable that causes both the treatment and the outcome is a **confounder**, and it is what makes the naive comparison untrustworthy.
+
+```{python}
+fig, ax = plt.subplots(figsize=(7, 4.5))
+nodes = {"X": (0.5, 0.8), "D": (0.2, 0.2), "Y": (0.8, 0.2)}
+box = dict(boxstyle="circle,pad=0.45", fc="lightgrey", ec="black", lw=1.5)
+for name, (x, y) in nodes.items():
+    ax.text(x, y, name, ha="center", va="center", fontsize=15, fontweight="bold", bbox=box, zorder=3)
+
+def draw_arrow(start, end, color):
+    ax.annotate("", xy=nodes[end], xytext=nodes[start],
+                arrowprops=dict(arrowstyle="-|>", color=color, lw=2.2, shrinkA=22, shrinkB=22))
+
+draw_arrow("X", "D", "tab:red")
+draw_arrow("X", "Y", "tab:red")
+draw_arrow("D", "Y", "tab:green")
+ax.text(0.27, 0.52, "confounding", color="tab:red", ha="center", fontsize=11)
+ax.text(0.73, 0.52, "confounding", color="tab:red", ha="center", fontsize=11)
+ax.text(0.5, 0.13, "the effect we want", color="tab:green", ha="center", fontsize=11)
+ax.set_xlim(0, 1)
+ax.set_ylim(0, 1)
+ax.axis("off")
+ax.set_title("X is a common cause of eligibility (D) and savings (Y): a confounder")
+plt.show()
+```
+
+The arrow from $D$ to $Y$ is the effect we are after. The two red arrows out of $X$ are the problem: they open a second route by which eligible and ineligible households come to differ in savings, one that owes nothing to the $D \to Y$ arrow. To recover the effect we have to deal with $X$ somehow, and to say precisely what we mean by "the effect" we first need a small piece of vocabulary.
 
 ## 3. Potential outcomes
 
@@ -324,7 +352,22 @@ print(f"Naive single lasso : {naive_lasso:.2f}")
 print(f"Orthogonalized     : {orthogonal:.2f}")
 ```
 
-Orthogonalizing brings the estimate back to 1.07 which is far closer to 1. The bar chart lines up all three estimators against the effect we built in.
+We can look at that final regression directly. Each point below is one household, placed by how much of its eligibility and its savings are left unexplained by $X$. The slope of the line through them is the effect.
+
+```{python}
+plt.figure(figsize=(8, 5))
+plt.scatter(d_resid, y_resid, s=12, alpha=0.4, color="grey")
+grid = np.array([d_resid.min(), d_resid.max()])
+plt.plot(grid, orthogonal * grid, color="tab:green", linewidth=2,
+         label=f"slope = {orthogonal:.2f}")
+plt.xlabel("treatment residual (eligibility with X partialled out)")
+plt.ylabel("outcome residual (savings with X partialled out)")
+plt.title("With X partialled out of both, the leftover slope is the effect")
+plt.legend()
+plt.show()
+```
+
+Once $X$ is removed from both eligibility and savings, the part left over lines up along a slope of about 1, the effect we built in. Lining the three estimators up against the truth makes the comparison plain.
 
 ```{python}
 plt.figure(figsize=(8, 5))
