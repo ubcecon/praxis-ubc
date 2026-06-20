@@ -1,7 +1,7 @@
 ---
 title: "Regularization: Ridge and Lasso"
 author: Alex Ronczewski
-date: 2026-06-06
+date: 2026-06-19
 description: "The second notebook in the Causal ML stream. We meet the 'too many controls' problem, where ordinary least squares falls apart once the number of covariates approaches the number of observations, and we fix it with regularization: ridge and lasso, the coefficient path, and the idea that lasso selects variables."
 categories:
   - Python
@@ -30,7 +30,7 @@ format:
 
 ### Prerequisites
 
-- Notebook 1 of this stream: train/test splits, MSE, the bias-variance tradeoff, k-fold cross-validation, and the `Pipeline` idea
+- Notebook 1 of this stream: train/test splits, MSE, the bias-variance tradeoff, k-fold cross-validation, and the Machine Learning `Pipeline`
 - Multiple regression and OLS (COMET Intermediate: *Introduction to Regression*, *Multiple Regression*)
 - Comfort with `pandas` and basic Python at the COMET-intermediate level
 
@@ -44,7 +44,7 @@ By the end of this notebook you will be able to:
 4. Read a **coefficient path** and describe how the coefficients shrink as $\lambda$ grows.
 5. Fit a **lasso** regression and articulate why **lasso = variable selection**.
 6. Say when you would use ridge versus lasso.
-7. Choose $\lambda$ by cross-validation, reusing the discipline from Notebook 1.
+7. Choose $\lambda$ by cross-validation, reusing the method learned in Notebook 1.
 8. Explain why a lasso-selected coefficient is **not** yet a causal effect.
 
 ```{python}
@@ -63,15 +63,15 @@ RANDOM_STATE = 42  # fix randomness so splits and folds are reproducible
 
 ## 1. The problem: too many controls
 
-In Notebook 1 we learned that flexibility is a double-edged sword: the more freedom we give a model, the better it fits the data in front of it and the worse it can do on data it has not seen. KNN made that easy to see by setting one hyperparameter, $k$. This notebook pushes the same idea to its breaking point with a tool you already know, ordinary least squares.
+In Notebook 1 we learned that flexibility is a double-edged sword: the more freedom we give a model, the better it fits the data in front of it and the worse it can do on data it has not seen. KNN made that easy to see by setting one hyperparameter, $k$. This notebook pushes the same idea to its breaking point with a tool you have already learned, ordinary least squares.
 
-OLS has a hyperparameter we can set too, though we rarely think of it that way: the number of regressors. Each control we add gives the model one more degree of freedom to bend toward the data. Add enough of them and the model can fit the training sample perfectly while learning nothing that transfers. The extreme case is when we have almost as many controls as observations, which is exactly the situation economists land in whenever they want to "control for everything."
+OLS has a hyperparameter we can set too, though we rarely think of it that way: the number of regressors. Each control we add gives the model one more degree of freedom to bend toward the data. Add enough of them and the model can fit the training sample perfectly while learning nothing that transfers. The extreme case is when we have almost as many controls as observations, which is what happens when you want to "control for everything."
 
 The question for this notebook is what to do when that happens. We will watch OLS fail on a real dataset, and then meet two ways to rescue it, **ridge** and **lasso**, both built on a single idea: stop the coefficients from growing without limit.
 
 ## 2. The data
 
-We will use the **Barro-Lee growth data**, a standard dataset in the study of economic growth. Each row is a country. The outcome is `Outcome`, the country's average annual growth rate of GDP per capita over the period. The variable `gdpsh465` is the log of GDP per capita at the start of the period (1965), and the remaining columns are country characteristics measured around the same time: schooling and education rates, government spending, trade and market openness, political stability, and demographics. They carry terse codes from the original study, but the codes are systematic: a trailing `65` means the variable was measured in 1965, a trailing `m` or `f` marks male or female, and a schooling prefix marks the level, `p` for primary, `s` for secondary, `h` or `high` for higher, `no` for none, with `human` an average-years-of-schooling measure. So `pf65` is female primary schooling in 1965, `highm65` is male higher schooling, and `humanm65` is average male schooling. We will not need to decode every one; the point is that there are a lot of them.
+We will use the **Barro-Lee growth data**, a standard dataset in the study of economic growth. Each row is a country. The outcome is `Outcome`, the country's average annual growth rate of GDP per capita over the period. The variable `gdpsh465` is the log of GDP per capita at the start of the period (1965), and the remaining columns are country characteristics measured around the same time: schooling and education rates, government spending, trade and market openness, political stability, and various other demographics. They variables have special codes: `65` means the variable was measured in 1965, a trailing `m` or `f` marks male or female, and a schooling prefix marks the level, `p` for primary, `s` for secondary, `h` or `high` for higher, `no` for none. `human` is an average-years-of-schooling measure. So `pf65` is female primary schooling in 1965, `highm65` is male higher schooling, and `humanm65` is average male schooling.
 
 ```{python}
 growth = pd.read_csv("datasets/GrowthData.csv")
@@ -85,9 +85,9 @@ print("Covariates:", X.shape[1])
 X.iloc[:5, :6]
 ```
 
-So we have 90 countries and 61 covariates. That ratio is the whole story of this notebook: 61 hyperparameters to fit 90 numbers leaves almost no room to spare, and once we split off a test set it gets far worse.
+So we have 90 countries and 61 covariates. 61 hyperparameters to fit 90 numbers leaves almost no room to spare, and once we split off a test set it gets far worse.
 
-A note on scaling, which mattered in Notebook 1 and matters even more here. Ridge and lasso work by penalizing the size of the coefficients, and the size of a coefficient depends on the units of its variable: a coefficient on income measured in dollars is a thousand times smaller than the same effect measured in thousands of dollars. If we penalize coefficients without first putting the variables on a common scale, the penalty falls unevenly. So we standardize every feature, and as in Notebook 1 we do it inside a pipeline so that the scaling is always learned from the training data alone.
+A note on scaling, which mattered in Notebook 1 and matters even more here. Ridge and lasso work by penalizing the size of the coefficients, and the size of a coefficient depends on the units of its variable, a coefficient on income measured in dollars is a thousand times smaller than the same effect measured in thousands of dollars. If we penalize coefficients without first putting the variables on a common scale, the penalty falls unevenly. So we standardize every feature, and as in Notebook 1 we do it inside a pipeline so that the scaling is always learned from the training data alone.
 
 ## 3. Why OLS breaks
 
@@ -117,7 +117,7 @@ print(f"OLS test MSE     : {ols_test_mse:.5f}")
 print(f"Predict-the-mean test MSE: {baseline_mse:.5f}")
 ```
 
-The training $R^2$ is essentially 1 and the training MSE is essentially 0: OLS fits the countries it was trained on almost perfectly. But the test MSE is about ten times larger than what we would get by ignoring every covariate and just predicting the average growth rate. A model with 61 controls does worse than a model with none. This is Notebook 1's overfitting, the $k=1$ nearest-neighbour problem, just in a different costume: with so little room to spare, OLS fits the noise in the training countries and carries none of it over to new ones.
+The training $R^2$ is 1 and the training MSE is 0: OLS fits the countries it was trained on almost perfectly. But the test MSE is ten times larger than what we would get by ignoring every covariate and just predicting the average growth rate. A model with 61 controls does worse than a model with none. This is Notebook 1's overfitting, the $k=1$ nearest-neighbour problem, just in a different environment: with so little room to spare, OLS fits the noise in the training countries and carries none of it over to new ones.
 
 We can see the symptom directly in the coefficients OLS chose.
 
@@ -133,9 +133,9 @@ plt.title("OLS coefficients run wild")
 plt.show()
 ```
 
-The growth outcome is a small number (an annual rate of a few percent), yet some of these coefficients reach into the tens. OLS is throwing large positive and negative weights at correlated covariates so that they nearly cancel on the training countries, which is exactly how it drives training error to zero with no room to spare. Those huge offsetting weights are what fall apart on new countries. Ridge and lasso, next, are nothing more than a way to forbid this.
+The growth outcome is a small number (an annual rate of a few percent), yet some of these coefficients reach into the tens. OLS is throwing large positive and negative weights at correlated covariates so that they nearly cancel on the training countries, which is exactly how it drives training error to zero with no room to spare. Those huge offsetting weights are what fall apart on new countries. Ridge and lasso, which are coming up, are ways to stop this from happening.
 
-We cannot drop covariates by hand without knowing which ones matter, and we do not want to throw away information. The fix is to keep all 61 covariates but stop their coefficients from running wild. That is regularization.
+We cannot drop covariates by hand without knowing which ones matter, and we do not want to throw away information. The fix is to keep all 61 covariates but stop their coefficients from running wild. This is called regularization. 
 
 ## 4. Ridge regression
 
@@ -172,9 +172,9 @@ plt.legend()
 plt.show()
 ```
 
-On the left, where $\lambda$ is small, the coefficients are large and spread out: this is the unstable OLS fit. As we move right and the penalty grows, every line drifts smoothly toward zero. Nothing ever becomes exactly zero, it just gets smaller. The penalty is buying us stability: by refusing to let any coefficient grow large, ridge trades a little bias for a large reduction in variance, which is the bias-variance tradeoff from Notebook 1 seen through a different knob.
+On the left, where $\lambda$ is small, the coefficients are large and spread out: this is the unstable OLS fit. As we move right and the penalty grows, every line drifts smoothly toward zero. Nothing ever becomes exactly zero, it just approaches zero. The penalty is buying us stability: by refusing to let any coefficient grow large, ridge trades a little bias for a large reduction in variance, which is the bias-variance tradeoff from Notebook 1 seen through a different model.
 
-In a live session you can feel the penalty work. Drag $\lambda$ below and watch the wild OLS coefficients on the left collapse toward zero as the penalty tightens.
+In a live session (Local or Jupyter/Collab) we can see this penalty at work. Drag $\lambda$ below and watch the OLS coefficients on the left collapse toward zero as the penalty tightens.
 
 ```{python}
 from ipywidgets import interact, FloatLogSlider
@@ -205,7 +205,7 @@ print(f"Ridge chose lambda = {ridge[-1].alpha_:.3f}")
 ::: {.callout-important}
 ## Standardize before you penalize
 
-A penalty on the coefficients only makes sense if the coefficients are comparable, and they are comparable only if the features share a scale. This is why the `StandardScaler` sits inside the pipeline: every time ridge is fit, on the full training set or on a single cross-validation fold, the scaling is recomputed from just that data. Skip it and the penalty quietly punishes whichever variables happen to be measured in small units.
+A penalty on the coefficients only makes sense if the coefficients are comparable, and they are comparable only if the features share a scale. This is why the `StandardScaler` sits inside the pipeline: every time ridge is fit, the scaling is recomputed from just that data. Skip it and the penalty quietly punishes whichever variables happen to be measured in small units. This leads to easily avoiadable bias. 
 :::
 
 ## 5. Lasso
@@ -216,7 +216,7 @@ $$
 \sum_{i=1}^{n} \left( y_i - \hat{y}_i \right)^2 \;+\; \lambda \sum_{j=1}^{p} \left| \beta_j \right| .
 $$
 
-That looks like a small change, but it has a dramatic consequence. Where ridge shrinks coefficients smoothly toward zero without ever arriving, lasso pushes them **exactly to zero** and leaves them there. A coefficient of exactly zero means the variable is dropped from the model. So lasso does not just shrink, it **selects**.
+Where ridge shrinks coefficients smoothly toward zero, lasso pushes them **exactly to zero** and leaves them there. A coefficient of exactly zero means the variable is dropped from the model. So lasso does not just shrink, it **selects**.
 
 The coefficient path makes the difference visible.
 
@@ -276,11 +276,11 @@ Both methods solve the problem from section 3, and both will beat OLS by a wide 
 | | Ridge | Lasso |
 |---|---|---|
 | Penalty | squared coefficients | absolute coefficients |
-| Effect | shrinks all coefficients | shrinks and **zeros** some |
+| Effect | shrinks all coefficients | shrinks and **zeros** some coefficients |
 | Variables kept | all of them | a selected few |
-| Good when | many small effects, correlated predictors | a few variables really matter |
+| Good when | many small effects, correlated predictors | a few variables that really matter |
 
-Ridge is the better choice when you believe most covariates contribute a little and you mainly want stability, especially when predictors are correlated and OLS cannot tell them apart. Lasso is the better choice when you believe only a few covariates matter and you want a short, interpretable model. The one-line intuition for the difference is geometric: the absolute-value penalty has sharp corners at zero, and those corners are exactly where coefficients get pinned to zero, while the smooth bowl of the squared penalty has no corners to catch them.
+Ridge is the better choice when you believe most covariates contribute a little and you mainly want stability, especially when predictors are correlated and OLS cannot tell them apart. Lasso is the better choice when you believe only a few covariates matter and you want a short, interpretable model. 
 
 Putting the two fitted coefficient vectors side by side makes the difference concrete.
 
@@ -305,7 +305,7 @@ Ridge fills both columns: every covariate keeps a small nonzero weight. Lasso le
 
 ## 7. Choosing $\lambda$ by cross-validation
 
-We leaned on `RidgeCV` and `LassoCV` above without dwelling on what they do, so let us make it explicit, because it is the same discipline as Notebook 1. To choose $\lambda$ we never touch the test set. Instead we split the **training** data into folds, fit at each candidate $\lambda$ on most of the folds, score on the held-out fold, and average. `LassoCV` keeps the whole grid of scores, so we can plot the cross-validation curve and see the choice it made.
+We utilized `RidgeCV` and `LassoCV` above without really learning what they do, so let us make it explicit, because it is the same method as Notebook 1 showed us. To choose $\lambda$ we never touch the test set. Instead we split the **training** data into folds, fit at each candidate $\lambda$ on most of the folds, score on the held-out fold, and average. `LassoCV` keeps the whole grid of scores, so we can plot the cross-validation curve and see the choice it made.
 
 ```{python}
 lasso_cv = lasso[-1]
@@ -353,20 +353,14 @@ Every later notebook in this stream reuses these four steps:
 
 ## 8. So have we found the effect of initial wealth on growth?
 
-Lasso handed us a short list of variables, and `gdpsh465`, the country's initial wealth, survived. Economists care a great deal about that particular coefficient: it is the **convergence** question, whether poorer countries grow faster and catch up to richer ones. So it is tempting to read the lasso coefficient on `gdpsh465` as the answer.
+Lasso handed us a short list of variables, and `gdpsh465`, the country's initial wealth, survived. Economists care a great deal about that particular coefficient: it is the **convergence** question, whether poorer countries grow faster and catch up to richer ones. So it is tempting to read the lasso coefficient on `gdpsh465` as the causal answer.
 
 **It is not.** For the same reason Notebook 1 warned about, and two reasons specific to what we just did:
 
 1. **The penalty biases coefficients on purpose.** Lasso and ridge shrink every coefficient toward zero by design. That is a feature for prediction, where a little bias buys a lot of stability, but it is a bug for estimation: the number on `gdpsh465` is deliberately pulled toward zero, so it is not a clean estimate of anything.
-2. **Selecting controls and then reading off a coefficient is biased.** We let lasso choose which controls to keep based on how well they predict growth. But a variable can be a weak predictor of growth and still be essential for *de-confounding* initial wealth, and lasso will happily drop exactly such a variable. Choosing controls by predictive strength and then trusting the treatment coefficient is a known trap, and it has a known fix.
+2. **Selecting controls and then reading off a coefficient is biased.** We let lasso choose which controls to keep based on how well they predict growth. But a variable can be a weak predictor of growth and still be essential for *de-confounding* initial wealth, and lasso will happily drop exactly such a variable. Choosing controls by predictive strength is not causal methodology. 
 
 That fix is **post-double-selection lasso**, and it is the subject of Notebook 5. The gap between "lasso picked these variables" and "this is the causal effect" is the gap between prediction and identification, which Notebook 4 sets up in full. Prediction is one job; causal estimation is another.
-
-::: {.callout-note}
-## Its causal future
-
-Lasso's gift, handing us a short list of variables that matter, is exactly what tempts us to misuse it for causal work. Notebook 5's **post-double-selection lasso** keeps the variable-selection machinery but runs it twice, once for the outcome and once for the treatment, precisely to avoid the trap section 8 just described. The prediction tool becomes a causal tool only after that repair.
-:::
 
 ## Connections
 
