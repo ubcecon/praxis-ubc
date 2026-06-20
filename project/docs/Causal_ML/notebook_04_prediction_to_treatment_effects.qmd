@@ -275,17 +275,15 @@ plt.figure(figsize=(9, 5))
 plt.scatter(range(len(within_stratum)), within_stratum, s=70, color="tab:green",
             zorder=3, label="within-group comparison")
 plt.axhline(TRUE_EFFECT, color="black", linestyle="--", label=f"true effect = {TRUE_EFFECT:.0f}")
-plt.axhline(naive_low, color="tab:red", linestyle=":", label=f"pooled naive difference = {naive_low:.1f}")
+plt.axhline(naive_low, color="tab:red", linestyle=":", label=f"pooled naive difference = {naive_low:.2f}")
 plt.xlabel("households grouped from least to most likely to be eligible")
 plt.ylabel("eligible minus ineligible savings, within group")
-plt.title("Compare like with like and the effect is about 1; pool everyone and it balloons to 6")
+plt.title("Compare like with like and the effect is about 1; pool everyone and it balloons to 6.14")
 plt.legend()
 plt.show()
 ```
 
-## Check ##
-
-In the middle groups the within-group comparison sits close to the true effect of 1, far below the pooled naive difference of about 6. This is unconfoundedness paying off: once we compare households that look alike, the selection bias is gone and what is left is the effect. The end groups wander upwards, and that is the overlap problem showing up. In the lowest group almost no one is eligible and in the highest almost everyone is, so there are too few of the other side to compare against, and the estimate gets noisy. Comparing within groups like this is one way to adjust for $X$. The compact version, which uses a formula instead of bins, is to put $D$ and $X$ into one linear regression and read the coefficient on $D$.
+In the middle groups the within-group comparison sits close to the true effect of 1, far below the pooled naive difference of 6.14. This is unconfoundedness paying off: once we compare households that look alike, the selection bias is gone and what is left is the effect. The end groups wander upwards, and that is the overlap problem showing up. In the lowest group almost no one is eligible and in the highest almost everyone is, so there are too few of the other side to compare against, and the estimate gets noisy. Comparing within groups like this is one way to adjust for $X$. The compact version, which uses a formula instead of bins, is to put $D$ and $X$ into one linear regression and read the coefficient on $D$.
 
 ```{python}
 ols_adjust = LinearRegression().fit(np.column_stack([D_low, X_low]), Y_low).coef_[0]
@@ -294,7 +292,7 @@ print(f"Naive difference : {naive_low:.2f}")
 print(f"Adjusted for X   : {ols_adjust:.2f}")
 ```
 
-Adjusting for $X$ brings the estimate from about 6 back to about 1, the effect we built in. The same adjustment changes the 401(k) number too.
+Adjusting for $X$ brings the estimate from 6.14 back to 1.04, recovering the effect of 1 we built in. The same adjustment changes the 401(k) number too.
 
 ```{python}
 adjusted_401k = LinearRegression().fit(
