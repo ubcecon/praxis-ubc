@@ -1,0 +1,311 @@
+---
+title: "Double Machine Learning"
+author: Alex Ronczewski
+date: 2026-06-20
+description: "The seventh notebook in the Causal ML stream. We combine everything: the partially linear model, the residual-on-residual idea from Notebook 4, and any predictor we like for the nuisance models. We add cross-fitting to stop the predictors from contaminating the estimate, attach a standard error, and finally pin down the effect of 401(k) eligibility that Notebook 6 left as a wide interval."
+categories:
+  - Python
+  - machine learning
+  - causal inference
+  - double machine learning
+  - cross-fitting
+  - treatment effects
+execute:
+  eval: true
+  echo: true
+  output: true
+format:
+  html:
+    embed-resources: true
+    self-contained-math: true
+  ipynb:
+    jupyter:
+      kernelspec:
+        display_name: Python
+        language: python3
+        name: python3
+---
+
+## Outline
+
+### Prerequisites
+
+- Notebook 6 of this stream: estimating a treatment effect, and why a wide confidence interval leaves us stuck
+- Multiple regression and the idea of partialling out controls (COMET Intermediate)
+- Comfort with `pandas` and basic Python at the COMET-intermediate level
+
+### Outcomes
+
+By the end of this notebook you will be able to:
+
+1. Write down the **partially linear model** and identify the treatment effect in it.
+2. Estimate that effect by **residual-on-residual** regression with any predictor.
+3. Explain why fitting the predictors and the effect on the same data biases the estimate, and fix it with **cross-fitting**.
+4. Run a full **double machine learning** estimate with a standard error.
+5. Swap the predictor for any learner and see the estimate hold.
+
+```{python}
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+from sklearn.linear_model import LassoCV, LogisticRegression
+from sklearn.ensemble import (RandomForestRegressor, RandomForestClassifier,
+                              GradientBoostingRegressor, GradientBoostingClassifier,
+                              ExtraTreesRegressor)
+from sklearn.model_selection import KFold
+
+RANDOM_STATE = 42
+```
+
+## 1. Where we currently stand
+
+The last three notebooks approached the same problem from different angles. Notebook 4 removed the controls from the outcome and the treatment separately, then regressed the leftovers, which is called orthogonalization. Notebook 5 did this for lasso, selecting controls twice. Notebook 6 modelled the treatment and combined the two routes into the doubly-robust estimator. Notebook 6 also left us stuck: its estimate of the 401(k) effect was 1.9 thousand dollars, but with a confidence interval running from below zero up to about nine, too wide to tell whether eligibility helped at all.
+
+This notebook closes that gap. **Double machine learning (DML)** keeps the residual-on-residual idea and adds the two things that greatly increase its power and usefulness:
+
+- **Any learner.** A **learner** is any prediction algorithm that fits a function to data, the kind of model we built in Notebooks 1 to 3. The two models we fit along the way, savings given the covariates and treatment given the covariates, are prediction problems, so we can use whichever learner predicts best: a lasso, a random forest, a boosted ensemble, or anything else that fits the data.
+- **Cross-fitting.** A discipline that stops those flexible predictors from quietly biasing the effect, built from the train/test idea of Notebook 1.
+
+By the end we will have a sharp, significant estimate of the effect of 401(k) eligibility on savings.
+
+## 2. The partially linear model
+
+To say what we are estimating, we write down a model. The **partially linear model** splits the outcome into the part we care about and the part we do not:
+
+$$
+Y = \theta D + g(X) + \varepsilon .
+$$
+
+Here $Y$ is savings, $D$ is eligibility, and $X$ is the covariates. The number $\theta$ is the effect of eligibility, the one thing we want. The function $g(X)$ is everything else that drives savings: income, age, all of it, in whatever tangled shape it takes. The treatment depends on the covariates too:
+
+$$
+D = m(X) + v .
+$$
+
+The function $m(X)$ is the propensity from Notebook 6, the part of eligibility explained by the covariates, and $v$ is what is left.
+
+::: {.callout-note}
+## Read these for the meaning
+
+$g$ and $m$ are called **nuisance** functions: we have to estimate them well, but we do not care what they are. Our whole goal is to get a clean value of $\theta$ while the messy functions $g$ and $m$ are handled by a predictor in the background. The word "linear" in the name refers only to how $D$ enters, through a single number $\theta$. Everything else, $g(X)$, can be as nonlinear as the data demands.
+:::
+
+## 3. Orthogonalization: residual on residual
+
+The trick for isolating $\theta$ is the one from Notebook 4: strip the covariates' influence out of both sides, then compare what is left. The covariates $X$ are the confounders, the common causes of eligibility and savings, so removing them from both the outcome and the treatment is what clears the comparison.
+
+Predicting savings from the covariates and subtracting leaves $\tilde{Y} = Y - g(X)$, the part of savings the covariates do not explain. Doing the same for eligibility leaves $\tilde{D} = D - m(X)$, the part of eligibility the covariates do not explain. Subtracting $g(X)$ from the model leaves
+
+$$
+\tilde{Y} = \theta \tilde{D} + \varepsilon ,
+$$
+
+so the slope of $\tilde{Y}$ on $\tilde{D}$ is exactly $\theta$. This is a famous result from Econometrics called the **Frisch-Waugh-Lovell theorem**. It states that multivariate regression coefficients can be calculated by "partialling out" (or residualizing) the influence of control variables from both the dependent variable and the primary independent variables. Residualizing first and controlling for everything at once are two roads to the same number. Notebook 4 demonstrated the first road with a lasso doing the predicting. The new freedom in DML is that any predictor can play the role of $g$ and $m$, because predicting is all they are asked to do.
+
+There is one catch, the same one from Notebook 1: we cannot use the same data twice.
+
+## 4. The trap: fitting and estimating on the same data
+
+Suppose we fit the two predictors and compute the effect all on the same households. The danger is overfitting, the theme of Notebook 1,2 and 3. A flexible predictor can fit the training data too well, chasing noise instead of signal. When it does, the leftovers it produces are too small, because the predictor has absorbed real variation that should have stayed in the residual. Feed those shrunken leftovers into the residual-on-residual regression and the effect comes out wrong.
+
+We can make this happen on purpose. We build a world where the true effect is 1, and we hand the residualizing to a predictor that memorises its training data: an extremely-randomised forest grown until every household sits in its own leaf. On the training data it predicts perfectly, so the leftovers collapse to nothing.
+
+```{python}
+def make_world(n, seed):
+    rng = np.random.default_rng(seed)
+    X = rng.normal(0, 1, (n, 8))
+    g = X[:, 0] + 0.7 * X[:, 1] + 0.5 * X[:, 2] + 0.4 * X[:, 0] * X[:, 1]
+    m = 0.6 * X[:, 0] + 0.4 * X[:, 2]
+    D = m + rng.normal(0, 1, n)
+    Y = 1.0 * D + g + rng.normal(0, 1, n)   # the true effect is 1
+    return X, D, Y
+
+X_sim, D_sim, Y_sim = make_world(1000, RANDOM_STATE)
+
+def memoriser():
+    return ExtraTreesRegressor(n_estimators=100, min_samples_leaf=1,
+                               bootstrap=False, random_state=RANDOM_STATE, n_jobs=-1)
+
+# Same data for fitting and for the effect: no cross-fitting.
+y_leftover = Y_sim - memoriser().fit(X_sim, Y_sim).predict(X_sim)
+d_leftover = D_sim - memoriser().fit(X_sim, D_sim).predict(X_sim)
+theta_same_data = np.sum(d_leftover * y_leftover) / np.sum(d_leftover * d_leftover)
+
+print(f"Leftover spread on the training data: Y {y_leftover.std():.3f}, D {d_leftover.std():.3f}")
+print(f"Effect estimated on the same data: {theta_same_data:.2f}  (true effect is 1.0)")
+```
+
+The leftovers are approaching zero, because the predictor read the training outcomes straight back. With nothing left to regress, the estimate collapses to -0.10, nowhere near the true 1. The predictor memorised the data and took the effect down with it.
+
+The fix is **cross-fitting**, and it is the train/test split of Notebook 1 turned on the nuisance models. Split the data into folds. To get a household's leftover, use a predictor that was fit on the *other* folds, never on that household. A predictor cannot memorise a household it was not shown, so the leftovers keep their real spread.
+
+```{python}
+def crossfit_leftovers(X, target, make_model, n_splits=5):
+    leftover = np.zeros(len(target))
+    folds = KFold(n_splits, shuffle=True, random_state=RANDOM_STATE)
+    for train_idx, test_idx in folds.split(X):
+        model = make_model().fit(X[train_idx], target[train_idx])
+        leftover[test_idx] = target[test_idx] - model.predict(X[test_idx])
+    return leftover
+
+y_cf = crossfit_leftovers(X_sim, Y_sim, memoriser)
+d_cf = crossfit_leftovers(X_sim, D_sim, memoriser)
+theta_crossfit = np.sum(d_cf * y_cf) / np.sum(d_cf * d_cf)
+print(f"Effect estimated with cross-fitting: {theta_crossfit:.2f}  (true effect is 1.0)")
+```
+
+With cross-fitting the estimate is 0.93, back where it belongs. The plot lines the two up against the truth.
+
+```{python}
+plt.figure(figsize=(7, 5))
+plt.bar(["same data\n(no cross-fitting)", "cross-fitting"],
+        [theta_same_data, theta_crossfit],
+        color=["tab:red", "tab:green"])
+plt.axhline(1.0, color="black", linestyle="--", label="true effect = 1")
+plt.ylabel("estimated effect")
+plt.title("Cross-fitting rescues the estimate from a memorising predictor")
+plt.legend()
+plt.show()
+```
+
+::: {.callout-important}
+## The cross-fitting rule
+
+Never use the same household both to fit a nuisance model and to compute its leftover. Fit on one part of the data, take leftovers on another, and rotate. This lets us pour a flexible, overfitting-prone predictor into the procedure without its overfitting leaking into the effect. Orthogonalization plus cross-fitting is what makes the name **double** machine learning.
+:::
+
+## 5. Double machine learning, all together
+
+We now have every piece. The recipe: cross-fit the leftovers of the outcome and the treatment with whatever learner we choose, then regress one on the other for the effect. A standard error comes from the spread of the per-household terms, the same influence-function idea as the doubly-robust score in Notebook 6.
+
+```{python}
+def dml_effect(X, D, Y, make_outcome, make_treatment, n_splits=5):
+    folds = KFold(n_splits, shuffle=True, random_state=RANDOM_STATE)
+    y_left = np.zeros(len(Y))
+    d_left = np.zeros(len(D))
+    for train_idx, test_idx in folds.split(X):
+        out = make_outcome().fit(X[train_idx], Y[train_idx])
+        y_left[test_idx] = Y[test_idx] - out.predict(X[test_idx])
+        treat = make_treatment().fit(X[train_idx], D[train_idx])
+        d_hat = treat.predict_proba(X[test_idx])[:, 1] if hasattr(treat, "predict_proba") \
+            else treat.predict(X[test_idx])
+        d_left[test_idx] = D[test_idx] - d_hat
+    theta = np.sum(d_left * y_left) / np.sum(d_left * d_left)
+    resid = y_left - theta * d_left
+    se = np.sqrt(np.mean(d_left ** 2 * resid ** 2) / np.mean(d_left ** 2) ** 2 / len(Y))
+    return theta, se
+```
+
+Now we load the 401(k) data and run it, using a random forest to model both savings and eligibility.
+
+```{python}
+savings = pd.read_csv("datasets/Pension401k.csv")
+confounders = ["age", "inc", "educ", "fsize", "marr", "twoearn", "db", "pira", "hown"]
+D = savings["e401"].to_numpy().astype(float)
+Y = savings["net_tfa"].to_numpy()
+X = savings[confounders].to_numpy()
+
+def forest_reg():
+    return RandomForestRegressor(n_estimators=300, min_samples_leaf=20,
+                                 random_state=RANDOM_STATE, n_jobs=-1)
+def forest_clf():
+    return RandomForestClassifier(n_estimators=300, min_samples_leaf=20,
+                                  random_state=RANDOM_STATE, n_jobs=-1)
+
+theta, se = dml_effect(X, D, Y, forest_reg, forest_clf)
+print(f"DML estimate of the effect of eligibility: {theta:.2f}  (se {se:.2f})")
+print(f"t-statistic: {theta / se:.1f}")
+print(f"95% interval: {theta - 1.96 * se:.2f} to {theta + 1.96 * se:.2f}")
+```
+
+The effect is 8.80 thousand dollars, with a standard error of 1.35 and a t-statistic of 6.5. The 95% interval runs from 6.15 to 11.45, well clear of zero. Eligibility for a 401(k) raised net financial assets by 8,800 dollars. This is the number Notebook 6 could not reach: its interval reached up toward nine but could not rule out zero, and DML, with flexible models and cross-fitting, finds the positive effect. Most of the raw 19.6 gap from Notebook 4 was selection, but a real and substantial effect of 8,800 dollars remains underneath.
+
+The picture behind the number is the residual-on-residual scatter, the same one from Notebook 4, now with the forest doing the residualizing. We compute the two leftovers out-of-fold and plot one against the other; the slope of the line is the effect.
+
+```{python}
+folds = KFold(5, shuffle=True, random_state=RANDOM_STATE)
+y_left = np.zeros(len(Y))
+d_left = np.zeros(len(D))
+for train_idx, test_idx in folds.split(X):
+    y_left[test_idx] = Y[test_idx] - forest_reg().fit(X[train_idx], Y[train_idx]).predict(X[test_idx])
+    treat = forest_clf().fit(X[train_idx], D[train_idx])
+    d_left[test_idx] = D[test_idx] - treat.predict_proba(X[test_idx])[:, 1]
+
+plt.figure(figsize=(8, 5))
+plt.scatter(d_left, np.clip(y_left, -100, 200), s=6, alpha=0.2, color="grey")
+grid = np.array([d_left.min(), d_left.max()])
+plt.plot(grid, theta * grid, color="tab:green", linewidth=2, label=f"slope = {theta:.2f}")
+plt.xlabel("leftover eligibility (after removing the covariates)")
+plt.ylabel("leftover savings (after removing the covariates)")
+plt.title("The effect is the slope through the residual-on-residual cloud")
+plt.legend()
+plt.show()
+```
+
+Each grey dot is one household, placed by how much of its eligibility and its savings is left once the covariates are stripped out. The cloud tilts upward: households with more leftover eligibility tend to have more leftover savings. The slope of that tilt, drawn in green, is the estimated effect of 8.80. It is the same residual-on-residual picture as Notebook 4, with a random forest doing the stripping in place of a lasso.
+
+## 6. Any learner
+
+The causal machinery, residualize and cross-fit and regress, never mentioned which predictor we used. That is the point: we can drop in any learner and the estimate should hold. We run the same DML with three very different predictors, a lasso, a random forest, and gradient boosting (the sequential tree method from Notebook 3, which builds many small models that each correct the errors left by the ones before).
+
+```{python}
+learners = {
+    "lasso": (lambda: LassoCV(cv=5, random_state=RANDOM_STATE, max_iter=50000),
+              lambda: LogisticRegression(max_iter=2000)),
+    "random forest": (forest_reg, forest_clf),
+    "boosting": (lambda: GradientBoostingRegressor(random_state=RANDOM_STATE),
+                 lambda: GradientBoostingClassifier(random_state=RANDOM_STATE)),
+}
+
+results = {name: dml_effect(X, D, Y, mo, mt) for name, (mo, mt) in learners.items()}
+for name, (th, s) in results.items():
+    print(f"{name:14s}: {th:.2f}  (se {s:.2f}, t {th / s:.1f})")
+```
+
+```{python}
+names = list(results)
+thetas = [results[n][0] for n in names]
+errs = [1.96 * results[n][1] for n in names]
+
+plt.figure(figsize=(8, 5))
+plt.bar(names, thetas, yerr=errs, capsize=6, color=["tab:blue", "tab:green", "tab:orange"])
+plt.axhline(0, color="black", linewidth=1)
+plt.ylabel("estimated effect of eligibility ($1,000s)")
+plt.title("Any learner gives a positive, significant effect")
+plt.show()
+```
+
+All three agree on the verdict: the effect is positive and significant. The lasso, a linear model, reads it as 6.12; the random forest gives 8.80 and gradient boosting 9.62, both higher because they capture more of the tangled savings function. The exact number shifts with how flexibly we model the nuisances, but the end result does not. 
+
+::: {.callout-tip}
+## Self-test
+
+Cross-fitting splits the data into folds, much like the cross-validation of Notebook 1. Are they doing the same job?
+
+<details><summary>Show / hide answer</summary>
+No, they share the mechanism but not the purpose. Cross-validation in Notebook 1 splits the data to *choose a hyperparameter*, by scoring predictions on held-out folds. Cross-fitting splits the data to *keep the nuisance models from contaminating the effect*, by computing each household's leftover from a model that never saw it. Same fold machinery, different reason: one tunes a predictor, the other protects a causal estimate.
+</details>
+:::
+
+## 7. Connections
+
+This notebook is where we see the stream's biggest conceptual payoffs. The prediction tools from Notebooks 1 to 3 became the engines, the orthogonalization of Notebook 4 became the framework, and cross-fitting made the whole technique trustworthy. The result is a recipe that estimates a causal effect with any predictor and reports a valid standard error. In practice the `doubleml` python package implements all of this and more, but the moving parts are the ones we built by hand here.
+
+::: {.callout-note}
+## Looking Forward
+
+We estimated one number, the average effect of eligibility across all households. But the effect surely varies: a 401(k) may matter more for some households than others. Notebook 8 keeps the DML machinery and turns it loose on that question, estimating how the effect changes from household to household, with the **causal forest** that grows out of the random forest from Notebook 3.
+:::
+
+- **Back to Notebook 6:** there the doubly-robust estimate of the 401(k) effect was too imprecise to sign; double machine learning sharpens it to about 9,000 dollars by using flexible learners and cross-fitting.
+- **Forward to Notebook 8:** from the average effect to who benefits, estimating effects that vary across households with causal forests.
+
+### References
+
+- Chernozhukov, V., Chetverikov, D., Demirer, M., Duflo, E., Hansen, C., Newey, W., & Robins, J. (2018). *Double/debiased machine learning for treatment and structural parameters.* Econometrics Journal, 21(1), C1-C68. The orthogonal moment and cross-fitting.
+- Frisch, R., & Waugh, F. V. (1933). *Partial time regressions as compared with individual trends.* Econometrica, 1(4), 387-401. The residual-on-residual result.
+- Bach, P., Chernozhukov, V., Kurz, M. S., & Spindler, M. (2022). *DoubleML: An object-oriented implementation of double machine learning in Python.* Journal of Machine Learning Research, 23(53), 1-6.
+- Poterba, J. M., Venti, S. F., & Wise, D. A. (1995). *Do 401(k) contributions crowd out other personal saving?* Journal of Public Economics, 58(1), 1-32. The eligibility question.
+
+---
