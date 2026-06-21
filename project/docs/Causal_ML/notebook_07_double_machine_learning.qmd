@@ -288,7 +288,21 @@ No, they share the mechanism but not the purpose. Cross-validation in Notebook 1
 </details>
 :::
 
-## 7. Connections
+## 7. Review of the DML recipe
+
+We built double machine learning a piece at a time. Here is the whole workflow gathered together, the way you would run it on a new problem.
+
+::: {.callout-note}
+## The double machine learning recipe
+
+1. **Pick the target.** Write the partially linear model and identify the one number you want, the treatment effect $\theta$.
+2. **Choose two learners.** One to predict the outcome from the covariates, one to predict the treatment from the covariates. Any predictor will do, so pick whatever fits the data best.
+3. **Cross-fit the leftovers.** Split the data into folds. For each fold, fit both learners on the other folds and take each unit's leftover, its value minus the prediction, out-of-fold, so no unit helps fit the model that later judges it.
+4. **Regress leftover on leftover.** Regress the outcome leftovers on the treatment leftovers. The slope is the estimated effect.
+5. **Report the uncertainty.** Take the standard error from the spread of the per-unit terms, and form the confidence interval.
+:::
+
+## 8. Connections
 
 This notebook is where we see the stream's biggest conceptual payoffs. The prediction tools from Notebooks 1 to 3 became the engines, the orthogonalization of Notebook 4 became the framework, and cross-fitting made the whole technique trustworthy. The result is a recipe that estimates a causal effect with any predictor and reports a valid standard error. In practice the `doubleml` python package implements all of this and more, but the moving parts are the ones we built by hand here.
 
