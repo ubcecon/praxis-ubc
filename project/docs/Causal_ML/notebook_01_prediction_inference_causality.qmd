@@ -30,10 +30,10 @@ format:
 ### Prerequisites
 
 - Multiple regression and OLS (COMET Intermediate: *Introduction to Regression*, *Multiple Regression*)
-- Comfort with `pandas` and basic Python at the COMET-intermediate level
-- You do **not** need any prior machine-learning background. Train/test splits, cross-validation, and the "ML" framing of statistics are all introduced here from scratch.
+- Experience with `pandas` and basic Python at the COMET-intermediate level
+- You do **not** need any prior machine-learning background. Train/test splits, cross-validation, and the "ML" framing of statistics are all introduced here from scratch. This is true for the whole notebook stream. 
 
-### Outcomes
+### Learning Outcomes
 
 By the end of this notebook you will be able to:
 
@@ -67,13 +67,13 @@ Imagine we hand you a dataset of households, each with its income, the age and e
 - **Prediction.** *Given a household's income, age, and family size, how much should we expect it to have saved?*
 - **Inference / causal.** *What is the effect of 401(k) eligibility on how much a household saves?*
 
-These look almost the same. They are not. The first asks for a good *guess* of the outcome. The second asks for a *cause-and-effect* number: what would happen to **the same household's** savings if we reached in and made it eligible for a 401(k), holding everything else fixed?
+The first asks for a good *guess* of the outcome, while the second asks for a *cause-and-effect* number: what would happen to **the same household's** savings if we reached in and made it eligible for a 401(k), holding everything else fixed?
 
 Most of your econometrics training so far (ECON 226, 325, 326) was really aimed at the **second** kind of question. This stream deliberately switches focus for a few notebooks. We are going to get very good at the **first** kind of question first, build a real prediction toolkit, and only *then* (from Notebook 4 onward) turn that toolkit into something that can answer the eligibility question for real.
 
-This notebook is entirely about the prediction question, and prediction turns out to be everywhere: almost every machine-learning system you interact with is a prediction system, whether it is credit scoring guessing who will repay, ad targeting guessing what you will click, or a recommendation engine guessing what you will watch next. None of them is built to tell you *why*.
+This notebook is entirely about the prediction question, and prediction turns out to be everywhere: almost every machine-learning system you interact with is a prediction system, whether it's credit scoring guessing who will repay, ad targeting guessing what you'll click, or a recommendation engine guessing what you'll watch next. None of them is built to tell you *why*.
 
-## 2. The supervised learning setup
+### 1.1. The supervised learning setup
 
 Machine learning has its own vocabulary for ideas you already know. Here is the translation:
 
@@ -89,19 +89,19 @@ $$
 \hat{f}(X) \approx Y
 $$
 
-on data we **have not seen before**. That last part matters more than it looks: a flexible enough model can always make its in-sample fit look good, so the real test is whether it predicts well on data it has not been trained on.
+on data we **have not seen before**. That last part is very important: a flexible enough model can always make its in-sample fit look good, so the real test is whether it predicts well on data it has not been trained on. This is a key theme of this notebook stream.
 
 When the target $Y$ is continuous (like savings in dollars), the task is called **regression**. When $Y$ is a category (employed / not, default / repay), it is called **classification**. In this notebook we focus on regression.
 
 ::: {.callout-important}
 ## The key reframing
 
-In OLS we asked: *what is the coefficient on income?* In machine learning we ask: *how well can we predict the outcome?* Same data, different goal. This is the main difference from ECON 326.
+In OLS we asked: *what is the coefficient on income?* In machine learning we ask: *how well can we predict the outcome?* It's the same data with a different goal, and this is the main difference from ECON 326.
 :::
 
-### The data
+### 1.2 401(k) Saving Data
 
-We will use the **401(k)** dataset, a standard dataset in the study of savings behaviour and a common example in the causal-ML literature we are building toward. Each row is a U.S. household from the 1991 Survey of Income and Program Participation. The outcome we model is `net_tfa`, the household's **net financial assets** (everything it has saved, net of debt), measured in thousands of dollars. The features are the household's characteristics: income (`inc`, also in thousands), the age and years of education of the reference person, family size, and a set of 0/1 indicators for being married, having two earners, owning a defined-benefit pension (`db`), owning an IRA (`pira`), and owning a home (`hown`). The last column, `e401`, marks whether the household is **eligible** for a 401(k); that is the variable the rest of this stream will treat as a cause, but here it is just one more feature to predict from.
+We will use the **401(k)** dataset, a standard dataset in the study of savings behaviour and a common example in causal-ML literature. Each row is a U.S. household from the 1991 Survey of Income and Program Participation. The outcome we model is `net_tfa`, the household's **net financial assets** (everything it has saved, minus it's debt), measured in thousands of dollars. The features are the household's characteristics: income (`inc`, also in thousands), the age and years of education of the reference person, family size, and a set of dummy variables for being married, having two earners, owning a defined-benefit pension (`db`), owning an IRA (`pira`), and owning a home (`hown`). The last column, `e401`, marks whether the household is **eligible** for a 401(k); that is the variable the rest of this stream will treat as a cause, but here it is just one more feature to predict from.
 
 ```{python}
 savings = pd.read_csv("datasets/Pension401k.csv")
@@ -121,7 +121,7 @@ print("Number of households:", len(savings))
 print(savings[["net_tfa", "inc", "age", "educ", "fsize"]].describe().round(1))
 ```
 
-Net financial assets vary enormously: the typical household has saved only a few thousand dollars, but the spread runs from deep in debt to well over a million. Income is the obvious thing it should track, and the plot below shows that it does, give or take some natural variance. Each point is a household; nearby households along the income axis tend to have similar savings, but the cloud is wide. Income explains some of savings and a lot is left over to other factors. 
+Net financial assets vary enormously: the typical household has saved only a few thousand dollars, but the spread runs from deep in debt to well over a million. Income is the obvious thing it should track, and the plot below shows that it does, with some natural variation. Each point is a household; nearby households along the income axis tend to have similar savings, but the cloud is wide. Income explains some of savings and a lot is left over to other factors. 
 
 ```{python}
 sample = savings.sample(2000, random_state=RANDOM_STATE)
@@ -135,7 +135,7 @@ plt.title("Similar households tend to have similar savings (noisily)")
 plt.show()
 ```
 
-That picture is the whole premise of the model we are about to use: to guess a household's savings, find the households most like it and look at what they saved. Before we can do that we need one small piece of preparation. The model compares households by measuring the distance between them, and distance is sensitive to scale: income runs into the hundreds while family size is a single digit, so without a fix the big-numbered feature would dominate every distance. So we put every feature on the same footing, subtracting its mean and dividing by its standard deviation. There is a subtlety we have to respect: those means and standard deviations must be computed on the training data only, never on data we are about to test on, or information leaks across the split we are about to make. The way we enforce this is by bundling the scaling step together with the model into a single object, a **pipeline**, so that every time we fit, the scaling is recomputed on exactly the data being fit and nothing else.
+The picture above is the basic premise of the model we're about to use: to guess a household's savings, find the households most like it and look at what they saved. Before we can do that we need to do one small thing first. The model compares households by measuring the distance between them, and distance is sensitive to scale: income runs into the hundreds while family size is a single digit, so without a fix the big-numbered feature would dominate every distance. So we put every feature on the same footing, subtracting its mean and dividing by its standard deviation. There's a subtlety we have to respect here, since those means and standard deviations must be computed on the training data only, never on data we're about to test on, or information leaks across the split we're about to make. The way we enforce this is by bundling the scaling step together with the model into a single object, a **pipeline**, so that every time we fit, the scaling is recomputed on just the data being fit and nothing else.
 
 ```{python}
 y = savings[target].to_numpy()
@@ -148,13 +148,13 @@ def make_knn(k):
 X.head().round(1)
 ```
 
-The preview above shows `X` in its raw units, before any scaling. The standardizing happens *inside* the pipeline at the moment we fit, so we never overwrite the original columns and never have to remember to scale by hand; the readable raw numbers are what we keep in front of us.
+The preview above shows `X` in its raw units, before any scaling. The standardizing happens *inside* the pipeline at the moment we fit, so we never overwrite the original columns and never have to remember to scale by hand, and the readable raw numbers are what we keep in front of us.
 
-## 3. The fundamental problem: in-sample fit lies
+## 2 In-sample fit lies to us!
 
 > A model can look **perfect** on the data you fit it to and be **useless** on new data.
 
-To see this we need new data. We do not have a second sample of households, so we set one aside: we randomly hold out a chunk of our data, fit the model on the rest, and judge it on the held-out chunk it never saw. This is the **train/test split**.
+To see this we need new data. We don't have a second sample of households, so we set one aside: we randomly hold out a chunk of our data, fit the model on the rest, and judge it on the held-out chunk it never saw. This is the **train/test split**.
 
 ```{python}
 X_train, X_test, y_train, y_test = train_test_split(
@@ -164,7 +164,9 @@ print("Training households:", len(X_train))
 print("Test households    :", len(X_test))
 ```
 
-The model we use to show this is **k-nearest-neighbours (KNN)**. To predict a household's savings, KNN finds the $k$ households in the training data that are most similar to it (its nearest *neighbours*, measured by how close their features are) and returns the average savings of that group. The number $k$ is ours to choose, and we look at that choice closely in section 5.
+### 2.1 KNN & 1-Nearest-Neighbour
+
+The model we use to show this is **k-nearest-neighbours (KNN)**. To predict a household's savings, KNN finds the $k$ households in the training data that are most similar to it (its nearest *neighbours*, measured by how close their features are) and returns the average savings of that group. The number $k$ is ours to choose.
 
 To see this in action we fit a 1-nearest-neighbour model: to predict any household's savings, it copies the savings of the single most-similar household in the training data.
 
@@ -179,7 +181,7 @@ print(f"1-NN training MSE: {train_mse:.1f}")
 print(f"1-NN test MSE    : {test_mse:.1f}")
 ```
 
-The training MSE is essentially zero, and that is the whole point. With $k = 1$ the model predicts each training household by looking for its single nearest neighbour, and in the training data every household is its own nearest neighbour, so the model simply hands back the savings figure it already saw. It has memorised the training set. The test MSE is the true number we are looking for, and it is enormous: on households the model was never fit to, copying the single closest match is very inaccurate. 
+The training MSE is zero, which looks weird. With $k = 1$ the model predicts each training household by looking for its single nearest neighbour, and in the training data every household is its own nearest neighbour, so the model simply hands back the savings figure it already saw. It has memorised the training set. The test MSE is the number we're really after, and it's enormous: on households the model was never fit to, copying the single closest match is very inaccurate.
 
 The plot below makes the gap visible. It compares the model's predictions to the actual values, on the training set (left) and on the held-out test set (right).
 
@@ -202,7 +204,7 @@ axes[0].set_ylabel("predicted net financial assets ($1,000s)")
 plt.show()
 ```
 
-On the training set every prediction lands exactly on the 45-degree line, because the model is reading back values it memorised. On the test set the scatter spreads out wildly, and that spread is the model's skill on households it has never seen. A low error on the data the model was fit to is the model flattering itself; the wide scatter on the right is the truth. The ability to do well on **new** data is called **generalization**, and it is the only thing we actually care about.
+On the training set every prediction lands right on the 45-degree line, because the model is reading back values it memorised. On the test set the scatter spreads out wildly, and that spread is the model's skill on households it has never seen. A low error on the data the model was fit to is the model flattering itself, and the wide scatter on the right is the truth. The ability to do well on **new** data is called **generalization**, and it's the only thing we actually care about. This is why having a proper pipeline with test/train split and not showing the test data is very important.
 
 ::: {.callout-tip}
 ## Self-test
@@ -212,9 +214,9 @@ Why can we not just report MSE on the data we fit the model to and call it a day
 Because a flexible enough model can drive the training MSE to zero by memorising the data, without learning anything that transfers to new cases. Training MSE measures *memorisation*; test MSE measures *generalization*. Only the second is what we want.
 :::
 
-## 4. Loss functions
+## 3. Loss functions
 
-To say one model is "better" than another we need a number. For regression, the standard one is **mean squared error**:
+To say one model is "better" than another we need a number. For regression, the standard one is **mean squared error** (this is what we used in Econ 326):
 
 $$
 \text{MSE} = \frac{1}{n} \sum_{i=1}^{n} \left( Y_i - \hat{f}(X_i) \right)^2
@@ -225,11 +227,11 @@ This is exactly the quantity OLS minimises: the average squared gap between the 
 - **Training MSE**: MSE computed on the data the model was fit to. Measures memorisation.
 - **Test MSE**: MSE computed on held-out data. Measures generalization.
 
-## 5. KNN, our worked example
+## 4. Choosing K and hyperparameters
 
-To predict a household's savings with **k-nearest-neighbours regression**, we do the simplest thing imaginable. We measure how similar that household is to every household in the training data, using all of the features, find the $k$ closest matches, and report the average of their savings. There is no equation to estimate and no coefficients to read off. We just look up the most similar households and average their outcomes.
+To predict a household's savings with **k-nearest-neighbours regression**, we do about the simplest thing we can. We measure how similar that household is to every household in the training data, using all of the features, find the $k$ closest matches, and report the average of their savings. There's no equation to estimate and no coefficients to read off, we just look up the most similar households and average their outcomes.
 
-The number $k$, how many neighbours to average, is something we choose. A value we set ourselves rather than estimate from the data is called a **hyperparameter**. Pick $k$ too small and the model leans on one or two idiosyncratic neighbours; pick $k$ too large and it averages over households that are not really comparable. The rest of this notebook is about how to choose $k$. This is also why we scaled the features back in section 2: KNN decides who counts as a neighbour by measuring distance, so a feature measured in big numbers would otherwise dominate that distance.
+The number $k$, how many neighbours to average, is something we choose. A value we set ourselves rather than estimate from the data is called a **hyperparameter**. Pick $k$ too small and the model leans on one or two unique neighbours; pick $k$ too large and it averages over households that are not really comparable. The rest of this notebook is about how to choose $k$. This is also why we scaled the features back in section 2: KNN decides who counts as a neighbour by measuring distance, so a feature measured in big numbers would otherwise dominate that distance.
 
 To *see* what $k$ does, let us strip the problem down to a single feature, `inc`, and watch the predicted savings curve change as we dial $k$ up.
 
@@ -255,7 +257,7 @@ plt.legend()
 plt.show()
 ```
 
-Notice the pattern:
+Look at the graph above: 
 
 - **`k = 1`** zig-zags through every point, following the training data exactly.
 - **`k = 5,000`** averages over so many households that the curve is nearly flat, ignoring real structure.
@@ -302,9 +304,9 @@ plt.title(f"What KNN predicts across the income-age plane (k = {k_map})")
 plt.show()
 ```
 
-Savings rise toward the top-right, where households are older and higher-income, exactly the corner where well-off near-retirees sit and further away from younger adults with lower income. This is exactly what we expect to see. It is important to note that KNN never wrote down that rule; it simply averaged neighbours.
+Savings rise toward the top-right, where households are older and higher-income, the corner where well-off older people sit and has higher saving that are further away from younger adults with lower income. This is exactly what we expect to see. 
 
-## 6. The bias-variance tradeoff
+### 4.1 The bias-variance tradeoff
 
 The pictures above are the bias-variance tradeoff in disguise. Expected test error splits into three pieces:
 
@@ -314,7 +316,7 @@ $$
 
 - **Bias** is systematic error from a model that is too rigid to capture the real pattern.
 - **Variance** is error from a model so flexible it fits the noise, changing wildly if the data changed a little.
-- **Irreducible noise** is the part no model can ever explain. Even with a perfect model and infinite data, two households with the same income, age, and family size can still have very different savings, through an event of some kind, an illness, or something we never measured. That leftover variation is the irreducible part, and no amount of cleverness drives it to zero.
+- **Irreducible noise** is the part no model can ever explain. Even with a perfect model and infinite data, two households with the same income, age, and family size can still have very different savings, through an event of some kind, an illness, or something we never measured. That leftover variation is the irreducible part, and no amount of statistical knowledge will drive it to zero.
 
 On real data we can never separate these pieces, because we do not know the true $f$. But in a *simulation* we get to choose the truth, so we can watch bias and variance trade off directly. Below we invent a world where savings follow a known smooth curve of income plus noise. We draw three hundred fresh training samples, fit KNN at several values of $k$ on each, and record how the predictions behave: how far their *average* sits from the truth (that is bias) and how much they *jump around* from sample to sample (that is variance).
 
@@ -351,7 +353,9 @@ plt.legend()
 plt.show()
 ```
 
-At $k = 1$ the model is so flexible that its predictions swing all over the place from one sample to the next: variance is high, bias is almost nothing. As $k$ grows the predictions steady down (variance falls) but the model starts averaging across genuinely different points, so it can no longer follow the curve and a systematic gap opens up (bias rises). The black line is U-shaped, and its bottom is the $k$ that predicts best. This visualization describes how we choose our hyperparameters like $k$ and we will come back to it often in this stream. 
+At $k = 1$ the model is so flexible that its predictions swing all over the place from one sample to the next: variance is high, bias is almost nothing. As $k$ grows the predictions steady down (variance falls) but the model starts averaging across different points, so it can no longer follow the curve and a systematic gap opens up (bias rises). The black line is U-shaped, and its bottom is the $k$ that predicts best. This visualization describes how we choose hyperparameters like $k$ and we'll come back to it often in this stream.
+
+### 4.2 Saving's Data Again
 
 Back on the real savings data, we cannot plot bias and variance separately, but we can still find the bottom of the U by sweeping $k$ and recording **both** training and test MSE at every value.
 
@@ -382,13 +386,13 @@ plt.show()
 Two things stand out in this plot:
 
 - **Training MSE** (lower line) is at its **lowest** at $k=1$, in fact essentially zero, since each household is its own neighbour. It rises steadily as $k$ grows and the model must average over more households.
-- **Test MSE** is **U-shaped**. Too small a $k$ overfits (high variance); too large a $k$ underfits (high bias); the bottom of the U is the sweet spot.
+- **Test MSE** is **U-shaped**. Too small a $k$ overfits (high variance) and too large a $k$ underfits (high bias), so the bottom of the U is the sweet spot.
 
 **Think Deeper.** You have actually seen a version of this in ECON 326. Adding more regressors to an OLS model *always* raises in-sample $R^2$ (the training fit looks better), but that does not always improve real, out-of-sample performance. Same situation here.
 
-There is a catch: we found the bottom of that U **by peeking at the test set**. If we use the test set to *choose* $k$, we have used it up. It is no longer an honest estimate of performance on new data. We need a cleaner way to choose $k$. That is the next section.
+There's a catch: we found the bottom of that U **by peeking at the test set**. If we use the test set to *choose* $k$, we've used it up, and it's no longer an honest estimate of performance on new data. We need a cleaner way to choose $k$, which is the next section.
 
-## 7. Cross-validation
+### 4.3 Cross-validation
 
 The fix is to leave the test set in a sealed envelope and choose $k$ using **only the training data**. The trick is **k-fold cross-validation** (*k* here refers to fold and is not the same *k* as in k-nearest neighbours).
 
@@ -440,7 +444,7 @@ plt.show()
 print("Cross-validation chose k =", best_k)
 ```
 
-Only **now**, with $k$ chosen, do we break the seal on the test set, in order to get an honest estimate of how this model performs on new data.
+With cross-validation we have found the optimal $k$ to be 15. Only **now**, with $k$ chosen, do we break the seal on the test set, in order to get an honest estimate of how this model performs on new data.
 
 ```{python}
 final_model = make_knn(best_k).fit(X_train, y_train)
@@ -452,7 +456,7 @@ print(f"Test MSE: {final_test_mse:.1f}")
 print(f"Predict-the-average baseline: {baseline_mse:.1f}")
 ```
 
-The tuned model beats the predict-the-average baseline by a clear margin. It is not a spectacular predictor, because a household's savings depend on a great deal we did not measure, but it is an improvement, and throughout this stream we will learn more techniques to improve our model and its predictive power. 
+The tuned model beats the predict-the-average baseline by ~1050. It's not a spectacular predictor, because a household's savings depend on a great deal we didn't measure, but it's an improvement, and throughout this stream we'll learn more techniques to improve our model and its predictive power.
 
 ::: {.callout-note}
 ## The standard machine-learning recipe
@@ -481,13 +485,9 @@ We built a model that predicts net financial assets. Now the question this strea
 
 > Does that model tell us the **effect** of 401(k) eligibility on a household's savings?
 
-**No.** This is one of the core concepts of this stream. Here are the same three reasons stated in general terms, the reasons Notebook 4 returns to:
+**No.** This is one of the core concepts of this stream, and it comes down to a few reasons that Notebook 4 returns to. Our model can predict savings well by leaning on features that merely travel *alongside* eligibility, like income, age, and owning an IRA, so eligibility itself might be doing little of the work the comparison credits it with, and a predictive model can't tell the difference. Even if we did read a number for the effect of eligibility out of a model that predicts savings well, that number would blend the true effect with **selection**, since eligible households already differ from ineligible ones in many other ways, tending to be richer, older, and already inclined to save. And underneath all of this is a deeper problem: a causal question is a *counterfactual* one, asking what would happen to *this household's* savings if it became eligible, holding everything else fixed. A prediction model never answers that, the best it can do is point to a *different* household that already is eligible. Telling those two situations apart, the same household under a change versus a different household that already had it, is what makes causal estimation hard, and it's what Notebook 4 begins to fix.
 
-1. **Prediction can lean on correlates, not causes.** Our model can predict savings well by leaning on features that merely travel *alongside* eligibility: income, age, owning an IRA. Eligibility itself might be doing little of the work the comparison credits it with, and a predictive model cannot tell the difference.
-2. **A predictive number is not a causal one.** Even if we read a number for the effect of eligibility out of a model that predicts savings well, that number blends the true effect with **selection**: eligible households already differ from ineligible ones in many other ways, tending to be richer, older, and already inclined to save.
-3. **A prediction model cannot imagine anything any differently.** A causal question is a *counterfactual* one: what would happen to *this household's* savings if it became eligible, holding everything else fixed? A prediction model never answers that. The best it can do is point to a *different* household that already is eligible. Those two things, the same household under a change versus a different household that already had it, are not the same, and telling them apart is the heart of what makes causal estimation hard. It is what Notebook 4 begins to fix.
-
-Prediction is one job. Causal estimation is a different job. The next two notebooks sharpen the prediction toolkit; from Notebook 4 onward we turn that toolkit into something that can actually answer the eligibility question.
+The next two notebooks sharpen the prediction toolkit, and from Notebook 4 onward we turn that toolkit into something that can actually answer the eligibility question.
 
 ::: {.callout-note}
 ## Its causal future
@@ -497,13 +497,16 @@ KNN's one idea, *find the units most similar to this one and borrow their outcom
 
 ## Connections
 
-- **Back:** COMET Intermediate Econometrics, *Introduction to Regression*, *Multiple Regression*, *Issues in Regression*. Those notebooks asked "what is the coefficient?"; this stream asks "how well can we predict?"
+- **Back:** COMET Intermediate Econometrics, *Introduction to Regression*, *Multiple Regression*, *Issues in Regression*. These are important pre-requisites to be able to engage with this notebook stream.
 - **Forward to Notebook 2:** we used KNN here because the bias-variance tradeoff is so easy to *see*. Next we apply the same train / test / cross-validate discipline to **linear** models with many features, and meet **ridge** and **lasso**.
 
 ### References
 
 - Chernozhukov, V., Hansen, C., & Spindler, M. (2016). *hdm: High-dimensional metrics.* R Journal, 8(2), 185-199. The source of the 401(k) dataset, distributed with the `doubleml` and `hdm` packages.
-- Poterba, J. M., Venti, S. F., & Wise, D. A. (1995). *Do 401(k) contributions crowd out other personal saving?* Journal of Public Economics, 58(1), 1-32. The original study behind the eligibility question.
+- Poterba, J. M., Venti, S. F., & Wise, D. A. (1995). *Do 401(k) contributions crowd out other personal saving?* Journal of Public Economics, 58(1), 1-32.
 - James, G., Witten, D., Hastie, T., & Tibshirani, R. (2021). *An Introduction to Statistical Learning.* Springer. (Chapters 2 and 5.)
+- https://builtin.com/data-science/train-test-split
+- https://www.geeksforgeeks.org/machine-learning/cross-validation-machine-learning/
+- https://www.ibm.com/think/topics/knn
 
 ---
