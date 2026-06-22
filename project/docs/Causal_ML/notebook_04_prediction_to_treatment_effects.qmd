@@ -2,7 +2,7 @@
 title: "From Prediction to Treatment Effects"
 author: Alex Ronczewski
 date: 2026-06-18
-description: "The fourth notebook in the Causal ML stream and its turning point. We move from 'how well can we predict the outcome' to 'what is the effect of the treatment'. We meet potential outcomes, the average treatment effect, selection bias, and the unconfoundedness assumption, we see how the prediction tools from Notebooks 1 to 3 are used for causal estimation, and we see why using them naively gives a biased effect, which sets up the orthogonalization and cross-fitting of the notebooks to come."
+description: "The fourth notebook in the Causal ML stream. We move away from prediction to causality. We meet potential outcomes, the average treatment effect, selection bias, and the unconfoundedness assumption, we see how the prediction tools from Notebooks 1 to 3 are used for causal estimation, and we see why using them naively gives a biased effect, which sets up the orthogonalization and cross-fitting."
 categories:
   - Python
   - machine learning
@@ -30,11 +30,11 @@ format:
 
 ### Prerequisites
 
-- Notebook 3 of this stream: trees and forests, the train/test/cross-validate recipe, and the closing argument that a good predictor is not a causal effect
-- The COMET Intermediate notebooks on regression, and some exposure to instrumental variables and difference-in-differences (ECON 326), which we connect to at the end
+- Notebook 3 of this stream: trees and forests, the train/test/cross-validate recipe, prediction is not causality. 
+- The COMET Intermediate notebooks on regression, and some exposure to instrumental variables and difference-in-differences (ECON 326)
 - Comfort with `pandas` and basic Python at the COMET-intermediate level
 
-### Outcomes
+### Learning Outcomes
 
 By the end of this notebook you will be able to:
 
@@ -43,7 +43,7 @@ By the end of this notebook you will be able to:
 3. Define the **average treatment effect (ATE)** and the naive difference in means.
 4. Explain **selection bias**: why the naive comparison is not the ATE.
 5. State the **unconfoundedness** and **overlap** assumptions and explain how they identify the ATE by adjusting for $X$.
-6. Describe how the prediction tools from Notebooks 1 to 3 enter causal estimation as **nuisance** estimators.
+6. Describe how the prediction tools from Notebooks 1 to 3 connect to causal estimation as **nuisance** estimators.
 7. Explain why using machine learning naively gives a **biased** treatment effect, and describe **orthogonalization** and **cross-fitting** as the fix.
 8. Say what to do when unconfoundedness fails, and connect it to **IV** and **DiD** from COMET.
 
@@ -58,17 +58,17 @@ RANDOM_STATE = 42  # fix randomness so the simulations are reproducible
 TRUE_EFFECT = 1.0  # in our simulated worlds we get to set the real effect ourselves
 ```
 
-## 1. Predictive to Causal
+## 1. Prediction to Causality
 
-For three notebooks we asked one question in three ways: how well can we predict savings from a household's characteristics, having a 401(k) being the main variable? KNN, ridge, lasso, trees, and forests are all answers to it, and each notebook closed with the same warning. A model that predicts savings well does not tell us the **effect** of 401(k) eligibility on savings.
+For two of our three notebooks we asked how well we can predict savings from a household's characteristics, with having a 401(k) as the main variable. KNN, ridge, lasso, trees, and forests are all answers to that, and each notebook closed with the same warning, that a model that predicts savings well doesn't tell us the **effect** of 401(k) eligibility on savings.
 
-From now on we will be shifting away from prediction. Prediction asks for a good guess of $Y$. Causal analysis asks for the effect of a **treatment** $D$ on $Y$: how much would a household's savings change if we made it eligible for a 401(k) and changed nothing else? Call $D$ the treatment (here `e401`, eligibility), $Y$ the outcome (here `net_tfa`), and $X$ the household's other characteristics. We want the effect of $D$ on $Y$. 
+From now on we'll be shifting away from prediction. Prediction asks for a good guess of $Y$, while causal analysis asks for the effect of a **treatment** $D$ on $Y$: how much would a household's savings change if we made it eligible for a 401(k) and changed nothing else? Call $D$ the treatment (here `e401`, eligibility), $Y$ the outcome (here `net_tfa`), and $X$ the household's other characteristics. We want the effect of $D$ on $Y$. This is causal analysis. 
 
-This notebook is mostly conceptual. It has less code than the other notebooks. 
+This notebook is more conceptual and dense than the other notebooks, but it is also the most important.  
 
-## 2. The naive comparison
+### 1.1 Why a naive comparions fails
 
-The obvious thing to do is compare the savings of households that are eligible for a 401(k) with those that are not.
+The obvious thing to do is compare the savings of households that are eligible for a 401(k) with those that are not. We just subtract mean net financial assets of ineligible households from eligable ones.
 
 ```{python}
 savings = pd.read_csv("datasets/Pension401k.csv")
@@ -82,7 +82,7 @@ print(f"Ineligible households, mean net financial assets: {Y[D == 0].mean():.1f}
 print(f"Naive difference (eligible minus ineligible)    : {naive_gap:.1f}")
 ```
 
-Eligible households have about $19,600 more in net financial assets. It is tempting to call that the effect of eligibility for the 401(k). The problem is that eligible and ineligible households differ in ways that have nothing to do with the 401(k). Eligibility comes bundled with certains jobs, and those jobs often pay more, so eligible households already earn more, and higher earners already save more. The plot below shows the income gap directly.
+Eligible households have about $19,600 more in net financial assets. It is tempting to call that the effect of eligibility for the 401(k). The problem is that eligible and ineligible households differ in ways that have nothing to do with 401(k) eligbility. Eligibility comes bundled with certains jobs, and those jobs often pay more, so eligible households already earn more, and higher earners already save more. The plot below shows the income gap directly.
 
 ```{python}
 plt.figure(figsize=(9, 5))
@@ -97,7 +97,7 @@ plt.legend()
 plt.show()
 ```
 
-The eligible group sits to the right: its income distribution is shifted rightwards. Some of the $19,600 gap is the effect of eligibility, and some comes from comparing richer households with poorer ones. The naive difference mixes the two together and cannot separate them.
+The eligible group sits to the right of the ineligible group, its income distribution is shifted rightwards. Some of the $19,600 gap is the effect of eligibility, and some of it comes from comparing richer households with poorer ones. The naive difference mixes the two together and can't separate them. This leads to bias. 
 
 The household's characteristics $X$, its income, age, and the rest, influence both whether it is eligible and how much it saves. A variable that causes both the treatment and the outcome is a **confounder**, and it is what makes the naive comparison untrustworthy.
 
@@ -125,17 +125,17 @@ ax.set_title("X is a common cause of eligibility (D) and savings (Y): a confound
 plt.show()
 ```
 
-The arrow from $D$ to $Y$ is the effect we are after. The two red arrows out of $X$ are the problem: they open a second route by which eligible and ineligible households come to differ in savings, one that owes nothing to the $D \to Y$ arrow. To recover the effect we have to deal with $X$ somehow, and to say precisely what we mean by "the effect" we first need a small piece of vocabulary.
+The arrow from $D$ to $Y$ is the effect we are after (401(k) eligibility on savings). The two red arrows out of $X$ are the problem: they open a second route by which eligible and ineligible households come to differ in savings, one that is unrelated nothing to the $D \to Y$ arrow. To recover the effect we have to deal with $X$ somehow, and to say precisely what we mean by "the effect" we first need a small piece of vocabulary.
 
-## 3. Potential outcomes
+## 2. Potential outcomes
 
-Think about a single household and two versions of the world. In one it is eligible for a 401(k); in the other it is not. It is important to note that apart from the 401(k) eligibility nothing else has changed; the household is identical. Write $Y(1)$ for the savings it would end up with if eligible, and $Y(0)$ for the savings it would end up with if not. These are its two **potential outcomes**. The effect of eligibility on that household is the difference between them:
+Think about a single household and two versions of the world. In one it is eligible for a 401(k); in the other it is not. Note that apart from the 401(k) eligibility nothing else has changed, we hold everything else fixed, the households are otherwise identical. Write $Y(1)$ for the savings it would end up with if eligible, and $Y(0)$ for the savings it would end up with if not. These are its two **potential outcomes**. The effect of eligibility on that household is the difference between them:
 
 $$
 \text{effect for household } i = Y_i(1) - Y_i(0).
 $$
 
-If we could see both numbers for every household, causal inference would just be subtraction. To demonstrate this we will make a small made up world where we can see $Y(1)$ and $Y(0)$ for 5 households. 
+If we could see both numbers for every household, causal inference would just be subtraction. To demonstrate this we will make a made up world where we can see $Y(1)$ and $Y(0)$ for 5 households. 
 
 ```{python}
 world = pd.DataFrame({
@@ -159,9 +159,9 @@ observed = observed.drop(columns=["effect"])  # unknowable, one outcome per row 
 observed
 ```
 
-Half of each row is gone, and with it the `effect` column. This is the **fundamental problem of causal inference**: for any one household we see at most one of its two potential outcomes, so its individual effect is never observed. We cannot recover it for any single household. 
+Half of each row is gone, and with it the `effect` column. This is the **fundamental problem of causal inference**: for any one household we see at most one of its two potential outcomes, so its individual effect is never observed and we can't direclty measure it for any single household.
 
-What we can still hope for is an average.
+What we can still hope for, though, is an average.
 
 The **average treatment effect (ATE)** is the average of the individual effects across all households:
 
@@ -169,11 +169,11 @@ $$
 \text{ATE} = \mathbb{E}\big[\, Y(1) - Y(0) \,\big].
 $$
 
-It is one number: how much eligibility would change savings on average if it were applied to everyone. The rest of the notebook is about calculating it from our real world table (which is missing half it's entries).
+ATE calculates how much eligibility would change savings on average if it were applied to everyone. The rest of the notebook is about calculating it from our real world table (which is missing half it's entries).
 
-## 4. Selection bias
+### 2.1 Selection bias
 
-The naive difference from section 2 compares the savings we observe for the eligible with the savings we observe for the ineligible:
+The naive difference from section 1.1 compares the savings we observe for the eligible with the savings we observe for the ineligible:
 
 $$
 \mathbb{E}[Y \mid D = 1] - \mathbb{E}[Y \mid D = 0].
@@ -187,7 +187,7 @@ $$
 
 The first piece is a real treatment effect. The second is **selection bias**: the gap in $Y(0)$, the savings the two groups would have had even with no 401(k) anywhere. If eligible households are richer and save more to begin with, that gap is positive and the naive difference overstates the effect.
 
-We cannot see the size of the bias in the real 401(k) data, because $Y(0)$ for the eligible is one of those missing counterfactuals. So we build a world where we set the true effect ourselves and can watch the bias appear. Each household has covariates $X$; both its eligibility and its savings depend on $X$, which is what ties them together and creates the bias.
+We cannot see the size of the bias in the real 401(k) data, because $Y(0)$ for the eligible is one of our missing counterfactuals. So we build a world where we set the true effect ourselves and can watch the bias appear. Each household has covariates $X$; both its eligibility and its savings depend on $X$, which is what ties them together and creates the bias (remember our causal diagram with $D$, $X$, $Y$). 
 
 Because we built this world, we can do something the 401(k) data never allows: look at $Y(0)$, the savings under no 401(k), for every household, including the eligible ones whose $Y(0)$ is a counterfactual in real life. The function below returns both potential outcomes next to what we would actually observe.
 
@@ -211,7 +211,7 @@ X_low, D_low, Y_low, Y0_low, Y1_low, propensity_low = simulate(
 naive_low = Y_low[D_low == 1].mean() - Y_low[D_low == 0].mean()
 ```
 
-The decomposition above asked for two quantities we normally cannot compute. Here we can, because we hold both potential outcomes. The effect on the eligible is the average of $Y(1) - Y(0)$ among them, and the selection bias is the gap in $Y(0)$ between the two groups.
+The decomposition above asked for two quantities we normally cannot compute. The effect on the eligible is the average of $Y(1) - Y(0)$ among them, and the selection bias is the gap in $Y(0)$ between the two groups.
 
 ```{python}
 effect_on_eligible = (Y1_low - Y0_low)[D_low == 1].mean()
@@ -222,7 +222,7 @@ print(f"  selection bias        : {selection_bias:.2f}")
 print(f"True effect we built in : {TRUE_EFFECT:.2f}")
 ```
 
-The naive difference of 6.14 is the true effect of 1 plus a selection bias of 5.14. The bias is five times the size of the thing we are trying to measure. We can see exactly where it comes from by plotting $Y(0)$, the savings each household would have had with no 401(k), for the two groups side by side.
+The naive difference of 6.14 is the true effect of 1 plus a selection bias of 5.14. The bias is five times the size of the quantitity we are trying to measure. We can see exactly where it comes from by plotting $Y(0)$, the savings each household would have had with no 401(k), for the two groups side by side.
 
 ```{python}
 plt.figure(figsize=(9, 5))
@@ -237,11 +237,11 @@ plt.legend()
 plt.show()
 ```
 
-Both curves are drawn in a world where no household has a 401(k), so neither is touched by the treatment. They still do not line up: the eligible households, the orange curve, sit to the right and would have saved more regardless, because the same covariates that make them likely to be eligible also make them savers. That gap, with the treatment removed entirely, is the selection bias. The naive comparison cannot separate it from the effect so it includes it.
+Both curves are drawn in a world where no household has a 401(k), so neither is affected by the treatment. They still do not line up: the eligible households, the orange historgram, sits to the right and would have saved more regardless, because the same covariates that make them likely to be eligible also make them savers (better job, higher propesnity to save, age, etc). That gap, with the treatment removed entirely, is the selection bias. The naive comparison cannot separate it from the effect so it includes it.
 
-## 5. Unconfoundedness
+### 2.2 Unconfoundedness
 
-This is the most key assumption in this whole stream, so we will explore it in detail. The reason the naive comparison fails is that eligibility was decided in a way that depends on $X$, and $X$ also drives savings. Suppose instead we could find, for every eligible household, an ineligible household identical on $X$: same income, age, education, family size, everything we measured. It is identical on all covariates. Within such a matched pair, the only systematic difference left is eligibility, so comparing them recovers an effect. Stated as an assumption, this is **unconfoundedness** (also called selection on observables or conditional independence):
+This is the most key assumption in this whole stream, so we will explore it in detail. The reason the naive comparison fails is that eligibility was decided in a way that depends on $X$, and $X$ also drives savings. Suppose instead we could find, for every eligible household, an ineligible household identical on $X$: same income, age, education, family size, everything we measured. Within such a pair, the only systematic difference left is eligibility, so comparing them recovers an effect. This is **unconfoundedness** (also called selection on observables or conditional independence):
 
 $$
 \big(Y(0), Y(1)\big) \;\perp\; D \;\mid\; X.
@@ -249,7 +249,7 @@ $$
 
 The $\;\perp\;$ symbol means independent. 
 
-In words: once we hold $X$ fixed, which household is eligible is as good as random. For our data it says that among households that match on everything we measured, whether one of them landed a job that offers a 401(k) tells us nothing more about how much it would have saved on its own. It would fail if households differ in some way the survey never recorded, for example a propensity for saving, that both steers them into eligible jobs and pushes up their savings. Then eligible and ineligible households still differ after we condition on $X$, and no adjustment on $X$ can repair it. Section 8 returns to exactly this case.
+In words: once we hold $X$ fixed, which household is eligible is as good as random. For our data it says that among households that match on everything we measured, whether one of them has a job that offers a 401(k) tells us nothing more about how much it would have saved on its own. It would fail if households differ in some way the survey never recorded, for example a propensity for saving, that both steers them into eligible jobs and pushes up their savings. Then eligible and ineligible households still differ after we condition on $X$, and no adjustment on $X$ can repair it. 
 
 There is a companion requirement called **overlap** or **positivity**: at every value of $X$ there must be both eligible and ineligible households, or there is no comparison to make. Together they let us write the ATE as an average of within-$X$ comparisons:
 
@@ -260,7 +260,7 @@ $$
 ::: {.callout-important}
 ## Unconfoundedness is an assumption, not a result
 
-Nothing in the data can confirm $(Y(0), Y(1)) \perp D \mid X$, because it involves the potential outcomes we never observe. We assume that the covariates we collected capture every systematic reason a household ends up eligible. We assume it, we adjust for $X$, and we stay aware that the whole estimate rests on it. 
+Nothing in the data can confirm $(Y(0), Y(1)) \perp D \mid X$, because it involves the potential outcomes we never observe. We assume that the covariates we collected capture every systematic reason a household ends up eligible, we adjust for $X$ on that basis, and we know that the whole estimate rests on the assumption.
 :::
 
 In our simulated world unconfoundedness holds by construction, because we built $D$ to depend only on the $X$ we recorded, so we can watch the assumption do its work. We sort the households into ten groups by how likely they were to be eligible, a single number that summarises $X$, and inside each group we compare the savings of the eligible with the ineligible. Within a narrow group the two sides are alike, so the comparison should be close to the true effect.
@@ -283,7 +283,7 @@ plt.legend()
 plt.show()
 ```
 
-In the middle groups the within-group comparison sits close to the true effect of 1, far below the pooled naive difference of 6.14. This is unconfoundedness paying off: once we compare households that look alike, the selection bias is gone and what is left is the effect. The end groups wander upwards, and that is the overlap problem showing up. In the lowest group almost no one is eligible and in the highest almost everyone is, so there are too few of the other side to compare against, and the estimate gets noisy. Comparing within groups like this is one way to adjust for $X$. The compact version, which uses a formula instead of bins, is to put $D$ and $X$ into one linear regression and read the coefficient on $D$.
+In the middle groups the within-group comparison sits close to the true effect of 1, far below the pooled naive difference of 6.14. This is the unconfoundedness assumption working: once we compare households that look alike, the selection bias is gone and what is left is the true effect. The end groups wander upwards, and that is the **overlap** problem showing up. In the lowest group almost no one is eligible and in the highest almost everyone is, so there are too few of the other side to compare against, and the estimate gets noisy. Comparing within groups like this is one way to adjust for $X$. The compact version of this is to put $D$ and $X$ into one linear regression and read the coefficient on $D$.
 
 ```{python}
 ols_adjust = LinearRegression().fit(np.column_stack([D_low, X_low]), Y_low).coef_[0]
@@ -301,21 +301,21 @@ print(f"401(k) naive gap      : {naive_gap:.1f}")
 print(f"401(k) adjusted for X : {adjusted_401k:.1f}")
 ```
 
-Adjusting cuts the 401(k) gap from about $19,600 to about $5,900. We cannot check that number against a known truth the way we can in the simulation, and it still rests on unconfoundedness, but it is the comparison we want: eligible against ineligible households that look alike on what we measured.
+Adjusting cuts the 401(k) gap from about 19,600 to about 5,900 dollars. We cannot check that number against a known truth the way we can in the simulation, and it still rests on unconfoundedness, but it is the comparison we want: eligible against ineligible households that look alike on what we measured.
 
-## 6. The role of machine learning
+## 3 The role of machine learning
 
-Look again at the identification formula. To estimate the ATE under unconfoundedness we need $\mathbb{E}[Y \mid D, X]$, the expected savings given treatment and covariates. That is a function of $X$, and learning a function of $X$ from data is exactly the prediction problem Notebooks 1 to 3 were about. A closely related quantity, the **propensity score** $\mathbb{E}[D \mid X]$, the probability of being eligible given the covariates, is another prediction problem, the classification version. We have tools to solve both of these!
+Look again at the identification formula. To estimate the ATE under unconfoundedness we need $\mathbb{E}[Y \mid D, X]$, the expected savings given treatment and covariates. That is a function of $X$, and learning a function of $X$ from data is the prediction problems from Notebooks 1 to 3. A closely related quantity, the **propensity score** $\mathbb{E}[D \mid X]$, the probability of being eligible given the covariates, is another prediction problem based around classification. We have learned tools to solve both of these!
 
-This is how machine learning enters causal inference. The treatment effect is the target, and the regressions of $Y$ on $X$ and of $D$ on $X$ are **nuisance** functions: pieces we have to estimate well so the effect comes out right, but that are not themselves the answer. In section 5 the nuisance was simple enough for OLS. When the covariates are many or the relationships are nonlinear, OLS is the wrong tool, for the reasons Notebook 2 laid out, and we reach for lasso, a forest, or boosting. The estimators in this stream are about to become the engines inside a causal procedure.
+This is how machine learning is used in causal inference. The treatment effect is the target, and the regressions of $Y$ on $X$ and of $D$ on $X$ are **nuisance** functions: functions we have to estimate correctly so the effect comes out right, but that are not themselves the answer. In section 2 the nuisance was simple enough for OLS. When there are many covariates or the relationships are nonlinear, OLS is the wrong tool, for the reasons Notebook 2 laid out, and instead we utlize lasso, a forest, or boosting. 
 
-It would seem we are done: estimate $\mathbb{E}[Y \mid D, X]$ with the best predictor we have and read off the effect. But that does not work; let's find out why. 
+It would seem we're done: estimate $\mathbb{E}[Y \mid D, X]$ with the best predictor we have and read off the effect. But that doesn't work, so let's find out why.
 
-## 7. The catch: machine learning used naively gives a biased effect
+### 3.1 The catch: machine learning used naively gives a biased effect
 
-We move to a world with many covariates and stronger confounding, the setting where a flexible learner is the only option and where the trouble shows itself. Here there are 150 covariates and 300 households, the high-dimensional regime from Notebook 2, so OLS is out and we use lasso for the adjustment.
+We move to a world with many covariates and stronger confounding, the setting where a flexible learner is the only option and where issues start to arise. Here there are 150 covariates and 300 households, the high-dimensional situation from Notebook 2, so OLS breaks and we use lasso for the adjustment.
 
-The naive way to use it mirrors section 5: put $D$ and all of $X$ into one lasso and read the coefficient on $D$.
+The naive way to use it mirrors section 2.2: put $D$ and all of $X$ into one lasso and read the coefficient on $D$.
 
 ```{python}
 X_high, D_high, Y_high, *_ = simulate(n=300, p=150, confounding=4.0, seed=RANDOM_STATE)
@@ -330,9 +330,9 @@ print(f"Naive difference   : {naive_high:.2f}")
 print(f"Naive single lasso : {naive_lasso:.2f}")
 ```
 
-The naive difference is a terrible estimator at 6.88. The single lasso is closer, but 0.75 is well below our true effect of 1. The lasso penalty shrinks every coefficient toward zero to control variance, and it shrinks the coefficient on $D$ along with the rest. We do not want the coefficient on $D$ to be shrunk. This is **regularization bias**, and it is the warning Notebook 2 ended on, now made concrete: a lasso-selected coefficient is not a clean effect.
+The naive difference is a terrible estimator at 6.88. The single lasso is closer, but 0.75 is well below our true effect of 1. The lasso penalty shrinks every coefficient toward zero to control variance, and it shrinks the coefficient on $D$ along with the rest, even though that is the one coefficient we don't want shrunk (it is the target). This is **regularization bias**, the warning Notebook 2 ended on: a lasso-selected coefficient is not a clean effect.
 
-The fix is to stop asking a single penalized regression to deliver the effect. Instead we use machine learning only for the nuisance functions ($Y$ on $X$ and $D$ on $X$) and keep the effect itself out of the penalty. This is **orthogonalization**, the same idea as adjusting for $X$ in section 5, now done on each side on its own. We partial $X$ out of the outcome and out of the treatment, each with its own lasso, and then relate what is left over:
+The fix is to stop asking a single penalized regression to find the effect. Instead we use machine learning only for the nuisance functions ($Y$ on $X$ and $D$ on $X$) and keep the effect itself out of the penalty. This is **orthogonalization**, the same idea as adjusting for $X$ in section 2.2, now done on each side individually. We partial $X$ out of the outcome and out of the treatment, each with its own lasso, and then relate what is left over:
 
 1. Predict $Y$ from $X$ and take the residual $\tilde{Y} = Y - \hat{\mathbb{E}}[Y \mid X]$: the part of savings the covariates do not explain.
 2. Predict $D$ from $X$ and take the residual $\tilde{D} = D - \hat{\mathbb{E}}[D \mid X]$: the part of eligibility the covariates do not explain.
@@ -365,7 +365,7 @@ plt.legend()
 plt.show()
 ```
 
-Once $X$ is removed from both eligibility and savings, the part left over lines up along a slope of about 1, the effect we built in. Lining the three estimators up against the truth makes the comparison plain.
+Once $X$ is removed from both eligibility and savings, the part left over lines up along a slope of 1.07, which is very close to the effect of 1 we constructed. Let's compare all three esitmates we used.
 
 ```{python}
 plt.figure(figsize=(8, 5))
@@ -384,16 +384,16 @@ We can still improve upon this! There is a second, subtler bias we have not remo
 ::: {.callout-tip}
 ## Self-test
 
-We adjusted for $X$ with OLS in section 5 and it worked. Why not just always use OLS and avoid the regularization bias entirely?
+We adjusted for $X$ with OLS in section 2.2 and it worked. Why not just always use OLS and avoid the regularization bias entirely?
 
 <details><summary>Show / hide answer</summary>
-Because OLS only works when the covariates are few relative to the sample, like section 5. With many covariates, our setting in section 7 and in Notebook 2, OLS overfits and falls apart, so we have to use a regularized or flexible learner for the nuisance. Regularization is then unavoidable, and orthogonalization is what keeps it from biasing the effect.
+Because OLS only works when the covariates are few relative to the sample, like section 2.2. With many covariates, our setting in section 3.1 and in Notebook 2, OLS overfits and falls apart, so we have to use a regularized or flexible learner for the nuisance. Regularization is necessary, and orthogonalization is what removes the bias.
 </details>
 :::
 
-## 8. When unconfoundedness fails
+### 3.2 When unconfoundedness fails
 
-Everything above rests on unconfoundedness: the covariates we adjusted for capture every systematic reason a household is eligible. Suppose they do not. Suppose the most important confounder is something we never measured. We can see what that does by taking our low-dimensional world and adjusting for every covariate except the most important one, as if it had been left out of the survey.
+Everything above rests on unconfoundedness: the covariates we adjusted for capture every systematic reason a household is eligible. But let's suppose they do not. Suppose the most important confounder is something we never measured. We can see what that does by taking our low-dimensional world and adjusting for every covariate except the most important one, as if it had been left out of the survey.
 
 ```{python}
 ols_hidden = LinearRegression().fit(np.column_stack([D_low, X_low[:, 1:]]), Y_low).coef_[0]
@@ -402,20 +402,20 @@ print(f"Adjusted for all X      : {ols_adjust:.2f}")
 print(f"Adjusted, top X hidden  : {ols_hidden:.2f}")
 ```
 
-With the strongest confounder hidden, the adjusted estimate jumps from about 1 to 5.87, almost as biased as the naive difference. No amount of technique with the covariates we do have can fix a confounder we do not have. Orthogonalization, cross-fitting, a better learner: none of them helps, because the problem is missing information, not a missing technique.
+With the strongest confounder hidden, the adjusted estimate jumps from 1 to 5.87, almost as biased as the naive difference. No amount of technique with the covariates we do have can fix a confounder we don't have. Orthogonalization, cross-fitting, a stronger learner, none of them helps here, because what we are missing is information rather than a better method.
 
-This is where the tools you met in COMET come back. When unconfoundedness is too much to assume, we look for a different source of variation that is as good as random for a reason we can defend. **Instrumental variables** uses a variable that shifts the treatment but affects the outcome only through it. **Difference-in-differences** uses the timing of a treatment together with a parallel-trends assumption. These are different identification strategies, each resting on its own assumption rather than on adjusting for $X$, and machine learning extends them too. The choice among adjusting for $X$, an instrument, and a difference-in-differences design is a choice about which assumption you are willing to defend, and that choice is yours to make before any estimator runs.
+This is where the tools you met in COMET come back. When unconfoundedness is too much to assume, we look for a different source of variation. **Instrumental variables** uses a variable that shifts the treatment but affects the outcome only through it. **Difference-in-differences** uses the timing of a treatment together with a parallel-trends assumption. These are different identification strategies, each resting on its own assumption rather than on adjusting for $X$, and machine learning extends them too. Picking between adjusting for $X$, an instrument, or a difference-in-differences design really comes down to which assumption you are willing to defend.
 
 ::: {.callout-note}
 ## Its causal future
 
-From here the stream builds out the toolkit this notebook set up. Notebook 5 fixes the regularization bias for lasso specifically, with post-double-selection. Notebook 6 estimates the propensity score $\mathbb{E}[D \mid X]$ and uses it to reweight. Notebook 7 builds double machine learning, the orthogonalization and cross-fitting of section 7, in full. Notebook 8 moves from the average effect to who benefits most, with causal forests. Each one is a prediction tool from Notebooks 1 to 3, aimed at a causal target.
+From here the stream builds out the toolkit this notebook set up. Notebook 5 fixes the regularization bias for lasso specifically, with post-double-selection. Notebook 6 estimates the propensity score $\mathbb{E}[D \mid X]$ and uses it to reweight. Notebook 7 builds double machine learning, the orthogonalization and cross-fitting of section 3.1, in full. Notebook 8 moves from the average effect to who benefits most, with causal forests. Each one is a prediction tool from Notebooks 1 to 3, but now in it's proper causal clothing. 
 :::
 
 ## Connections
 
-- **Back to Notebook 3:** Notebook 3 finished the prediction toolkit with trees and forests and, like the notebooks before it, ended by refusing to call a prediction an effect. This notebook says what an effect is and what it takes to estimate one.
-- **Forward to Notebook 5:** post-double-selection lasso, the proper fix for the regularization bias of section 7, on the growth and convergence question from Notebook 2.
+- **Back to Notebook 3:** Notebook 3 finished the prediction toolkit with trees, forests and boosting. 
+- **Forward to Notebook 5:** post-double-selection lasso, the proper fix for the regularization bias of section 3.1, on the growth and convergence question from Notebook 2.
 
 ### References
 
@@ -423,5 +423,8 @@ From here the stream builds out the toolkit this notebook set up. Notebook 5 fix
 - Belloni, A., Chernozhukov, V., & Hansen, C. (2014). *High-dimensional methods and inference on structural and treatment effects.* Journal of Economic Perspectives, 28(2), 29-50. Regularization bias and the double-selection fix.
 - Chernozhukov, V., Chetverikov, D., Demirer, M., Duflo, E., Hansen, C., Newey, W., & Robins, J. (2018). *Double/debiased machine learning for treatment and structural parameters.* Econometrics Journal, 21(1), C1-C68. Orthogonalization and cross-fitting.
 - Poterba, J. M., Venti, S. F., & Wise, D. A. (1995). *Do 401(k) contributions crowd out other personal saving?* Journal of Public Economics, 58(1), 1-32. The eligibility question.
-
+- https://www.stats.ox.ac.uk/~evans/APTS/causassmp.html
+- https://causalwizard.app/inference/article/ate
+- www.geeksforgeeks.org/machine-learning/causal-machine-learning/
+- https://en.wikipedia.org/wiki/Ignorability
 ---
