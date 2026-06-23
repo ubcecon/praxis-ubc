@@ -2,7 +2,7 @@
 title: "Heterogeneous Effects and Causal Forests"
 author: Alex Ronczewski
 date: 2026-06-20
-description: "The eighth and final notebook in the Causal ML stream. We move from the average effect to who benefits. We meet the conditional average treatment effect, estimate it the intuitive way with meta-learners, then with a causal forest that generalizes the random forest of Notebook 3, visualize how the effect of 401(k) eligibility varies across households, and use it to target a policy. It closes out the stream."
+description: "The eighth and final notebook in the Causal ML stream. We move from the average effect to who benefits. We meet the conditional average treatment effect, estimate it with meta-learners, then with a causal forest that generalizes the random forest of Notebook 3, visualize how the effect of 401(k) eligibility varies across households, and use it to target a policy."
 categories:
   - Python
   - machine learning
@@ -56,7 +56,7 @@ RANDOM_STATE = 42
 
 ## 1. From the average to who benefits
 
-Notebook 7 ended with one number: 401(k) eligibility raised net financial assets by about 8,800 dollars on average. That word, average, hides a question. An effect of 8,800 dollars on average could mean every household gains roughly 8,800, or it could mean some households gain a great deal and others almost nothing. For policy the difference is everything. If only some households benefit, we would want to know which ones.
+Notebook 7 ended with one number: 401(k) eligibility raised net financial assets by about 8,800 dollars on average. That word "average" is hiding something, though. An effect of 8,800 dollars on average could mean every household gains roughly 8,800, or it could mean some households gain a great deal and others almost nothing, and for policy that difference matters. If only some households benefit, we'd want to know which ones.
 
 This is the move from the average treatment effect to the **conditional average treatment effect (CATE)**, the effect for households with a given set of characteristics:
 
@@ -64,7 +64,7 @@ $$
 \tau(x) = \mathbb{E}\big[\, Y(1) - Y(0) \;\big|\; X = x \,\big].
 $$
 
-The ATE is one number for everyone. The CATE is a function: a different effect for each kind of household. Averaging $\tau(x)$ over all households gives back the ATE, so the CATE refines the average rather than replacing it.
+The ATE is one number for everyone, while the CATE is a function that gives a different effect for each kind of household. Averaging $\tau(x)$ over all households gives back the ATE, so the CATE refines the average rather than replacing it.
 
 ::: {.callout-important}
 ## CATE versus ATE
@@ -82,7 +82,7 @@ Y = savings["net_tfa"].to_numpy()
 X = savings[confounders].to_numpy()
 ```
 
-## 2. Meta-learners, the intuitive way
+## 2. Meta-learners
 
 The most direct way to estimate a CATE is to predict savings for a household twice, once as if eligible and once as if not, and subtract. These recipes are called **meta-learners**, because they build a causal estimate out of ordinary predictors.
 
@@ -98,33 +98,33 @@ cate_t = mu1.predict(X) - mu0.predict(X)
 print(f"T-learner CATE: mean {cate_t.mean():.2f}, ranging from {cate_t.min():.0f} to {cate_t.max():.0f}")
 ```
 
-The mean is 7.43 thousand dollars, in the same range as Notebook 7's average. There is a relative of this called the **S-learner** ("S" for single), which fits one model with eligibility thrown in as just another feature, then predicts each household with the feature flipped on and off. Both share the same idea: estimate two predicted outcomes and difference them.
+The mean is 7.43 thousand dollars, in the same range as Notebook 7's average. There is another meta-learner called the **S-learner** ("S" for single), which fits one model with eligibility thrown in as just another feature, then predicts each household with the feature flipped on and off. In both models we use two predicted outcomes and take the difference.
 
-## 3. Why the T-learner estimate is noisy
+### 2.1 Why the T-learner estimate is noisy
 
-Meta-learners are the natural first thing to try, and they earn their place: they are simple, they reuse any predictor you already trust, and they turn the idea of a CATE into two predictions and a subtraction. When each treatment group is large and the outcome is fairly clean, they work well and are often used. The issue is that our data is difficult.
+Meta-learners are the natural first thing to try. They are simple, they reuse any predictor you already trust, and they simplify the CATE do just subtraction. When each treatment group is large and the outcome is fairly clean, they work well and are often used. The issue is that our data is difficult.
 
-Look again at the range the T-learner reported, from about negative 142 to positive 103 thousand dollars. We do not believe eligibility swings savings by that much; the extremes come from the method meeting a difficult outcome. The T-learner reads the CATE off the gap between two models, each fit on its own group, so the estimate inherits the noise of both. Net financial assets are heavy-tailed, a handful of households hold enormous sums, so each forest is already noisy on its own, and subtracting one from the other magnifies it.
+Look again at the range the T-learner reported, from negative 142 to positive 103 thousand dollars. We do not believe eligibility swings savings by that much; the extremes come from the simple method being used on complex data. The T-learner reads the CATE off the gap between two models, each fit on its own group, so the estimate inherits the noise of both. Net financial assets have large tails, a handful of households hold enormous sums, so each forest is already noisy on its own, and subtracting one from the other magnifies it.
 
 ```{python}
 print(f"T-learner CATE spread (standard deviation): {cate_t.std():.1f}")
 ```
 
-A standard deviation of 14.7 around a mean of 7.4 is mostly that magnified noise. The logic of the T-learner is sound and its average is reliable, close to Notebook 7's. What suffers is the per-household detail, which is the whole point of a CATE. The fix is to estimate the effect as a single quantity, directly, instead of as the gap between two separate guesses. That is what the causal forest does.
+A standard deviation of 14.7 around a mean of 7.4 shows us that magnified noise. The logic of the T-learner is sound and its average is reliable, close to Notebook 7's. What suffers is the per-household detail, and that detail is really what we want a CATE for. The fix is to estimate the effect as a single quantity, directly, instead of as the gap between two separate guesses, and that's what the causal forest does.
 
-## 4. The causal forest
+## 3. The causal forest
 
-A causal forest is the random forest of Notebook 3, re-aimed. Recall what a random forest does: it grows many trees, each splitting the data into groups of similar households, and predicts a household's **outcome** by averaging the outcomes in its group. A causal forest grows trees the same way, but inside each group it does something different: it estimates the **treatment effect**, by comparing eligible and ineligible households within the group. The splits are chosen to separate households whose effects differ, so the forest hunts for the very heterogeneity we are after.
+A causal forest is the random forest of Notebook 3, reframed for a causal question. Recall what a random forest does: it grows many trees, each splitting the data into groups of similar households, and predicts a household's **outcome** by averaging the outcomes in its group. A causal forest grows trees the same way, but inside each group it does something different: it estimates the **treatment effect**, by comparing eligible and ineligible households within the group. The splits are chosen to separate households whose effects differ, so the forest goes looking for the heterogeneity we care about.
 
-To handle confounding it leans on Notebook 7. Inside the forest, savings and eligibility are first residualized on the covariates, the residual-on-residual idea of double machine learning, so the effect it reads within each group is de-confounded. A causal forest is double machine learning and a random forest working together.
+To handle confounding it leans on Notebook 7. Inside the forest, savings and eligibility are first residualized on the covariates, the residual-on-residual idea from double machine learning, so the effect it reads within each group is de-confounded. You can think of a causal forest as double machine learning and a random forest working together.
 
 ::: {.callout-important}
 ## How a causal forest differs from a random forest
 
-A **random forest** (Notebook 3) splits the data into groups of similar units and averages the **outcome** in each: it predicts $Y$. A **causal forest** splits into groups of similar units and estimates the **treatment effect** in each, after residualizing out the confounders the way Notebook 7 did: it predicts $\tau(x)$. Same tree-growing machinery, aimed at the effect instead of the outcome.
+A **random forest** (Notebook 3) splits the data into groups of similar units and averages the **outcome** in each: it predicts $Y$. A **causal forest** splits into groups of similar units and estimates the **treatment effect** in each, after residualizing out the confounders the way Notebook 7 did: it predicts $\tau(x)$. It targets effect instead of outcome. 
 :::
 
-We use the `CausalForestDML` estimator from the `econml` package, which assembles exactly these pieces. We give it a model for savings and a model for eligibility, the two nuisance predictors from Notebook 7, and it does the residualizing and the effect-splitting for us.
+We use the `CausalForestDML` estimator from the `econml` package, which puts these pieces together for us. We give it a model for savings and a model for eligibility, the two nuisance predictors from Notebook 7, and it does the residualizing and the effect-splitting for us.
 
 ```{python}
 def make_causal_forest():
@@ -137,9 +137,9 @@ def make_causal_forest():
         cv=3, random_state=RANDOM_STATE)
 ```
 
-## 5. Does it work? Checking on a known result
+### 3.1 Does it work? Checking on a known result
 
-Before trusting the forest on real data, we check it where we know the answer, as we have throughout this stream. We build a world where the true effect is not constant: it is 1 for households with a low value of the first covariate and climbs to about 4 for those with a high value. Then we ask whether the causal forest recovers that rising shape.
+Before trusting the forest on real data, we first build a world where the true effect is not constant: it is 1 for households with a low value of the first covariate and climbs to about 4 for those with a high value. Then we ask whether the causal forest can find that rising shape.
 
 ```{python}
 rng = np.random.default_rng(RANDOM_STATE)
@@ -172,9 +172,9 @@ plt.legend()
 plt.show()
 ```
 
-The estimates sit right on the true curve, flat where the effect is flat and rising where it rises. The forest found the heterogeneity correctly.
+The estimates sit right on the true curve, flat where we made the effect flat and rising where we made it rise, so the forest has picked up the heterogeneity correctly. It worked! 
 
-## 6. Heterogeneity on the 401(k) data
+### 3.2 Who benefits from 401(k) Eligibility
 
 Now we turn it on the real question. We fit the causal forest to the 401(k) data and read off each household's estimated effect.
 
@@ -185,7 +185,7 @@ print(f"Causal forest CATE: mean {cate.mean():.2f}, standard deviation {cate.std
 print(f"Share of households with a positive effect: {(cate > 0).mean():.2f}")
 ```
 
-The mean is 7.79 thousand dollars, close to Notebook 7's average of 8.80, which is the consistency we expect: average the CATEs and you get back the ATE. But the spread is the new information. The standard deviation is 6.5, far tighter than the T-learner's 14.7, because the forest estimates the effect directly instead of differencing two noisy predictions. And 97% of households have a positive effect, so eligibility helps almost everyone, but by very different amounts.
+The mean is 7.79 thousand dollars, close to Notebook 7's average of 8.80, which is the consistency we expect: average the CATEs and you get back the ATE. The new information is in the spread. The standard deviation is 6.5, far tighter than the T-learner's 14.7, because the forest estimates the effect directly instead of differencing two noisy predictions. And 97% of households have a positive effect, so eligibility helps almost everyone, but by very different amounts.
 
 Where does the effect come from? We group households by income and average the estimated effect in each quarter of the income distribution.
 
@@ -204,7 +204,7 @@ plt.show()
 print(mean_by_income.round(1).to_string())
 ```
 
-The effect climbs steeply with income: about 3.3 thousand dollars for the lowest-income quarter, rising to 16.3 thousand for the highest, a roughly five-fold difference. This fits the economics. A household with little spare income cannot save much into a 401(k) however eligible it is, while a high-income household can. The distribution of effects below tells the same story: a bulge of modest effects with a long tail of large ones.
+The effect climbs steeply with income: about 3.3 thousand dollars for the lowest-income quarter, rising to 16.3 thousand for the highest. This fits the economic theory. A household with little spare income cannot save much into a 401(k) however eligible it is, while a high-income household can. The distribution of effects below tells the same story: a bulge of modest effects with a long right tail of larger ones.
 
 ```{python}
 plt.figure(figsize=(8, 5))
@@ -217,9 +217,9 @@ plt.legend()
 plt.show()
 ```
 
-## 7. Targeting a policy
+## 4. Targeting a Policy
 
-Knowing who benefits lets us act on it. Suppose a program could extend 401(k) eligibility, but only to half the households. Spending that budget on the half with the largest estimated effects, rather than spreading it evenly, changes what we get.
+Once we know who benefits, we can act on it. Suppose a program could extend 401(k) eligibility, but only to half the households. Spending that budget on the half with the largest estimated effects, rather than spreading it evenly.
 
 ```{python}
 high_benefit = cate >= np.median(cate)
@@ -227,7 +227,7 @@ print(f"Average effect, households we would target (top half): {cate[high_benefi
 print(f"Average effect, households we would skip (bottom half): {cate[~high_benefit].mean():.1f}")
 ```
 
-The targeted half has an average effect of 12.6 thousand dollars, more than four times the 3.0 in the half we would skip. Same policy, same budget, a very different return depending on who receives it. This is the practical reason CATEs matter: an average tells you whether a policy works, and the CATE tells you where to spend it.
+The targeted half has an average effect of 12.6 thousand dollars, more than four times the 3.0 in the half we would skip. It's the same policy on the same budget, but the return is very different depending on who receives it. This is the practical reason CATEs matter: the average tells you whether a policy works at all, and the CATE tells you where the money is best spent.
 
 ::: {.callout-tip}
 ## Self-test
@@ -235,34 +235,34 @@ The targeted half has an average effect of 12.6 thousand dollars, more than four
 The causal forest's mean CATE (7.79) is close to the double machine learning estimate from Notebook 7 (8.80). Should we expect them to agree exactly?
 
 <details><summary>Show / hide answer</summary>
-We should expect them close, though not identical. Both estimate the same average effect, so averaging the causal forest's per-household CATEs should land near the Notebook 7 number. They differ a little because they use different machinery (a forest that splits on effect differences versus a single residual-on-residual regression) and slightly different settings, so each carries its own estimation error.
+We should expect them close, though not identical. Both estimate the same average effect, so averaging the causal forest's per-household CATEs should land near the Notebook 7 number. They differ a little because they use a different framework (a forest that splits on effect differences versus a single residual-on-residual regression) and slightly different settings, so each has its own unique estimation error.
 </details>
 :::
 
-## 8. The end of the stream
+## 5. The end of the stream
 
-This is the last notebook, so it is worth seeing the whole path at once. We started with prediction: Notebooks 1 to 3 built a toolkit, k-nearest-neighbours, ridge and lasso, trees and forests, and learned to tell a model that generalizes from one that memorises. Notebook 4 was the main shift, drawing the line between predicting an outcome and identifying a cause, and naming what it takes to cross it. Then four causal tools, each a prediction tool aimed at a causal target: post-double-selection lasso (Notebook 5), propensity weighting and the doubly-robust estimator (Notebook 6), double machine learning (Notebook 7), and now the causal forest, which took the average effect that machinery produced and broke it open to show who the effect is really for. Thank you for reading, I hope this stream has helped to demystify causal machine learning
+This is the last notebook, so let's look back at the whole stream. We started with prediction: Notebooks 1 to 3 built a toolkit for us to use, k-nearest-neighbours, ridge and lasso, trees and forests, and learned to differenciate a model that generalizes from one that memorises. Notebook 4 was the main shift, drawing the line between predicting an outcome and identifying a cause, and naming what it takes to cross it. Then four causal tools, each paired with a prediction tool aimed at a causal target: post-double-selection lasso (Notebook 5), propensity weighting and the doubly-robust estimator (Notebook 6), double machine learning (Notebook 7), and now the causal forest. Thank you for reading, I hope this stream has helped to demystify causal machine learning and has given you all kinds of ideas for projects, further learning or Econ 490. 
 
 
-## Where to go next
+### 5.1 Where to go next
 
 Everything in this stream rested on one identification strategy: unconfoundedness, the assumption that we measured every confounder. That is one road into causal inference, and there are others. Two we pointed at in Notebook 4 are where to head first.
 
-- **Instrumental variables with machine learning.** When unconfoundedness fails because of an unmeasured confounder, an instrument can rescue identification: a variable that shifts the treatment but affects the outcome only through it. The same residualize-and-orthogonalize machinery from Notebook 7 carries over, with flexible learners estimating the first stage and the controls while the instrument supplies the variation. You may have studied IV in Econ 326, 398 or 425 so this is a natural next step. 
-- **Difference-in-differences with machine learning.** The other route from Notebook 4. The parallel-trends design combines with flexible learners for the controls and for effects that vary across units and over time.
+- **Instrumental variables with machine learning.** When unconfoundedness fails because of an unmeasured confounder, an instrument can fix identification: a variable that shifts the treatment but affects the outcome only through it. The same residualize-and-orthogonalize machinery from Notebook 7 carries over, with flexible learners estimating the first stage and the controls while the instrument supplies the variation. You may have studied IV in Econ 326, 398 or 425 so this is a natural next step. 
+- **Difference-in-differences with machine learning.** The parallel-trends design combines with flexible learners for the controls and for effects that vary across units and over time.
 
-### Recommended reading
+### 5.2 Recommended reading
 
 These are the sources this stream was built from, and I highly recommend them if you wish to keep learning!
 
 - Chernozhukov, Hansen, Kallus, Spindler, and Syrgkanis, *Applied Causal Inference Powered by ML and AI* ([causalml-book.org](https://causalml-book.org/)). The closest match to this stream, free online, and the source of the growth and 401(k) examples.
-- Facure, *Causal Inference for the Brave and True* ([python-causality-handbook](https://matheusfacure.github.io/python-causality-handbook/landing-page.html)). A friendly, code-first source that covers IV and difference-in-differences in depth.
+- Facure, *Causal Inference for the Brave and True* ([python-causality-handbook](https://matheusfacure.github.io/python-causality-handbook/landing-page.html)). A code-first source that covers IV and difference-in-differences in depth.
 - Athey and Imbens, *Machine Learning Methods That Economists Should Know About* ([arxiv.org/pdf/1903.10075](https://arxiv.org/pdf/1903.10075)). A survey of the whole field by two of its founders.
 - QuantEcon, *Machine Learning in Economics* ([datascience.quantecon.org](https://datascience.quantecon.org/applications/ml_in_economics.html)). Applied lecture notes in Python.
 - The `EconML` ([pywhy.org/EconML](https://www.pywhy.org/EconML/)) and `DoubleML` ([docs.doubleml.org](https://docs.doubleml.org/stable/index.html)) documentation. The production libraries behind the tools we built by hand.
 - UBC ECON 526 ([ubcecon.github.io/ECON526](https://ubcecon.github.io/ECON526/)). The UBC graduate course this stream previews.
 
-## Connections
+### 6 Connections
 
 - **Back to Notebook 7:** there double machine learning gave one average effect of 401(k) eligibility; here the causal forest, built from the same residual-on-residual idea and the random forest of Notebook 3, shows how that effect varies across households.
 
