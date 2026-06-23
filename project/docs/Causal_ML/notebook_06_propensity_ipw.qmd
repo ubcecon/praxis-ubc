@@ -33,7 +33,7 @@ format:
 - Notebook 5 of this stream: estimating a treatment effect by adjusting for confounders
 - Comfort with `pandas` and basic Python at the COMET-intermediate level
 
-### Outcomes
+### Learning Outcomes
 
 By the end of this notebook you will be able to:
 
@@ -57,15 +57,15 @@ TRUE_EFFECT = 2.0   # used later, in a simulated world where we set the real eff
 
 ## 1. Two routes to the same effect
 
-Notebook 4 left us with a recipe for the effect of 401(k) eligibility on savings. Under unconfoundedness, comparing eligible and ineligible households that match on their characteristics $X$ recovers the effect, and the way we did it was to model the **outcome**: predict savings from eligibility and $X$, then read off the difference. That is one of our two routes.
+Notebook 4 left us with a recipe for the effect of 401(k) eligibility on savings. Using the unconfoundedness assumption, comparing eligible and ineligible households that match on their characteristics $X$ recovers the effect. We did this by modeling the **outcome**: predict savings from eligibility and $X$, then read off the difference. That was one of our two routes.
 
-In this notebook, instead of modelling savings, we model **who gets treated**. If we can work out each household's chance of being eligible given its characteristics, we can use that chance to undo the imbalance between the two groups. The chance of treatment given $X$ is called the **propensity score**, and it leads to two estimators, inverse probability weighting and the doubly-robust estimator, that we build here.
+In this notebook, instead of modelling savings, we model **who gets treated**. If we can work out each household's chance of being eligible given its characteristics, we can use that chance to undo the imbalance between the two groups. You can look at this like the opposite of notebook 4, instead of modelling savings we model eligibility. The chance of treatment given $X$ is called the **propensity score**, and it leads to two estimators, inverse probability weighting and the doubly-robust estimator, that we build here.
 
-Both routes aim at the same number, the average effect of eligibility. 
+Both routes aim at the same number, the average effect of eligibility.
 
-## 2. The propensity score
+## 2. The Propensity Score
 
-The **propensity score** is the probability of being treated given the covariates, $e(X) = P(D = 1 \mid X)$. For our data it is the chance that a household with a given age, income, education, etc, is eligible for a 401(k). We don't know this for certain so we will estimate it, this is a yes/no questions so we will use a logistic regression. 
+The **propensity score** is the probability of being treated given the covariates, $e(X) = P(D = 1 \mid X)$. For our data it is the chance that a household with a given age, income, education, etc, is eligible for a 401(k). We don't know this for certain as we can't directly see it in our real data, so we will estimate it, this is a yes/no questions so we will use a logistic regression. 
 
 ```{python}
 savings = pd.read_csv("datasets/Pension401k.csv")
@@ -82,7 +82,7 @@ print(f"Share of households eligible: {D.mean():.2f}")
 
 For a comparison to be possible everywhere, both eligible and ineligible households have to appear at every propensity value. This is the **overlap** or **positivity** condition from Notebook 4.
 
-The visualization below shows this, both ineligable and eligable households appear across the whole range, so a comparison is possible. 
+The visualization below shows the overlap condition, both ineligable and eligable households appear across the whole range, so a comparison is possible. 
 
 ```{python}
 plt.figure(figsize=(9, 5))
@@ -95,11 +95,11 @@ plt.legend()
 plt.show()
 ```
 
-Both curves cover the range from near zero to near one, with no region that is all eligible or all ineligible. Every household has comparable households on the other side, so overlap holds and we can proceed.
+Both curves cover the range from near zero to near one. Every household has comparable households on the other side, so overlap holds and we can proceed.
 
-## 3. Inverse probability weighting
+### 2.1 Inverse probability weighting
 
-For inverse probability weighting we take an eligible household that, given its characteristics, was unlikely to be eligible, meaning a low propensity. It is rare among the eligible, and it stands in for many similar households that ended up ineligible. So we let it count for more, giving it a weight of one over its propensity, $1/e(X)$. We do the mirror image on the other side, weighting each ineligible household by one over its chance of being ineligible, $1/(1 - e(X))$. After this reweighting the two groups carry the same spread of characteristics, as though eligibility had been handed out at random.
+For inverse probability weighting we take an eligible household that, given its characteristics, was unlikely to be eligible, meaning it has a low propensity score. It is rare among the eligible, and it stands in for many similar households that ended up ineligible. So we let it count for more, giving it a weight of one over its propensity, $1/e(X)$. We do the mirror image on the other side, weighting each ineligible household by one over its chance of being ineligible, $1/(1 - e(X))$. After this reweighting the two groups carry the same spread of characteristics, as though eligibility had been handed out at random.
 
 We can watch the reweighting work. For each covariate, measure how far apart the eligible and ineligible groups are, before weighting and after.
 
@@ -127,7 +127,7 @@ plt.legend()
 plt.show()
 ```
 
-Before weighting, the red dots sit well away from zero: the eligible and ineligible groups differ on most characteristics, income most of all. After weighting, the green dots collapse toward zero. The groups now look alike. With them balanced, the **inverse probability weighting (IPW)** estimate of the effect is the difference between the weighted average savings of the two groups.
+Before weighting, the red dots sit well away from zero: the eligible and ineligible groups differ on most characteristics, with income having the largest gap. After weighting, the green dots collapse toward zero. The groups now look alike. With them balanced, the **inverse probability weighting (IPW)** estimate of the effect is the difference between the weighted average savings of the two groups.
 
 ```{python}
 def ipw_ate(D, Y, e):
@@ -138,13 +138,13 @@ def ipw_ate(D, Y, e):
 print(f"IPW estimate of the effect of eligibility: {ipw_ate(D, Y, e):.2f}")
 ```
 
-On the 401(k) data this gives 1.7 thousand dollars. Notice it sits well below the outcome-route estimate from Notebook 4, which was about 5.9. The two routes disagree, and so far we dont have the tools to say which to believe. That is the gap the rest of the notebook closes.
+On the 401(k) data this gives 1.7 thousand dollars. Notice it sits well below the outcome-route estimate from Notebook 4, which was 5.9 thousand. The two routes disagree, and so far we dont have the tools to say which to believe. That is what will be discussed in the next section. 
 
-## 4. Each route trusts a different model
+## 3. Our two routes and their different models
 
-The outcome route is only as good as the savings model. If our prediction of savings given $X$ is wrong, the estimate is biased. The treatment route, IPW, is only as good as the propensity model. If our prediction of eligibility given $X$ is wrong, the weights are wrong and so is the estimate. On real data we cannot see which model is off, because we never know the true effect. So we build a world where we do.
+The outcome route is only as good as the savings model. If our prediction of savings given $X$ is wrong, the estimate is biased. The treatment route, IPW, is only as good as the propensity model, so if our prediction of eligibility given $X$ is wrong, the weights are wrong and so is the estimate. On real data we cannot see which model is off, because we never know the true effect, so as we did in the past, we will build a world where we do.
 
-In this world the true effect is 2, we set it. Both the chance of treatment and the level of savings depend on a covariate through a squared term, so a model that includes that term is correct and a model that leaves it out is wrong. We can then hand each estimator a correct or a wrong model on purpose and watch.
+In this world the true effect is 2, we set it ourselves. Both the chance of treatment and the level of savings depend on a covariate through a squared term, so a model that includes that term is correct and a model that leaves it out is wrong. We can then hand each estimator a correct or a wrong model on purpose and see what happens.
 
 ```{python}
 def simulate(n, seed):
@@ -175,13 +175,13 @@ for name, X_out, X_ps in scenarios:
     print(f"  {name:24s}: regression {np.mean(mu1_s - mu0_s):.2f}   IPW {ipw_ate(D_sim, Y_sim, e_s):.2f}")
 ```
 
-When both models are right, both routes recover the true 2. When the outcome model is wrong, the regression route is biased (2.78) while IPW, still using the right propensity, is fine. When the propensity model is wrong, IPW is biased (2.83) while the regression route is fine. Each route fails exactly when its own model fails, and on real data we would not know it had happened.
+When both models are right, both routes recover the true 2. When the outcome model is wrong, the regression route is biased (2.78) while IPW, still using the right propensity, is correct. When the propensity model is wrong, IPW is biased (2.83) while the regression route is correct. Each route fails when its own model fails, and on real data we would not know that it had happened.
 
-## 5. The doubly-robust estimator
+## 4. The doubly-robust estimator
 
-We want an estimator that survives a wrong model as long as the other one is right. The **augmented inverse probability weighting (AIPW)** estimator does this by using both at once, in two steps.
+We want an estimator that survives a wrong model as long as the other one is right. The **augmented inverse probability weighting (AIPW)** estimator does this by using both at once. 
 
-Start with the outcome route's answer, the regression estimate of the effect. Then check whether the outcome model actually fit: look at its mistakes, the gap between each household's real savings and what the model predicted. Reweight those mistakes the IPW way and add them on as a correction. Written out, the estimate is the average over households of:
+Start with the outcome route's answer, which is the regression estimate of the effect. Then check whether the outcome model actually fit: look at its mistakes, the gap between each household's real savings and what the model predicted. Reweight those mistakes the IPW way and add them on as a correction. Written out, the estimate is the average over households of:
 
 $$
 \hat{\tau} = \frac{1}{n} \sum_{i} \Big[ \underbrace{\hat{\mu}_1(X_i) - \hat{\mu}_0(X_i)}_{\text{regression guess}} + \underbrace{\frac{D_i \, (Y_i - \hat{\mu}_1(X_i))}{e(X_i)} - \frac{(1 - D_i) \, (Y_i - \hat{\mu}_0(X_i))}{1 - e(X_i)}}_{\text{correction from the model's mistakes}} \Big]
@@ -190,23 +190,23 @@ $$
 ::: {.callout-note}
 ## Read this for the meaning, not the symbols
 
-Do not try to follow the formula term by term. The only thing to hold onto is its shape: the first part is the regression guess of the effect, and the second part is a correction built from the outcome model's mistakes, weighted like in the IPW. Everything below is about why that one correction is enough.
+Do not try to follow the formula term by term. The only thing to hold onto is its shape: the first part is the regression guess of the effect, and the second part is a correction built from the outcome model's mistakes, weighted like in the IPW.
 :::
 
-The whole trick is what the correction does in each case:
+What matters is what the correction does in each case:
 
 - If the **outcome** model is right, it makes no systematic mistakes, so its residuals average to nothing and the correction vanishes. We keep the correct regression estimate.
-- If the outcome model is wrong but the **propensity** is right, those mistakes are where the leftover bias is hiding, and weighting them the IPW way is what removes it.
+- If the outcome model is wrong but the **propensity** is right, those mistakes are where the leftover bias is hiding, and weighting them like IPW is what removes it.
 
-Either way the answer comes out right, as long as one of the two models is right. Two chances instead of one.
+Either way the answer comes out right, as long as one of the two models is right, so we get two chances instead of one. This is very powerful when we can't for certain tell if our model is right.
 
 ::: {.callout-important}
 ## What "doubly robust" means
 
-An estimator is **doubly robust** if it stays correct as long as at least one of its two models, the outcome model or the propensity model, is right. It gives you two chances instead of one. It does not save you if both models are wrong, and it does nothing about an unmeasured confounder, which breaks unconfoundedness itself and is beyond the reach of every estimator in this notebook.
+An estimator is **doubly robust** if it stays correct as long as at least one of its two models, the outcome model or the propensity model, is right, which gives you two chances instead of one. It does not save you if both models are wrong, and it does nothing about an unmeasured confounder, which breaks unconfoundedness itself and is beyond the reach of every estimator in this notebook.
 :::
 
-We run all three estimators through the three worlds and plot them.
+We run all three estimators in our made-up example and plot them.
 
 ```{python}
 def aipw_score(D, Y, e, mu1, mu0):
@@ -235,9 +235,9 @@ plt.show()
 
 Regression (blue) is off when the outcome model is wrong; IPW (orange) is off when the propensity model is wrong; AIPW (green) sits on the true effect in all three worlds. It needed only one of its two models to be right.
 
-## 6. The doubly-robust estimate on the 401(k) data
+### 4.1 The doubly-robust estimate on the 401(k) data
 
-We put it to work on the savings data, combining the logistic propensity from section 2 with simple linear models of savings.
+We will apply the model to our real savings data, combining the logistic propensity from section 2 with simple linear models of savings.
 
 ```{python}
 mu1 = LinearRegression().fit(X_std[D == 1], Y[D == 1]).predict(X_std)
@@ -250,11 +250,9 @@ print(f"AIPW estimate: {aipw:.2f}  (se {aipw_se:.2f})")
 print(f"95% interval : {aipw - 1.96 * aipw_se:.2f} to {aipw + 1.96 * aipw_se:.2f}")
 ```
 
-Start with the point estimate, 1.91 thousand dollars. The raw gap between eligible and ineligible households was about 19.6 thousand (Notebook 4), and AIPW puts the de-confounded effect near 1.9. Almost all of that raw gap was selection: eligible households were already richer savers, and once we account for that, what looked like a $19,600 effect is at most a couple of thousand. We have shown that shrinkage (selection bias), which is an important lesson in this notebook on real data. 
+Tthe point estimate is 1.91 thousand dollars. The raw gap between eligible and ineligible households was about 19.6 thousand (Notebook 4), and AIPW puts the de-confounded effect near 1.9. Almost all of that raw gap was selection: eligible households were already richer savers, and once we account for that, what looked like a $19,600 effect is at most a couple of thousand (look at the upper bound of the 95% confidence interval). We have shown that shrinkage (selection bias), which is an important lesson in this notebook on real data. 
 
-What we cannot yet do is measure the small piece that is left with any precision. The standard error is large (3.55), and the 95% interval runs from well below zero to well above it, so we cannot even be sure the effect is positive. Savings are very spread out, a few households hold enormous amounts, and reweighting a quantity like that is noisy. Simple linear models remove the bias but leave too much variance behind.
-
-Closing that last gap, from a sensible point estimate to an interval we can trust, is the job of the next notebook. The per-household quantity we just averaged, the term inside the sum, is called the **score**. Estimating the two models more flexibly, and computing the score without using the same households both to fit the models and to measure the effect, is what tightens the interval. That is double machine learning (notebook 7).
+What we cannot yet do is measure the piece that is left precisely. The standard error is large (3.55), and the 95% interval contains large negative values, zero and large positive values, so we cannot even be sure the effect is positive. Savings are very spread out, a few households hold enormous amounts, and reweighting a quantity like that is noisy. Simple linear models remove the bias but leave too much variance behind. We will close this gap in the next notebook which is double machine learning.  
 
 ::: {.callout-tip}
 ## Self-test
@@ -262,19 +260,13 @@ Closing that last gap, from a sensible point estimate to an interval we can trus
 Suppose you are confident your propensity model is right but unsure about your outcome model. Does AIPW help you, and how?
 
 <details><summary>Show / hide answer</summary>
-Yes. AIPW is correct as long as either model is right, so a correct propensity model alone is enough to make the estimate consistent, whatever the outcome model does. In that case AIPW behaves like a refined version of IPW: the outcome model is along for the ride and mostly reduces the variance. The same holds with the roles reversed, which is the whole appeal of having two chances.
+Yes. AIPW is correct as long as either model is right, so a correct propensity model alone is enough to make the estimate consistent, whatever the outcome model does. In that case AIPW behaves like a refined version of IPW: the outcome model is along for the ride and mostly reduces the variance. The same holds with the roles reversed, and that is the appeal of having two chances.
 </details>
 :::
 
-## 7. Connections
+## 5. Connections
 
-This notebook added the treatment-modelling route to the outcome-modelling route of Notebook 4, and then combined them. The combination, AIPW, is the bridge to the rest of the stream: its score is the object that double machine learning is built around.
-
-::: {.callout-note}
-## Its causal future
-
-The AIPW score from section 6 is the heart of **double machine learning**. Notebook 7 keeps the doubly-robust idea but estimates the outcome and the propensity with flexible learners, a lasso, a forest, or a boosted ensemble, and computes the score with **cross-fitting**: fitting the models on one part of the data and evaluating the score on another (See notebook 1). That last step removes the bias from using the same households twice and finally pins down the 401(k) effect.
-:::
+This notebook added the treatment-modelling route to the outcome-modelling route of Notebook 4, and combined them. The combination, AIPW, is the bridge to the rest of the stream: its score is the object that double machine learning (notebook 7) is built around.
 
 - **Back to Notebook 5:** there we adjusted for confounders by selecting controls for a single regression; here we adjust by modelling the treatment instead, and then combine the two routes.
 - **Forward to Notebook 7:** double machine learning, which estimates the two models with any learner and computes the doubly-robust score with cross-fitting, turning this notebook's noisy estimate into a sharp one.
@@ -285,5 +277,7 @@ The AIPW score from section 6 is the heart of **double machine learning**. Noteb
 - Robins, J. M., Rotnitzky, A., & Zhao, L. P. (1994). *Estimation of regression coefficients when some regressors are not always observed.* Journal of the American Statistical Association, 89(427), 846-866. The augmented, doubly-robust estimator.
 - Chernozhukov, V., et al. (2018). *Double/debiased machine learning for treatment and structural parameters.* Econometrics Journal, 21(1), C1-C68. The cross-fitting that Notebook 7 builds on.
 - Poterba, J. M., Venti, S. F., & Wise, D. A. (1995). *Do 401(k) contributions crowd out other personal saving?* Journal of Public Economics, 58(1), 1-32. The eligibility question.
-
+- https://arxiv.org/html/2406.00853v1
+- https://www.law.berkeley.edu/archive/files/AIPW(1).pdf
+- https://matheusfacure.github.io/python-causality-handbook/12-Doubly-Robust-Estimation.html
 ---
