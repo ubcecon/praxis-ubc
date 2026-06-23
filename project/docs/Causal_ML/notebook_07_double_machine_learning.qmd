@@ -1,7 +1,7 @@
 ---
 title: "Double Machine Learning"
 author: Alex Ronczewski
-date: 2026-06-20
+date: 2026-06-21
 description: "The seventh notebook in the Causal ML stream. We combine everything: the partially linear model, the residual-on-residual idea from Notebook 4, and any learner we like for the nuisance models. We add cross-fitting to stop the learners from contaminating the estimate, attach a standard error, and finally pin down the effect of 401(k) eligibility that Notebook 6 left as a wide interval."
 categories:
   - Python
@@ -34,7 +34,7 @@ format:
 - Multiple regression and the idea of partialling out controls (COMET Intermediate)
 - Comfort with `pandas` and basic Python at the COMET-intermediate level
 
-### Outcomes
+### Learning Outcomes
 
 By the end of this notebook you will be able to:
 
@@ -58,16 +58,16 @@ from sklearn.model_selection import KFold
 RANDOM_STATE = 42
 ```
 
-## 1. Where we currently stand
+## 1. Where we Currently Stand After Notebook 6
 
-The last three notebooks approached the same problem from different angles. Notebook 4 removed the controls from the outcome and the treatment separately, then regressed the leftovers, which is called orthogonalization. Notebook 5 did this for lasso, selecting controls twice. Notebook 6 modelled the treatment and combined the two routes into the doubly-robust estimator. Notebook 6 also left us stuck: its estimate of the 401(k) effect was 1.9 thousand dollars, but with a confidence interval running from below zero up to about nine, too wide to tell whether eligibility helped at all.
+The last three notebooks approached the same problem from different angles. Notebook 4 removed the controls from the outcome and the treatment separately, then regressed on the leftovers (orthogonalization). Notebook 5 did this for lasso, selecting controls twice. Notebook 6 modelled the treatment and combined the two routes into the doubly-robust estimator. Notebook 6 also left us stuck: its estimate of the 401(k) effect was 1.9 thousand dollars, but with a confidence interval running from negative five up to about positive nine, far too wide to tell whether eligibility helped at all. It was inprecise. 
 
-This notebook closes that gap. **Double machine learning (DML)** keeps the residual-on-residual idea and adds the two things that greatly increase its power and usefulness:
+This notebook closes that gap. **Double machine learning (DML)** keeps the residual-on-residual concept from before and adds two things which  greatly increase its power and usefulness:
 
-- **Any learner.** A **learner** is any prediction algorithm that fits a function to data, the kind of model we built in Notebooks 1 to 3. The two models we fit along the way, savings given the covariates and treatment given the covariates, are prediction problems, so we can use whichever learner predicts best: a lasso, a random forest, a boosted ensemble, or anything else that fits the data.
-- **Cross-fitting.** A discipline that stops those flexible learners from quietly biasing the effect, built from the train/test idea of Notebook 1.
+- **Any learner.** A **learner** is any prediction algorithm that fits a function to data, the kind of model we built in Notebooks 1 to 3. The two models we fit along the way, savings given the covariates and treatment given the covariates, are prediction problems, so we can use whichever learner predicts best: a lasso, a random forest, a boosted ensemble, neural network or anything else that fits the data.
+- **Cross-fitting.** A method that stops our new flexible learners from biasing the effect, built from the train/test idea of Notebook 1.
 
-By the end we will have a sharp, significant estimate of the effect of 401(k) eligibility on savings.
+DML will lead to a sharp, significant estimate of the effect of 401(k) eligibility on savings.
 
 ## 2. The partially linear model
 
@@ -77,7 +77,7 @@ $$
 Y = \theta D + g(X) + \varepsilon .
 $$
 
-Here $Y$ is savings, $D$ is eligibility, and $X$ is the covariates. The number $\theta$ is the effect of eligibility, the one thing we want. The function $g(X)$ is everything else that drives savings: income, age, all of it, in whatever tangled shape it takes. The treatment depends on the covariates too:
+Here $Y$ is savings, $D$ is eligibility, and $X$ is the covariates. The number $\theta$ is the effect of eligibility, the one thing we want. The function $g(X)$ is everything else that drives savings: income, age, and any other controls, and it can take any shape. The treatment depends on the covariates too:
 
 $$
 D = m(X) + v .
@@ -88,12 +88,12 @@ The function $m(X)$ is the propensity from Notebook 6, the part of eligibility e
 ::: {.callout-note}
 ## Read these for the meaning
 
-$g$ and $m$ are called **nuisance** functions: we have to estimate them well, but we do not care what they are. Our whole goal is to get a clean value of $\theta$ while the messy functions $g$ and $m$ are handled by a learner in the background. The word "linear" in the name refers only to how $D$ enters, through a single number $\theta$. Everything else, $g(X)$, can be as nonlinear as the data demands.
+$g$ and $m$ are called **nuisance** functions: we have to estimate them well, but we don't care what they are. We just want a clean value of $\theta$ while the messy functions $g$ and $m$ are handled by a learner in the background. The word "linear" in the name refers only to how $D$ enters, through a single number $\theta$. Everything else, $g(X)$, can be nonlinear.
 :::
 
-## 3. Orthogonalization: residual on residual
+### 2.1 Orthogonalization: residual on residual
 
-The trick for isolating $\theta$ is the one from Notebook 4: strip the covariates' influence out of both sides, then compare what is left. The covariates $X$ are the confounders, the common causes of eligibility and savings, so removing them from both the outcome and the treatment is what clears the comparison.
+The trick for isolating $\theta$ is the one we used in Notebook 4: remove the covariates' influence out of both sides, and then compare what is left. The covariates $X$ are the confounders, the common causes of eligibility and savings, so removing them from both the outcome and the treatment cleans the comparison.
 
 Predicting savings from the covariates and subtracting leaves $\tilde{Y} = Y - g(X)$, the part of savings the covariates do not explain. Doing the same for eligibility leaves $\tilde{D} = D - m(X)$, the part of eligibility the covariates do not explain. Subtracting $g(X)$ from the model leaves
 
@@ -101,15 +101,15 @@ $$
 \tilde{Y} = \theta \tilde{D} + \varepsilon ,
 $$
 
-so the slope of $\tilde{Y}$ on $\tilde{D}$ is exactly $\theta$. This is a famous result from Econometrics called the **Frisch-Waugh-Lovell theorem**. It states that multivariate regression coefficients can be calculated by "partialling out" (or residualizing) the influence of control variables from both the dependent variable and the primary independent variables. Residualizing first and controlling for everything at once are two roads to the same number. Notebook 4 demonstrated the first road with a lasso doing the predicting. The new freedom in DML is that any learner can play the role of $g$ and $m$, because predicting is all they are asked to do.
+so the slope of $\tilde{Y}$ on $\tilde{D}$ is exactly $\theta$. This is a famous result from Econometrics called the **Frisch-Waugh-Lovell theorem**. It states that multivariate regression coefficients can be calculated by "partialling out" (or residualizing) the influence of control variables from both the dependent variable and the primary independent variables. Residualizing first and controlling for everything at once are two roads to the same number. Notebook 4 demonstrated the first road with a lasso doing the predicting. The new freedom in DML is that any learner can play the role of $g$ and $m$, since just need them to predict well.
 
-There is one catch, the same one from Notebook 1: we cannot use the same data twice.
+There is one catch, the same one from Notebook 1: we can't use the same data twice.
 
-## 4. The trap: fitting and estimating on the same data
+### 2.2 The issue with fitting and estimating on the same data
 
-Suppose we fit the two learners and compute the effect all on the same households. The danger is overfitting, the theme of Notebooks 1, 2, and 3. A flexible learner can fit the training data too well, chasing noise instead of signal. When it does, the leftovers it produces are too small, because the learner has absorbed real variation that should have stayed in the residual. Feed those shrunken leftovers into the residual-on-residual regression and the effect comes out wrong.
+Suppose we fit the two learners and compute the effect all on the same households. The danger is overfitting, a core theme of Notebooks 1, 2, and 3. A flexible learner can fit the training data too well, memorizing the noise and not being able to generalize to new data. If we feed these overfitting estimators into the residual-on-residual regression the effect comes out wrong.
 
-We can make this happen on purpose. We build a world where the true effect is 1, and we hand the residualizing to a learner that memorises its training data: an extremely-randomised forest grown until every household sits in its own leaf. On the training data it predicts perfectly, so the leftovers collapse to nothing.
+We will make this happen on purpose to demonstrate it. We build a world where the true effect is 1, and we hand the residualizing to a learner that memorises its training data and dramatically overfits: an extremely-randomised forest grown until every household sits in its own leaf (check notebook 3). On the training data it predicts perfectly, so the leftovers collapse to nothing.
 
 ```{python}
 def make_world(n, seed):
@@ -136,9 +136,9 @@ print(f"Leftover spread on the training data: Y {y_leftover.std():.3f}, D {d_lef
 print(f"Effect estimated on the same data: {theta_same_data:.2f}  (true effect is 1.0)")
 ```
 
-The leftovers are approaching zero, because the learner read the training outcomes straight back. With nothing left to regress, the estimate collapses to -0.10, nowhere near the true 1. The learner memorised the data and took the effect down with it.
+The leftovers are approaching zero, because the learner reads the training outcomes back to use, memorizing the noise not true predictivesignal. With nothing left to regress, the estimate collapses to -0.10, nowhere near the true 1.
 
-The fix is **cross-fitting**, and it is the train/test split of Notebook 1 turned on the nuisance models. Split the data into folds. To get a household's leftover, use a learner that was fit on the *other* folds, never on that household. A learner cannot memorise a household it was not shown, so the leftovers keep their real spread.
+The fix is **cross-fitting**, and it is the train/test split of Notebook 1 applied to the nuisance models. Split the data into folds. To get a household's leftover, use a learner that was fit on the *other* folds, never on that household. A learner can't memorise a household it was not shown, so the leftovers keep their real spread.
 
 ```{python}
 def crossfit_leftovers(X, target, make_model, n_splits=5):
@@ -155,7 +155,7 @@ theta_crossfit = np.sum(d_cf * y_cf) / np.sum(d_cf * d_cf)
 print(f"Effect estimated with cross-fitting: {theta_crossfit:.2f}  (true effect is 1.0)")
 ```
 
-With cross-fitting the estimate is 0.93, back where it belongs. The plot lines the two up against the truth.
+With cross-fitting the estimate is 0.93, close to the true value of 1. The plot lines the two up against the truth.
 
 ```{python}
 plt.figure(figsize=(7, 5))
@@ -172,12 +172,12 @@ plt.show()
 ::: {.callout-important}
 ## The cross-fitting rule
 
-Never use the same household both to fit a nuisance model and to compute its leftover. Fit on one part of the data, take leftovers on another, and rotate. This lets us pour a flexible, overfitting-prone learner into the procedure without its overfitting leaking into the effect. Orthogonalization plus cross-fitting is what makes the name **double** machine learning.
+Never use the same household both to fit a nuisance model and to compute its leftover. Fit on one part of the data, take leftovers on another, and rotate. This lets us add a flexible, non-overfitting learner into the procedure keeping the true effect uncontaminated. Orthogonalization plus cross-fitting is what makes the name **double** machine learning.
 :::
 
-## 5. Double machine learning, all together
+## 3. Double Machine Learning
 
-We now have every piece. The recipe: cross-fit the leftovers of the outcome and the treatment with whatever learner we choose, then regress one on the other for the effect. A standard error comes from the spread of the per-household terms, the same influence-function idea as the doubly-robust score in Notebook 6.
+We now have every piece. The recipe: cross-fit the leftovers of the outcome and the treatment with whatever learner we choose, then regress one on the other for the effect. A standard error comes from the spread of the per-household terms, the same influence-function concept from the doubly-robust score in Notebook 6.
 
 ```{python}
 def dml_effect(X, D, Y, make_outcome, make_treatment, n_splits=5):
@@ -197,7 +197,7 @@ def dml_effect(X, D, Y, make_outcome, make_treatment, n_splits=5):
     return theta, se
 ```
 
-Now we load the 401(k) data and run it, using a random forest to model both savings and eligibility.
+Now we load our real 401(k) data and run it, using a random forest to model both savings and eligibility.
 
 ```{python}
 savings = pd.read_csv("datasets/Pension401k.csv")
@@ -245,9 +245,9 @@ plt.show()
 
 Each grey dot is one household, placed by how much of its eligibility and its savings is left once the covariates are stripped out. The cloud tilts upward: households with more leftover eligibility tend to have more leftover savings. The slope of that tilt, drawn in green, is the estimated effect of 8.80. It is the same residual-on-residual picture as Notebook 4, with a random forest doing the stripping in place of a lasso.
 
-## 6. Any learner
+### 3.1 Any learner in DML
 
-The causal machinery, residualize and cross-fit and regress, never mentioned which learner we used. That is the point: we can drop in any learner and the estimate should hold. We run the same DML with three very different learners, a lasso, a random forest, and gradient boosting (the sequential tree method from Notebook 3, which builds many small models that each correct the errors left by the ones before).
+The causal machinery, residualize and cross-fit and regress, never mentioned which learner we used. So we can drop in any learner and the estimate holds. We run the same DML with three very different learners, a lasso, a random forest, and gradient boosting (the sequential tree method from Notebook 3, which builds many small models that each correct the errors left by the ones before).
 
 ```{python}
 learners = {
@@ -276,7 +276,7 @@ plt.title("Any learner gives a positive, significant effect")
 plt.show()
 ```
 
-All three agree on the verdict: the effect is positive and significant. The lasso, a linear model, reads it as 6.12; the random forest gives 8.80 and gradient boosting 9.62, both higher because they capture more of the tangled savings function. The exact number shifts with how flexibly we model the nuisances, but the end result does not. 
+All three learners agree: the effect is positive and significant. The lasso, a linear model, reads finds 6.12; the random forest gives 8.80 and gradient boosting 9.62, both higher because they capture more of the tangled savings function. The exact number shifts with how flexibly we model the nuisances, but the end result does not. It is positive and significant!
 
 ::: {.callout-tip}
 ## Self-test
@@ -284,33 +284,27 @@ All three agree on the verdict: the effect is positive and significant. The lass
 Cross-fitting splits the data into folds, much like the cross-validation of Notebook 1. Are they doing the same job?
 
 <details><summary>Show / hide answer</summary>
-No, they share the mechanism but not the purpose. Cross-validation in Notebook 1 splits the data to *choose a hyperparameter*, by scoring predictions on held-out folds. Cross-fitting splits the data to *keep the nuisance models from contaminating the effect*, by computing each household's leftover from a model that never saw it. Same fold machinery, different reason: one tunes a learner, the other protects a causal estimate.
+No, they share the mechanism but not the purpose. Cross-validation in Notebook 1 splits the data to *choose a hyperparameter*, by scoring predictions on held-out folds. Cross-fitting splits the data to *keep the nuisance models from contaminating the effect*, by computing each household's leftover from a model that never saw it.
 </details>
 :::
 
-## 7. Review of the DML recipe
+### 3.2 Review of the DML recipe
 
-We built double machine learning a piece at a time. Here is the whole workflow gathered together, the way you would run it on a new problem.
+We built double machine learning a piece at a time. Here is the whole workflow gathered together:
 
 ::: {.callout-note}
 ## The double machine learning recipe
 
-1. **Pick the target.** Write the partially linear model and identify the one number you want, the treatment effect $\theta$.
-2. **Choose two learners.** One to predict the outcome from the covariates, one to predict the treatment from the covariates. Any learner will do, so pick whatever fits the data best.
+1. **Pick the target.** Write the partially linear model and identify the number you want, the treatment effect $\theta$.
+2. **Choose two learners.** One to predict the outcome from the covariates, one to predict the treatment from the covariates. Any learner works, so pick whatever fits the data best.
 3. **Cross-fit the leftovers.** Split the data into folds. For each fold, fit both learners on the other folds and take each unit's leftover, its value minus the prediction, out-of-fold, so no unit helps fit the model that later judges it.
 4. **Regress leftover on leftover.** Regress the outcome leftovers on the treatment leftovers. The slope is the estimated effect.
 5. **Report the uncertainty.** Take the standard error from the spread of the per-unit terms, and form the confidence interval.
 :::
 
-## 8. Connections
+## 4. Connections
 
-This notebook is where we see the stream's biggest conceptual payoffs. The prediction tools from Notebooks 1 to 3 became the engines, the orthogonalization of Notebook 4 became the framework, and cross-fitting made the whole technique trustworthy. The result is a recipe that estimates a causal effect with any learner and reports a valid standard error. In practice the `doubleml` python package implements all of this and more, but the moving parts are the ones we built by hand here.
-
-::: {.callout-note}
-## Looking Forward
-
-We estimated one number, the average effect of eligibility across all households. But the effect surely varies: a 401(k) may matter more for some households than others. Notebook 8 keeps the DML machinery and turns it loose on that question, estimating how the effect changes from household to household, with the **causal forest** that grows out of the random forest from Notebook 3.
-:::
+This notebook is where we see the stream's biggest conceptual payoffs. The prediction tools from Notebooks 1 to 3 became the learners which power DML and the orthogonalization of Notebook 4 became the framework, and then cross-fitting made the technique trustworthy. The result is a recipe that estimates a causal effect with any learner and reports a valid standard error. In practice the `doubleml` python package implements all of this and more, but the moving parts are the ones we built by hand here.
 
 - **Back to Notebook 6:** there the doubly-robust estimate of the 401(k) effect was too imprecise to sign; double machine learning sharpens it to about 9,000 dollars by using flexible learners and cross-fitting.
 - **Forward to Notebook 8:** from the average effect to who benefits, estimating effects that vary across households with causal forests.
@@ -321,5 +315,7 @@ We estimated one number, the average effect of eligibility across all households
 - Frisch, R., & Waugh, F. V. (1933). *Partial time regressions as compared with individual trends.* Econometrica, 1(4), 387-401. The residual-on-residual result.
 - Bach, P., Chernozhukov, V., Kurz, M. S., & Spindler, M. (2022). *DoubleML: An object-oriented implementation of double machine learning in Python.* Journal of Machine Learning Research, 23(53), 1-6.
 - Poterba, J. M., Venti, S. F., & Wise, D. A. (1995). *Do 401(k) contributions crowd out other personal saving?* Journal of Public Economics, 58(1), 1-32. The eligibility question.
-
+- https://docs.doubleml.org/stable/guide/basics.html
+- https://economics.mit.edu/sites/default/files/2022-08/2017.06%20Double%20Debiased%20Machine%20Learning%20for%20Treat.pdf
+- https://arxiv.org/abs/2504.08324
 ---
