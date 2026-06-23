@@ -1,6 +1,6 @@
 # Taken from COMET will have to be adapted for Praxis
 # Build stage 2025-06-04
-FROM jlgraves/comet-test:test AS builder
+FROM alexr951/comet-base:safe AS builder
 
 WORKDIR /app
 
@@ -20,12 +20,17 @@ RUN rm -f ./docs/SOCI-280/soci_280_bert.qmd
 RUN rm -f ./docs/OCR/ocr_notebook.qmd
 RUN rm -f ./docs/image_analysis/image_analysis.qmd
 RUN rm -f ./docs/CTree_CEA/political_economy.qmd
-RUN rm -f ./docs/CTree_CEA/llm_distributions.qmd
 
 RUN mkdir output
 
 # Quarto render all documents + stub
 RUN quarto render --output-dir /app/output
+
+# Strip the compromised polyfill.io shim that Quarto <1.4 injects into MathJax pages.
+# polyfill.io was taken over by a malicious operator (2024 supply-chain attack); this is since resolved with a new base-docker image, 
+# but still left over as it does not hurt
+RUN find /app/output -name '*.html' -exec \
+    sed -i 's#<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>##g' {} +
 
 # Copy pre-rendered HTML file
 COPY ./project/docs/SOCI-415/soci_415_network_analysis.html /app/output/docs/SOCI-415/
@@ -41,7 +46,11 @@ COPY ./project/docs/SOCI-280/soci_280_bert.html /app/output/docs/SOCI-280/
 COPY ./project/docs/OCR/ocr_notebook.html /app/output/docs/OCR/
 COPY ./project/docs/image_analysis/image_analysis.html /app/output/docs/image_analysis/
 COPY ./project/docs/CTree_CEA/political_economy.html /app/output/docs/CTree_CEA/
-COPY ./project/docs/CTree_CEA/llm_distributions.html /app/output/docs/CTree_CEA/
+
+# Add the per-notebook launch button (chooses which notebooks get it via launch_notebook.html)
+COPY ./meta/building/launch_notebook.html /launch_notebook.html
+RUN find /app/output -name '*.html' -exec sh -c \
+    'for f; do grep -q "praxis-launch-notebook" "$f" || sed -i "/<body/r /launch_notebook.html" "$f"; done' sh {} +
 
 #Final Stage on lightweight linux
 FROM nginx:alpine
