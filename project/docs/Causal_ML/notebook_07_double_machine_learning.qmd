@@ -60,7 +60,7 @@ RANDOM_STATE = 42
 
 ## 1. Where we Currently Stand After Notebook 6
 
-The last three notebooks approached the same problem from different angles. Notebook 4 removed the controls from the outcome and the treatment separately, then regressed on the leftovers (orthogonalization). Notebook 5 did this for lasso, selecting controls twice. Notebook 6 modelled the treatment and combined the two routes into the doubly-robust estimator. Notebook 6 also left us stuck: its estimate of the 401(k) effect was 1.9 thousand dollars, but with a confidence interval running from negative five up to about positive nine, far too wide to tell whether eligibility helped at all. It was inprecise. 
+The last three notebooks approached the same problem from different angles. Notebook 4 removed the controls from the outcome and the treatment separately, then regressed on the leftovers (orthogonalization). Notebook 5 did this for lasso, selecting controls twice. Notebook 6 modelled the treatment and combined the two routes into the doubly-robust estimator. Notebook 6 also left us stuck: its estimate of the 401(k) effect was 1.9 thousand dollars, but with a confidence interval running from negative five up to about positive nine, far too wide to tell whether eligibility helped at all. It was imprecise. 
 
 This notebook closes that gap. **Double machine learning (DML)** keeps the residual-on-residual concept from before and adds two things which  greatly increase its power and usefulness:
 
@@ -136,7 +136,7 @@ print(f"Leftover spread on the training data: Y {y_leftover.std():.3f}, D {d_lef
 print(f"Effect estimated on the same data: {theta_same_data:.2f}  (true effect is 1.0)")
 ```
 
-The leftovers are approaching zero, because the learner reads the training outcomes back to use, memorizing the noise not true predictivesignal. With nothing left to regress, the estimate collapses to -0.10, nowhere near the true 1.
+The leftovers are approaching zero, because the learner reads the training outcomes back to use, memorizing the noise not true predictive signal. With nothing left to regress, the estimate collapses to -0.10, nowhere near the true 1.
 
 The fix is **cross-fitting**, and it is the train/test split of Notebook 1 applied to the nuisance models. Split the data into folds. To get a household's leftover, use a learner that was fit on the *other* folds, never on that household. A learner can't memorise a household it was not shown, so the leftovers keep their real spread.
 
@@ -247,7 +247,7 @@ Each grey dot is one household, placed by how much of its eligibility and its sa
 
 ### 3.1 Any learner in DML
 
-The causal machinery, residualize and cross-fit and regress, never mentioned which learner we used. So we can drop in any learner and the estimate holds. We run the same DML with three very different learners, a lasso, a random forest, and gradient boosting (the sequential tree method from Notebook 3, which builds many small models that each correct the errors left by the ones before).
+The causal machinery, residualize, cross-fit and regress, never mentioned which learner we used. So we can drop in any learner and the estimate holds. We run the same DML with three very different learners, a lasso, a random forest, and gradient boosting (the sequential tree method from Notebook 3, which builds many small models that each correct the errors left by the ones before).
 
 ```{python}
 learners = {
