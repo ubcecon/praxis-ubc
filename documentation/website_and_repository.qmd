@@ -57,18 +57,20 @@ Step by step **sub_new.dockerfile**:
 
 - Imports the rocker/tidyverse:4.2.2 base image
 - Creates a directory called `/app`
-- Install's system dependencies with specific versions numbers into `/app`. The dependencies have specific version numbers so that an update does not break the code. 
-- Install's Python, Quarto and necessary R Packages. All of these again with version numbers. 
+- Install's system dependencies with specific versions numbers into `/app`. The dependencies have specific version numbers so that an update does not break the code. Two exceptions are `curl` and `python3-pip`, which are left unpinned, if issue arise later we should pin them. 
+- Install's Python, Quarto and necessary R Packages. All of these again with version numbers. Quarto is pinned to **1.4.557** (up from 1.3.450). This was a security fix. Quarto versions before 1.4 add a `<script>` tag pointing at `polyfill.io` to every rendered MathJax page, and that domain was hijacked by attackers in a 2024 supply chain attack. The 1.4 versions resolved the malware. 
 
-This base dockerfile is saved to [DockerHub](https://hub.docker.com/) as `jlgraves/comet-test:test` so it can be used for our main .dockerfile. 
+This base dockerfile is saved to [DockerHub](https://hub.docker.com/) so it can be used for our main .dockerfile. As of **2026-06-03** the published image is `alexr951/comet-base:safe`; it was previously `jlgraves/comet-test:test`, and the rebuild/rename came with the Quarto security bump described above.
 
 ### .dockerfile:
 
-- This dockerfile begins with using the jlgraves/comet-test:test image
-- Setting `/app` as the working directory. 
-- It then removes certain .qmd files to avoid rendering them during the website build process. 
+- This dockerfile begins with using the `alexr951/comet-base:safe` image (see the note on the base image update above).
+- Setting `/app` as the working directory.
+- It then removes certain .qmd files to avoid rendering them during the website build process.
 - Creates an output directory with `mkdir`
+- Strips any leftover `polyfill.io` script tag out of the rendered HTML with a `sed` command. The current base image already uses a Quarto version that never adds this script, so this step is really just a leftover from the malware fix. It can be dropped in the future, but right now it causes no issue so it stays. 
 - It then copies pre-rendered .html files into the directory `/app/output`.
+- Injects the per-notebook "Launch this notebook" button by appending `meta/building/launch_notebook.html` into the `<body>` of every rendered page. This is described in [4. Quarto Configuration & Website Structure](#4-quarto-configuration--website-structure).
 
 Finally it starts from nginx:alpine base for minimal resource use. Alpine Linux is very lightweight so it is perfect for this use case.  It then copies the rendered HTML content into Nginx’s served directory and finally exposes port 80 and runs Nginx in foreground mode.
 
@@ -101,7 +103,13 @@ The next section of `project/_quarto.yml` corresponds to the websites appearance
 
 Which creates a button with "SOCI-280" written on it that redirects to the page: `pages/index/index_SOCI280.qmd` which acts as a landing page for all of our SOCI-280 related notebooks and outline. 
 
-Lower down we have the Launch prAxIs menu which consists of links for JupyterOpen, Syzygy, Google Collab, Local Download and the Github Repository. The links for JupyterOpen, Syzygy, and Google Collab pulls the praxis-notebooks branch of the repository and opens it in the online code editor. Finally we have the `format:` section where we select **.css** themes from `styles.css` and `comet_theme.scss`. 
+Lower down we have the Launch prAxIs menu which consists of links for JupyterOpen, Syzygy, Google Collab, Local Download and the Github Repository. The links for JupyterOpen, Syzygy, and Google Collab pulls the praxis-notebooks branch of the repository and opens it in the online code editor. Finally we have the `format:` section where we select **.css** themes from `styles.css` and `comet_theme.scss`.
+
+The Launch prAxIs menu above launches the *whole* repository. There is also a **per-notebook launch button**: every rendered notebook page on the website gets a small "Launch this notebook" dropdown (with JupyterOpen and Google Colab options) directly under its title. This button is not part of `_quarto.yml`, it is injected at build time by the `.dockerfile`, which appends `meta/building/launch_notebook.html` into each page. That HTML file holds a hard-coded list of the notebooks that should get the button along with the JupyterOpen/Colab URLs they point to, so if you add a new launchable notebook you have to add its path to that list. JupyterOpen pulls the notebook's data folder by itself through its `git-pull` link, but Colab does not, so the workflow also runs `add_colab_setup.py` (described in Section 6.1) to add a setup cell that clones the data folder when the notebook is opened in Colab.
+
+Inside `format:` there is also `include-in-header: metadata.html`. This injects `project/metadata.html` into the `<head>` of every page. That file holds the site's SEO keywords plus two analytics tools we use to track how people find and use the site: a **Google Search Console** verification tag (which lets us see search traffic, the queries people search, and indexing data in [Search Console](https://search.google.com/search-console)) and a **Cloudflare Web Analytics** beacon (which gives us page view and visitor counts without using cookies). If you ever need to move the analytics to a different account, the verification token and the Cloudflare beacon token both live in `project/metadata.html`.
+
+It also contains a small script that swaps the light and dark versions of images when the site theme is toggled. 
 
 ## 5. Navigation and Index Pages
 
@@ -201,15 +209,25 @@ Installs Quarto enabling notebook conversion and rendering.
 4. Set up Python:
 Installs a compatible Python version for use by conversion and cleaning scripts. Version is not specified we use `3.x` and the runner decided on a compatible version. 
 
-5. Convert QMD to IPYNB and Clean Titles:
+5. Convert QMD to IPYNB, Clean Titles, Callouts and Images:
 
-- Copies a Python script (clean_ipynb_titles.py) from `meta/scripts/clean_ipynb_titles.py` to the notebooks directory.
-- Converts each .qmd (Quarto Markdown) notebook to .ipynb (Jupyter Notebook) using the `quarto convert` command, skipping files with "plan" in their name to ignore lesson plans.
-- Cleans notebook titles via the Python script, warning if conversion fails.
+- Copies four Python scripts from `meta/scripts/` into the notebooks directory: `clean_ipynb_titles.py`, `convert_ipynb_callouts.py`, `clean_ipynb_images.py`, and `add_colab_setup.py`.
+- Converts each .qmd (Quarto Markdown) notebook to .ipynb (Jupyter Notebook) using the `quarto convert` command, skipping files with "plan" or "stub" in their name to ignore lesson plans and redirect stubs.
+- Runs the four scripts on each converted .ipynb in order, warning if conversion fails.
 
 It is important to note what this Python script does and why it is here. There was an issue when we *launch* the notebooks to JupyterOpen, Google Collab or any other online code execution platform that the titles on the .ipynb Jupyter notebooks were not displaying correctly. It is caused by the command `quarto convert` and how it works. Quarto expects the first cell to be a raw cell, but the conversion process sometimes creates it as a markdown cell instead. This lead to the titles being displayed in a very ugly manner. The fix is running the `clean_ipynb_titles.py` Python script on all of the .ipynb files. 
 
-The script parses out the YAML using regular expressions, extracts key information: title, author, and date, then replaces the YAML block with formatted Markdown content so it is displayed in a nice way. The rest of the first cell's content is retained after the generated title block. This fixes the ugly titles. 
+The script parses out the YAML using regular expressions, extracts key information: title, author, and date, then replaces the YAML block with formatted Markdown content so it is displayed correctly. The rest of the first cell's content is retained after the generated title block. This fixes the ugly titles.
+
+The other three scripts were added later and all deal with the same underlying issue. A .qmd renders correctly on the website, but once that same content is converted to .ipynb and opened in JupyterOpen or Colab it loses its formatting, because those platforms do not understand Quarto's syntax correctly.
+
+`convert_ipynb_callouts.py` handles callouts. Quarto callout blocks (`::: callout-tip`, `::: callout-warning`, and so on) show up as raw `:::` text in a launched notebook. The script rewrites each one as a styled HTML table with a coloured side bar, a tinted background, and an emoji label. It uses nested tables with `bgcolor` attributes rather than a CSS `style` block because Colab strips inline styles but keeps `bgcolor`.
+
+`clean_ipynb_images.py` handles images. Quarto's figure and multi-column layouts (`::: {layout-ncol=2}`, `::: {.columns}`, and `![alt](src){width="50%"}` style attributes) do not render in Jupyter or Colab, so images go missing or the attributes print as literal text. The script rewrites these blocks as plain HTML image tables that display anywhere, and drops the trailing `{...}` attribute clutter.
+
+`add_colab_setup.py` supports the per-notebook launch button (see [4. Quarto Configuration & Website Structure](#4-quarto-configuration--website-structure)). It inserts a setup cell near the top of the notebook that, clones that notebook's data folder from the `praxis-notebooks` branch so the notebook's relative data paths resolve. The cell does nothing on JupyterOpen, which already pulls the data folder through its launch link.
+
+The scripts run in order (titles, callouts, images, then Colab setup). 
 
 6. Upload Converted Notebooks:
 Uploads the rendered (converted and cleaned) notebooks as an artifact named rendered-notebooks. Fails if no files are found.
