@@ -11,7 +11,7 @@ def _docs_dir(ipynb_path):
 
 def _setup_cell(dir_rel):
     src = [
-        "# praxis-colab-setup: on Colab, pull this notebook's data folder so relative paths work\n",
+        "# praxis-colab-setup: on Colab, pull this notebook's data folder so relative paths work. If on JupyterOpen do NOT run\n",
         "try:\n",
         "    import google.colab\n",
         "    !git clone --depth 1 --filter=blob:none --sparse -b praxis-notebooks https://github.com/ubcecon/praxis-ubc.git /content/praxis-ubc\n",
