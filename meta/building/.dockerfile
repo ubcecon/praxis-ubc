@@ -6,21 +6,6 @@ WORKDIR /app
 
 COPY ./meta/building/renv.lock ./project ./
 
-#Removes the rendered .qmd's 
-RUN rm -f ./docs/SOCI-415/soci_415_network_analysis.qmd
-RUN rm -f ./docs/SOCI-415/kinmatrix.qmd
-RUN rm -f ./docs/SOCI-415/cbdb_dataset.qmd
-RUN rm -f ./docs/ECON-227/llm_distributions.qmd
-RUN rm -f ./docs/hist_workshop/text_embeddings_workshop.qmd
-RUN rm -f ./docs/intro_to_cnns/intro_to_cnn.qmd
-RUN rm -f ./docs/intro_to_convolutions/intro_to_convolution.qmd
-RUN rm -f ./docs/intro_to_deep_learning/intro_to_fundamental_ML.qmd
-RUN rm -f ./docs/AMNE-376/amne_376_image_embedding.qmd
-RUN rm -f ./docs/SOCI-280/soci_280_bert.qmd
-RUN rm -f ./docs/OCR/ocr_notebook.qmd
-RUN rm -f ./docs/image_analysis/image_analysis.qmd
-RUN rm -f ./docs/CTree_CEA/political_economy.qmd
-
 RUN mkdir output
 
 # Quarto render all documents + stub
@@ -31,21 +16,6 @@ RUN quarto render --output-dir /app/output
 # but still left over as it does not hurt
 RUN find /app/output -name '*.html' -exec \
     sed -i 's#<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>##g' {} +
-
-# Copy pre-rendered HTML file
-COPY ./project/docs/SOCI-415/soci_415_network_analysis.html /app/output/docs/SOCI-415/
-COPY ./project/docs/SOCI-415/kinmatrix.html /app/output/docs/SOCI-415/
-COPY ./project/docs/SOCI-415/cbdb_dataset.html /app/output/docs/SOCI-415/
-COPY ./project/docs/ECON-227/llm_distributions.html /app/output/docs/ECON-227/
-COPY ./project/docs/hist_workshop/text_embeddings_workshop.html /app/output/docs/hist_workshop/
-COPY ./project/docs/intro_to_cnns/intro_to_cnn.html /app/output/docs/intro_to_cnns/
-COPY ./project/docs/intro_to_convolutions/intro_to_convolution.html /app/output/docs/intro_to_convolutions/
-COPY ./project/docs/intro_to_deep_learning/intro_to_fundamental_ML.html /app/output/docs/intro_to_deep_learning/
-COPY ./project/docs/AMNE-376/amne_376_image_embedding.html /app/output/docs/AMNE-376/
-COPY ./project/docs/SOCI-280/soci_280_bert.html /app/output/docs/SOCI-280/
-COPY ./project/docs/OCR/ocr_notebook.html /app/output/docs/OCR/
-COPY ./project/docs/image_analysis/image_analysis.html /app/output/docs/image_analysis/
-COPY ./project/docs/CTree_CEA/political_economy.html /app/output/docs/CTree_CEA/
 
 # Add the per-notebook launch button (chooses which notebooks get it via launch_notebook.html)
 COPY ./meta/building/launch_notebook.html /launch_notebook.html
