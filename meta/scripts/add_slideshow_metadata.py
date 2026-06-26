@@ -1,6 +1,4 @@
 # Sets slideshow.slide_type on cells so the target notebooks open as RISE slideshows.
-# Quarto packs several headings into one markdown cell and RISE only breaks slides at cell
-# boundaries, so this splits markdown cells too: each heading starts its own cell and slide.
 # Runs in comet_main.yml after add_colab_setup.py, once per notebook.
 # Usage: python add_slideshow_metadata.py <notebook.ipynb>
 import json
