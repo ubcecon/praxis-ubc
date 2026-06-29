@@ -599,7 +599,7 @@ These resources help you check historical usage before final interpretation:
 
 These tools cannot remove model bias, but they help you design better labels and spot likely failure points.
 
-**TODO (co-workers): add guidance on adapting this workflow to other languages — multilingual NLI models (e.g. mDeBERTa, XLM-R), translating the candidate labels and hypothesis template, and non-English historical-semantics resources. This subsection is a placeholder; do not treat it as written.**
+**TODO: add guidance on adapting this workflow to other languages — multilingual NLI models (e.g. mDeBERTa, XLM-R), translating the candidate labels and hypothesis template, and non-English historical-semantics resources. This subsection is a placeholder; do not treat it as written.**
 
 ## Conclusion
 
