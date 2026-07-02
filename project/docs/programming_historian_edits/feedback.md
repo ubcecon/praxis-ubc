@@ -139,10 +139,9 @@ What we did:
 
 What we did:
 
-- Added a short plain provenance sentence to the lesson: the sources are nineteenth-century legal and government documents, produced from OCR and organized for analysis.
-- Removed the author-facing notes that had been sitting in the lesson body (they read like editor notes); the outstanding items are tracked here instead.
+- Added a provenance line to the lesson: the sources are nineteenth-century BC legal and government documents in the public domain, with digitized copies held by UBC Open Collections, Canadiana, the Internet Archive, and BC Laws, and the text files produced by running modern OCR on the scans.
 
-Needs authors: fill in the real provenance and reuse answers (scan sources, who did the OCR, reuse status), and check the public download link before publication.
+Still Needed: confirm the exact OCR tool used, decide the licence for the lesson data, and check the public download link before publication.
 
 **Describe what the code does, even when simple. In "Preparing the Corpus" the code loads the metadata and makes a group column (Crease, Begbie, Regulation Act, Other). Say this in the text and show how to check the group counts.**
 
@@ -173,7 +172,7 @@ What we did:
 - Added an error check that loads and reads the wrong predictions, and framed the accuracy as support for close reading, not a replacement for it.
 - Added a note on the bootstrap section that the intervals only cover sampling variation, not OCR, label, or model uncertainty.
 
-Needs authors: fill in how the 45 snippets were labelled (who, how many annotators, guide, ambiguous cases, sample size).
+Still Needed: fill in how the 45 snippets were labelled (who, how many annotators, guide, ambiguous cases, sample size).
 
 ---
 
