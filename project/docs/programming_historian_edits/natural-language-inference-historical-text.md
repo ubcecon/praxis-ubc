@@ -141,6 +141,8 @@ The corpus consists of ten digitized texts: legal rulings (*R v. Wing Chong*,[^2
 
 ## Preparing the Corpus
 
+*You are in stage 1 of 4, data preparation: load the corpus, group the texts, remove quoted passages, and select the passages to analyze.*
+
 The OCR process produced a `.csv` file with the following structure:
 
 | Column Name                 | Description                                        |
@@ -308,6 +310,8 @@ for author, texts in corpus_by_author.items():
 Keyword filtering is deliberately simple and high-recall: it casts a wide net so that few relevant passages are missed, and the NLI model does the discriminating work of judging stance later. The `corpus_by_author` dictionary is kept alongside the snippets because the window-level analysis needs the full document text, not just the extracted sentences.
 
 ## Stance Classification with Zero-Shot NLI
+
+*You are in stage 2 of 4, stance classification: design the labels and run zero-shot NLI on the passages selected in stage 1.*
 
 Zero-shot classification is the core analytical technique of this lesson. It uses a [natural language inference](https://en.wikipedia.org/wiki/Textual_entailment) model to classify text into categories defined at inference time, requiring no labeled training data. This is particularly valuable for historical research, where labeled datasets rarely exist.
 
@@ -549,6 +553,8 @@ The window-level results still mark the Act as the most discriminatory source, b
 
 ## Evaluation and Robustness
 
+*You are in stage 3 of 4, evaluation and robustness: check the model against a labelled sample and test how stable the results are.*
+
 Computational results from zero-shot NLI should be treated as hypotheses, not conclusions. Unlike supervised models evaluated on held-out test sets, zero-shot classifiers carry no built-in accuracy guarantee for a new domain. This section first measures performance against a manually labelled set, then applies three checks, quote sensitivity, label sensitivity, and bootstrap confidence intervals, to assess how stable the findings are.
 
 ### Validating Against a Manually Labelled Evaluation Sample
@@ -731,6 +737,8 @@ Wide confidence intervals (especially for Begbie with only 18 snippets) indicate
 These bootstrap intervals summarize variation in the observed snippets, not every uncertainty in the workflow. They do not account for OCR errors, label ambiguity, model bias, quotation removal choices, or the fact that sentences from the same document are not fully independent. Treat them as a warning system for unstable averages, not as a final statistical test.
 
 ## Interpreting Results and Adapting the Workflow
+
+*You are in stage 4 of 4, interpretation: read what the results can and cannot show, and adapt the workflow to your own corpus.*
 
 ### What NLI Can and Cannot Do
 
