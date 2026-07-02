@@ -58,8 +58,7 @@ What we did:
 
 - Added a "Working with Other Languages" section: use a sentence splitter for the target language, pick a multilingual or language specific NLI model (XLM-R, mDeBERTa), write the labels and template in the corpus language, and test on known examples first.
 - Noted that the English resources (Historical Thesaurus, COHA) will not help for other languages, and to find period and language specific references instead.
-
-Still to do: could add a short note in Software and Setup on which parts are English only (the spaCy model).
+- Added a note in Software and Setup flagging that the spaCy model and the NLI model are English only, pointing to Working with Other Languages.
 
 **Adding more practical guidance on adapting the workflow to other corpora. When discussing model choice or label design, give more guidance on how readers can make these decisions for their own corpus (where to find a model's training data and intended use, how to test labels on known examples, how to spot historical vocabulary issues, which steps they would need to recompute).**
 
@@ -116,8 +115,7 @@ What we did:
 
 - Added a line saying what each package is for: pandas and numpy for tables, nltk and spacy for sentence splitting, transformers and torch for the NLI model, matplotlib and seaborn for figures.
 - Trimmed the install list to what the lesson now uses (removed umap-learn, scikit-learn, sentence-transformers), and removed Sentence-BERT from Software Versions.
-
-Still to do: note which parts are English only inline (currently in "Working with Other Languages").
+- Added an inline note that the spaCy model and the NLI model are English only, pointing to Working with Other Languages.
 
 **Say where to run each command. The `python -m spacy download en_core_web_sm` block is a terminal command, not Python.**
 
@@ -186,5 +184,4 @@ Needs authors: fill in how the 45 snippets were labelled (who, how many annotato
 - Introduction: consider a full "Introduction" section with Lesson Goals under it.
 - Prerequisites: spell out the assumed background versus what the lesson teaches.
 - Section order: consider moving the case study before the download step.
-- English only note: flag the spaCy model and other English parts in Software and Setup.
 - Before and after example in the quotation removal section.

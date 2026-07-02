@@ -92,6 +92,8 @@ Then download the English spaCy model from the terminal:
 python -m spacy download en_core_web_sm
 ```
 
+The spaCy model `en_core_web_sm` and the DeBERTa NLI model are both English only. If your corpus is in another language, see [Working with Other Languages](#working-with-other-languages) for what to swap in.
+
 ### Software Versions
 
 This lesson was tested with:
