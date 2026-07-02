@@ -107,8 +107,8 @@ What we did:
 What we did:
 
 - Removed the word embeddings prerequisite link, since embeddings were cut.
-
-Still to do: spell out the assumed background versus what the lesson teaches.
+- Noted at the top of Prerequisites that the lesson sits toward the advanced end, and that this is due to the methods rather than the Python.
+- Spelled out the split: intermediate Python is assumed, while transformers, NLI, and the validation and bootstrap steps are introduced in the lesson.
 
 ### Software and Setup
 
@@ -184,6 +184,5 @@ Needs authors: fill in how the 45 snippets were labelled (who, how many annotato
 - Data provenance: confirm scan sources, who did the OCR, whether the scans are public, and the reuse status.
 - Annotation notes: document who labelled the 45 snippets and how.
 - Data link: check and update the public download link before publication.
-- Prerequisites: spell out the assumed background versus what the lesson teaches.
 - Section order: consider moving the case study before the download step.
 - Before and after example in the quotation removal section.

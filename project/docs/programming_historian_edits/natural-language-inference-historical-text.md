@@ -56,7 +56,7 @@ By the end, you will be able to:
 
 ## Prerequisites
 
-You will need intermediate Python experience: working with pandas, writing functions, and using pip. If you are newer to Python, start with the [_Programming Historian_'s Introduction to Python](https://programminghistorian.org/en/lessons/introduction-and-installation).
+This lesson sits toward the advanced end, less because of the Python and more because of the methods it uses. You will need intermediate Python experience: working with pandas, writing functions, and using pip. If you are newer to Python, start with the [_Programming Historian_'s Introduction to Python](https://programminghistorian.org/en/lessons/introduction-and-installation). You do not need prior experience with transformer models, NLI, or the validation and bootstrap steps used later; the lesson introduces each of these where it appears.
 
 Python 3.10 or later is required, along with at least 8GB of RAM. A GPU or iGPU is not required, but it will speed up model inference.
 
