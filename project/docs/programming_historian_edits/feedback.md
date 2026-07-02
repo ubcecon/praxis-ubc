@@ -58,7 +58,7 @@ What we did:
 
 - Added a "Working with Other Languages" section: use a sentence splitter for the target language, pick a multilingual or language specific NLI model (XLM-R, mDeBERTa), write the labels and template in the corpus language, and test on known examples first.
 - Noted that the English resources (Historical Thesaurus, COHA) will not help for other languages, and to find period and language specific references instead.
-- Added a note in Software and Setup flagging that the spaCy model and the NLI model are English only, pointing to Working with Other Languages.
+- Added a note in Software and Setup flagging that the spaCy model and the NLI model are English only, pointing to the Working with Other Languages section.
 
 **Adding more practical guidance on adapting the workflow to other corpora. When discussing model choice or label design, give more guidance on how readers can make these decisions for their own corpus (where to find a model's training data and intended use, how to test labels on known examples, how to spot historical vocabulary issues, which steps they would need to recompute).**
 
