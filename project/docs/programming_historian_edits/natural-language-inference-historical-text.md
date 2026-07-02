@@ -143,7 +143,7 @@ Download the lesson data files from the [_Programming Historian_ repository](htt
 - `data/core/labelled_snippets.csv` -- 45 hand-labelled sentence excerpts used for evaluation
 - `data/texts/quotations_removed/` -- versions of Crease's texts with direct quotations of the Act removed
 
-These sources are nineteenth-century British Columbia legal and government documents and are in the public domain. Digitized copies are held by UBC Open Collections, Canadiana, the Internet Archive, and BC Laws. The text files used here were produced by running modern OCR on those scans and then organizing the results for analysis.
+These sources are nineteenth-century British Columbia legal and government documents in the public domain. Openly accessible copies are available without login through UBC Open Collections, Canadiana, the Internet Archive, and BC Laws. We produced the text files by running modern OCR on those scans and organizing the results, and the OCR transcriptions and derived data files in this lesson are shared under a Creative Commons Attribution (CC BY 4.0) licence.
 
 ## Preparing the Corpus
 

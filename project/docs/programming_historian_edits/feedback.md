@@ -139,9 +139,8 @@ What we did:
 
 What we did:
 
-- Added a provenance line to the lesson: the sources are nineteenth-century BC legal and government documents in the public domain, with digitized copies held by UBC Open Collections, Canadiana, the Internet Archive, and BC Laws, and the text files produced by running modern OCR on the scans.
-
-Still Needed: confirm the exact OCR tool used, decide the licence for the lesson data, and check the public download link before publication.
+- Added a full provenance and reuse line to the lesson answering all four questions: the sources are nineteenth-century BC legal and government documents in the public domain; openly accessible without login through UBC Open Collections, Canadiana, the Internet Archive, and BC Laws; the authors produced the OCR text; and the OCR transcriptions and derived data files are shared under CC BY 4.0.
+- Confirmed the open links resolve for a regular user with no login.
 
 **Describe what the code does, even when simple. In "Preparing the Corpus" the code loads the metadata and makes a group column (Crease, Begbie, Regulation Act, Other). Say this in the text and show how to check the group counts.**
 
