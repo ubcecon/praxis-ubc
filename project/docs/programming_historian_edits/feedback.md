@@ -133,18 +133,16 @@ What we did:
 What we did:
 
 - Added a paragraph describing the source documents, that the text files came from OCR, and how they are used.
-
-Still to do: the download section still comes before the case study, so consider moving the case study first.
+- Moved the data download out of Software and Setup into its own section after the Case Study, so readers meet the corpus and research question before they download the files.
 
 **Include provenance and reuse status: where the scans came from, whether they are public, who did the OCR, and whether the data is reusable.**
 
 What we did:
 
-- Added a provenance note covering these questions.
-- Wrote it as a note to ourselves for now: before publication, confirm the scan sources, who did the OCR, and the reuse status.
-- Added a note that the current data folder is for review and the public download link needs checking before publication.
+- Added a short plain provenance sentence to the lesson: the sources are nineteenth-century legal and government documents, produced from OCR and organized for analysis.
+- Removed the author-facing notes that had been sitting in the lesson body (they read like editor notes); the outstanding items are tracked here instead.
 
-Needs authors: fill in the real provenance and reuse answers.
+Needs authors: fill in the real provenance and reuse answers (scan sources, who did the OCR, reuse status), and check the public download link before publication.
 
 **Describe what the code does, even when simple. In "Preparing the Corpus" the code loads the metadata and makes a group column (Crease, Begbie, Regulation Act, Other). Say this in the text and show how to check the group counts.**
 
@@ -184,5 +182,4 @@ Needs authors: fill in how the 45 snippets were labelled (who, how many annotato
 - Data provenance: confirm scan sources, who did the OCR, whether the scans are public, and the reuse status.
 - Annotation notes: document who labelled the 45 snippets and how.
 - Data link: check and update the public download link before publication.
-- Section order: consider moving the case study before the download step.
 - Before and after example in the quotation removal section.

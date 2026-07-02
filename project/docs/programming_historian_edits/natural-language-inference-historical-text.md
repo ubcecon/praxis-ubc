@@ -29,7 +29,7 @@ doi: XX.XXXXX/phen0000
 
 ## Introduction
 
-This lesson teaches you how to apply [Natural Language Inference (NLI)](https://en.wikipedia.org/wiki/Textual_entailment) techniques to historical documents using Python. NLI allows a model to determine the authors stance on a given topic or historical claim. This approach avoids training a new classifier for every historical debate. Instead of mapping a document to a fixed label, NLI compares passages with researcher-written hypotheses, which is useful when labeled training data is unavailable or expensive to create.
+This lesson teaches you how to apply [Natural Language Inference (NLI)](https://en.wikipedia.org/wiki/Textual_entailment) techniques to historical documents using Python. NLI allows a model to determine the author's stance on a given topic or historical claim. This approach avoids training a new classifier for every historical debate. Instead of mapping a document to a fixed label, NLI compares passages with researcher-written hypotheses, which is useful when labeled training data is unavailable or expensive to create.
 
 By stance we mean where an author sits on a specific question. In this case study the question is whether the author supports or opposes equal legal treatment of Chinese immigrants. You write each stance as a short hypothesis, for example "the author advocates for equal legal treatment of Chinese immigrants", and the model scores how well each passage supports it. How the labels and hypotheses are designed, and how zero-shot classification works in detail, are covered in the stance classification stage.
 
@@ -120,17 +120,6 @@ import torch
 import warnings
 ```
 
-### Downloading the Data
-
-Download the lesson data files from the [_Programming Historian_ repository](https://github.com/programminghistorian/ph-submissions/assets/natural-language-inference-historical-text/data.zip). Create a `data/` directory in your working folder and place all files there. During draft review, use the `data/` directory that accompanies this lesson; the public data-asset link should be checked and updated before publication. The dataset includes:
-
-- `data/core/metadata_cleaned.csv` -- a table listing the ten source documents with author, group, and type metadata
-- Thirteen `.txt` files in `data/texts/` -- the OCR-transcribed historical texts (legal rulings, the 1884 Chinese Regulation Act, and Royal Commission reports)
-- `data/core/labelled_snippets.csv` -- 45 hand-labelled sentence excerpts used for evaluation
-- `data/texts/quotations_removed/` -- versions of Crease's texts with direct quotations of the Act removed
-
-The historical sources are nineteenth-century legal and government documents. The derived text files in this lesson were produced from OCR-transcribed versions of those sources and then lightly organized for analysis. Before publication, the authors should confirm the exact scan repositories or editions used, who produced or corrected the OCR, and the reuse status of both the source scans and derived lesson data. That information belongs here because readers need to know what is being provided, what can be reused, and what they would need to recreate for a new corpus.
-
 ## Case Study: Chinese Immigration Law in British Columbia
 
 While the techniques demonstrated in this lesson are general-purpose, you will go through a case study that provides concrete material to work with.
@@ -143,7 +132,18 @@ However, Crease was not considered straightforwardly sympathetic to Chinese immi
 
 To explore this question computationally, you will compare the language of Crease's rulings with two reference points: the discriminatory Act itself, and Justice [Matthew Baillie Begbie](https://www.biographi.ca/en/bio/begbie_matthew_baillie_12E.html),[^4] the first Chief Justice of British Columbia. Unlike Crease, historical accounts describe Begbie as protective of marginalized peoples, including Chinese immigrants.[^5][^6] Begbie struck down discriminatory municipal by-laws in Victoria targeting Chinese-owned businesses in the 1888 case of *R v. Victoria*.[^7]
 
-The corpus consists of ten digitized texts: legal rulings (*R v. Wing Chong*,[^2] *Wong Hoy Woon v. Duncan*,[^8] *R v. Mee Wah*,[^9] *R v. Victoria*[^7]), the *1884 Chinese Regulation Act*, and reports from the 1884 Royal Commission on Chinese Immigration.[^10] The texts were converted from archival scans to machine-readable format using [Optical Character Recognition (OCR)](https://en.wikipedia.org/wiki/Optical_character_recognition). Direct quotes of the Act within Crease's ruling were identified using fuzzy string matching and removed so they do not contaminate the analysis of his own language (this process is described in the next section).
+The corpus consists of ten digitized texts: legal rulings (*R v. Wing Chong*,[^2] *Wong Hoy Woon v. Duncan*,[^8] *R v. Mee Wah*,[^9] *R v. Victoria*[^7]), the *1884 Chinese Regulation Act*, and reports from the 1884 Royal Commission on Chinese Immigration.[^10] The texts were converted from archival scans to machine-readable format using [Optical Character Recognition (OCR)](https://en.wikipedia.org/wiki/Optical_character_recognition). Direct quotes of the Act within Crease's ruling were identified using fuzzy string matching and removed so they do not contaminate the analysis of his own language (this process is described in the corpus preparation section).
+
+## Downloading the Data
+
+Download the lesson data files from the [_Programming Historian_ repository](https://github.com/programminghistorian/ph-submissions/assets/natural-language-inference-historical-text/data.zip). Create a `data/` directory in your working folder and place all files there. The dataset includes:
+
+- `data/core/metadata_cleaned.csv` -- a table listing the ten source documents with author, group, and type metadata
+- Thirteen `.txt` files in `data/texts/` -- the OCR-transcribed historical texts (legal rulings, the 1884 Chinese Regulation Act, and Royal Commission reports)
+- `data/core/labelled_snippets.csv` -- 45 hand-labelled sentence excerpts used for evaluation
+- `data/texts/quotations_removed/` -- versions of Crease's texts with direct quotations of the Act removed
+
+The historical sources are nineteenth-century legal and government documents. The text files here were produced from OCR versions of those sources and then organized for analysis.
 
 ## Preparing the Corpus
 
@@ -579,7 +579,7 @@ In this run, overall accuracy on the 45-sentence set is 0.667 (30/45), compared 
 | F1, Neutral | 0.686 |
 | F1, Cons | 0.743 |
 
-Before publication, the authors should add a short note on how the 45 snippets were labelled: who labelled them, whether more than one annotator reviewed them, whether an annotation guide was used, and how ambiguous cases were handled. For interpretive tasks, this level of performance is usable but not definitive. Treat these scores as decision support for close reading, not a substitute for it.[^21][^22][^23][^24]
+For interpretive tasks, this level of performance is usable but not definitive. Treat these scores as decision support for close reading, not a substitute for it.[^21][^22][^23][^24]
 
 After the summary metrics, inspect the errors. Accuracy tells you how often the model matches the evaluation labels; it does not tell you what kinds of mistakes the model makes. For this lesson, the most important errors are false `Cons` predictions for passages that quote or describe discriminatory law in order to reject it, and false `Neutral` predictions for passages whose stance depends on legal context.
 
