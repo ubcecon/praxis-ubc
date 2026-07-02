@@ -80,9 +80,12 @@ What we did:
 
 What we did:
 
-- Rewrote the opening paragraph to explain NLI, zero-shot, and hypotheses in plainer terms, and added the four stage roadmap.
+- Renamed the opening section to "Introduction" and made "Lesson Goals" a subsection under it.
+- Added a short definition of "stance" at the very start (where an author sits on the equal treatment question), with a one line note that each stance is written as a hypothesis the model checks.
+- Kept the plain language intro to NLI and zero-shot, the case study sentence, and the four stage roadmap in the Introduction.
+- Left the full explanations of labels, hypotheses, and how zero-shot works in the stance classification stage, and pointed to them from the intro.
 
-Still to do: split this into an "Introduction" section with "Lesson Goals" under it, and move the concept definitions (stance, labels vs hypotheses) up there.
+Why we did not move every definition to the top: the detailed mechanics (premise, hypothesis, entailment, label design) are taught in the stage where readers actually use them, which keeps each concept next to the code that uses it and avoids explaining it twice. Pulling it all up front would either duplicate the stance classification stage or make readers meet the mechanics long before they run any of it. So the Introduction gives a short orientation, defines stance, and points to the full treatment later. This also matches the first general comment, which asked us to explain each method where it connects to the surrounding steps.
 
 **The lesson goals may need to be revised to match the new workflow. Right now TF-IDF, lexicon, embeddings, UMAP, classification, validation, and robustness all read as equally central. The goals should show which steps are central and which are supporting.**
 
@@ -181,7 +184,6 @@ Needs authors: fill in how the 45 snippets were labelled (who, how many annotato
 - Data provenance: confirm scan sources, who did the OCR, whether the scans are public, and the reuse status.
 - Annotation notes: document who labelled the 45 snippets and how.
 - Data link: check and update the public download link before publication.
-- Introduction: consider a full "Introduction" section with Lesson Goals under it.
 - Prerequisites: spell out the assumed background versus what the lesson teaches.
 - Section order: consider moving the case study before the download step.
 - Before and after example in the quotation removal section.

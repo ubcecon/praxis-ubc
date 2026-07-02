@@ -27,9 +27,22 @@ doi: XX.XXXXX/phen0000
 
 {% include toc.html %}
 
-## Lesson Goals
+## Introduction
 
-This lesson teaches you how to apply [Natural Language Inference (NLI)](https://en.wikipedia.org/wiki/Textual_entailment) techniques to historical documents using Python. NLI allows a model to determine whether a given text entails, contradicts, or is neutral toward a specific historical claim. This approach avoids training a new classifier for every historical debate. Instead of mapping a document to a fixed label, NLI compares passages with researcher-written hypotheses, which is useful when labeled training data is unavailable or expensive to create.
+This lesson teaches you how to apply [Natural Language Inference (NLI)](https://en.wikipedia.org/wiki/Textual_entailment) techniques to historical documents using Python. NLI allows a model to determine the authors stance on a given topic or historical claim. This approach avoids training a new classifier for every historical debate. Instead of mapping a document to a fixed label, NLI compares passages with researcher-written hypotheses, which is useful when labeled training data is unavailable or expensive to create.
+
+By stance we mean where an author sits on a specific question. In this case study the question is whether the author supports or opposes equal legal treatment of Chinese immigrants. You write each stance as a short hypothesis, for example "the author advocates for equal legal treatment of Chinese immigrants", and the model scores how well each passage supports it. How the labels and hypotheses are designed, and how zero-shot classification works in detail, are covered in the stance classification stage.
+
+The lesson uses nineteenth-century British Columbia court rulings on Chinese immigration as its case study. However, the workflow applies to any historical corpus where you want to computationally assess authorial stance.
+
+The lesson is organized into four stages:
+
+1. **Data preparation:** load the corpus, detect and remove directly quoted passages, and extract the passages that discuss Chinese immigration.
+2. **Stance classification:** design labels and run zero-shot NLI at both the sentence and window level.
+3. **Evaluation and robustness:** validate predictions against a manually labelled set and stress-test them with quote, label, and bootstrap checks.
+4. **Interpretation:** read the results critically and adapt the workflow to other corpora.
+
+### Lesson Goals
 
 By the end, you will be able to:
 
@@ -40,15 +53,6 @@ By the end, you will be able to:
 - Validate model outputs against a manually labelled evaluation sample
 - Apply robustness checks (quote sensitivity, label sensitivity, bootstrap confidence intervals) to assess result stability
 - Critically evaluate NLP results against domain knowledge
-
-The lesson uses nineteenth-century British Columbia court rulings on Chinese immigration as its case study. However, the workflow applies to any historical corpus where you want to computationally assess authorial stance.
-
-The lesson is organized into four stages:
-
-1. **Data preparation:** load the corpus, detect and remove directly quoted passages, and extract the passages that discuss Chinese immigration.
-2. **Stance classification:** design labels and run zero-shot NLI at both the sentence and window level.
-3. **Evaluation and robustness:** validate predictions against a manually labelled set and stress-test them with quote, label, and bootstrap checks.
-4. **Interpretation:** read the results critically and adapt the workflow to other corpora.
 
 ## Prerequisites
 
