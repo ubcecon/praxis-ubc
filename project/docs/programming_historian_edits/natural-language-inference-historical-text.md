@@ -68,7 +68,7 @@ If you have NVIDIA CUDA, PyTorch can use it automatically. On some Windows syste
 
 ## Software and Setup
 
-Install all required Python packages. `pandas` and `numpy` handle tables, `nltk` and `spacy` split texts into sentences, `transformers` and `torch` run the NLI model, and `matplotlib` and `seaborn` make the figures.
+Install all required Python packages. `pandas` and `numpy` handle tables, `nltk` and `spacy` split texts into sentences, `transformers` and `torch` run the NLI model, and `matplotlib` and `seaborn` make the figures. Run this in your terminal, from your working folder:
 
 ```bash
 pip install pandas numpy matplotlib \
@@ -76,7 +76,7 @@ pip install pandas numpy matplotlib \
   transformers torch tqdm
 ```
 
-For AMD or Intel integrated GPU acceleration on Windows, also install:
+For AMD or Intel integrated GPU acceleration on Windows, also run this in your terminal:
 
 ```bash
 pip install torch-directml

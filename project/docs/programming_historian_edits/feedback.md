@@ -124,7 +124,7 @@ What we did:
 
 What we did:
 
-- Split the setup into "Download NLTK data inside Python" and "Then download the English spaCy model from the terminal", so the terminal command is labelled.
+- Labelled the console commands (the pip installs and the spaCy download) as run in the terminal from your working folder, and left the Python cells as is. The NLTK step already says it runs inside Python.
 
 ### Downloading the Data, Case Study, Preparing the Corpus
 
