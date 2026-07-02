@@ -26,6 +26,8 @@ What we did:
 
 **Strengthening the pedagogical scaffolding throughout. The lesson would benefit from more explanation, examples, and checks. Break longer code blocks into smaller chunks, explain what each step does in the main body, and show intermediate outputs. There are places where the lesson interprets results without showing the output. For example, after TF-IDF the lesson discusses the results but the reader never sees the TF-IDF output.**
 
+## GENERAL CHECK IF THIS IS DONE AT THE END ^ ##
+
 What we did:
 
 - Show the output for every step the text interprets: group counts, the sentence and window score tables, the evaluation metrics table, the quote sensitivity table, and the label sensitivity table.
@@ -48,8 +50,7 @@ What we did:
 - Added a lower resource path to every slow step: load a saved CSV instead of running the model, with the expected numbers shown so readers can still follow along.
 - "Setting Up the Pipeline" now states the two options plainly: load the saved CSVs, or run the scoring cells to redo it from scratch.
 - Added a run_notes dictionary that records the model, template, and mode used for the saved outputs.
-
-Still to do: the Prerequisites section could also summarize the two paths.
+- Prerequisites now names the two paths up front: run the cells, or load the saved CSVs.
 
 **Clarifying multilingual adaptation. This case study uses English models and English texts. Acknowledge this and point to resources for other languages, including multilingual or language specific models.**
 
@@ -97,9 +98,7 @@ What we did:
 
 What we did:
 
-- The two paths are now built into the body of the lesson.
-
-Still to do: state the two paths in the Prerequisites section too.
+- The two paths are now built into the body of the lesson, and the Prerequisites section now names them up front (run the cells, or load the saved CSVs).
 
 **Align the prerequisites with the difficulty. The section says "intermediate Python experience," but the lesson uses transformers, NLI, similarity measures, validation metrics, and bootstrap intervals. Set clearer expectations about what readers should already know and what the lesson will introduce.**
 
@@ -185,7 +184,7 @@ Needs authors: fill in how the 45 snippets were labelled (who, how many annotato
 - Annotation notes: document who labelled the 45 snippets and how.
 - Data link: check and update the public download link before publication.
 - Introduction: consider a full "Introduction" section with Lesson Goals under it.
-- Prerequisites: add the two path summary and the assumed background.
+- Prerequisites: spell out the assumed background versus what the lesson teaches.
 - Section order: consider moving the case study before the download step.
 - English only note: flag the spaCy model and other English parts in Software and Setup.
 - Before and after example in the quotation removal section.

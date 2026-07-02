@@ -57,7 +57,7 @@ You will need intermediate Python experience: working with pandas, writing funct
 Python 3.10 or later is required, along with at least 8GB of RAM. A GPU or iGPU is not required, but it will speed up model inference.
 
 <div class="alert alert-warning">
-This lesson uses transformer models and needs at least 8GB of RAM. Running every zero-shot step from scratch can take 60 to 90 minutes on CPU. Precomputed CSV outputs are included so you can complete the lesson without full recomputation.
+This lesson uses transformer models and needs at least 8GB of RAM. Running every zero-shot step from scratch can take 60 to 90 minutes on CPU, so the lesson offers two paths: run the scoring cells yourself, or load the precomputed CSV outputs that are included. Each slow step shows both options.
 
 If you have NVIDIA CUDA, PyTorch can use it automatically. On some Windows systems with AMD or Intel integrated GPUs, <code>torch-directml</code> may help, but stability varies by model. The code below runs on CPU by default and uses GPU acceleration only when PyTorch detects it.
 </div>
