@@ -92,7 +92,7 @@ print("Training households:", len(X_train))
 print("Test households    :", len(X_test))
 ```
 
-One thing we do **not** have to do this time is scale the features. A tree split is a question like "is income above 65?", and the answer does not change if we measure income in dollars or in thousands of dollars: the ordering of the households is all that matters, not the units. This is a different from Notebook 1, where KNN measured distance and so needed every feature on a common scale, and from Notebook 2, where the penalty acted on coefficient sizes. Trees are blind to scale, so there is no `StandardScaler` here except inside the KNN model we carry over for comparison.
+One thing we do **not** have to do this time is scale the features. A tree split is a question like "is income above 65?", and the answer does not change if we measure income in dollars or in thousands of dollars: the ordering of the households is all that matters, not the units. This is different from Notebook 1, where KNN measured distance and so needed every feature on a common scale, and from Notebook 2, where the penalty acted on coefficient sizes. Trees are blind to scale, so there is no `StandardScaler` here except inside the KNN model we carry over for comparison.
 
 ```{python}
 baseline_mse = mean_squared_error(y_test, np.full_like(y_test, y_train.mean()))
@@ -197,7 +197,7 @@ print(f"Cross-validation chose max_depth = {best_depth}")
 print(f"Tuned single-tree test MSE: {tree_mse:.1f}")
 ```
 
-Cross-validation decides on a shallow depth of 4, and the tuned tree scores just behind KNN, close enough that a single well-chosen tree is already a competitive predictor. We have now ran the same four steps as in Notebook 1: split off a test set, cross-validate on the training data to choose the parameter, pick the best value, and evaluate once on the sealed test set.
+Cross-validation decides on a shallow depth of 4, and the tuned tree scores just behind KNN, close enough that a single well-chosen tree is already a competitive predictor. We have now run the same four steps as in Notebook 1: split off a test set, cross-validate on the training data to choose the parameter, pick the best value, and evaluate once on the sealed test set.
 
 The issue is that even the best single tree is a high-variance object. Shift a few training households and the greedy search can pick a different first split, and the whole tree below it rearranges. We can see that instability directly. Below we pick five test households spanning low to high savings, and ask forty trees, each fit to a different bootstrap resample of the training data, to predict each one. **Bootstrapping**: drawing, with replacement, many resamples of the training data the same size as the original (you may have seen this concept in ECON 226 and 326). Every grey dot is one tree's guess; the red mark is the forest's single answer.
 
@@ -267,7 +267,7 @@ plt.title("Random forest feature importances")
 plt.show()
 ```
 
-Income is by far the most useful feature, followed by age and owning an IRA. This matches what we read off the single tree. Look at `e401` in that graph, the eligibility for a 401(k) variable that this whole stream is building toward. It is near the very bottom, barely used by the forest at all. It's a useful diagnostic, but a *predictive* one. We will find out in notebook 8 that it's predictive power says nothing about it's true effect.
+Income is by far the most useful feature, followed by age and owning an IRA. This matches what we read off the single tree. Look at `e401` in that graph, the eligibility for a 401(k) variable that this whole stream is building toward. It is near the very bottom, barely used by the forest at all. It's a useful diagnostic, but a *predictive* one. We will find out in notebook 8 that its predictive power says nothing about its true effect.
 
 ## 4. Boosting
 
@@ -305,7 +305,7 @@ boosted_mse = mean_squared_error(y_test, boosted.predict(X_test))
 print(f"Gradient boosting test MSE: {boosted_mse:.1f}")
 ```
 
-Out of the box, boosting is the best predictor we have built on this data, ahead of KNN and the forest. The gap is small, and it can be improve further with some fine tuning; the point for us is not which tree ensemble wins by a few percent, but that both bagging and boosting take the overfitting tree from section 4 and turn it into a powerful predictor. In practice the boosting idea is taken further by libraries like `XGBoost` and `LightGBM`, which are among the most reliable predictors in everyday use, but the mechanism is the one we just learned about.
+Out of the box, boosting is the best predictor we have built on this data, ahead of KNN and the forest. The gap is small, and it can be improved further with some fine tuning; the point for us is not which tree ensemble wins by a few percent, but that both bagging and boosting take the overfitting tree from section 4 and turn it into a powerful predictor. In practice the boosting idea is taken further by libraries like `XGBoost` and `LightGBM`, which are among the most reliable predictors in everyday use, but the mechanism is the one we just learned about.
 
 We stop at tree ensembles. Neural networks are another flexible predictor, you can read more about them [in this notebook](https://ubcecon.github.io/praxis-ubc/docs/intro_to_deep_learning/intro_to_fundamental_ML.html).
 
@@ -326,12 +326,12 @@ The flexible methods all beat the baseline and land close together, with boostin
 
 > Do any of these models tell us the **effect** of 401(k) eligibility on a household's savings?
 
-**No!**Look back at the model comparison: the flexible methods cluster together, and they got there by chasing whatever predicts savings. The tree opened on owning an IRA because that variable splits savers from everyone else with the most predictive power, not because we ever showed that owning an IRA causes savings, and the forest utilizes income and age for the same reason. Meanwhile `e401`, the eligibility variable this whole stream is building toward, sat near the bottom of the importance plot, almost useless for prediction because eligible and ineligible households already look so different. But that low importance says nothing about its effect: in Notebook 1 we built a world where eligibility had a real, positive effect that a naive comparison still got wrong, and the public-economics literature finds a real effect too. And no forest (or other predictive technique), ever imagines *this* household made eligible with everything else held fixed, which is the counterfactual a causal answer requires. A model can be a fine predictor and still be useless for the effect we came here to measure. Notebook 4 makes the turn and explains what identifying a treatment effect actually requires.
+**No!** Look back at the model comparison: the flexible methods cluster together, and they got there by chasing whatever predicts savings. The tree opened on owning an IRA because that variable splits savers from everyone else with the most predictive power, not because we ever showed that owning an IRA causes savings, and the forest utilizes income and age for the same reason. Meanwhile `e401`, the eligibility variable this whole stream is building toward, sat near the bottom of the importance plot, almost useless for prediction because eligible and ineligible households already look so different. But that low importance says nothing about its effect: in Notebook 1 we built a world where eligibility had a real, positive effect that a naive comparison still got wrong, and the public-economics literature finds a real effect too. And no forest (or other predictive technique), ever imagines *this* household made eligible with everything else held fixed, which is the counterfactual a causal answer requires. A model can be a fine predictor and still be useless for the effect we came here to measure. Notebook 4 makes the turn and explains what identifying a treatment effect actually requires.
 
 ::: {.callout-note}
 ## Its causal future
 
-The random forest comes back later in a causal disguise. Notebook 8's **causal forest** reuses this notebooks ideas, re-aimed from predicting an outcome to estimating how a treatment effect varies from one household to the next.
+The random forest comes back later in a causal disguise. Notebook 8's **causal forest** reuses this notebook's ideas, re-aimed from predicting an outcome to estimating how a treatment effect varies from one household to the next.
 :::
 
 ## Connections

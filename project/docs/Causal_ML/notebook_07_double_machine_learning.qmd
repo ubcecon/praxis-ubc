@@ -62,9 +62,9 @@ RANDOM_STATE = 42
 
 The last three notebooks approached the same problem from different angles. Notebook 4 removed the controls from the outcome and the treatment separately, then regressed on the leftovers (orthogonalization). Notebook 5 did this for lasso, selecting controls twice. Notebook 6 modelled the treatment and combined the two routes into the doubly-robust estimator. Notebook 6 also left us stuck: its estimate of the 401(k) effect was 1.9 thousand dollars, but with a confidence interval running from negative five up to about positive nine, far too wide to tell whether eligibility helped at all. It was imprecise. 
 
-This notebook closes that gap. **Double machine learning (DML)** keeps the residual-on-residual concept from before and adds two things which  greatly increase its power and usefulness:
+This notebook closes that gap. **Double machine learning (DML)** keeps the residual-on-residual concept from before and adds two things which greatly increase its power and usefulness:
 
-- **Any learner.** A **learner** is any prediction algorithm that fits a function to data, the kind of model we built in Notebooks 1 to 3. The two models we fit along the way, savings given the covariates and treatment given the covariates, are prediction problems, so we can use whichever learner predicts best: a lasso, a random forest, a boosted ensemble, neural network or anything else that fits the data.
+- **Any learner.** A **learner** is any prediction algorithm that fits a function to data, the kind of model we built in Notebooks 1 to 3. The two models we fit along the way, savings given the covariates and treatment given the covariates, are prediction problems, so we can use whichever learner predicts best: a lasso, a random forest, a boosted ensemble, a neural network or anything else that fits the data.
 - **Cross-fitting.** A method that stops our new flexible learners from biasing the effect, built from the train/test idea of Notebook 1.
 
 DML will lead to a sharp, significant estimate of the effect of 401(k) eligibility on savings.
@@ -101,7 +101,7 @@ $$
 \tilde{Y} = \theta \tilde{D} + \varepsilon ,
 $$
 
-so the slope of $\tilde{Y}$ on $\tilde{D}$ is exactly $\theta$. This is a famous result from Econometrics called the **Frisch-Waugh-Lovell theorem**. It states that multivariate regression coefficients can be calculated by "partialling out" (or residualizing) the influence of control variables from both the dependent variable and the primary independent variables. Residualizing first and controlling for everything at once are two roads to the same number. Notebook 4 demonstrated the first road with a lasso doing the predicting. The new freedom in DML is that any learner can play the role of $g$ and $m$, since just need them to predict well.
+so the slope of $\tilde{Y}$ on $\tilde{D}$ is exactly $\theta$. This is a famous result from Econometrics called the **Frisch-Waugh-Lovell theorem**. It states that multivariate regression coefficients can be calculated by "partialling out" (or residualizing) the influence of control variables from both the dependent variable and the primary independent variables. Residualizing first and controlling for everything at once are two roads to the same number. Notebook 4 demonstrated the first road with a lasso doing the predicting. The new freedom in DML is that any learner can play the role of $g$ and $m$, since we just need them to predict well.
 
 There is one catch, the same one from Notebook 1: we can't use the same data twice.
 
@@ -136,7 +136,7 @@ print(f"Leftover spread on the training data: Y {y_leftover.std():.3f}, D {d_lef
 print(f"Effect estimated on the same data: {theta_same_data:.2f}  (true effect is 1.0)")
 ```
 
-The leftovers are approaching zero, because the learner reads the training outcomes back to use, memorizing the noise not true predictive signal. With nothing left to regress, the estimate collapses to -0.10, nowhere near the true 1.
+The leftovers are approaching zero, because the learner reads the training outcomes back to us, memorizing the noise not true predictive signal. With nothing left to regress, the estimate collapses to -0.10, nowhere near the true 1.
 
 The fix is **cross-fitting**, and it is the train/test split of Notebook 1 applied to the nuisance models. Split the data into folds. To get a household's leftover, use a learner that was fit on the *other* folds, never on that household. A learner can't memorise a household it was not shown, so the leftovers keep their real spread.
 
@@ -276,7 +276,7 @@ plt.title("Any learner gives a positive, significant effect")
 plt.show()
 ```
 
-All three learners agree: the effect is positive and significant. The lasso, a linear model, reads finds 6.12; the random forest gives 8.80 and gradient boosting 9.62, both higher because they capture more of the tangled savings function. The exact number shifts with how flexibly we model the nuisances, but the end result does not. It is positive and significant!
+All three learners agree: the effect is positive and significant. The lasso, a linear model, finds 6.12; the random forest gives 8.80 and gradient boosting 9.62, both higher because they capture more of the tangled savings function. The exact number shifts with how flexibly we model the nuisances, but the end result does not. It is positive and significant!
 
 ::: {.callout-tip}
 ## Self-test

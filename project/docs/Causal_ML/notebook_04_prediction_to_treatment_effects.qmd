@@ -66,9 +66,9 @@ From now on we'll be shifting away from prediction. Prediction asks for a good g
 
 This notebook is more conceptual and dense than the other notebooks, but it is also the most important.  
 
-### 1.1 Why a naive comparions fails
+### 1.1 Why a naive comparison fails
 
-The obvious thing to do is compare the savings of households that are eligible for a 401(k) with those that are not. We just subtract mean net financial assets of ineligible households from eligable ones.
+The obvious thing to do is compare the savings of households that are eligible for a 401(k) with those that are not. We just subtract mean net financial assets of ineligible households from eligible ones.
 
 ```{python}
 savings = pd.read_csv("datasets/Pension401k.csv")
@@ -82,7 +82,7 @@ print(f"Ineligible households, mean net financial assets: {Y[D == 0].mean():.1f}
 print(f"Naive difference (eligible minus ineligible)    : {naive_gap:.1f}")
 ```
 
-Eligible households have about $19,600 more in net financial assets. It is tempting to call that the effect of eligibility for the 401(k). The problem is that eligible and ineligible households differ in ways that have nothing to do with 401(k) eligbility. Eligibility comes bundled with certain jobs, and those jobs often pay more, so eligible households already earn more, and higher earners already save more. The plot below shows the income gap directly.
+Eligible households have about $19,600 more in net financial assets. It is tempting to call that the effect of eligibility for the 401(k). The problem is that eligible and ineligible households differ in ways that have nothing to do with 401(k) eligibility. Eligibility comes bundled with certain jobs, and those jobs often pay more, so eligible households already earn more, and higher earners already save more. The plot below shows the income gap directly.
 
 ```{python}
 plt.figure(figsize=(9, 5))
@@ -148,7 +148,7 @@ world["eligible_D"] = [1, 0, 1, 0, 1]
 world
 ```
 
-The `effect` column is what we are after. But now look at what we actually get to observe in the real world. Each household lives in only one version of the world: if it is eligible we see $Y(1)$ and never $Y(0)$, and if it is not we see $Y(0)$ and never $Y(1)$. Another possible example is a medical trial for a new drug, the patient either takes the drug or the placebo, we cannot have two identical people take one of each, its either one or the other. The other potential outcome is a counterfactual we can never measure.
+The `effect` column is what we are after. But now look at what we actually get to observe in the real world. Each household lives in only one version of the world: if it is eligible we see $Y(1)$ and never $Y(0)$, and if it is not we see $Y(0)$ and never $Y(1)$. Another possible example is a medical trial for a new drug, the patient either takes the drug or the placebo, we cannot have two identical people take one of each, it's either one or the other. The other potential outcome is a counterfactual we can never measure.
 
 Here is a table from our real world. 
 ```{python}
@@ -222,7 +222,7 @@ print(f"  selection bias        : {selection_bias:.2f}")
 print(f"True effect we built in : {TRUE_EFFECT:.2f}")
 ```
 
-The naive difference of 6.14 is the true effect of 1 plus a selection bias of 5.14. The bias is five times the size of the quantitity we are trying to measure. We can see exactly where it comes from by plotting $Y(0)$, the savings each household would have had with no 401(k), for the two groups side by side.
+The naive difference of 6.14 is the true effect of 1 plus a selection bias of 5.14. The bias is five times the size of the quantity we are trying to measure. We can see exactly where it comes from by plotting $Y(0)$, the savings each household would have had with no 401(k), for the two groups side by side.
 
 ```{python}
 plt.figure(figsize=(9, 5))
@@ -237,7 +237,7 @@ plt.legend()
 plt.show()
 ```
 
-Both curves are drawn in a world where no household has a 401(k), so neither is affected by the treatment. They still do not line up: the eligible households, the orange histogram, sits to the right and would have saved more regardless, because the same covariates that make them likely to be eligible also make them savers (better job, higher propensity to save, age, etc). That gap, with the treatment removed entirely, is the selection bias. The naive comparison cannot separate it from the effect so it includes it.
+Both curves are drawn in a world where no household has a 401(k), so neither is affected by the treatment. They still do not line up: the eligible households, the orange histogram, sit to the right and would have saved more regardless, because the same covariates that make them likely to be eligible also make them savers (better job, higher propensity to save, age, etc). That gap, with the treatment removed entirely, is the selection bias. The naive comparison cannot separate it from the effect so it includes it.
 
 ### 2.2 Unconfoundedness
 
@@ -307,7 +307,7 @@ Adjusting cuts the 401(k) gap from about 19,600 to about 5,900 dollars. We canno
 
 Look again at the identification formula. To estimate the ATE under unconfoundedness we need $\mathbb{E}[Y \mid D, X]$, the expected savings given treatment and covariates. That is a function of $X$, and learning a function of $X$ from data is the prediction problems from Notebooks 1 to 3. A closely related quantity, the **propensity score** $\mathbb{E}[D \mid X]$, the probability of being eligible given the covariates, is another prediction problem based around classification. We have learned tools to solve both of these!
 
-This is how machine learning is used in causal inference. The treatment effect is the target, and the regressions of $Y$ on $X$ and of $D$ on $X$ are **nuisance** functions: functions we have to estimate correctly so the effect comes out right, but that are not themselves the answer. In section 2 the nuisance was simple enough for OLS. When there are many covariates or the relationships are nonlinear, OLS is the wrong tool, for the reasons Notebook 2 laid out, and instead we utlize lasso, a forest, or boosting. 
+This is how machine learning is used in causal inference. The treatment effect is the target, and the regressions of $Y$ on $X$ and of $D$ on $X$ are **nuisance** functions: functions we have to estimate correctly so the effect comes out right, but that are not themselves the answer. In section 2 the nuisance was simple enough for OLS. When there are many covariates or the relationships are nonlinear, OLS is the wrong tool, for the reasons Notebook 2 laid out, and instead we utilize lasso, a forest, or boosting. 
 
 It would seem we're done: estimate $\mathbb{E}[Y \mid D, X]$ with the best predictor we have and read off the effect. But that doesn't work, so let's find out why.
 
@@ -365,7 +365,7 @@ plt.legend()
 plt.show()
 ```
 
-Once $X$ is removed from both eligibility and savings, the part left over lines up along a slope of 1.07, which is very close to the effect of 1 we constructed. Let's compare all three esitmates we used.
+Once $X$ is removed from both eligibility and savings, the part left over lines up along a slope of 1.07, which is very close to the effect of 1 we constructed. Let's compare all three estimates we used.
 
 ```{python}
 plt.figure(figsize=(8, 5))
