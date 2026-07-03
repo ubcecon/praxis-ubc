@@ -1,6 +1,6 @@
 # Reviewer Feedback and Responses
 
-Feedback from Laura on the NLI lesson. Each point shows Laura's feedback in bold, then a short list of what we did so far. This is the first pass, we can keep adding to it.
+Feedback from Laura on the NLI lesson. Each point shows Laura's feedback in bold, then a short list of what we did so far. 
 
 ---
 
@@ -22,15 +22,13 @@ What we did:
 - Added a four stage roadmap near the top: data preparation, stance classification, evaluation and robustness, interpretation.
 - Rebuilt the section order and table of contents around those stages.
 - Quotation removal and passage selection are now subsections under data preparation.
-- Added a "you are in stage X of 4" line at the start of each of the four stage sections, so readers can see where they are in the workflow.
+- Added a "you are in stage x of 4" line at the start of each of the four stage sections, so readers can see where they are in the workflow.
 
 **Strengthening the pedagogical scaffolding throughout. The lesson would benefit from more explanation, examples, and checks. Break longer code blocks into smaller chunks, explain what each step does in the main body, and show intermediate outputs. There are places where the lesson interprets results without showing the output. For example, after TF-IDF the lesson discusses the results but the reader never sees the TF-IDF output.**
 
-## GENERAL CHECK IF THIS IS DONE AT THE END ^ ##
-
 What we did:
 
-- Show the output for every step the text interprets: group counts, the sentence and window score tables, the evaluation metrics table, the quote sensitivity table, and the label sensitivity table.
+- Show the output for every step the text interprets: group counts, the top quote matches, the near-threshold sentences, the sentence and window score tables, the evaluation metrics table, the wrong predictions, the quote sensitivity table, and the label sensitivity table.
 - Split the quotation removal code into smaller steps with a line of explanation each.
 - Added a short "small label design check" section that explains what makes a good label set.
 - The TF-IDF example is fixed by removing TF-IDF, and the steps we kept now show the tables the text talks about.
@@ -139,7 +137,7 @@ What we did:
 
 What we did:
 
-- Added a full provenance and reuse line to the lesson answering all four questions: the sources are nineteenth-century BC legal and government documents in the public domain; openly accessible without login through UBC Open Collections, Canadiana, the Internet Archive, and BC Laws; the authors produced the OCR text; and the OCR transcriptions and derived data files are shared under CC BY 4.0.
+- Added a full provenance and reuse line to the lesson answering all four questions: the sources are nineteenth-century BC legal and government documents in the public domain; openly accessible without login through UBC Open Collections, Canadiana, the Internet Archive, and BC Laws; we produced the OCR text; and the OCR transcriptions and derived data files are shared under CC BY 4.0.
 - Confirmed the open links resolve for a regular user with no login.
 
 **Describe what the code does, even when simple. In "Preparing the Corpus" the code loads the metadata and makes a group column (Crease, Begbie, Regulation Act, Other). Say this in the text and show how to check the group counts.**
@@ -159,7 +157,6 @@ What we did:
 - Explained how the threshold was chosen, the limits of SequenceMatcher, and other options for bigger or noisier corpora.
 - Said the cleaned texts are saved to data/texts/quotations_removed/ and that the NLI analysis uses those versions.
 
-Still to do: could add an actual before and after sentence pair, not just the counts.
 
 ### Validation and Robustness Checks
 
@@ -171,13 +168,11 @@ What we did:
 - Added an error check that loads and reads the wrong predictions, and framed the accuracy as support for close reading, not a replacement for it.
 - Added a note on the bootstrap section that the intervals only cover sampling variation, not OCR, label, or model uncertainty.
 
-Still Needed: fill in how the 45 snippets were labelled (who, how many annotators, guide, ambiguous cases, sample size).
+Still Needed **Nathan**: fill in how the 45 snippets were labelled (who, how many annotators, guide, ambiguous cases, sample size).
 
 ---
 
 ## Still Open
 
-- Data provenance: confirm scan sources, who did the OCR, whether the scans are public, and the reuse status.
 - Annotation notes: document who labelled the 45 snippets and how.
 - Data link: check and update the public download link before publication.
-- Before and after example in the quotation removal section.

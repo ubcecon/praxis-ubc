@@ -245,6 +245,16 @@ quote_scores = pd.DataFrame(
 quote_scores.sort_values("similarity", ascending=False).head()
 ```
 
+Expected output:
+
+| similarity | sentence |
+| ---: | --- |
+| 0.99 | In case any employer of Chinese fails to deliver to the collector the list... |
+| 0.99 | Any collector or Government servant wilfully disobeying any of the provisions... |
+| 0.99 | Every employer of Chinese shall furnish to the collector when requested... |
+| 0.97 | Proof of the lawful possession of such receipt shall lie on the person... |
+| 0.93 | Every collector shall collect the tax from each Chinese... |
+
 Inspecting the highest-scoring rows helps you choose a threshold instead of treating it as a hidden parameter. A threshold of 0.6 catches near-exact quotes (accounting for OCR errors) while leaving Crease's own paraphrases intact; a looser threshold of 0.4 also catches loose paraphrases but risks discarding original sentences that merely share legal vocabulary with the Act. Set it too high and quoted material survives to contaminate the stance scores; set it too low and you erase the author's own language.
 
 ```python
@@ -269,6 +279,15 @@ near_threshold = quote_scores[
 
 near_threshold[["similarity", "sentence"]].head(10)
 ```
+
+Expected output:
+
+| similarity | sentence |
+| ---: | --- |
+| 0.64 | Section 16 amends the License Ordinance of 1867... |
+| 0.64 | By Sec. 5 "Any Chinese who shall be found within the Province..." |
+
+Only two sentences fall in this band, and both refer to the Act rather than stating Crease's own argument.
 
 Read this table before accepting the threshold. If the rows just above 0.6 are quoted Act language and the rows just below 0.6 are Crease's own argument, the threshold is doing what you need. If both sides contain a mixture of quotations, paraphrases, and original legal language, report that uncertainty and consider a more conservative threshold.
 
@@ -325,7 +344,7 @@ Zero-shot classification is the core analytical technique of this lesson. It use
 
 A natural first instinct is to measure stance by counting words: tally discriminatory or rights-affirming terms and compare authors. This is the logic behind domain-specific lexicons such as the Loughran-McDonald dictionary in financial text analysis, which counts curated word lists tailored to a domain rather than relying on general-purpose sentiment polarity.[^11] But keyword counting has a decisive blind spot for our question: it cannot tell the difference between a judge who *uses* a discriminatory word and one who *quotes it in order to condemn it*. The word "alien" counts the same whether the Act imposes it or Crease attacks it, and stance-bearing phrases such as "fills one with alarm" or "rule the country" use common words that no lexicon would flag. Stance depends on how words are combined and framed, which is the kind of comparison NLI is designed to make.
 
-NLI is a practical middle ground for historical corpora. Supervised models need large labeled datasets that most historians do not have, and lexicon or topic methods often miss stance direction.[^18][^19] NLI instead scores whether a passage supports researcher-defined hypotheses, so you can run three-way stance classification without retraining.[^20]
+NLI is a practical middle ground for historical corpora. Supervised models need large labeled datasets that most historians do not have, and lexicon or topic methods often miss stance direction.[^12][^13] NLI instead scores whether a passage supports researcher-defined hypotheses, so you can run three-way stance classification without retraining.[^14]
 
 ### How Zero-Shot NLI Works
 
@@ -339,11 +358,11 @@ The key advantage is flexibility: you can define any set of labels without retra
 
 Model selection is a critical decision in any NLP pipeline, especially for historical texts. Two checks matter most: whether the training data is close to your corpus, and whether the model was designed for your task.
 
-This lesson uses [DeBERTa NLI (v2.0)](https://huggingface.co/MoritzLaurer/deberta-v3-large-zeroshot-v2.0) for zero-shot classification. It is tuned for entailment tasks and performs strongly when labels are expressed as explicit hypotheses.[^12]
+This lesson uses [DeBERTa NLI (v2.0)](https://huggingface.co/MoritzLaurer/deberta-v3-large-zeroshot-v2.0) for zero-shot classification. It is tuned for entailment tasks and performs strongly when labels are expressed as explicit hypotheses.[^15]
 
 When choosing models for your own historical corpus, consider:
 
-- Does the model's training data overlap with your domain? A general-purpose model may lack specialized vocabulary, while a domain-specific model trained on modern legal text may not understand nineteenth-century usage of terms like "alien."[^13]
+- Does the model's training data overlap with your domain? A general-purpose model may lack specialized vocabulary, while a domain-specific model trained on modern legal text may not understand nineteenth-century usage of terms like "alien."[^16]
 - Is the model designed for your task? Use NLI-fine-tuned models for zero-shot classification rather than general-purpose language models.
 - Test with known examples. Pass excerpts where you already know the expected result and check whether the model's output aligns with your domain knowledge.
 
@@ -579,7 +598,7 @@ In this run, overall accuracy on the 45-sentence set is 0.667 (30/45), compared 
 | F1, Neutral | 0.686 |
 | F1, Cons | 0.743 |
 
-For interpretive tasks, this level of performance is usable but not definitive. Treat these scores as decision support for close reading, not a substitute for it.[^21][^22][^23][^24]
+For interpretive tasks, this level of performance is usable but not definitive. Treat these scores as decision support for close reading, not a substitute for it.[^17][^18][^19][^20]
 
 After the summary metrics, inspect the errors. Accuracy tells you how often the model matches the evaluation labels; it does not tell you what kinds of mistakes the model makes. For this lesson, the most important errors are false `Cons` predictions for passages that quote or describe discriminatory law in order to reject it, and false `Neutral` predictions for passages whose stance depends on legal context.
 
@@ -589,6 +608,18 @@ eval_df[eval_df["correct"] == False][
     ["Author", "true", "pred", "sentence"]
 ].head()
 ```
+
+Expected output:
+
+| Author | true | pred | sentence |
+| --- | --- | --- | --- |
+| Act 1884 | Cons | Neutral | WHEREAS the incoming of Chinese to British Columbia largely exceeds that of any other class of immigrant. |
+| Act 1884 | Neutral | Cons | This Act shall be cited as the Chinese Regulation Act, 1884. |
+| Act 1884 | Neutral | Cons | The Lieutenant-Governor in Council shall appoint Chinese Collectors to collect and receive such payments. |
+| Crease | Pro | Neutral | Held, that the Chinese Regulation Act, 1884, is ultra vires of the Provincial Legislature. |
+| Crease | Pro | Cons | Every Chinese is guilty until proved innocent, a provision which fills one conversant with subjects with alarm. |
+
+Fifteen of the 45 predictions are wrong. The last row, where Crease is labelled Pro but predicted Cons, is the quotation-induced stance reversal discussed in the interpretation stage: the sentence carries discriminatory words that Crease is condemning.
 
 Read a few false positives and false negatives before interpreting author-level means. If most errors cluster in one author, document type, or rhetorical pattern, report that pattern alongside the accuracy score.
 
@@ -736,7 +767,7 @@ for author in ['Crease', 'Begbie', ACT_LABEL]:
 bootstrap_summary = pd.DataFrame(bootstrap_rows)
 ```
 
-{% include figure.html filename="en-or-natural-language-inference-historical-text-02.png" alt="Dot-and-whisker plot showing bootstrap 95 percent confidence intervals for Pro, Neutral, and Cons mean scores by author" caption="Figure 2. Bootstrap 95% confidence intervals for mean stance scores. Begbie's wide intervals reflect the smaller sample size (18 snippets versus 83 for Crease)." %}
+{% include figure.html filename="en-or-natural-language-inference-historical-text-02.png" alt="Dot-and-whisker plot of mean Pro, Neutral, and Cons stance scores for Crease, Begbie, and the Regulation Act, each with a bootstrap 95 percent confidence interval. Begbie's intervals are the widest, reflecting its small sample of 18 snippets, so its estimates are the least certain, and where two authors' intervals overlap on a stance the difference between them is not statistically reliable." caption="Figure 2. Bootstrap 95% confidence intervals for mean stance scores. Begbie's wide intervals reflect the smaller sample size (18 snippets versus 83 for Crease)." %}
 
 Wide confidence intervals (especially for Begbie with only 18 snippets) indicate that the point estimates should be interpreted cautiously. Where intervals for different authors overlap on a given stance, the difference between them is not statistically reliable.
 
@@ -752,7 +783,7 @@ Both sentence and window approaches identify the Regulation Act as the most disc
 
 Consider this example from Crease's ruling: "...every Chinese is guilty until proved innocent, a provision which fills one conversant with subjects with alarm..." The model may classify this as "Cons" because the sentence contains discriminatory language. In context, however, Crease is *condemning* the law. This pattern appears repeatedly in Begbie as well and forms a central interpretive issue in this workflow.
 
-Linguists and discourse analysts have documented what may be called *quotation-induced stance reversal*: when a speaker quotes another's words to criticize them, surface-level analysis attributes the quoted stance to the speaker.[^25] Sentence-level NLI is vulnerable to this because the model reads the discriminatory words without the surrounding argumentative frame that signals condemnation. Rights-protective legal judgments can therefore receive high "Cons" scores at the sentence level when judges quote or describe discriminatory rules in order to reject them.
+Linguists and discourse analysts have documented what may be called *quotation-induced stance reversal*: when a speaker quotes another's words to criticize them, surface-level analysis attributes the quoted stance to the speaker.[^21] Sentence-level NLI is vulnerable to this because the model reads the discriminatory words without the surrounding argumentative frame that signals condemnation. Rights-protective legal judgments can therefore receive high "Cons" scores at the sentence level when judges quote or describe discriminatory rules in order to reject them.
 
 To address this, window-level aggregates serve as the primary summary and sentence-level results serve as granular diagnostics. Confidence-aware summaries (filtering rows whose maximum label score falls below 0.5 and computing confidence-weighted means) further reduce the influence of ambiguous sentences.
 
@@ -781,10 +812,10 @@ Each of these decisions shapes what the pipeline can and cannot reveal, and each
 
 These resources help you check historical usage before final interpretation:
 
-- The [Historical Thesaurus of English](https://ht.ac.uk/) traces when words acquired or lost specific senses through dated attestations. For example, it can help confirm that "alien" carried its legal sense throughout the nineteenth century.[^14]
-- [Google Books Ngram Viewer](https://books.google.com/ngrams) charts word frequencies across centuries of digitized books, revealing where historical and modern usage patterns diverge.[^15]
-- [EarlyPrint](https://earlyprint.org/) provides linguistically annotated early English print (1473 to the early 1700s) with tools for handling archaic spelling and OCR artifacts.[^16]
-- The [Corpus of Historical American English (COHA)](https://www.english-corpora.org/coha/) contains 475 million words from the 1820s to the 2010s, searchable by decade and genre.[^17]
+- The [Historical Thesaurus of English](https://ht.ac.uk/) traces when words acquired or lost specific senses through dated attestations. For example, it can help confirm that "alien" carried its legal sense throughout the nineteenth century.[^22]
+- [Google Books Ngram Viewer](https://books.google.com/ngrams) charts word frequencies across centuries of digitized books, revealing where historical and modern usage patterns diverge.[^23]
+- [EarlyPrint](https://earlyprint.org/) provides linguistically annotated early English print (1473 to the early 1700s) with tools for handling archaic spelling and OCR artifacts.[^24]
+- The [Corpus of Historical American English (COHA)](https://www.english-corpora.org/coha/) contains 475 million words from the 1820s to the 2010s, searchable by decade and genre.[^25]
 
 These tools cannot remove model bias, but they help you design better labels and spot likely failure points.
 
@@ -820,17 +851,17 @@ Used carefully, NLI lets historians scan more text than close reading alone, but
 [^9]: *Regina v. Mee Wah*, 3 B.C.R. 403 (1886).
 [^10]: Canada, Royal Commission on Chinese Immigration, *Report of the Royal Commission on Chinese Immigration: Report and Evidence* (Ottawa: Printed by order of the Commission, 1885).
 [^11]: Tim Loughran and Bill McDonald, "When Is a Liability Not a Liability? Textual Analysis, Dictionaries, and 10-Ks," *Journal of Finance* 66, no. 1 (2011): 35-65, https://doi.org/10.1111/j.1540-6261.2010.01625.x.
-[^12]: Moritz Laurer, Wouter van Atteveldt, Andreu Casas, and Kasper Welbers, "Less is More: Optimal Dataset Size for NLI Models," arXiv:2109.09703 (2023).
-[^13]: Fatemeh Ariai, Joel Mackenzie, and Guido De Martini, "Natural Language Processing for the Legal Domain: A Survey of Tasks, Datasets, Models and Challenges," arXiv:2410.21306 (2025).
-[^14]: Marc Alexander, ed., *Historical Thesaurus of English*, 2nd ed. (Glasgow: University of Glasgow, 2020), https://ht.ac.uk/.
-[^15]: Jean-Baptiste Michel et al., "Quantitative Analysis of Culture Using Millions of Digitized Books," *Science* 331, no. 6014 (2011): 176-82, https://doi.org/10.1126/science.1199644.
-[^16]: EarlyPrint Project, *EarlyPrint: Curating and Exploring Early Printed English* (Northwestern University and Washington University in St. Louis), https://earlyprint.org/.
-[^17]: Mark Davies, *Corpus of Historical American English (COHA): 475 Million Words, 1820s–2010s* (Provo, UT: Brigham Young University, 2010–), https://www.english-corpora.org/coha/.
-[^18]: Bing Liu, *Sentiment Analysis and Opinion Mining* (San Rafael, CA: Morgan & Claypool, 2012).
-[^19]: David M. Blei, Andrew Y. Ng, and Michael I. Jordan, "Latent Dirichlet Allocation," *Journal of Machine Learning Research* 3 (2003): 993-1022.
-[^20]: Wenpeng Yin, Jamaal Hay, and Dan Roth, "Benchmarking Zero-shot Text Classification: Datasets, Evaluation, and Entailment Approach," in *Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing* (Hong Kong: Association for Computational Linguistics, 2019), 3914-23.
-[^21]: Ron Artstein and Massimo Poesio, "Inter-Coder Agreement for Computational Linguistics," *Computational Linguistics* 34, no. 4 (2008): 555-96, https://doi.org/10.1162/coli.07-034-R2.
-[^22]: Klaus Krippendorff, *Content Analysis: An Introduction to Its Methodology*, 4th ed. (Los Angeles: Sage, 2018).
-[^23]: Rion Snow, Brendan O'Connor, Daniel Jurafsky, and Andrew Y. Ng, "Cheap and Fast — But Is It Good? Evaluating Non-Expert Annotations for Natural Language Tasks," in *Proceedings of the 2008 Conference on Empirical Methods in Natural Language Processing* (Honolulu: Association for Computational Linguistics, 2008), 254-63.
-[^24]: Fabrizio Gilardi, Meysam Alizadeh, and Maël Kubli, "ChatGPT Outperforms Crowd Workers for Text-Annotation Tasks," *Proceedings of the National Academy of Sciences* 120, no. 30 (2023): e2305016120, https://doi.org/10.1073/pnas.2305016120.
-[^25]: Douglas Biber and Edward Finegan, "Adverbial Stance Types in English," *Discourse Processes* 11, no. 1 (1988): 1-34, https://doi.org/10.1080/01638538809544689.
+[^12]: Bing Liu, *Sentiment Analysis and Opinion Mining* (San Rafael, CA: Morgan & Claypool, 2012).
+[^13]: David M. Blei, Andrew Y. Ng, and Michael I. Jordan, "Latent Dirichlet Allocation," *Journal of Machine Learning Research* 3 (2003): 993-1022.
+[^14]: Wenpeng Yin, Jamaal Hay, and Dan Roth, "Benchmarking Zero-shot Text Classification: Datasets, Evaluation, and Entailment Approach," in *Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing* (Hong Kong: Association for Computational Linguistics, 2019), 3914-23.
+[^15]: Moritz Laurer, Wouter van Atteveldt, Andreu Casas, and Kasper Welbers, "Less is More: Optimal Dataset Size for NLI Models," arXiv:2109.09703 (2023).
+[^16]: Fatemeh Ariai, Joel Mackenzie, and Guido De Martini, "Natural Language Processing for the Legal Domain: A Survey of Tasks, Datasets, Models and Challenges," arXiv:2410.21306 (2025).
+[^17]: Ron Artstein and Massimo Poesio, "Inter-Coder Agreement for Computational Linguistics," *Computational Linguistics* 34, no. 4 (2008): 555-96, https://doi.org/10.1162/coli.07-034-R2.
+[^18]: Klaus Krippendorff, *Content Analysis: An Introduction to Its Methodology*, 4th ed. (Los Angeles: Sage, 2018).
+[^19]: Rion Snow, Brendan O'Connor, Daniel Jurafsky, and Andrew Y. Ng, "Cheap and Fast — But Is It Good? Evaluating Non-Expert Annotations for Natural Language Tasks," in *Proceedings of the 2008 Conference on Empirical Methods in Natural Language Processing* (Honolulu: Association for Computational Linguistics, 2008), 254-63.
+[^20]: Fabrizio Gilardi, Meysam Alizadeh, and Maël Kubli, "ChatGPT Outperforms Crowd Workers for Text-Annotation Tasks," *Proceedings of the National Academy of Sciences* 120, no. 30 (2023): e2305016120, https://doi.org/10.1073/pnas.2305016120.
+[^21]: Douglas Biber and Edward Finegan, "Adverbial Stance Types in English," *Discourse Processes* 11, no. 1 (1988): 1-34, https://doi.org/10.1080/01638538809544689.
+[^22]: Marc Alexander, ed., *Historical Thesaurus of English*, 2nd ed. (Glasgow: University of Glasgow, 2020), https://ht.ac.uk/.
+[^23]: Jean-Baptiste Michel et al., "Quantitative Analysis of Culture Using Millions of Digitized Books," *Science* 331, no. 6014 (2011): 176-82, https://doi.org/10.1126/science.1199644.
+[^24]: EarlyPrint Project, *EarlyPrint: Curating and Exploring Early Printed English* (Northwestern University and Washington University in St. Louis), https://earlyprint.org/.
+[^25]: Mark Davies, *Corpus of Historical American English (COHA): 475 Million Words, 1820s–2010s* (Provo, UT: Brigham Young University, 2010–), https://www.english-corpora.org/coha/.
