@@ -19,7 +19,7 @@ review-ticket: https://github.com/programminghistorian/ph-submissions/issues/699
 activity: analyzing
 difficulty: 3
 topics: [python, distant-reading, machine-learning]
-abstract: This lesson demonstrates how to use zero-shot Natural Language Inference (NLI) classification in Python to assess authorial stance in historical legal texts, using nineteenth-century British Columbia court rulings on Chinese immigration as a case study. It covers preparing a corpus (including removing quoted passages with fuzzy string matching), designing classification labels, running sentence- and window-level classification, validating against a manually labelled evaluation sample, and applying robustness checks.
+abstract: This lesson demonstrates how to use zero-shot Natural Language Inference (NLI) classification in Python to assess authorial stance in historical legal texts, using nineteenth-century British Columbia court rulings on Chinese immigration as a case study. It covers preparing a corpus (including removing quoted passages with fuzzy string matching), designing classification labels, running sentence and window-level classification, validating against a manually labelled evaluation sample, and applying robustness checks.
 mathjax: true
 avatar_alt: Visual description of lesson image.
 doi: XX.XXXXX/phen0000
@@ -56,7 +56,7 @@ By the end, you will be able to:
 
 ## Prerequisites
 
-This lesson sits toward the advanced end, less because of the Python and more because of the methods it uses. You will need intermediate Python experience: working with pandas, writing functions, and using pip. If you are newer to Python, start with the [_Programming Historian_'s Introduction to Python](https://programminghistorian.org/en/lessons/introduction-and-installation). You do not need prior experience with transformer models, NLI, or the validation and bootstrap steps used later; the lesson introduces each of these where it appears.
+This lesson sits toward the advanced end, not because of the Python and more because of the methods it uses. You will need intermediate Python experience: working with pandas, writing functions, and using pip. If you are newer to Python, start with the [_Programming Historian_'s Introduction to Python](https://programminghistorian.org/en/lessons/introduction-and-installation). You do not need prior experience with transformer models, NLI, or the validation and bootstrap steps used later; the lesson introduces each of these where it appears.
 
 Python 3.10 or later is required, along with at least 8GB of RAM. A GPU or iGPU is not required, but it will speed up model inference.
 
@@ -255,7 +255,7 @@ Expected output:
 | 0.97 | Proof of the lawful possession of such receipt shall lie on the person... |
 | 0.93 | Every collector shall collect the tax from each Chinese... |
 
-Inspecting the highest-scoring rows helps you choose a threshold instead of treating it as a hidden parameter. A threshold of 0.6 catches near-exact quotes (accounting for OCR errors) while leaving Crease's own paraphrases intact; a looser threshold of 0.4 also catches loose paraphrases but risks discarding original sentences that merely share legal vocabulary with the Act. Set it too high and quoted material survives to contaminate the stance scores; set it too low and you erase the author's own language.
+Inspecting the highest-scoring rows helps you choose a threshold instead of treating it as a hidden parameter. A threshold of 0.6 catches near-exact quotes (accounting for OCR errors) while leaving Crease's own paraphrases intact; a looser threshold of 0.4 also catches loose paraphrases but risks discarding original sentences that merely share legal vocabulary with the Act. Set it too high and quoted material survives to contaminate the stance scores; set it too low and you erase the author's own language. We set ours to 0.6.
 
 ```python
 quote_threshold = 0.6
@@ -588,7 +588,7 @@ Before interpreting zero-shot results on the full corpus, it is important to mea
 
 The evaluation reports overall accuracy, per-class precision/recall/F1 (the harmonic mean of precision and recall, where 1.0 is perfect), and a majority-class baseline. Reporting the baseline is essential: if a trivial classifier can perform well by always predicting one class, apparent gains in accuracy may be misleading. Per-author breakdowns show whether performance is concentrated in one source type or generalizes across legal voices.
 
-In this run, overall accuracy on the 45-sentence set is 0.667 (30/45), compared with a majority-class baseline of 0.333. Per-class F1 scores are 0.500 (Pro), 0.686 (Neutral), and 0.743 (Cons). Per-author accuracy is highest for Commission snippets (1.000), followed by Crease (0.733) and the Regulation Act (0.700), and lower for Begbie (0.467), which is consistent with the rhetorical complexity discussed below.
+In this run, overall accuracy on the 45-sentence set is 0.667 (30/45), compared with a majority-class baseline of 0.333. Per-class F1 scores are 0.500 (Pro), 0.686 (Neutral), and 0.743 (Cons). Per-author accuracy is highest for Commission snippets (1.000), followed by Crease (0.733) and the Regulation Act (0.700), and lower for Begbie (0.467), which is consistent with the rhetroic discussed below.
 
 | Metric | Value |
 | --- | ---: |

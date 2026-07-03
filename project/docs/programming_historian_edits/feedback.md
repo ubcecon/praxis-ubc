@@ -83,7 +83,7 @@ What we did:
 - Kept the plain language intro to NLI and zero-shot, the case study sentence, and the four stage roadmap in the Introduction.
 - Left the full explanations of labels, hypotheses, and how zero-shot works in the stance classification stage, and pointed to them from the intro.
 
-Why we did not move every definition to the top: the detailed mechanics (premise, hypothesis, entailment, label design) are taught in the stage where readers actually use them, which keeps each concept next to the code that uses it and avoids explaining it twice. Pulling it all up front would either duplicate the stance classification stage or make readers meet the mechanics long before they run any of it. So the Introduction gives a short orientation, defines stance, and points to the full treatment later. This also matches the first general comment, which asked us to explain each method where it connects to the surrounding steps.
+Why we did not move every definition to the top: the detailed mechanics (premise, hypothesis, entailment, label design) are taught in the stage where readers actually use them, which keeps each concept next to the code that uses it and avoids explaining it twice. Pulling it all up front would either duplicate the stance classification stage or make readers read the definitions long before they run any of it. So the Introduction gives a short summary, defines stance, and points to the full treatment later. This also matches the first general comment, which asked us to explain each method where it connects to the surrounding steps.
 
 **The lesson goals may need to be revised to match the new workflow. Right now TF-IDF, lexicon, embeddings, UMAP, classification, validation, and robustness all read as equally central. The goals should show which steps are central and which are supporting.**
 
@@ -105,7 +105,7 @@ What we did:
 What we did:
 
 - Removed the word embeddings prerequisite link, since embeddings were cut.
-- Noted at the top of Prerequisites that the lesson sits toward the advanced end, and that this is due to the methods rather than the Python.
+- Noted at the top of Prerequisites that the lesson sits toward the advanced end, and that this is due to the methods rather than the Python code.
 - Spelled out the split: intermediate Python is assumed, while transformers, NLI, and the validation and bootstrap steps are introduced in the lesson.
 
 ### Software and Setup
@@ -138,7 +138,7 @@ What we did:
 What we did:
 
 - Added a full provenance and reuse line to the lesson answering all four questions: the sources are nineteenth-century BC legal and government documents in the public domain; openly accessible without login through UBC Open Collections, Canadiana, the Internet Archive, and BC Laws; we produced the OCR text; and the OCR transcriptions and derived data files are shared under CC BY 4.0.
-- Confirmed the open links resolve for a regular user with no login.
+- Confirmed the open links resolve for a regular user with no CWL/Academic login.
 
 **Describe what the code does, even when simple. In "Preparing the Corpus" the code loads the metadata and makes a group column (Crease, Begbie, Regulation Act, Other). Say this in the text and show how to check the group counts.**
 
@@ -168,7 +168,7 @@ What we did:
 - Added an error check that loads and reads the wrong predictions, and framed the accuracy as support for close reading, not a replacement for it.
 - Added a note on the bootstrap section that the intervals only cover sampling variation, not OCR, label, or model uncertainty.
 
-Still Needed **Nathan**: fill in how the 45 snippets were labelled (who, how many annotators, guide, ambiguous cases, sample size).
+Still Needed **Nathan**: fill in how the 45 snippets were labelled (who, how many annotators, guide, ambiguous cases, sample size). I don't remember and can't find anything in Git History and Teams messages got wiped.
 
 ---
 
