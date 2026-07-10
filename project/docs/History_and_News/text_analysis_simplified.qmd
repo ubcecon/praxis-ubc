@@ -34,7 +34,7 @@ Examples of buckets might be emotions such as happy, angry, sad; or topics about
 
 ---
 
-### 1.1 Inductive Coding 
+### 1.1 Deductive and Inductive Coding 
 
 
 ![](media/DeductiveCoding.webp){fig-align="center" width="40%" fig-cap="Deductive coding: start with pre-set categories and apply them to text."}
@@ -47,7 +47,7 @@ This is called **hand-coding** because people do it by hand and not a computer. 
 
 ---
 
-### Example of Inductive Coding 
+### Example of Deductive Coding 
 
 
 Imagine coding voter interviews into pre-set buckets like **Economy, Healthcare, Immigration**.
@@ -142,17 +142,17 @@ As we move forward, we'll delve into how modern computational methods, powered b
 ## Section 2: Computational Text Analysis
 
 
-**Machine Learning (ML)** is a transformative field that combines statistics, computer science, and artificial intelligence to enable computers to learn from data and make predictions or decisions without being explicitly programmed. 
+**Machine Learning (ML)** is a way of teaching computers to learn from examples, rather than giving them explicit step-by-step instructions. It combines ideas from statistics and computer science. 
 
 ::: {.smaller}
 - **What is ML?**  
-  ML focuses on building algorithms that can identify patterns in data, adapt to new information, and improve performance over time.  
+  ML builds computer programs that find patterns in data and get better as they see more examples.  
 
 - **Why it matters for data analysis:**  
-  ML automates tasks like classification, clustering, and regression, making it faster and more scalable to extract insights from large and complex datasets.  
+  ML automates tasks like sorting texts into categories or grouping similar texts together, letting researchers analyze far more text than any team could read by hand.  
 :::
 
-ML is the backbone of modern data analysis, enabling researchers and organizations to unlock the full potential of structured data, which is cleanly and unifromly formatted, and unstructured data which may have a more complex format.
+ML is the backbone of modern data analysis. It works with both structured data (neat and uniform, like a spreadsheet) and unstructured data (messier, like a pile of raw text).
 
 We can split up ML-based methods into two categories: **Supervised** and **Unsupervised** learning.
 
@@ -165,8 +165,8 @@ In supervised learning, a model is trained on a dataset of documents that are al
 
 Supervised learning typically takes 3 steps:
 
-1. **Training**: The model first analyzes this pre-labeled data to learn the features (ex: linguistic patterns, structures, semantic relationships) associated with each category. 
-2. **Testing**: With a held-out, unseen annotated test data, we evaluate how well the model performs by comparing the actual labels and the labels classified by the model.
+1. **Training**: The model first analyzes this pre-labeled data to learn the clues (ex: patterns of words and phrasing) associated with each category. 
+2. **Testing**: We set aside some labeled data the model has never seen, and check how well the model's guesses match the human-provided labels.
 3. **Application**: Once trained and evaluated, the model can then process new, *unseen* text for tasks like entity identification, sentiment analysis, translation, and other classification tasks. 
 
 ---
@@ -176,14 +176,14 @@ Supervised learning typically takes 3 steps:
 
 Before we can proceed with an analysis of our texts, we need to *preprocess* them using a series of steps. 
 
-We do this because supervised learning models cannot work with raw text^[  True for classical models. However even modern models like GPTs still work with numerical representations of textual data under the hood, even if they take in raw text as inputs. ]: Models like Logistic Regression, Support Vector Machines, and Naive Bayes are fundamentally *mathematical algorithms* that operate on *numerical data*. **They have no inherent ability to understand strings of text**.
+We do this because supervised learning models cannot work with raw text^[  True for classical models. However even modern models like GPTs still work with numerical representations of textual data under the hood, even if they take in raw text as inputs. ]: under the hood, the models we will meet shortly are *math formulas* that operate on *numbers*. **They have no inherent ability to understand strings of text**.
 
 Text preprocessing usually involves the following steps:
 
 1. **Tokenization** 
 2. **Text normalization** (sometimes)
 3. **Stop word removal**
-4. **Vectorization** (BoW, TF-IDF, Embeddings)
+4. **Vectorization** (turning text into numbers; we will see a few ways to do this)
 
 
 ---
@@ -191,7 +191,7 @@ Text preprocessing usually involves the following steps:
 ### Tokenization and stopword removal
 
 
-A **token** is a fundamental unit of text, often times a word, or a subword of a word, created by segmenting a larger string of text for a model to process.
+A **token** is a small unit of text, usually a word (or a piece of a word), created by chopping a larger text into pieces the model can process.
 
 ```
 Sentence: The pack of chihuahuas chased after the frightened cat.
@@ -201,7 +201,7 @@ List of tokens: ['the', 'pack', 'of', 'chihuahua', '##s', 'chased', 'after', 'th
 String of tokens: the pack of chihuahua ##s chased after the frightened cat .
 ```
 :::{.smaller style="font-size: 0.7em;"}
-  An example using bert-based-uncased's autotokenizer. 
+  An example using a real tokenizer (from the BERT model, which we will meet later). Notice it split "chihuahuas" into "chihuahua" + "##s": tokenizers sometimes break longer words into smaller pieces. 
 :::
 
 
@@ -234,9 +234,9 @@ That's not to say don't stem/lemmatize, just don't do so blindly--  think very c
 
 ### Vectorization: Bag of Words
 
-ML models are fundamentally based on math, so they require structured numerical data. **Vectorization** is the process of translating unstructured text into a numerical format. 
+ML models are fundamentally based on math, so they need numbers to work with. **Vectorization** is the process of translating text into numbers. 
 
-Different vectorization techniques result in different interpretations of the resulting vectors of numbers. The two simplest vectorization methods are Bag of Words (BoW) and TF-IDF.
+Different techniques turn text into numbers in different ways. The two simplest methods are Bag of Words (BoW) and TF-IDF.
 
 
 #### What is Bag of Words?
@@ -248,7 +248,7 @@ Consider a spreadsheet where each column corresponds to a document, and each row
 
 **Sentence**: "The pack of chihuahuas chased after the frightened cat." 
 
-**Its BoW representation**: $<2,1,1,1,1,1,1,1>$ 
+**Its BoW representation**: $<2,1,1,1,1,1,1,1>$ ("the" appears twice, every other word once) 
 
 ---
 
@@ -258,8 +258,8 @@ Consider a spreadsheet where each column corresponds to a document, and each row
 
 #### Limitations: 
 
-1. Resulting matrix becomes very sparse very fast.
-2. Context-agnostic: "The dog chased after the cat" has the same matrix representation as "the cat chased after the dog".
+1. The resulting table fills up with mostly zeros very fast, since each document uses only a small fraction of all possible words.
+2. It ignores word order: "The dog chased after the cat" has the same representation as "the cat chased after the dog".
 3. **Every word is treated equally, so common words dominate.**
 
 ![BoW representation of two sentences](media/dogs_and_cats.png)
@@ -274,13 +274,13 @@ Recall the BoW representation of the two sentences from the previous slide. Now 
 
 What if instead of looking at aggregate counts for words, we looked at their *importance* relative to other documents? 
 
-**TF-IDF** calculates a word's importance by multiplying its frequency within a document by a score that increases for words that are rare across the entire collection of documents, and penalises for words that are common across documents. 
+**TF-IDF** calculates a word's importance by multiplying its frequency within a document by a score that increases for words that are rare across the entire collection of documents, and penalises for words that are common across documents. In plain terms: a word matters if it is common in *this* document but rare everywhere else.
 
 ::: callout-note
- TF-IDF works best with corpora containing many medium-length texts (ex: collections of news articles). In general, the more documents we have, the better this method will perform.
+ TF-IDF works best with corpora (a *corpus* is just a collection of texts) containing many medium-length documents (ex: collections of news articles). In general, the more documents we have, the better this method will perform.
 :::
 
-#### Some useful libraries: 
+#### Some useful libraries (only relevant if you want to try this in code):
 
 ::: {.columns}
 ::: {.column width="50%"}
@@ -321,9 +321,9 @@ Below, we will provide an overview of a few foundational methods commonly used i
 ### Example 1: Naive Bayes Classifier
 
 #### What is Naive Bayes?
-- A **Naive Bayes** classifier predicts class labels for text based on probabilities.
-- Assumes that the presence of a word in a document is **independent** of the presence of other words.
-- Uses pre-labeled data to calculate word probabilities for each class, then applies these probabilities to classify new, unseen texts.
+- A **Naive Bayes** classifier guesses which category a text belongs to based on probabilities.
+- It treats each word as its own **separate clue**, ignoring how words work together (this simplifying assumption is the "naive" part).
+- It uses pre-labeled data to learn which words are common in each category, then uses those word clues to sort new, unseen texts.
 
 #### How it works:
 1. **Training Phase**: The model calculates the probability of each word appearing in each class (e.g., Jane Austen vs. Herman Melville).
@@ -342,12 +342,12 @@ Below, we will provide an overview of a few foundational methods commonly used i
 - **Result**: The sentence is classified as Melville.
 
 #### Strengths:
-- It is simple and computationally efficient.
+- It is simple and fast to run.
 - It works well with small datasets.
 
 #### Limitations:
-- It assumes word independence, which may not always hold true.
-- It struggles with complex relationships between words.
+- It treats every word as an independent clue, which is not how language actually works.
+- It struggles when meaning depends on how words combine.
 
 ---
 
@@ -356,26 +356,26 @@ Below, we will provide an overview of a few foundational methods commonly used i
 
 #### What is Logistic Regression?
 
-- **Logistic regression** is a statistical method for binary classification tasks (e.g., determining if a sentence belongs to Melville or Austen's works).
+- **Logistic regression** is a statistical method for sorting things into one of two categories (e.g., determining if a sentence belongs to Melville or Austen's works).
 - It calculates the probability of an outcome falling into one of two categories using an **s-shaped curve**.
 
 #### Key Features:
 
-- **No Independence Assumption**: Unlike Naive Bayes, logistic regression does not assume features are independent. Instead, it learns how features interact to influence classification.
-- **Discriminative Model**: Focuses on directly learning the boundary that separates classes, rather than modeling the characteristics of each class individually (as in generative models like Naive Bayes).
+- **No Independence Assumption**: Unlike Naive Bayes, logistic regression does not treat each word as a separate clue. Instead, it learns how word clues combine to influence the decision.
+- **Learns the Dividing Line**: Rather than building a profile of what each category typically looks like (as Naive Bayes does), it directly learns the boundary that best separates the two categories.
 
 ---
 
 #### When to Use:
 
-- **Model Interpretability**: Coefficients directly indicate the influence of each feature on the outcome.
-  - Example: A high coefficient on the word "whale" suggests its presence significantly increases the probability of a sentence being classified as Melville's work.
-- **Probabilistic Outputs**: Provides probabilities for class membership, useful for nuanced decision-making.
+- **Easy to Interpret**: The model gives each word a score showing how strongly it pushes a text toward one category or the other.
+  - Example: A high score on the word "whale" suggests its presence significantly increases the probability of a sentence being classified as Melville's work.
+- **Confidence Levels**: Rather than just an answer, it tells you how confident it is (e.g., "90% likely Melville"), which is useful for nuanced decision-making.
 
 #### Strengths:
 
-- Works well when interpretability and understanding feature contributions are important.
-- Suitable for datasets where features interact in complex ways.
+- Works well when you want to see exactly which words drove the decision.
+- Suitable for texts where words combine in complex ways.
 
 
 :::{.column width="75%"}
@@ -388,30 +388,30 @@ Below, we will provide an overview of a few foundational methods commonly used i
 
 #### What is SVM?
 
-- **Support Vector Machines** aim to find the best decision boundary between classes.
-- The "best" boundary is the one that **maximizes the distance** between the classes.
+- **Support Vector Machines** (SVMs) aim to find the best dividing line between two groups.
+- The "best" line is the one that leaves the **widest possible gap** between the groups.
 
 #### Key Features:
 
-- It focuses on **most difficult-to-classify points** (support vectors).
-- It works well with **high-dimensional data** (e.g., small datasets with many unique words).
+- It focuses on the **most difficult-to-classify, borderline cases** (these are called the support vectors).
+- It works well even when there are **many different words to keep track of** (e.g., small collections of texts with large vocabularies).
 
 #### When to Use:
 
-- **High-Dimensional Data**: Small datasets with many features (e.g., unique words in text).
-- **Clear Margin of Separation**: When classes are well-separated.
-- **Classification Focus**: When probabilities are not required, only class labels.
+- **Many Words, Few Documents**: Small collections of texts with large vocabularies.
+- **Clearly Distinct Groups**: When the categories are well-separated.
+- **Labels Only**: When you just need an answer, not a confidence level.
 
 #### Strengths:
 
-- It is effective in high-dimensional spaces.
-- It is less resource intensive: Only support vectors are stored.
-- It works well with both linear and non-linear decision boundaries.
+- It handles thousands of distinct words without trouble.
+- It is less resource intensive: it only needs to remember the borderline cases.
+- It can draw both straight and curved dividing lines.
 
 #### Limitations:
 
-- It is sensitive to noise and outliers.
-- It requires careful tuning of hyperparameters (e.g., kernel type, regularization).
+- It can be thrown off by messy or unusual examples.
+- It requires careful adjustment of its settings to work well.
 
 ---
 
@@ -419,7 +419,7 @@ Below, we will provide an overview of a few foundational methods commonly used i
 
 Below are the results of running each of the three methods discussed on a set of sentences from *Moby Dick* and *Emma*. 
 
-We've limited the bag of words vectorizer to build a vocabulary of the top 20 most frequent words, excluding common English stop words.
+Each dot below is one sentence. We've limited the bag of words vectorizer to the 20 most frequent words, excluding common English stop words. To draw the sentences on a flat chart, we compressed the word counts down to two dimensions using a technique called PCA; sentences that use similar words end up near each other.
 
 ::: {.columns}
 ::: {.column width="33%"}
@@ -500,7 +500,7 @@ We can partition clustering methods into two sets: Hard clustering methods and s
 
 **Soft clustering methods**, unlike hard clustering, allow a single text to belong to multiple clusters with varying degrees of membership. This is particularly useful when texts contain overlapping themes or topics. For example, a document discussing "climate change" and "economic policy" could be partially assigned to both clusters. A typical example of this is Latent Dirichlet Allocation.
 
-**Latent Dirichlet Allocation** (LDA) is an unsupervised learning algorithm used for topic modeling, that discovers topics from a collection of documents by identifying words that frequently appear together. 
+**Latent Dirichlet Allocation** (LDA) is a popular topic-finding recipe: it discovers topics in a collection of documents by identifying words that frequently appear together. 
 
 - LDA is a *soft clustering* method: it can assign a given text from a corpus to *more than one topic*. 
 - LDA works by assuming that each document is a mixture of various underlying topics (and in turn, that each topic is a mixture of words). 
@@ -517,7 +517,7 @@ We can partition clustering methods into two sets: Hard clustering methods and s
 ### 2.2.4 LDA as a method of dimensionality reduction
 
 
-Despite its limitations, LDA remains a powerful tool for unsupervised topic discovery and dimensionality reduction. Instead of relying on thousands of words as features for a supervised ML model, we can use the more concise topic distributions generated by LDA.
+Despite its limitations, LDA remains a powerful tool for discovering topics and for boiling text down to something simpler (this is called dimensionality reduction). Instead of describing each document by thousands of individual word counts, we can describe it with just a few numbers: how much of each topic it contains.
 
 ![Naive Bayes on the Emma/Moby Dick dataset. This time, each sentence's position is determined by the prevalence of topics, discovered via LDA.](media/naive_bayes_lda_topics.png)
 
@@ -528,7 +528,7 @@ Despite its limitations, LDA remains a powerful tool for unsupervised topic disc
 
 Recall how we mentioned vectorization methods like BoW and TF-IDF are context insensitive? **Word embeddings are another vector representation of text**, which is context-sensitive. 
 
-In short, a word embedding model is trained on a massive corpus of text to create dense numerical vectors for words by learning from their context. We can then apply that word embedding model onto our own corpus to generate a set of *context-sensitive* vectors for our texts. 
+In short, a word embedding model reads a massive amount of text and learns to represent each word as a list of numbers (a vector) that captures its meaning, based on the company the word keeps. We can then apply that model to our own collection of texts to generate *context-sensitive* representations. 
 
 - Consider two sentences: "*The film was incredible*" and "*That movie is amazing*". 
   - A BoW model only cares about word counts, so it would conclude that the sentences are completely unrelated (no words are in common!). 
@@ -536,19 +536,19 @@ In short, a word embedding model is trained on a massive corpus of text to creat
 
 - As word embeddings capture semantic meaning, a word embedding model would correctly notice that the two sentences are quite similar. 
 
-- **Word2Vec** creates word embeddings using two architectures: **CBOW** (predicts a target word from its context) and **Skip-Gram** (predicts context words from a target word).
+- **Word2Vec** is one of the most popular tools for creating word embeddings. It learns word meanings by playing a guessing game over and over: predict a word from its neighbours.
 
 ---
 
 ### 2.2.6 Return to unsupervised methods: BERT
 
-The primary issue with Word2Vec is that the resulting vector representations are *static*: each word has exactly one, fixed vector representation. Hence, the vector representations of the words in the sentences "The dog chased after the cat" and "The cat chased after the dog" are identical. 
+The primary issue with Word2Vec is that the resulting representations are *static*: each word gets exactly one fixed meaning, no matter what sentence it appears in. Hence, the representations of the words in "The dog chased after the cat" and "The cat chased after the dog" are identical. 
 
 What if instead we could generate **dynamic embeddings**, that change based on our textual corpus? 
 
-- **Bidirectional Encoder Representations from Transformers (BERT)** generates such dynamic embeddings using a mix of self-attention and positional encodings: 
-  - It looks at the entire sentence surrounding it weighing the relationship between every word to generate a vector representation for a word.
-  - Additionally, it makes note of the exact sequence of words, establishing subject-object relationships.
+- **Bidirectional Encoder Representations from Transformers (BERT)** generates such dynamic embeddings: 
+  - It looks at the entire sentence surrounding a word, weighing the relationship between every word, to work out what that word means in context.
+  - Additionally, it keeps track of the exact order of words, so it knows who did what to whom.
 
 - In our "The dog chased the cat" and "The cat chased the dog" examples, BERT would correctly understand that the subject-object roles are reversed, and hence assign two different meanings. 
 
@@ -640,10 +640,10 @@ An example of this could be scanning a stock market report and extracting names 
   - A significant part of this process is the parse tree, which helps the computer understand the structure.  
 
 - One possible technique is **Top-Down Parsing**:  
-  - Begins with the highest-level rule and works downward.  
-  - Recursively expands each non-terminal symbol until the entire sentence is derived.  
-  - Matches the input sentence with the grammatical structures prescribed by the language's rules.  
-  - Starts from the broadest abstraction and breaks it down into smaller, more concrete units.  
+  - Begins with the whole sentence and works downward.  
+  - Breaks the sentence into smaller and smaller grammatical pieces, much like diagramming a sentence in a grammar class.  
+  - Checks that the sentence fits the grammar rules of the language.  
+  - Keeps going until every individual word has been matched to a grammatical role.  
 
 #### Example
 
