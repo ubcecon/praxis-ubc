@@ -29,9 +29,9 @@ doi: XX.XXXXX/phen0000
 
 ## Introduction
 
-This lesson teaches you how to apply [Natural Language Inference (NLI)](https://en.wikipedia.org/wiki/Textual_entailment) techniques to historical documents using Python. NLI allows a model to determine the author's stance on a given topic or historical claim. This approach avoids training a new classifier for every historical debate. Instead of mapping a document to a fixed label, NLI compares passages with researcher-written hypotheses, which is useful when labelled training data is unavailable or expensive to create.
+This lesson teaches you how to apply [Natural Language Inference (NLI)](https://en.wikipedia.org/wiki/Textual_entailment) techniques to historical documents using Python. You can use NLI to, for example, determine the author's stance on a given topic or historical claim. This approach avoids training a new classifier for every historical debate. Instead of mapping a document to a fixed label, this approach compares passages with researcher-written hypotheses, which is useful when labelled training data is unavailable or expensive to create.
 
-By stance we mean where an author sits on a specific question. In this case study the question is whether the author supports or opposes equal legal treatment of Chinese immigrants. You write each stance as a short hypothesis, for example "the author advocates for equal legal treatment of Chinese immigrants", and the model scores how well each passage supports it. How the labels and hypotheses are designed, and how zero-shot classification works in detail, are covered in the stance classification stage.
+By stance we mean the position an author takes toward a specific claim. In this case study the claim is that Chinese immigrants deserve equal legal treament. The "stance" is whether the author supports this claim, opposes it, or expresses no clear position. You write each stance as a short hypothesis, for example "the author advocates for equal legal treatment of Chinese immigrants", and the model scores how well each passage supports it. How the labels and hypotheses are designed, and how zero-shot classification works in detail, are covered in the stance classification stage.
 
 The lesson uses nineteenth-century British Columbia court rulings on Chinese immigration as its case study. However, the workflow applies to any historical corpus where you want to computationally assess authorial stance.
 
@@ -56,7 +56,7 @@ By the end, you will be able to:
 
 ## Prerequisites
 
-This lesson sits towards the advanced end, not because of the Python and more because of the methods it uses. You will need intermediate Python experience: working with pandas, writing functions, and using pip. If you are newer to Python, start with the [_Programming Historian_'s Introduction to Python](https://programminghistorian.org/en/lessons/introduction-and-installation). You do not need prior experience with transformer models, NLI, or the validation and bootstrap steps used later; the lesson introduces each of these where it appears.
+This lesson sits towards the advanced end, not because of the Python involved but because of the methods it uses. You will need intermediate Python experience: working with pandas, writing functions, and using pip. If you are newer to Python, start with the [_Programming Historian_'s Introduction to Python](https://programminghistorian.org/en/lessons/introduction-and-installation). You do not need prior experience with transformer models, NLI, or the validation and bootstrap steps used later; the lesson introduces each of these where it appears.
 
 Python 3.10 or later is required, along with at least 8GB of RAM. A GPU or iGPU is not required, but it will speed up model inference.
 
@@ -128,7 +128,7 @@ While the techniques demonstrated in this lesson are general-purpose, you will g
 
 The *1884 Chinese Regulation Act*[^1] in British Columbia (a province on the Pacific coast of Canada) was provincial legislation targeting Chinese residents, part of a broader wave of anti-Chinese laws across western North America in the late nineteenth century. It was challenged and declared unconstitutional in the 1885 case of *R v. Wing Chong* by [Henry Pering Pellew Crease](https://www.biographi.ca/en/bio/crease_henry_pering_pellew_13E.html), a judge on the Supreme Court of British Columbia.[^2] Justice Crease struck down the legislation on economic grounds, finding that it infringed on federal authority over immigration, trade, commerce, and taxation. In Commonwealth legal naming convention, *R* (or *Regina*, Latin for 'the Queen') denotes a criminal or constitutional case brought by the Crown against a private party.
 
-However, Crease was not considered straightforwardly sympathetic to Chinese immigrants. Historian Tina Loo notes that he displayed mistrust towards Chinese residents, referred to them as "North American Chinamen", and feared they would "rule the country and job its offices".[^3] The apparent inconsistency between Crease's rhetoric and his political position raises a question difficult to answer through selective quotation alone: how did he actually discuss Chinese immigrants across his broader body of writing? And what methods can we use to better understand whether his opposition to the Act was rooted in principled objections to discrimination, or in a belief that Chinese immigrant labour was necessary for economic development?
+However, Crease was not considered straightforwardly sympathetic to Chinese immigrants. Historian Tina Loo notes that he displayed mistrust towards Chinese residents, referred to them as "North American Chinamen", and feared they would "rule the country and job its offices".[^3] The apparent inconsistency between Crease's rhetoric and his political position raises a question difficult to answer through selective quotation alone: how did he discuss Chinese immigrants across his broader body of writing? And what methods can we use to better understand whether his opposition to the Act was rooted in principled objections to discrimination, or in a belief that Chinese immigrant labour was necessary for economic development?
 
 To explore this question computationally, you will compare the language of Crease's rulings with two reference points: the discriminatory Act itself, and Justice [Matthew Baillie Begbie](https://www.biographi.ca/en/bio/begbie_matthew_baillie_12E.html),[^4] the first Chief Justice of British Columbia. Unlike Crease, historical accounts describe Begbie as protective of marginalized peoples, including Chinese immigrants.[^5][^6] Begbie struck down discriminatory municipal by-laws in Victoria targeting Chinese-owned businesses in the 1888 case of *R v. Victoria*.[^7]
 
@@ -140,7 +140,7 @@ Download the lesson data files from the [_Programming Historian_ repository](htt
 
 - `data/core/metadata_cleaned.csv` -- a table listing the ten source documents with author, group, and type metadata
 - Thirteen `.txt` files in `data/texts/` -- the OCR-transcribed historical texts (legal rulings, the 1884 Chinese Regulation Act, and Royal Commission reports)
-- `data/core/labelled_snippets.csv` -- 45 sentence excerpts hand-labelled for evaluation by lesson co-author Laura Nelson (UBC), a domain expert in the field
+- `data/core/labelled_snippets.csv` -- 45 sentence excerpts hand-labelled for evaluation by one of the lesson co-authors
 - `data/texts/quotations_removed/` -- versions of Crease's texts with direct quotations of the Act removed
 
 These sources are nineteenth-century British Columbia legal and government documents in the public domain. Openly accessible copies are available without login through UBC Open Collections, Canadiana, the Internet Archive, and BC Laws. We produced the text files by running modern OCR on those scans and organising the results, and the OCR transcriptions and derived data files in this lesson are shared under a Creative Commons Attribution (CC BY 4.0) licence.
@@ -266,7 +266,7 @@ cleaned_crease_sents = quote_scores[
 len(crease_sents), len(cleaned_crease_sents)
 ```
 
-For *R v. Wing Chong*, this threshold removes 12 sentences. The `act_quote_sentences_removed` column in the metadata records how many sentences were removed from each document, and the cleaned texts are saved under `data/texts/quotations_removed/`. The later NLI analysis uses these quotation-removed versions for Crease's texts. The same `compute_quote_similarity` function is reused later as a robustness check (see [Quote Sensitivity](#quote-sensitivity)), where you sweep across thresholds to confirm that residual quotations are not driving the results. For your own analyses, experiment with different thresholds to see which one best separates quotation from original language in your corpus.
+For *R v. Wing Chong*, this threshold removes 12 sentences. The `act_quote_sentences_removed` column in the metadata records how many sentences were removed from each document, and the cleaned texts are saved under `data/texts/quotations_removed/`. The later NLI analysis uses these quotation-removed versions for Crease's texts. The same `compute_quote_similarity` function is reused later as a sensitivity check (see [Quote Sensitivity](#quote-sensitivity)), where you sweep across thresholds to confirm that residual quotations are not driving the results. For your own analyses, experiment with different thresholds to see which one best separates quotation from original language in your corpus.
 
 ### Checking the Threshold
 
@@ -622,7 +622,7 @@ Computational results from zero-shot NLI should be treated as hypotheses, not co
 
 Before interpreting zero-shot results on the full corpus, measure performance on a manually labelled sample that matches the task definition. The evaluation set used here contains 45 snippets balanced across the three pipeline labels (Pro, Neutral, Cons), with representation from Act text, Crease, Begbie, and Commission material. These snippets were hand-labelled for evaluation by lesson co-author Laura Nelson (UBC), whose domain expertise informed the label assignments. This design evaluates the same three-way classification problem used in the analysis pipeline, rather than a separate single-hypothesis entailment task.
 
-The accompanying CSV records one expert label per snippet. It does not report separate annotator IDs, adjudication notes, or inter-annotator agreement. That is acceptable for a small tutorial evaluation set, but it affects how the numbers should be read: the labels are a co-author's expert reading of the stance categories, not an external benchmark or objective facts. In a larger study, you would also keep an annotation guide, record how ambiguous cases were handled, and ask a second reader to label at least a subset of the sample.
+The accompanying CSV records one expert label per snippet. It does not report separate annotator IDs, adjudication notes, or inter-annotator agreement. That is acceptable for a small tutorial evaluation set, but it affects how the numbers should be read: the labels are a co-author's expert reading of the stance categories, not an external benchmark or objective facts. In a larger study, you would also keep an annotation guide, record how ambiguous cases were handled, and you might ask a second reader to label at least a subset of the sample.
 
 The evaluation reports overall accuracy, per-class precision/recall/F1 (the harmonic mean of precision and recall, where 1.0 is perfect), and a majority-class baseline. Report the baseline because a trivial classifier can perform well by always predicting one class, making apparent gains in accuracy misleading. Per-author breakdowns show whether performance is concentrated in one source type or generalises across legal voices.
 
@@ -836,13 +836,13 @@ Returning to the historiographical question, the results are mixed rather than b
 
 ### Adapting to Your Own Corpus
 
-The case study is specific, but the workflow is general. To adapt it to a new corpus, a researcher must make five decisions:
+The case study is specific, but the workflow is general. To adapt it to a new corpus, a researcher should make five decisions:
 
 1. Select and digitize the corpus
 2. Define a keyword list that identifies the thematic focus
 3. Design classification labels that name the specific stance dimensions of interest
 4. Choose a pre-trained model whose training domain approximates the target corpus
-5. Assemble a small labelled sample of even 30 to 50 sentences to measure and report classification accuracy
+5. Assemble a small labelled sample of even 30 to 50 sentences (or more) to measure and report classification accuracy
 
 Each of these decisions shapes what the pipeline can and cannot reveal, and each warrants explicit justification in any publication that uses these methods.
 
@@ -867,7 +867,7 @@ The historical-semantics check also needs to be language specific. English resou
 
 This lesson showed how to prepare a corpus, remove quoted passages with fuzzy matching, score stance with zero-shot DeBERTa NLI, and test the results. In this case study, the Regulation Act receives the clearest discriminatory scores, while the judicial texts are more ambiguous and context-dependent. Use these outputs as structured evidence for historical interpretation, not as final verdicts.
 
-Used carefully, NLI lets historians scan more text than close reading alone, but it does not understand historical context in the way a researcher does. Its best use here is to surface passages, patterns, and disagreements that deserve closer reading. The final interpretation still depends on source criticism, historical context, and transparent reporting of uncertainty.
+Used carefully, NLI lets historians scan more text than close reading alone, but it does not necessarily capture historical context in the way a researcher can. Its best use here is to surface passages and disagreements that deserve closer reading. The final interpretation still depends on source criticism, historical context, and transparent reporting of uncertainty.
 
 ## Further Reading
 
