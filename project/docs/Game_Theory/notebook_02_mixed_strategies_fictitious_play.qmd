@@ -1,0 +1,275 @@
+---
+title: "Mixed Strategies, Beliefs, and Fictitious Play"
+author: Alex Ronczewski
+date: 2026-07-13
+image: /pages/index/placeholder_images/placeholder.png
+description: "The second notebook in the Game Theory stream. We give our algorithm memory: it predicts the opponent from the whole history of play and best responds to the prediction. Mixed strategies, the indifference principle, fictitious play, and Shapley's game, where even learning with beliefs cycles forever."
+categories:
+  - Python
+  - game theory
+  - mixed strategies
+  - fictitious play
+  - beliefs
+  - learning
+execute:
+  eval: true
+  echo: true
+  output: true
+format:
+  html:
+    embed-resources: true
+    self-contained-math: true
+  ipynb:
+    jupyter:
+      kernelspec:
+        display_name: Python
+        language: python3
+        name: python3
+---
+
+## Outline
+
+### Prerequisites
+
+- Notebook 1 of this stream. We reuse two of its main games: the detection game and the standards game, and its central concepts, best response and Nash equilibrium.
+- Basic Python and `numpy` at the COMET-intermediate level.
+
+### Learning Outcomes
+
+By the end of this notebook you will be able to:
+
+1. Define a **mixed strategy** and compute expected payoffs against one.
+2. Explain why a predictable player can be exploited, and why games of pure conflict force unpredictability.
+3. Derive a mixed Nash equilibrium with the **indifference principle**, by hand and with `nashpy`.
+4. Implement **fictitious play**: form a belief from the opponent's whole history and best respond to it.
+5. Interpret a mixed equilibrium as the long-run frequencies of a deterministic learning process.
+6. Show, with Shapley's game, that belief-based learning does not always converge.
+
+```{python}
+import numpy as np
+import matplotlib.pyplot as plt
+import nashpy as nash
+```
+
+## 1. From reacting to predicting
+
+Notebook 1 ended with a chase. In the detection game, a fraud detector and a scalper bot each reacted to the other's last move, and the pair cycled through the four cells of the table forever. The equilibrium of that game exists, `nashpy` printed it for us, but our simple algorithm could never find it.
+
+Look at what that algorithm wastes. After a hundred rounds, the detector has a hundred observations of the bot's behaviour, and it uses exactly one of them. Instead it should treat the history as data: what fraction of the time has the bot attacked Channel A? That estimate is a **belief** about the opponent, and acting on a belief instead of a single move is the upgrade this notebook builds. This is also the first properly machine-learning idea in the stream: the player fits a model of its opponent and best responds to the model's prediction.
+
+Before we can build that player we need one more piece of theory. A belief is a probability, and best responding to a probability only makes sense once we can talk about strategies that are themselves probabilities. So we start with mixed strategies, then build the learner.
+
+First, re-encode the two games from Notebook 1 that we will need. In the detection game the detector wants to screen the channel the bot attacks, and the bot wants the opposite. In the standards game two firms each choose between adopting a shared data standard and keeping their legacy setup.
+
+```{python}
+M = np.array([[ 1, -1],
+              [-1,  1]])          # detector's payoffs: rows screen A or B
+channels = ["Channel A", "Channel B"]
+detection_game = nash.Game(M, -M)
+
+S = np.array([[4, 0],
+              [3, 3]])            # firm 1's payoffs: rows Adopt or Legacy
+standards = ["Adopt", "Legacy"]
+standard_game = nash.Game(S, S.T)
+```
+
+## 2. Mixed strategies
+
+A **mixed strategy** is a probability distribution over a player's actions: a vector $\sigma$ with one non-negative entry per action, summing to one. The bot playing $\sigma = (0.6, 0.4)$ attacks Channel A 60% of the time and Channel B 40% of the time. A pure action is the special case where all the probability sits in one entry, exactly the vectors `support_enumeration` showed us in Notebook 1.
+
+Payoffs against a mixed strategy are **expected payoffs**, computed by weighing each outcome by its probability. In matrix form, if the detector plays mix $\sigma_1$ and the bot plays mix $\sigma_2$, the detector's expected payoff is
+
+$$
+u_1(\sigma_1, \sigma_2) = \sigma_1^\top M \, \sigma_2,
+$$
+
+each cell's payoff times the probability that cell gets visited. Let us see what the detector should do against that 60/40 bot.
+
+```{python}
+q = np.array([0.6, 0.4])   # the bot's mix: 60% Channel A, 40% Channel B
+
+print(f"detector's expected payoff from screening A: {(M @ q)[0]:+.2f}")
+print(f"detector's expected payoff from screening B: {(M @ q)[1]:+.2f}")
+```
+
+Screening A earns +0.2 per round on average and screening B loses it, so against this bot the best response is pure: screen A, every round. Against any lopsided mix, the best response is to play a single action, which means a player whose behaviour leans in any predictable direction hands its opponent a winning recipe. The bot leaning 60/40 toward Channel A is a bot that gets caught.
+
+### 2.1 The indifference principle
+
+So what mix is safe? The one that leaves the opponent nothing to exploit. The bot's mix stops being exploitable exactly when it makes the detector's two actions equally good, when the detector is **indifferent**. Write $q$ for the probability the bot attacks Channel A. The detector's expected payoffs are
+
+$$
+u_{\text{det}}(\text{screen A}) = q - (1 - q) = 2q - 1, \qquad
+u_{\text{det}}(\text{screen B}) = -q + (1 - q) = 1 - 2q,
+$$
+
+and setting them equal gives $q = 1/2$. The same calculation for the detector's mix, using the bot's payoffs, gives $1/2$ as well. That is the 50/50 equilibrium `nashpy` reported in Notebook 1, and now we know where it comes from: it is the only behaviour that offers the opponent no pattern to exploit.
+
+::: {.callout-important}
+## Your mix is pinned down by your opponent's payoffs
+
+Read the derivation again and notice whose payoffs decided the bot's mix: the detector's. The bot chooses 50/50 because that is what makes the *detector* indifferent, and the detector's mix is what makes the *bot* indifferent. In a mixed equilibrium each player's probabilities are set by the other player's incentives. This feels backwards, and it is the single most common mistake made with mixed strategies.
+:::
+
+The standards game works the same way, and it settles a promise from Notebook 1. Write $p$ for the probability that your rival adopts the standard. Adopting pays $4p + 0(1-p) = 4p$, staying on Legacy pays $3p + 3(1-p) = 3$ no matter what. Indifference requires
+
+$$
+4p = 3 \quad \Rightarrow \quad p = 0.75,
+$$
+
+which is exactly the `[0.75, 0.25]` vector `nashpy` printed. There is a second, very useful way to read this number: it is a **tipping point** of beliefs. If you think your rival adopts with probability above 75%, your best response is to adopt; below 75%, Legacy wins; the mixed equilibrium sits exactly on the boundary. 
+
+```{python}
+print("Detection game equilibria:")
+for eq in detection_game.support_enumeration():
+    print("  ", eq)
+
+print("Standards game mixed equilibrium payoffs:")
+mix = np.array([0.75, 0.25])
+print("  ", standard_game[mix, mix])
+```
+
+One more thing the output shows: at the 75/25 equilibrium each firm's expected payoff is 3, the same as playing Legacy outright and less than the 4 available at (Adopt, Adopt). Indifference makes the mix an equilibrium, and it also makes it an unattractive one.
+
+::: {.callout-tip}
+## Self-test
+
+The platform doubles the reward its detector earns for a catch on Channel B (that cell's payoffs become 2 for the detector, with the bot's payoffs left unchanged). In the new mixed equilibrium, whose behaviour changes: the detector's, the bot's, or both?
+
+<details><summary>Show / hide answer</summary>
+Only the bot's. The bot's mix comes from making the detector indifferent: with the new payoffs, $2q - 1 = -q + 2(1-q)$ gives $q = 3/5$, so the bot now attacks Channel A 60% of the time, steering away from the channel that got more valuable to police. The detector's mix comes from making the bot indifferent, and the bot's payoffs did not change, so the detector stays at 50/50. Rewarding the detector more changed the criminal's behaviour and left the detector's own behaviour alone. You can confirm both mixes with `support_enumeration` on the modified game.
+</details>
+:::
+
+## 3. Fictitious play
+
+Now the learner. The rule, first written down by Brown (1951) under the name **fictitious play**, is the simplest possible combination of prediction and best response:
+
+> Keep a running count of every action your opponent has ever played. Your belief is the empirical frequency: counts divided by rounds. Each round, play the best response to your belief.
+
+That is a complete machine-learning player: a model of the opponent (the frequency estimate), fit to all the data (the whole history), with a decision rule on top (the `argmax` from Notebook 1, applied to expected payoffs). Both players run it at the same time, each learning about the other while the other learns about them. Note also what the rule does *not* contain: there is no coin flip anywhere. The player is fully deterministic.
+
+```{python}
+def fictitious_play(A, B, rounds, start=(0, 0)):
+    a, b = start
+    counts_of_col = np.zeros(A.shape[1])   # row player's tally of opponent actions
+    counts_of_row = np.zeros(B.shape[0])   # column player's tally
+    history = []
+    for t in range(rounds):
+        history.append((a, b))
+        counts_of_col[b] += 1
+        counts_of_row[a] += 1
+        belief_of_row = counts_of_col / (t + 1)   # row's belief about column
+        belief_of_col = counts_of_row / (t + 1)   # column's belief about row
+        a = int(np.argmax(A @ belief_of_row))     # best response to the belief
+        b = int(np.argmax(belief_of_col @ B))
+    return np.array(history)
+
+def running_freq(plays, n_actions):
+    onehot = np.eye(n_actions)[plays]
+    return np.cumsum(onehot, axis=0) / np.arange(1, len(plays) + 1)[:, None]
+
+history = fictitious_play(M, -M, rounds=5000)
+detector_freq = running_freq(history[:, 0], 2)
+bot_freq = running_freq(history[:, 1], 2)
+
+print("detector's Channel A frequency after 1,000 rounds:", detector_freq[-1, 0].round(3))
+print("bot's Channel A frequency after 1,000 rounds:     ", bot_freq[-1, 0].round(3))
+```
+
+Both players end up splitting their time almost exactly half and half. The plot below shows the whole path: each line is a player's running frequency of Channel A, which is also exactly what the *opponent* believes about them.
+
+```{python}
+rounds = np.arange(1, len(history) + 1)
+plt.figure(figsize=(9, 5))
+plt.plot(rounds, detector_freq[:, 0], color="tab:blue", label="detector screens A")
+plt.plot(rounds, bot_freq[:, 0], color="tab:orange", label="bot attacks A")
+plt.axhline(0.5, color="black", linestyle="--", linewidth=1, label="mixed equilibrium (0.5)")
+plt.ylim(0, 1)
+plt.xlabel("round")
+plt.ylabel("frequency of Channel A so far")
+plt.title("Detection game: play frequencies converge to the mixed equilibrium")
+plt.legend()
+plt.show()
+```
+
+Two things to pay attention to here. First, the actions themselves never settle: the sequence of moves keeps switching channels forever, just like the last-move reactor in Notebook 1. Second, the *frequencies* converge, and they converge to the 50/50 mixed equilibrium we derived with the indifference principle. Nobody in this simulation ever flipped a coin, yet equilibrium randomization emerged anyway, as the long-run proportions of a deterministic learner.
+
+This is the **belief interpretation of mixed strategies**. The 50/50 in the equilibrium does not have to describe a randomizing device inside a player's head. It can describe the stable belief that an observer, or an opponent, forms from watching play: attack rates, screening rates, the frequencies in the log files. For games of pure conflict this is a theorem, proved by Robinson (1951): in any zero-sum game, fictitious play's frequencies converge to a Nash equilibrium. Our learner is guaranteed to solve the entire class of games that broke Notebook 1's reactor.
+
+### 3.1 Learning in the standards game
+
+What does the belief-based learner do when a game has several equilibria? The standards game has three: (Adopt, Adopt), (Legacy, Legacy), and the 75/25 mix. Recall the tipping-point reading: Adopt is a best response only when your belief that the rival adopts clears 75%. Now think about what fictitious play believes early on. After a start where one firm adopted and the other did not, each belief sits at 50%, well short of the tipping point, so both firms play Legacy, which drags the beliefs about Adopt lower still. The process feeds on itself.
+
+```{python}
+starts = {"both start on Adopt": (0, 0), "split start (Adopt, Legacy)": (0, 1)}
+
+plt.figure(figsize=(9, 5))
+for (label, start), color in zip(starts.items(), ["tab:green", "tab:red"]):
+    h = fictitious_play(S, S.T, rounds=200, start=start)
+    f = running_freq(h[:, 0], 2)
+    plt.plot(np.arange(1, 201), f[:, 0], color=color, label=label)
+plt.axhline(0.75, color="black", linestyle=":", linewidth=1,
+            label="tipping point (mixed equilibrium)")
+plt.ylim(-0.05, 1.05)
+plt.xlabel("round")
+plt.ylabel("firm 1's frequency of Adopt so far")
+plt.title("Standards game: learning locks onto a pure equilibrium, never the mix")
+plt.legend()
+plt.show()
+```
+
+From a coordinated start, adoption is self-confirming and the pair stays at (Adopt, Adopt) forever. From the split start, both firms retreat to Legacy within a couple of rounds and never come back, and the same happens from the mirror-image split start. The 75/25 equilibrium never appears in any run. It is a knife edge: beliefs exactly *at* the tipping point would keep both firms indifferent, but the slightest history to either side tips play to a pure equilibrium, and every actual history is on one side or the other. Notice which side wins from an even start: Legacy needs no confidence at all, while Adopt needs 75%, so uncertainty itself favours the safe choice (economists call (Legacy, Legacy) the **risk dominant** equilibrium). The lesson from Notebook 1 sharpens: learning does not just pick an equilibrium by accident of history, it systematically avoids the fragile ones.
+
+## 4. Shapley's game
+
+At this point fictitious play looks strong. It finds the mixed equilibrium in games of pure conflict, and it settles into sensible pure equilibria in coordination games. Shapley (1964) built a game specifically to end that winning streak, and it is a game you already know how to play: rock-paper-scissors, with one twist. A win pays 1, and everything else, a loss *or a tie*, pays 0.
+
+```{python}
+rps = ["Rock", "Paper", "Scissors"]
+A_s = np.array([[0, 0, 1],
+                [1, 0, 0],
+                [0, 1, 0]])   # row's wins: Rock beats Scissors, Paper beats Rock, Scissors beats Paper
+shapley_game = nash.Game(A_s, A_s.T)
+
+for eq in shapley_game.support_enumeration():
+    print(eq)
+```
+
+Ordinary rock-paper-scissors, where a win pays 1 and a loss costs 1, is zero-sum, so Robinson's theorem applies and fictitious play converges to the unique equilibrium, a third on each action. Shapley's version scores a tie as 0 for both players rather than splitting a win and a loss, which breaks the zero-sum structure and voids the guarantee. The equilibrium itself survives, `support_enumeration` finds exactly one, mixing one third on each action. Watch the learner try to reach it.
+
+```{python}
+h = fictitious_play(A_s, A_s.T, rounds=10000, start=(0, 1))
+f = running_freq(h[:, 0], 3)
+
+plt.figure(figsize=(9, 5))
+for k, (action, color) in enumerate(zip(rps, ["tab:blue", "tab:orange", "tab:green"])):
+    plt.plot(np.arange(1, 10001), f[:, k], color=color, label=action)
+plt.axhline(1/3, color="black", linestyle="--", linewidth=1, label="mixed equilibrium (1/3)")
+plt.ylim(0, 1)
+plt.xlabel("round")
+plt.ylabel("player 1's frequency of each action so far")
+plt.title("Shapley's game: frequencies orbit the equilibrium and never land")
+plt.legend(ncols=2)
+plt.show()
+```
+
+The frequencies never settle. Play chases itself around the circle, Rock invites Paper, Paper invites Scissors, Scissors invites Rock, and each lap takes longer than the one before, because the beliefs are averages over an ever-heavier history and turn more and more slowly. The swings do not damp out; the frequencies keep overshooting a third and orbiting it forever. This is the famous example promised at the end of Notebook 1: a game with a perfectly well-defined equilibrium that a natural learning process never finds.
+
+Whether learning converges is a joint property of the game and the learning rule. Upgrading the learner from a one-move memory to full beliefs enlarged the set of games it can solve, it did not make the problem go away. There are games where equilibrium is a good prediction of what algorithms will do, and games where it is answering a question no algorithm is asking.
+
+## 5. Conclusion
+
+We gave our player a memory and a model. Mixed strategies gave us the language: a strategy can be a probability, expected payoffs decide best responses, and the indifference principle pins down equilibrium mixes, with each player's probabilities set by the opponent's payoffs. Fictitious play then turned those objects from assumptions into outcomes. In the detection game, equilibrium randomization emerged as the long-run frequencies of two deterministic learners. In the standards game, learning read the 75/25 mix as a tipping point of beliefs and reliably fell off it to a pure equilibrium, favouring the safe one. And in Shapley's game, learning failed outright, orbiting the equilibrium forever.
+
+Both notebooks so far share one assumption: every game is played once, by players who will never meet again, so nothing done today can be rewarded or punished tomorrow. Dropping that assumption changes everything, including the fate of the prisoner's dilemma from Notebook 1. Notebook 3 lets the same players meet every day, remember, and retaliate: repeated games, and the emergence of cooperation.
+
+### References
+
+- Brown, G. W. (1951). *Iterative solution of games by fictitious play.* In T. C. Koopmans (Ed.), Activity Analysis of Production and Allocation. Wiley. The original fictitious play paper.
+- Fudenberg, D., & Levine, D. K. (1998). *The Theory of Learning in Games.* MIT Press. The standard reference for everything in this notebook.
+- Knight, V., & Campbell, J. (2018). *Nashpy: A Python library for the computation of Nash equilibria.* Journal of Open Source Software, 3(30), 904. https://nashpy.readthedocs.io
+- Li, H. *ECON 221 and ECON 421 course outlines.* University of British Columbia. https://lihao.microeconomics.ca/li_content/econ421/outline.html
+- Osborne, M. J. (2004). *An Introduction to Game Theory.* Oxford University Press. (Chapter 4 covers mixed strategy equilibrium.)
+- Robinson, J. (1951). *An iterative method of solving a game.* Annals of Mathematics, 54(2), 296-301. The proof that fictitious play converges in zero-sum games.
+- Shapley, L. S. (1964). *Some topics in two-person games.* In M. Dresher, L. S. Shapley, & A. W. Tucker (Eds.), Advances in Game Theory. Princeton University Press. The 3x3 counterexample of section 4.
