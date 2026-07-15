@@ -136,7 +136,7 @@ The corpus consists of ten digitized texts: legal rulings (*R v. Wing Chong*,[^2
 
 ## Downloading the Data
 
-Download the lesson data files from the [_Programming Historian_ repository](https://github.com/programminghistorian/ph-submissions/assets/natural-language-inference-historical-text/data.zip). Create a `data/` directory in your working folder and place all files there. The dataset includes:
+Download the lesson data files from the [_Programming Historian_ repository](https://github.com/programminghistorian/ph-submissions/raw/gh-pages/assets/natural-language-inference-historical-text/data.zip). Create a `data/` directory in your working folder and place all files there. The dataset includes:
 
 - `data/core/metadata_cleaned.csv` -- a table listing the ten source documents with author, group, and type metadata
 - Thirteen `.txt` files in `data/texts/` -- the OCR-transcribed historical texts (legal rulings, the 1884 Chinese Regulation Act, and Royal Commission reports)
