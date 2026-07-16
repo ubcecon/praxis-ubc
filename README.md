@@ -46,4 +46,6 @@ Currently, the list of filetypes which should be automatically version controlle
 
 #### RISE Jupyter
 
-To use the RISE extension to create interactive slideshows for UBC JupyterOpen please follow the instructions at `project/docs/setup_rise.ipynb`. 
+To use the RISE extension to create interactive slideshows for UBC JupyterOpen please follow the instructions at `project/docs/setup_rise.ipynb`.
+
+Read documentation about it at `\praxis-ubc\documentation\rise_documentation.qmd`. 
