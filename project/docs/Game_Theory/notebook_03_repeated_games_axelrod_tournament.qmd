@@ -57,11 +57,11 @@ import axelrod as axl
 
 Notebook 1 gave the pricing game a firm verdict. Two retailers' algorithms each post **High** or **Low**; Low strictly dominates; the only equilibrium is (Low, Low), a price war giving a payoff of 4 to each player, while (High, High), worth 10 to each, sits untouched one cell away.
 
-It was also built on an assumption our own story contradicts. We said from the start that the two algorithms post prices *every morning*. Notebook 1 analyzed each morning as if it were the only one: nothing done today could affect anything tomorrow. But these are the same two algorithms, meeting daily, with complete logs of every price ever posted. If firm 1 undercuts today, firm 2 can undercut tomorrow, and the day after, for as long as it wants. Once actions have consequences beyond the current round, undercutting stops being free, and the dominance argument starts chaning.
+That verdict rests on an assumption our own story contradicts: the algorithms post prices *every morning*, yet Notebook 1 analyzed each morning as if it were the only one. In reality the same two algorithms meet daily, with full logs of every price ever posted. If firm 1 undercuts today, firm 2 can undercut tomorrow, and once actions have consequences beyond the current round, the dominance argument starts to change.
 
-The object we need is a **repeated game**. The one-shot pricing game becomes the **stage game**, played over and over, and a player's total payoff is what it accumulates day by day. The big change is what a strategy is. In the stage game a strategy was one action. In the repeated game a strategy is a **rule that maps the entire history of play so far to today's action**. Notebook 2's fictitious play was already such a rule, but it treated the rival's behaviour as a fixed pattern to estimate. The rules in this notebook are built for something fictitious play never considered: your action today changes how the rival treats you tomorrow. Retaliation, punishment, and forgiveness all become possible, and they change the game's answer.
+The object we need is a **repeated game**: the one-shot pricing game becomes the **stage game**, played over and over, and payoffs accumulate day by day. The big change is what a strategy is. A strategy stops being a single action and becomes a **rule that maps the entire history of play to today's action**. Notebook 2's fictitious play was such a rule, though it treated the rival as a fixed pattern to estimate. The rules here face something new: your action today changes how the rival treats you tomorrow. Retaliation, punishment, and forgiveness become possible.
 
-The literature on repeated games, and the library we use later, speak in **cooperate** and **defect**. In our pricing story, cooperating is posting High and defecting is undercutting to Low. We keep the dictionary open throughout: High = cooperate = action 0, Low = defect = action 1.
+The literature on repeated games, and the library we use later, speak in **cooperate** and **defect**: in our pricing story, cooperating is posting High and defecting is undercutting to Low. High = cooperate = action 0, Low = defect = action 1.
 
 ## 2. Strategies as rules over history
 
@@ -114,7 +114,7 @@ for s1, s2, label in [(always_low, always_low, "always Low  vs always Low "),
     print(f"{label}: {sc1:3} vs {sc2:3} over 20 days")
 ```
 
-Twenty days of price war pay 80. Tit-for-tat against `always_low` earns 78: it gets exploited exactly once, on day 0, paying 2 while the defector collects 12, and from day 1 onward it defends itself. That single lost round is the whole price of opening with trust. And two tit-for-tats against each other earn 200 apiece, 10 per day, the (High, High) outcome that Notebook 1 proved unreachable. It is unreachable for players choosing one action, but it is possible if we look at an infinite horizon of days/actions.
+Twenty days of price war pay 80. Tit-for-tat against `always_low` earns 78: it gets exploited exactly once, on day 0, and defends itself from then on. That single lost round is the price of opening with trust. And two tit-for-tats earn 200 apiece, 10 per day: the (High, High) outcome Notebook 1 ruled out for players choosing one action is routine for rules playing many rounds.
 
 The interesting cases are the imperfect ones. Below we run four matches and draw each as a timeline, one row per player, one column per day, colour showing the price posted. The last two matches include a strategy that *slips*: it plays tit-for-tat (or win-stay-lose-shift) but defects once, on day 10, by accident.
 
@@ -154,7 +154,7 @@ fig.subplots_adjust(bottom=0.17, hspace=0.6)
 plt.show()
 ```
 
-The top row we have already read: one round of tuition against the defector, permanent cooperation with a twin using an identical strategy. The bottom row is more interesting. In the third panel, one accidental defection between two tit-for-tats echoes forever: the slipper defects on day 10, the other retaliates on day 11 just as the slipper returns to High, and the two alternate exploiting each other, each earning 170 instead of 200. Tit-for-tat retaliates and forgives, but it has no way to *end a feud it did not start*. In the fourth panel the same slip between two win-stay-lose-shifts costs two bad days: both players find themselves punished, both switch, and cooperation resumes on day 12. That error-correcting property is why win-stay-lose-shift, also called Pavlov, beats tit-for-tat in noisy environments where hands slip and signals get misread.
+The top row we have already read, the bottom row is more interesting. In the third panel, one accidental defection between two tit-for-tats echoes forever: the slipper defects on day 10, the other retaliates on day 11 just as the slipper returns to High, and the two alternate exploiting each other, 170 each instead of 200. Tit-for-tat retaliates and forgives, but it cannot *end a feud it did not start*. In the fourth panel the same slip between two win-stay-lose-shifts costs two bad days, and cooperation resumes on day 12. That error correction is why win-stay-lose-shift, also called Pavlov, beats tit-for-tat in noisy environments where hands slip.
 
 ## 3. When do High prices hold together?
 
@@ -198,12 +198,12 @@ plt.legend()
 plt.show()
 ```
 
-The threshold $\delta \ge (T - R)\,/\,(T - P)$, temptation minus reward over temptation minus punishment, is the general form of this calculation. Cooperation survives when the future is long (high $\delta$), when the temptation to cheat is small ($T - R$ = 2 here), and when the punishment hurts ($T - P$ = 8 here). Economists call the whole mechanism the **shadow of the future**: it is the expectation of continued interaction, and nothing else, that makes today's good behaviour rational.
+The threshold $\delta \ge (T - R)\,/\,(T - P)$, temptation minus reward over temptation minus punishment, is the general form of this calculation. Cooperation survives when the future is long (high $\delta$), the temptation to cheat is small ($T - R$ = 2 here), and the punishment hurts ($T - P$ = 8 here). Economists call this mechanism the **shadow of the future**: the expectation of continued interaction is what makes today's good behaviour rational.
 
 ::: {.callout-important}
 ## Cooperation here is collusion
 
-The words carry positive sentiment: cooperation, trust, forgiveness. Look at what they mean in this market. The "cooperative" outcome is both firms posting High, every day, indefinitely: prices held above the competitive level with no contract, no meeting, and no message ever exchanged, just two algorithms each understanding that undercutting would end the arrangement. Competition law calls that tacit collusion, and the mathematics of this section is exactly why regulators worry about pricing algorithms that meet the same rivals every day. Whether learning algorithms find this arrangement on their own is Notebook 4's question. For the average consumer (like you) this is not positive by any means. 
+The words carry positive sentiment: cooperation, trust, forgiveness. In this market they mean both firms posting High every day: prices held above the competitive level with no contract, no meeting, and no message ever exchanged. Competition law calls that tacit collusion, and this section's mathematics is why regulators worry about pricing algorithms that meet the same rivals daily. Whether learning algorithms find this arrangement on their own is Notebook 4's question. For the average consumer (like you) this is not positive by any means.
 :::
 
 ::: {.callout-tip}
@@ -218,9 +218,9 @@ The threshold is $\delta \ge (T - R)/(T - P) = (12 - 6)/(12 - 4) = 3/4$, up from
 
 ## 4. The Axelrod tournament
 
-Theory now says cooperation *can* survive among patient players, and Section 2 says the outcome depends entirely on which rules meet which. So which rule should you actually deploy? In 1980 the political scientist Robert Axelrod answered this empirically. He invited game theorists to submit computer programs, each a strategy for the repeated prisoner's dilemma, and played every program against every other in a round-robin tournament. The winner was the shortest program submitted: tit-for-tat, sent in by Anatol Rapoport.
+So which rule should a firm actually deploy? In 1980 the political scientist Robert Axelrod answered this empirically: he invited game theorists to submit programs for the repeated prisoner's dilemma and played every program against every other, round-robin. The winner was the shortest program submitted: tit-for-tat, sent in by Anatol Rapoport.
 
-We can rerun the experiment ourselves with the `axelrod` Python library, which implements hundreds of tournament strategies. We keep our pricing payoffs (the library defaults to Axelrod's original 3, 0, 5, 1, and takes ours just as happily) and enter a field of ten: our five rules from section 2, under the library's names (`Grudger` is grim trigger), plus five newcomers. **Tit For 2 Tats** is an extra-forgiving tit-for-tat that only retaliates after two Lows in a row. **Joss**, an entrant from the actual 1980 field, plays tit-for-tat but sneaks in a Low about 10% of the time. **Tester**, from the second tournament, opens with a Low to probe: if punished it apologizes and behaves, if not it keeps exploiting. **Alternator** posts High, Low, High, Low regardless of anything. **Random** flips a coin each day. Every pairing plays 200 days, and we repeat the whole tournament 10 times to average out the coin flips.
+We rerun the experiment with the `axelrod` Python library, keeping our pricing payoffs. The field is ten strategies: our five from section 2, under the library's names (`Grudger` is grim trigger), plus five newcomers. **Tit For 2 Tats** retaliates only after two Lows in a row; **Joss**, from the actual 1980 field, is a tit-for-tat that sneaks in a Low about 10% of the time; **Tester** opens with a Low and backs off only if punished; **Alternator** alternates no matter what; **Random** flips a coin. Every pairing plays 200 days, repeated 10 times to average out the coin flips.
 
 ```{python}
 pricing = axl.Game(r=10, s=2, t=12, p=4)   # our stage game in the library's (R, S, T, P) order
@@ -255,7 +255,7 @@ plt.legend(loc="lower right")
 plt.show()
 ```
 
-And at the very bottom sits Defector, the strategy that plays the stage game's dominant action every single day. Notebook 1's unbeatable move is the tournament's worst performer: it wins every match it plays and turns every relationship into a 4-a-day price war, while the nice strategies spend most of their days collecting 10 from each other. Dominance was the right analysis of the wrong game.
+At the very bottom sits Defector, playing the stage game's dominant action every day. It wins every match it plays, turns every relationship into a 4-a-day price war, and finishes last. Dominance was the right analysis of the wrong game.
 
 Here is tit-for-tat's scoring margin against each rival, match by match:
 
@@ -268,13 +268,13 @@ for name, margin in zip(results.players, payoff[i] - payoff[:, i]):
     print(f"  vs {name:22} {margin:+.2f}")
 ```
 
-Tit-for-tat never outscores anyone. Every margin is zero or negative: the best it ever does against a rival is a tie, and where it loses, it loses by pennies. It won the tournament without winning a single match. Success in a repeated game is measured in what you accumulate, and cooperation pays better than victory: tit-for-tat gets rich by making everyone it meets rich too, while Defector beats everyone and destroys itself. Axelrod distilled the winners' traits into four properties: be **nice** (never defect first), be **retaliatory** (punish immediately, or you will be farmed by strategies like Tester), be **forgiving** (return to cooperation once punishment is done, or one slip becomes the third panel of section 2), and be **clear** (a rival must be able to learn what you reward and what you punish).
+Tit-for-tat never outscores anyone: every margin is zero or negative, and it still won the tournament. It gets rich by making everyone it meets rich too, while Defector beats everyone and starves. Axelrod distilled the winners' traits into four properties: **nice** (never defect first), **retaliatory** (punish immediately, or strategies like Tester will farm you), **forgiving** (return to cooperation after punishing, or one slip becomes the third panel of section 2), and **clear** (a rival must be able to learn what you reward and punish).
 
 ## 5. The folk theorem
 
-Section 3 proved one outcome sustainable: permanent (High, High), held up by grim trigger, for $\delta \ge 1/4$. The construction is a template. Pick a stream of play, threaten permanent punishment for any deviation from it, and the stream is an equilibrium whenever every player prefers it to their punishment. The punishment floor in the pricing game is 4 a day: however the rival behaves, a firm can always guarantee itself at least the price-war payoff by posting Low. So *any* pattern of play giving each firm an average above 4 can be defended the same way, when players are patient enough.
+Section 3 proved one outcome sustainable: permanent (High, High), held up by grim trigger, for $\delta \ge 1/4$. The construction is a template. A firm can always guarantee itself at least 4 a day by posting Low, so take *any* pattern of play giving each firm an average above 4, threaten permanent punishment for deviating from it, and the same calculation makes it an equilibrium for patient enough players.
 
-This result is the **folk theorem**: in an infinitely repeated game with sufficiently patient players, every feasible pair of average payoffs in which each player earns more than their guaranteed minimum can arise in a Nash equilibrium. The picture below shows what that means for our pricing game. The pale region is every average payoff pair the two firms could produce (mixing the four cells over time in any proportion), and the green region is the folk theorem's answer: all of it, above 4 for both, is equilibrium territory.
+This result is the **folk theorem**: in an infinitely repeated game with sufficiently patient players, every feasible pair of average payoffs above each player's guaranteed minimum can arise in a Nash equilibrium. Below, the pale region is every average payoff pair the firms could produce by mixing the four cells over time, and the green region is the folk theorem's answer: all of it is equilibrium territory.
 
 ```{python}
 outcomes = {"(High, High)": (10, 10), "(High, Low)": (2, 12),
@@ -302,13 +302,13 @@ ax.legend(loc="upper right")
 plt.show()
 ```
 
-Notebook 1 ended with games that had one equilibrium, or two, or none. The repeated pricing game has a continuum of them: the price war is still an equilibrium, full collusion is an equilibrium, and so is every blend in between, including arrangements where one firm permanently earns more than the other. Repetition solved the cooperation puzzle and created a prediction puzzle instead. Game theory tells us the set of stable outcomes and then blanks on which one will actually happen.
+Notebook 1's games had one equilibrium, or two, or none. The repeated pricing game has a continuum: the price war, full collusion, and every blend in between. Repetition solved the cooperation puzzle and created a prediction puzzle instead. Game theory tells us the set of stable outcomes and then blanks on which one will actually happen.
 
-Which is exactly where this stream's second question takes over. When theory offers a continuum of answers, the outcome is decided by the process that plays the game, and we have already seen processes select equilibria twice: best-response dynamics locked onto a coordination equilibrium in Notebook 1, and fictitious play systematically avoided the fragile mixed equilibrium in Notebook 2. The tournament in section 4 is the same idea for repeated games, selection by competition among hand-written rules. Notebook 4 removes the hand-writing: two Q-learning algorithms, given nothing beyond profit feedback, price against each other in this exact kind of market, and we watch which point of the green region they find.
+We have seen this situation before: when theory offers many answers, the process playing the game decides. Best-response dynamics picked a coordination equilibrium in Notebook 1, fictitious play avoided the fragile mixed one in Notebook 2, and the tournament is the same idea for repeated games. Notebook 4 removes the hand-written rules entirely: two Q-learning algorithms price against each other with nothing beyond profit feedback, and we watch which point of the green region they find.
 
 ## 6. Conclusion
 
-Repetition rewrote the pricing game's verdict. A strategy became a rule over history, and rules can do what actions cannot: reward cooperation, punish betrayal, and forgive. Grim trigger makes High prices self-enforcing once the chance of meeting again clears 25%, a fixed and known end date unravels everything, and the tournament showed that in a mixed ecology of rules the traits that pay are niceness, retaliation, forgiveness, and clarity, while the one-shot dominant action finishes last without losing a match. Then the folk theorem widened the lens: almost every outcome between price war and full collusion is an equilibrium of the repeated game, so the theory alone no longer predicts what happens. What happens is decided by the players, and tomorrow's players are learning algorithms. Notebook 4 puts two of them in this market and watches what they converge to.
+Repetition rewrote the pricing game's verdict. A strategy became a rule over history, and rules can reward cooperation, punish betrayal, and forgive. Grim trigger makes High prices self-enforcing once the chance of meeting again clears 25%, while a fixed and known end date unravels everything. The tournament crowned tit-for-tat, nice, retaliatory, forgiving, and clear, and sent the one-shot dominant action to last place. Then the folk theorem widened the lens: almost everything between price war and full collusion is an equilibrium, so theory alone no longer predicts what happens. The players decide, and tomorrow's players are learning algorithms. Notebook 4 puts two of them in this market.
 
 ### References
 
