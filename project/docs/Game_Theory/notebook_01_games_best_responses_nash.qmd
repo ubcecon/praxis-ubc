@@ -1,9 +1,9 @@
 ---
 title: "Games, Best Responses, and Nash Equilibrium"
 author: Alex Ronczewski
-date: 2026-07-11
+date: 2026-07-16
 image: /pages/index/placeholder_images/placeholder.png
-description: "The first notebook in the Game Theory stream. We meet games in normal form games and some of their components: payoff matrices, dominance, best responses, and pure Nash equilibrium, and we build a first best-response simulator."
+description: "The first notebook in the Game Theory stream. We meet games in normal form and some of their components: payoff matrices, dominance, best responses, and pure Nash equilibrium, and we build a first best-response simulator."
 categories:
   - Python
   - game theory
@@ -30,7 +30,7 @@ format:
 
 ### Prerequisites
 
-- ECON 221, or any first course that introduced games, dominance, and Nash equilibrium. Every concepts is re-taught here, so you can follow without it.
+- ECON 221, or any first course that introduced games, dominance, and Nash equilibrium. Every concept is re-taught here, so you can follow without it.
 - Basic Python and `numpy` at the COMET-intermediate level.
 - You do **not** need any machine-learning background. The "learning" our players do is built from scratch.
 
@@ -42,7 +42,7 @@ By the end of this notebook you will be able to:
 2. Encode a two-player game as a pair of payoff matrices and load it into `nashpy`.
 3. Identify **strictly dominant** and **strictly dominated** strategies, and solve a game by **iterated elimination** of dominated strategies.
 4. Compute a player's **best response** to any action of the opponent.
-5. Define a **pure-strategy Nash equilibrium** as a profile of mutual best responses, and find all of a game's equilibria in code.
+5. Define a **pure-strategy Nash equilibrium** as a profile of mutual best responses, and find every pure equilibrium of a game in code.
 6. Simulate **best-response dynamics**, where algorithms repeatedly react to each other's last move, and explain why the process settles in some games and cycles forever in others.
 
 ```{python}
@@ -55,9 +55,9 @@ import nashpy as nash
 
 ## 1. When the players are algorithms
 
-The game theory you learn about in ECON 221 is about people (usually called agents). Two rational players study a payoff table, and arrive at an equilibrium. We will keep this logic, but adapt it towards algorithms and machines. When you buy something online, the price was probably set by a repricing algorithm watching its competitors' prices. The ads you see were sold in auctions where the bidders are algorithms. Recommender systems, trading systems, and more recently LLM agents all play games against each other, at a speed and scale no human player could match.
+The game theory you learn about in ECON 221 is about people (usually called agents). Two rational players study a payoff table, and arrive at an equilibrium. We keep this logic, but adapt it towards algorithms and machines. When you buy something online, the price was probably set by a repricing algorithm watching its competitors' prices. The ads you see were sold in auctions where the bidders are algorithms. Recommender systems, trading systems, and more recently LLM agents all play games against each other, at a speed and scale no human player could match.
 
-This is an important distinction, a rational person can be assumed to reason out the equilibrium before playing. An algorithm follows whatever rule it was given: it observes, it reacts, it updates. So alongside the classical question, *what is the equilibrium of this game?*, this stream asks a second one: *what do interacting algorithms converge to?* Sometimes the two answers agree, and when they do, the equilibrium prediction earns real credibility. Sometimes they disagree, and the disagreements turn out to be where the interesting findings are, up to and including pricing algorithms that learn to collude (Notebook 4).
+Moving away from human agents into machines changes alot of things. Rational people can be assumed to reason out the equilibrium before playing. An algorithm follows whatever rule it was given in it's code: it observes, it reacts, it updates. So alongside the classical question, *what is the equilibrium of this game?*, this stream asks a second one: *what do interacting algorithms converge to?* Sometimes the two answers agree, and when they do, the equilibrium prediction is unchanged. Sometimes they disagree, and the disagreements turn out to be where the interesting findings are.
 
 This notebook stays at the ECON 221 level and sets up both sides. First the human side: encoding a game, dominance, best responses, and pure Nash equilibrium. Then the algorithmic side, with the simplest player we can possibly write: one that only reacts to its opponent's last move. We can then look at where that player converges to, and where it never converges and keeps looping.
 
@@ -111,7 +111,7 @@ print("Firm 1: Low beats High against every rival price:", bool((A[1] > A[0]).al
 print("Firm 2: Low beats High against every rival price:", bool((B[:, 1] > B[:, 0]).all()))
 ```
 
-Both firms have Low as a strictly dominant action, so the game has a clean prediction: **(Low, Low)**, each firm earning 4, every day. Now look one cell up the diagonal. At (High, High) each firm would earn 10. Both firms would prefer this outcome, but its impossible, because against a High-pricing rival the best move is to undercut (Low). You most likely have learned this game: it is the **prisoner's dilemma**. 
+Both firms have Low as a strictly dominant action, so the game has a clean prediction: **(Low, Low)**, each firm earning 4, every day. Now look at (High, High) each firm would earn 10. Both firms would prefer this outcome, but it is impossible, because against a High-pricing rival the best move is to undercut (Low). You most likely have learned this game: it is the **prisoner's dilemma**. 
 
 ### 2.1 Three prices and iterated elimination
 
@@ -137,7 +137,7 @@ for i in range(3):
             print(f"{three_prices[i]} strictly dominates {three_prices[j]}")
 ```
 
-Only one relation survives: Medium strictly dominates Low. The agressive discount buys the whole market and destroys the margin doing it, so it loses to Medium no matter what the rival posts. But no action is dominant anymore: Medium is the best reply to High and to Medium, yet against a Low rival, High earns 20 while Medium earns only 12.
+Only one relation survives: Medium strictly dominates Low. The aggressive discount buys the whole market and destroys the margin doing it, so it loses to Medium no matter what the rival posts. But no action is dominant anymore: Medium is the best reply to High and to Medium, yet against a Low rival, High earns 20 while Medium earns only 12.
 
 So we cannot name firm 1's best action just yet. Something is still true, though: *no rational firm will ever post Low*. And firm 1 knows firm 2 is rational, so firm 1 can plan as if Low were simply missing from the rival's menu. Delete the Low row and the Low column, and inspect the game that remains.
 
@@ -150,7 +150,7 @@ for i in range(2):
             print(f"after eliminating Low: {three_prices[i]} strictly dominates {three_prices[j]}")
 ```
 
-In the reduced game Medium strictly dominates High, so both firms play Medium and the game is solved. This two-step argument is **iterated elimination of strictly dominated strategies**. Notice how each deletion leans on one more layer of knowledge: round one only required each firm to be rational, while round two required each firm to *know that the other is rational*. A third round would require "I know that you know that I know", and so on down the chain. Notice also what did and did not change from the 2x2 version: the race to the bottom stopped one step early, at (Medium, Medium) and payoffs of 30, yet both firms would still prefer (High, High) at 50. The prisoners dilemma's lesson survives, one price level higher.
+In the reduced game Medium strictly dominates High, so both firms play Medium and the game is solved. This two-step argument is **iterated elimination of strictly dominated strategies**. Notice how each deletion leans on one more layer of knowledge: round one only required each firm to be rational, while round two required each firm to *know that the other is rational*. A third round would require "I know that you know that I know", and so on down the chain. Notice also what did and did not change from the 2x2 version: the race to the bottom stopped one step early, at (Medium, Medium) and payoffs of 30, yet both firms would still prefer (High, High) at 50. The prisoner's dilemma lesson survives.
 
 ## 3. Best responses
 
@@ -175,7 +175,6 @@ the action that maximizes player $i$'s payoff against a fixed action of the oppo
 S = np.array([[4, 0],
               [3, 3]])
 standards = ["Adopt", "Legacy"]
-standard_game = nash.Game(S, S.T)
 
 def br_row(A, col):
     return int(np.argmax(A[:, col]))
@@ -244,30 +243,31 @@ $$
 ::: {.callout-important}
 ## Nash equilibrium is mutual best response
 
-The definition has two readings, and this stream leans on the second.
+The definition has two readings, and this stream uses the second more often.
 
 As a *solution concept*: every player is best responding to every other, so the profile is internally consistent, and nobody regrets their choice once the choices are revealed.
 
 As a *rest point*: if play somehow arrives at a Nash equilibrium, then no player who can only change their own action has a reason to move, so play stays there. Equilibria are the places where adjustment stops. This reading turns equilibrium into something a simulation can search for, and it is how algorithms, which never "solve" anything, can end up at one anyway.
 :::
 
-`nashpy` finds every equilibrium of a game with the `support_enumeration()` function. It reports each equilibrium as a pair of probability vectors, one per player, giving the probability with which each action is played. A pure equilibrium is the special case where all of the probability sits on a single action.
+Finding the pure equilibria in code is a direct translation of the underline diagram: visit every cell, and keep the ones where both players are best responding at the same time.
 
 ```{python}
-print("Pricing game (actions: High, Low)")
-for eq in pricing_game.support_enumeration():
-    print("  ", eq)
+def pure_equilibria(A, B, actions):
+    found = []
+    for i in range(A.shape[0]):
+        for j in range(A.shape[1]):
+            if A[i, j] == A[:, j].max() and B[i, j] == B[i, :].max():
+                found.append((actions[i], actions[j]))
+    return found
 
-print("Standards game (actions: Adopt, Legacy)")
-for eq in standard_game.support_enumeration():
-    print("  ", eq)
+print("Pricing game:  ", pure_equilibria(A, B, prices))
+print("Standards game:", pure_equilibria(S, S.T, standards))
 ```
 
-The pricing game has exactly one equilibrium: `[0, 1]` for each firm, all probability on the second action, Low. That is the doubly underlined cell from the diagram. The standards game returns three. The first two are the shaded cells from the diagram: both firms on Adopt, or both firms on Legacy. Note that (Legacy, Legacy) qualifies even though (Adopt, Adopt) pays more for everyone. Equilibrium certifies the absence of profitable *individual* deviations and says nothing about joint quality, which is the second time this notebook has driven a wedge between "equilibrium" and "good outcome".
+The pricing game has exactly one equilibrium, (Low, Low), the doubly underlined cell from the diagram. The standards game has two, the shaded cells: both firms on Adopt, or both firms on Legacy. Note that (Legacy, Legacy) qualifies even though (Adopt, Adopt) pays more for everyone. Equilibrium certifies the absence of profitable *individual* deviations and says nothing about joint quality. This is important to keep in mind, an equilbirum does not neccessarily imply that this is a "good" or best outcome. 
 
-The third line is new: `[0.75, 0.25]`, probability spread across both actions. That is a **mixed strategy**, an equilibrium in which players deliberately randomize. Where it comes from, why the split is exactly 75/25, and what it has to do with learning will be shown in Notebook 2. 
-
-A game with two pure equilibria left us unable to say which one will happen. The next game is worse: it has none at all.
+A game with two equilibria left us unable to say which one will happen. The next game is worse: it has none at all.
 
 ### 4.1 A game with no pure equilibrium
 
@@ -296,18 +296,17 @@ draw_best_responses(M, -M, channels, "Detection game: no cell has both payoffs u
 plt.show()
 ```
 
-No cell is shaded, and you can see why. The detector wants to land on the same channel as the bot, the bot wants the opposite, so in every cell exactly one player is best responding and the other regrets its choice. Follow the underlines around the table and they chase each other in a circle: whichever cell you stand in, one player wants to move to the next. If no cell is a mutual best response, what is left for `support_enumeration` to report?
+No cell is shaded, and you can see why. The detector wants to land on the same channel as the bot, the bot wants the opposite, so in every cell exactly one player is best responding and the other regrets its choice. Follow the underlines around the table and they chase each other in a circle: whichever cell you stand in, one player wants to move to the next. Our finder confirms it:
 
 ```{python}
-for eq in detection_game.support_enumeration():
-    print(eq)
+print("Detection game:", pure_equilibria(M, -M, channels))
 ```
 
-One equilibrium, and it is mixed: each player puts probability one half on each channel. No pure equilibrium exists, and the only stable behaviour is to be unpredictable. That matches how you would actually want to run a fraud detector, since screening the same channel every day is an open invitation to attack the other one. We will learn more in Notebook 2, what matters now is the structural fact: **some games have no pure Nash equilibrium**, and in them the underlines never meet in one cell, they rotate around the table.
+An empty list: **the detection game has no pure Nash equilibrium**. No profile of actions is stable, because in every cell somebody's best move is somewhere else. That is also how you would actually want to run a fraud detector, since screening the same channel every day is an open invitation to attack the other one. Making "unpredictable" precise takes probability, and it is where Notebook 2 begins. What we can already say is what the diagram shows: the underlines never meet in one cell, they rotate around the table.
 
 ## 5. Letting the algorithms play
 
-Everything so far has been the analyst's view. We stood outside each game, looked at the whole payoff table at once, and computed. Real pricing algorithms don't work like that: they observe what the rival did and react to it. So let us hand each player the most basic algorithm we can write.
+Everything so far has been the analyst's (human agents) view. We stood outside each game, looked at the whole payoff table at once, and computed. Real pricing algorithms don't work like that: they observe what the rival did and react to it. So let us hand each player the most basic algorithm we can write.
 
 > Each period, one player revises its action, switching to its best response against the opponent's most recent move. The two players take turns revising.
 
@@ -334,7 +333,7 @@ print(show_path(path, prices))
 
 We started the pricing game from the best collective outcome, (High, High). Firm 1 revises first and immediately undercuts. Firm 2 revises next and follows it down. From then on nothing ever changes: at a Nash equilibrium a revising player finds nothing to improve, which is the rest-point reading of the callout above. Two revisions were enough to fall from the cooperative outcome to the equilibrium. In a dominance-solvable game, best-response dynamics head straight for the prediction.
 
-Now the standards game, which has two equilibria. We run the same dynamics from two different starting positions and chart each run as a timeline: one row per player, one column per revision, and the colour of each cell is the action being played.
+Now the data pipeline game, which has two equilibria. We run the same dynamics from two different starting positions and chart each run as a timeline: one row per player, one column per revision, and the colour of each cell is the action being played.
 
 ```{python}
 action_colors = ["tab:blue", "tab:orange"]
@@ -360,7 +359,7 @@ fig.subplots_adjust(bottom=0.4)
 plt.show()
 ```
 
-Starting from (Adopt, Legacy), the pair locks into (Legacy, Legacy). Starting from the mirror image, (Legacy, Adopt), it locks into (Adopt, Adopt). Mechanically, the player that revises first abandons its own position to match the rival's last move, and after that neither has a reason to move again. Which equilibrium a market ends up in is decided by starting positions and the order of moves, the accidents of history, and once locked in, the outcome sustains itself. The left panel should bother you a little: two correctly functioning algorithms settle permanently into the equilibrium that pays everyone less, and no unilateral revision will ever push them out.
+Starting from (Adopt, Legacy), the pair locks into (Legacy, Legacy). Starting from the mirror image, (Legacy, Adopt), it locks into (Adopt, Adopt). Mechanically, the player that revises first abandons its own position to match the rival's last move, and after that neither has a reason to move again. Which equilibrium a market ends up in is decided by starting positions and the order of moves, the accidents of history, and once locked in, the outcome sustains itself. 
 
 ::: {.callout-tip}
 ## Self-test
@@ -396,7 +395,7 @@ The converse is weaker: having a pure equilibrium makes convergence possible, an
 
 ## 6. Conclusion
 
-In one notebook we went from encoding a game to watching algorithms play it. The classical concepts from ECON 221 did the analytical work: dominance solved both pricing games, and best responses solved the ones dominance could not. The simulation then added something the pencil-and-paper toolkit cannot: it made equilibrium *operational*. A pure Nash equilibrium is where best-response dynamics can rest. When a game has several, history picks one. When it has none, the simplest dynamics continue forever. Those three sentences are the spine of the whole stream.
+In one notebook we went from encoding a game to watching algorithms play it. The classical concepts from ECON 221 did the conceptual work: dominance solved both pricing games, and best responses solved the ones dominance could not. The simulation then added something the pencil-and-paper toolkit cannot: it made equilibrium *operational*. A pure Nash equilibrium is where best-response dynamics can rest. When a game has several, history picks one. When it has none, the simplest dynamics continue forever. 
 
 ### References
 
