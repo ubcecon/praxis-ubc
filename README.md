@@ -44,3 +44,8 @@ Large files are problematic in Git: because they are stored as binaries _any_ ch
 
 Currently, the list of filetypes which should be automatically version controlled is in the `.gitattributes` file in the main repository.  However, you should avoid committing large files whenever possible.
 
+#### RISE Jupyter
+
+To use the RISE extension to create interactive slideshows for UBC JupyterOpen please follow the instructions at `project/docs/setup_rise.ipynb`.
+
+Read documentation about it at `\praxis-ubc\documentation\rise_documentation.qmd`. 
