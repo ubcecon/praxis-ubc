@@ -9,7 +9,6 @@ categories:
   - game theory
   - reinforcement learning
   - Q-learning
-  - algorithmic collusion
 execute:
   eval: true
   echo: true
@@ -31,14 +30,15 @@ format:
 ### Prerequisites
 
 - Notebook 3 of this stream, which builds on Notebooks 1 and 2: the pricing game, strategies as rules over history.
-- Basic Python and `numpy` at the COMET-intermediate level. No reinforcement-learning background is needed: Q-learning is built from scratch here.
+- Basic Python and `numpy` at the COMET-intermediate level. 
+- No reinforcement-learning background is needed: Q-learning is built from scratch here.
 
 ### Learning Outcomes
 
 By the end of this notebook you will be able to:
 
 1. Describe **Q-learning**: states, actions, rewards, the Q-table, and the update rule.
-2. Explain the two dials that make it work: the discount factor $\delta$, which is Notebook 3's patience, and decaying $\varepsilon$-greedy exploration.
+2. Explain the two dials that make it work: the discount factor $\delta$, equivalent to Notebook 3's patience, and decaying $\varepsilon$-greedy exploration.
 3. Train two independent Q-learners in the repeated pricing game and measure their **profit gain** over the one-shot Nash equilibrium.
 4. Read a learned Q-table as a strategy (a rule over history).
 5. Test that strategy with a forced price cut and recognize the learned punishment that sustains collusion.
@@ -53,9 +53,9 @@ RANDOM_STATE = 42  # fix randomness so the training runs are reproducible
 
 ## 1. Nobody writes the rules this time
 
-Every player in this stream so far was given its behaviour in the form of an algorithm. Notebook 1 solved the three-price game by iterated elimination: rational one-shot firms post Medium and earn 30 a day. Notebook 3 repeated the game and showed that hand-written rules like grim trigger can hold prices at High, awarding profits of 50 a day, and the folk theorem said a whole continuum of outcomes is sustainable.
+Every player in this stream so far was given its behaviour in the form of a set algorithm. Notebook 1 solved the three-price game by iterated elimination: rational one-shot firms post Medium and earn 30 a day. Notebook 3 repeated the game and showed that hand-written rules like grim trigger can hold prices at High, awarding profits of 50 a day, and the folk theorem said a whole continuum of outcomes is sustainable.
 
-This notebook removes the humans. Each firm's pricing is handed to a **Q-learning** agent, one of the standard reinforcement-learning algorithms and a small cousin of the methods behind game-playing AI systems. Each agent observes yesterday's two prices and its own profit, and nothing else. It is not told the payoff table, it is not told that a rival exists, and the two agents share no code and never communicate. We then answer the main question of this stream: what do they converge to? This experiment is a small-scale replication of Calvano, Calzolari, Denicolo, and Pastorello (2020). 
+This notebook removes the humans entirely. Each firm's pricing is handed to a **Q-learning** agent, one of the standard reinforcement-learning algorithms and a small cousin of the methods behind game-playing AI systems. Each agent observes yesterday's two prices and its own profit, and nothing else. It is not told the payoff table, it is not told that a rival exists. The two agents share no code and never communicate. We then answer the main question of this stream: what do they converge to? This experiment is a small-scale replication of Calvano, Calzolari, Denicolo, and Pastorello (2020). 
 
 The market is Notebook 1's three-price game, with the benchmarks we have already computed: the one-shot Nash equilibrium (Medium, Medium) pays 30 to each firm, and the collusive outcome (High, High) pays 50.
 
@@ -107,7 +107,7 @@ def run_session(rng, steps, alpha=0.15, delta=0.95, beta=4.5e-5):
 
 We train 20 independent pairs of agents, 100,000 days each. Every session starts from scratch: fresh random Q-tables, no memory of the other sessions. 
 
-This training cell is the most computationally intensive of the stream and will take longer to run (~1 minuite depending on hardware). 
+This training cell is the most computationally intensive of the stream and will take longer to run (~1 minute depending on hardware). 
 
 ```{python}
 rng = np.random.default_rng(RANDOM_STATE)
@@ -141,7 +141,7 @@ plt.legend(loc="lower right")
 plt.show()
 ```
 
-Early on, while the agents explore at random, profits sit around 27, below even the Nash payoff. As exploration fades, every session climbs, and continue past 30. The average settles near 49, about 93% of the distance from the competitive benchmark to full collusion. No economist told these agents that (High, High) was worth aiming for. Two profit-maximizing algorithms, each treating the other as background noise, found the collusive outcome on their own.
+Early on, while the agents explore at random, profits sit slightly below 30 (Nash Payoff). As exploration fades, every session climbs, and continues past 30. The average settles near 49, about 93% of the distance from the competitive benchmark to full collusion. No economist told these agents that (High, High) was worth aiming for. Two profit-maximizing algorithms, each treating the other as background noise, found the collusive outcome on their own.
 
 ## 4. The strategy they invented
 
@@ -177,7 +177,7 @@ for mine in range(3):
     print(f"I was {prices[mine]:8}" + "".join(f"{p:14}" for p in row))
 ```
 
-The top-left corner of the table is the part that actual play visits. If both firms priced High yesterday, price High again. If I was High and the rival undercut to Medium, drop to Medium: punish. And once both of us are at Medium, go back to High: forgive. That is a one-day trigger strategy with built-in forgiveness, a close cousin of win-stay-lose-shift, except nobody sent it in, wrote it, or programmed it. It was created out of profit feedback. (The cells involving Low are rarely visited once learning settles, so those entries are barely trained and vary across sessions.)
+The top-left corner of the table is the part that actual play visits. If both firms priced High yesterday, price High again. If I was High and the rival undercut to Medium, drop to Medium: punish. And once both of us are at Medium, go back to High: forgive. That is a one-day trigger strategy with built-in forgiveness, a close cousin of win-stay-lose-shift, except nobody sent it in, wrote it, or programmed it. It was created out of profit feedback.
 
 If the punishment is real, it should show up in behaviour. We run Calvano et al.'s signature test on the 17 collusive sessions: let play settle at (High, High), then force firm 1 to undercut to Medium for a single day, and watch both agents play greedily afterwards.
 
@@ -229,7 +229,7 @@ plt.legend(loc="lower right")
 plt.show()
 ```
 
-Myopic agents converge to a profit of 30: they learn the game perfectly well, play the strategy from Notebook 1, the one-shot Nash equilibrium. Collusion is worthless to an agent that cannot value tomorrow, because sustaining it means passing up today's undercut for the sake of future cooperation. The shadow of the future is imminent, exactly as the theory predicted.
+Myopic agents converge to a profit of 30: they learn the game perfectly well and play the strategy from Notebook 1 - the one-shot Nash equilibrium. Collusion is worthless to an agent that cannot value tomorrow, because sustaining it means passing up today's undercut for the sake of future cooperation. The shadow of the future is the mechanism, just like theory predicted.
 
 ::: {.callout-tip}
 ## Self-test
@@ -237,7 +237,7 @@ Myopic agents converge to a profit of 30: they learn the game perfectly well, pl
 Apply Notebook 3's threshold formula to this game: deviating from (High, High) to Medium earns 60 once, and Nash-reversion punishment pays 30 forever after. How patient do the firms have to be for High prices to be sustainable, and do our two training runs sit on the sides of that threshold you would expect?
 
 <details><summary>Show / hide answer</summary>
-The threshold is $\delta \ge (T - R)/(T - P) = (60 - 50)/(60 - 30) = 1/3$. Our patient agents have $\delta = 0.95$, far above it, and collude; the myopic agents have $\delta = 0$, far below it, and price at Nash. The Q-learners were never shown this formula, but their learned behaviour follows it.
+The threshold is $\delta \ge (T - R)/(T - P) = (60 - 50)/(60 - 30) = 1/3$. Our patient agents have $\delta = 0.95$, far above it, and collude; the myopic agents have $\delta = 0$, far below it, and price at Nash. The Q-learners were never shown this formula, but their learned behaviour follows it. They learned it indirectly.
 </details>
 :::
 
@@ -269,21 +269,38 @@ ax.legend(loc="lower left")
 plt.show()
 ```
 
-The sessions pile up at full collusion, with a few landing on nearby asymmetric cycles, and none at the competitive corner. Out of a continuum of stable outcomes, independent learning selected the one that is best for the firms and worst for their customers.
+The sessions pile up at full collusion, with a few landing on nearby asymmetric cycles, and none at the competitive corner. Out of a continuum of stable outcomes, independent learning selected the most profitable one for the firms, at their customers' expense.
 
-That is why this experiment, and the Calvano et al. paper behind it, attracted regulators' attention. Real evidence points the same way: when algorithmic pricing software spread through the German retail gasoline market, margins rose noticeably in the markets where competing stations had both adopted it (Assad et al., 2024). And the legal problem is structural.
+That is why this experiment, and the Calvano et al. paper behind it, attracted regulators' attention. Real evidence points to the same thing: when algorithmic pricing software spread through the German retail gasoline market, margins rose noticeably in the markets where competing stations had both adopted it (Assad et al., 2024). And the legal problem is structural.
 
 ::: {.callout-important}
 ## There is no agreement to prosecute
 
-Cartel law is built around **agreement**: messages, meetings, a concerted practice that investigators can subpoena. Here there is nothing to find. The two agents never communicated, were never told a rival existed, and each independently maximized its own profit, which is exactly what firms are supposed to do. The supra-competitive prices and the punishment threat that sustains them live in two tables of 27 numbers that even the firms' own engineers may never have inspected. The outcome is collusive by every economic measure and agreement-free by every legal one, and how to regulate that gap, auditing pricing algorithms, testing them in sandboxes before deployment, or holding firms liable for what their software converges to, is an open policy question.
+Cartel law is built around **agreement**: messages, meetings, a concerted practice that investigators can subpoena. Here there is nothing to find. The two agents never communicated, were never told a rival existed, and each independently maximized its own profit, which is exactly what firms are expected to do. The supra-competitive prices and the punishment threat that sustains them live in two tables of 27 numbers (many more in this case) that even the firms' own engineers may never have inspected. The outcome is collusive in every economic sense, yet involves no legal agreement, and how to regulate that gap, auditing pricing algorithms, testing them in sandboxes before deployment, or holding firms liable for what their software converges to, is an open policy question.
 :::
 
 ## 7. Conclusion
 
-This notebook closed the loop the stream opened. Notebook 1 asked what rational players would do and answered with equilibrium: in the three-price game, Medium, a payoff of 30. Notebook 2 replaced reasoning with belief-based learning and found that play can converge to equilibria, select among them, or cycle forever. Notebook 3 repeated the game and showed that history-dependent rules sustain cooperation, at a continuum of possible outcomes from folk theorem's. And here, two Q-learners that know nothing of equilibria, thresholds, or each other worked their way to the collusive corner of that outcome set and invented the punishment strategies that keep it stable, provided only that they valued the future.
+This is the last notebook, so let us look back at the whole stream. Notebook 1 asked what rational players would do and answered with equilibrium: in the three-price game, Medium, a payoff of 30. Notebook 2 replaced reasoning with belief-based learning and found that play can converge to equilibria, select among them, or cycle forever. Notebook 3 repeated the game and showed that history-dependent rules sustain cooperation, at a continuum of possible outcomes from the folk theorem. And here, two Q-learners that know nothing of equilibria, thresholds, or each other worked their way to the collusive corner of that outcome set and invented the punishment strategies that keep it stable, provided only that they valued the future.
 
-The stream's two questions now have their answers. What is the equilibrium? Often many things at once. What do interacting algorithms converge to? Something specific, discoverable by simulation, and sometimes alarming: the players of the algorithmic economy do find the equilibria of game theory, including the ones we would rather they wouldn't. 
+The stream's two questions now have their answers. What is the equilibrium? Can be all kinds of things. What do interacting algorithms converge to? Something specific, discoverable by simulation, and sometimes alarmingly: the players of the algorithmic economy do find the equilibria of game theory, including the ones consumers would rather they wouldn't.
+
+Thank you for reading!
+
+### 7.1 Where to go next
+
+Everything in this stream happened in simultaneous-move games with a handful of actions.
+
+- **Sequential and extensive-form games.** In many markets one player moves first and the other observes before responding: a leader posts a price, an entrant decides whether to challenge an incumbent. Game trees, backward induction, and subgame perfect equilibira: this is the other half of ECON 421.
+- **Auctions and games of incomplete information.** Every game here was played with both payoff tables on the table. Auction theory drops that assumption, each bidder knows only its own valuation, and it is where algorithmic players are most common in practice: every search ad you see was sold in an auction among bidding bots, run billions of times a day.
+- **Multi-agent reinforcement learning at scale.** Notebook 4's agents fit in a table of 27 numbers. Replace the table with a neural network ([this prAxIs notebook](https://ubcecon.github.io/praxis-ubc/docs/intro_to_deep_learning/intro_to_fundamental_ML.html) introduces them) and the same learning loop scales to games far too large to tabulate, which is how self-play systems reached superhuman Go and poker. 
+
+### 7.2 Recommended reading
+
+- Osborne, *An Introduction to Game Theory* (Oxford University Press). The standard undergraduate text, and the closest match to ECON 421.
+- Shoham and Leyton-Brown, *Multiagent Systems: Algorithmic, Game-Theoretic, and Logical Foundations* ([masfoundations.org](http://www.masfoundations.org/)). Free online, covers the computer science side of everything in this stream, and one of its authors teaches at UBC.
+- Axelrod, *The Evolution of Cooperation* (Basic Books). The story behind Notebook 3's tournament, written for a general audience and still the best account of why nice strategies win.
+- The `nashpy` ([nashpy.readthedocs.io](https://nashpy.readthedocs.io/)) and `axelrod` ([axelrod.readthedocs.io](https://axelrod.readthedocs.io/)) documentation. Both go well beyond what we used, and the axelrod library ships over 200 strategies you can drop into Notebook 3's tournament.
 
 ### References
 
