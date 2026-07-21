@@ -1,6 +1,6 @@
-# prAxIs: "Unpacking the Black Box: Critical AI Literacies for Arts Students"
+# Praxis: "Unpacking the Black Box: Critical AI Literacies for Arts Students"
 
-A repository for our the large TLEF project: Unpacking the Black Box: Critical AI Literacies for Arts Students.
+A repository for the large TLEF project: Unpacking the Black Box: Critical AI Literacies for Arts Students.
 
 ## Important Documents
 
@@ -37,6 +37,10 @@ This repository is organized into several distinct parts, housed in the `main` b
   * Some of these are also included in the website.
 
 We use the [Quarto](https://quarto.org/) framework to write content and build the website, although we also can support raw `.ipynb` notebooks, as well.
+
+### Zenodo Archive
+
+Published Praxis notebooks are archived on Zenodo, where each notebook is assigned a persistent DOI for citation and long-term preservation.
 
 ### Large Files
 
