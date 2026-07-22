@@ -123,6 +123,20 @@ To handle confounding it leans on Notebook 7. Inside the forest, savings and eli
 A **random forest** (Notebook 3) splits the data into groups of similar units and averages the **outcome** in each: it predicts $Y$. A **causal forest** splits into groups of similar units and estimates the **treatment effect** in each, after residualizing out the confounders the way Notebook 7 did: it predicts $\tau(x)$. It targets effect instead of outcome. 
 :::
 
+Because the CATE is a whole function rather than one number, it needs everything the ATE needed and a little bit more. Before fitting anything, we state the conditions under which the forest's per-household effects have a causal meaning.
+
+::: {.callout-important}
+## Identification conditions for the causal forest
+
+1. **Unconfoundedness (selection on observables), at every $x$.** Conditional on the nine covariates, eligibility must be as good as randomly assigned: $(Y(0), Y(1)) \perp D \mid X$. This is the same untestable assumption as in Notebooks 4 to 7, but it now has to do local work: the CATE at $x$ is identified only if there is no unmeasured confounding among households like $x$. A forest finds heterogeneity in whatever it is given; if what it is given is confounded, it will find heterogeneous bias without any visible errors.
+2. **Overlap, at every $x$.** Each kind of household must have both eligible and ineligible members, $0 < P(D = 1 \mid X = x) < 1$, because the forest estimates each local effect by comparing the two groups within a neighbourhood. Regions of the covariate space where nearly everyone is on one side produce CATE estimates that rest on almost no comparisons and should not be trusted.
+3. **A random, independent sample.** The consistency and confidence-interval theory for causal forests treats households as i.i.d. draws, with no interference between households and one version of the treatment (SUTVA and consistency), just as always.
+4. **Honest trees.** Each tree must not use the same households both to choose its splits and to estimate the effects inside its leaves; the sample is split so one part shapes the tree and the other fills it in. This **honesty** condition plays the role cross-fitting played in Notebook 7, and it is what the Wager-Athey theory needs for the estimates to be consistent and for their confidence intervals to be valid. The `econml` estimator we use below does this by default.
+5. **De-confounding through the DML residualization, and a CATE that varies smoothly.** The forest inherits Notebook 7's requirements for its internal step: the savings and eligibility models must be estimated well enough (with cross-fitting) for the residual-on-residual comparison inside each neighbourhood to be clean. And the theory assumes $\tau(x)$ changes smoothly with $x$, so that households close in covariates have close effects; that is what justifies estimating a household's effect from its neighbours at all.
+:::
+
+Points 1 to 3 are the same statement of unconfoundedness, overlap, and i.i.d. sampling that every method in this stream has rested on, now required locally rather than on average. Points 4 and 5 are the forest-specific conditions that make flexible, data-driven heterogeneity search compatible with valid inference.
+
 We use the `CausalForestDML` estimator from the `econml` package, which puts these pieces together for us. We give it a model for savings and a model for eligibility, the two nuisance predictors from Notebook 7, and it does the residualizing and the effect-splitting for us.
 
 ```{python}
