@@ -1,6 +1,6 @@
 # Praxis: "Unpacking the Black Box: Critical AI Literacies for Arts Students"
 
-A repository for the large TLEF project: Unpacking the Black Box: Critical AI Literacies for Arts Students.
+A repository for our large TLEF project: Unpacking the Black Box: Critical AI Literacies for Arts Students.
 
 ## Important Documents
 
