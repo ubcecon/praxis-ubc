@@ -1,0 +1,697 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Praxis Content Map</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.13.6/underscore-min.js" crossorigin="anonymous"></script>
+
+<style>
+/* =========================================================================
+   COLOR PALETTE — same Comet variables used elsewhere in the project.
+   ========================================================================= */
+:root {
+  --color-bg: #FFFFFF;
+  --color-surface: #f8f9fa;
+  --color-fg: #041746;
+  --color-fg-muted: #7D7D7D;
+  --color-tooltip-border: rgba(0, 0, 0, 0.1);
+  --color-link: #0052cc;
+  --chart-1: #0052cc; /* highlight for the selected category */
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; background: var(--color-bg); color: var(--color-fg); }
+
+#category-nav { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 20px; border-bottom: 1px solid var(--color-tooltip-border); }
+#category-nav div {
+  padding: 6px 14px; border-radius: 999px; border: 1px solid var(--color-tooltip-border);
+  background: var(--color-surface); font-size: 13px; cursor: pointer; color: var(--color-fg);
+}
+#category-nav div.highlight { background: var(--chart-1); border-color: var(--chart-1); color: #ffffff; }
+
+main { display: flex; gap: 16px; padding: 16px 20px; align-items: flex-start; }
+
+#course-map {
+  position: relative; flex: 1 1 65%; height: 640px;
+  border: 1px solid var(--color-tooltip-border); border-radius: 8px;
+  background: var(--color-surface); overflow: hidden;
+}
+#course-map svg { display: block; }
+
+aside { flex: 1 1 35%; min-width: 260px; display: flex; flex-direction: column; gap: 12px; }
+.panel { border: 1px solid var(--color-tooltip-border); border-radius: 8px; background: var(--color-surface); padding: 14px 16px; font-size: 13px; line-height: 1.5; }
+.panel h3, .panel h4 { margin: 0 0 6px 0; }
+.panel p { margin: 0 0 8px 0; }
+.panel .muted { color: var(--color-fg-muted); font-size: 12px; }
+
+/* Matches the site's index-listing cards (thumbnail + title + description
+   + date) — same treatment, just a single card instead of a grid, shown
+   here for whatever node is currently hovered. */
+#item-info {
+  padding: 0;
+  overflow: hidden;
+  min-height: 260px;
+  display: flex;
+  flex-direction: column;
+}
+#item-info .item-thumb {
+  width: 100%; height: 140px; display: block;
+  background: linear-gradient(90deg, #0052cc 0%, #0052cc 50%, #041746 50%, #041746 100%);
+}
+#item-info .item-body { padding: 14px 16px; }
+#item-info .item-body h4 { font-size: 14px; line-height: 1.35; margin: 0 0 6px 0; }
+#item-info .item-desc {
+  font-size: 12.5px; color: var(--color-fg-muted); line-height: 1.5; margin: 0 0 10px 0;
+  display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
+  line-clamp: 4; /* standardized property alongside the legacy -webkit- one, for tooling/lint compatibility */
+}
+#item-info .item-meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+#item-info .item-date { font-size: 10.5px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--color-fg-muted); white-space: nowrap; }
+#item-info .item-placeholder-body { padding: 14px 16px; }
+</style>
+</head>
+<body>
+
+<div id="category-nav"></div>
+
+<main>
+  <div id="course-map"><svg></svg></div>
+  <aside>
+    <div class="panel" id="category-panel">
+      <div id="category-info"></div>
+    </div>
+    <div class="panel" id="item-info"></div>
+  </aside>
+</main>
+
+<script type="text/template" id="category-info-template">
+  <h3><%= name %></h3>
+  <p><%= description %></p>
+  <% if (noHighlight) { %>
+    <p class="muted">These nodes aren't highlighted — this category is just a home for them, not a filter.</p>
+  <% } else if (total === 0) { %>
+    <p class="muted">Nothing highlighted for this view.</p>
+  <% } else { %>
+    <p class="muted"><%= total %> file<%= total === 1 ? "" : "s" %> in this category<% if (ownCount === 0) { %> (all cross-referenced from other categories)<% } %></p>
+  <% } %>
+</script>
+
+<script type="text/template" id="item-info-template">
+  <% if (code) { %>
+    <div class="item-thumb"></div>
+    <div class="item-body">
+      <h4><%= title %></h4>
+      <p class="item-desc"><%= description ? description : "No description available yet." %></p>
+      <div class="item-meta">
+        <span class="muted"><%= code %> · <%= category %></span>
+        <% if (date) { %><span class="item-date"><%= date %></span><% } %>
+      </div>
+      <% if (courses && courses.length) { %><p class="muted" style="margin-top:6px;">Also in: <%= courses.join(", ") %></p><% } %>
+    </div>
+  <% } else { %>
+    <div class="item-placeholder-body">
+      <h4>Praxis Content Map</h4>
+      <p>Hover any node to see which file it is. Click a category above to highlight what falls under it.</p>
+    </div>
+  <% } %>
+</script>
+
+<script>
+/* =========================================================================
+   DATA — built directly from _quarto.yml plus course details supplied
+   directly.
+
+   - "Getting Started" comes from docs/1_Getting_Started/ (5 files) and has
+     real prerequisite structure (see CONNECTIONS + CUSTOM_LAYOUTS).
+   - "Beginner" / "Intermediate - Econometrics" / "Intermediate -
+     Geospatial" / "Advanced" come from the docs/2_Beginner, 3_Intermediate,
+     3_Intermediate/geog_374, and 4_Advanced folders.
+   - "Learn to Research" is the econ490 curriculum (R version only; the
+     Python/Stata versions are identical content, not separately listed).
+   - Each course (AMNE 376, ECON 227, ECON 226/227, ECON 325, ECON 326,
+     GEOG 374, HIST 414, SOCI 280, SOCI 415) is its own top-level category.
+     Where a course's content is the same material already shown elsewhere
+     (e.g. GEOG 374 = the Intermediate - Geospatial labs), that category
+     has no items of its own — it just cross-references the existing node
+     codes via `highlightCodes`, so nothing is duplicated on the map.
+   ========================================================================= */
+const CATEGORIES = [
+  {
+    id: "all", name: "All",
+    description: "Standalone notebooks that aren't part of any other category.",
+    items: [
+      { code: "ALL01", title: "Optical Character Recognition (OCR)", path: "docs/OCR/ocr_notebook.html" },
+      { code: "ALL02", title: "Text Analysis Overview", path: "docs/text_analysis/text_analysis.html" },
+      { code: "ALL03", title: "Word Embeddings and National Constitutions", path: "docs/CTree_CEA/political_economy.html" },
+      { code: "ALL04", title: "A Visual Introduction to Fundamental Modern Machine Learning", path: "docs/intro_to_deep_learning/intro_to_fundamental_ML.html" },
+      { code: "ALL05", title: "Introduction to Convolutional Neural Networks (CNNs)", path: "docs/intro_to_cnns/intro_to_cnn.html" },
+      { code: "ALL06", title: "Image Analysis Workshop: Computer Vision for Social Science Research", path: "docs/image_analysis/image_analysis.html" },
+      { code: "ALL07", title: "Introduction to Convolutions", path: "docs/intro_to_convolutions/intro_to_convolution.html" }
+    ]
+  },
+  {
+    id: "getting-started", name: "Getting Started",
+    description: "Onboarding: notebooks, Python, R, and first steps working with data in R. Connections below show the actual prerequisite order.",
+    items: [
+      { code: "GS-JN", title: "Intro to Jupyter Notebooks", path: "docs/1_Getting_Started/getting_started_intro_to_jupyter/getting_started_intro_to_jupyter.qmd" },
+      { code: "GS-PY", title: "Intro to Python", path: "docs/1_Getting_Started/getting_started_intro_to_python/getting_started_intro_to_python.qmd" },
+      { code: "GS-R",  title: "Intro to R", path: "docs/1_Getting_Started/getting_started_intro_to_r/getting_started_intro_to_r.qmd" },
+      { code: "GS-D1", title: "Intro to Data in R (Part 1)", path: "docs/1_Getting_Started/getting_started_intro_to_data/getting_started_intro_to_data1.qmd" },
+      { code: "GS-D2", title: "Intro to Data in R (Part 2)", path: "docs/1_Getting_Started/getting_started_intro_to_data/getting_started_intro_to_data2.qmd" }
+    ]
+  },
+  {
+    id: "research", name: "Learn to Research",
+    description: "The econ490 applied research curriculum. These notebooks exist in parallel Python/R/Stata versions with identical content — using the R version exclusively here, so no content links for now.",
+    items: [
+      { code: "RS01", title: "Setting Up Jupyter and R" },
+      { code: "RS02", title: "Working with R Scripts" },
+      { code: "RS03", title: "R Essentials" },
+      { code: "RS04", title: "Opening Datasets" },
+      { code: "RS05", title: "Generating Variables" },
+      { code: "RS06", title: "Conducting Within Group Analysis" },
+      { code: "RS07", title: "Combining Data Sets" },
+      { code: "RS08", title: "Creating Meaningful Visuals" },
+      { code: "RS09", title: "Combining Graphs" },
+      { code: "RS10", title: "Conducting Regression Analysis" },
+      { code: "RS11", title: "Exporting Regression Output" },
+      { code: "RS12", title: "Dummy Variables and Interactions" },
+      { code: "RS13", title: "Good Regression Practice" },
+      { code: "RS14", title: "Panel Data Regressions" },
+      { code: "RS15", title: "Difference-in-Differences Analysis" },
+      { code: "RS16", title: "Instrumental Variable Analysis" },
+      { code: "RS17", title: "R Workflow Guide" }
+    ]
+  },
+  {
+    id: "beginner", name: "Beginner",
+    description: "Foundational statistics: intro sequence, central tendency, distributions, confidence intervals, and hypothesis testing.",
+    items: [
+      { code: "B01", title: "Intro to Statistics I",  path: "docs/2_Beginner/beginner_intro_to_statistics1/beginner_intro_to_statistics1.html" },
+      { code: "B02", title: "Intro to Statistics II", path: "docs/2_Beginner/beginner_intro_to_statistics2/beginner_intro_to_statistics2.html" },
+      { code: "B03", title: "Intro to Central Tendency", path: "docs/2_Beginner/beginner_intro_to_central_tendency/beginner_intro_to_central_tendency.html" },
+      { code: "B04", title: "Central Tendency", path: "docs/2_Beginner/beginner_central_tendency/beginner_central_tendency.html" },
+      { code: "B05", title: "Dispersion & Dependence", path: "docs/2_Beginner/beginner_dispersion_and_dependence/beginner_dispersion_and_dependence.html" },
+      { code: "B06", title: "Confidence Intervals", path: "docs/2_Beginner/beginner_confidence_intervals/beginner_confidence_intervals.html" },
+      { code: "B07", title: "Hypothesis Testing", path: "docs/2_Beginner/beginner_hypothesis_testing/beginner_hypothesis_testing.html" },
+      { code: "B08", title: "Intro to Data Visualization I", path: "docs/2_Beginner/beginner_intro_to_data_visualization1/beginner_intro_to_data_visualization1.html" },
+      { code: "B09", title: "Intro to Data Visualization II", path: "docs/2_Beginner/beginner_intro_to_data_visualization2/beginner_intro_to_data_visualization2.html" },
+      { code: "B10", title: "Distributions", path: "docs/2_Beginner/beginner_distributions/beginner_distributions.html" },
+      { code: "B11", title: "Sampling Distributions", path: "docs/2_Beginner/beginner_sampling_distributions/beginner_sampling_distributions.html" }
+    ]
+  },
+  {
+    id: "intermediate-econ", name: "Intermediate - Econometrics",
+    description: "Regression modelling: simple/multiple regression, interactions & nonlinear terms, issues in regression, and summary statistics.",
+    items: [
+      { code: "IE01", title: "Intro to Regression", path: "docs/3_Intermediate/intermediate_intro_to_regression" },
+      { code: "IE02", title: "Multiple Regression", path: "docs/3_Intermediate/intermediate_multiple_regression" },
+      { code: "IE03", title: "Interactions & Nonlinear Terms", path: "docs/3_Intermediate/intermediate_interactions_and_nonlinear_terms" },
+      { code: "IE04", title: "Summary Statistics (gtsummary)", path: "docs/3_Intermediate/intermediate_summary_statistics/GTsummary.qmd" },
+      { code: "IE05", title: "Issues in Regression", path: "docs/3_Intermediate/intermediate_issues_in_regression/intermediate_issues_in_regression.html" }
+    ]
+  },
+  {
+    id: "intermediate-geo", name: "Intermediate - Geospatial",
+    description: "GEOG 374 labs — chi-square, t-test, ANOVA, regression, and a climate disasters case study.",
+    items: [
+      { code: "IG01", title: "Lab 02 — ANOVA", path: "docs/3_Intermediate/geog_374/Lab_02_ANOVA/Lab_02_ANOVA.html" },
+      { code: "IG02", title: "Lab 03 — Regression", path: "docs/3_Intermediate/geog_374/Lab_03_Regression/Lab_03_Regression.html" },
+      { code: "IG03", title: "Lab 05 — Chi-square", path: "docs/3_Intermediate/geog_374/Lab_05_Chisquare/Lab_05_Chisquare.html" },
+      { code: "IG04", title: "Lab 06 — T-test", path: "docs/3_Intermediate/geog_374/Lab_06_Ttest/Lab_06_Ttest.html" },
+      { code: "IG05", title: "Climate Disasters", path: "docs/3_Intermediate/geog_374/Climate_Disasters/Climate_Disasters.html" }
+    ]
+  },
+  {
+    id: "advanced", name: "Advanced",
+    description: "Advanced econometrics and computational/NLP methods: causal inference (DiD, IV, synthetic control, panel data), geospatial analysis, classification, sentiment analysis, transcription, vocalization, word embeddings, LLM APIs, fine-tuning, and network analysis.",
+    items: [
+      { code: "A01", title: "Difference in Differences", path: "docs/4_Advanced/advanced_difference_in_differences/advanced_difference_in_differences.html" },
+      { code: "A02", title: "Linear Differencing Models", path: "docs/4_Advanced/advanced_linear_differencing/advanced_linear_differencing.html" },
+      { code: "A03", title: "Instrumental Variables I", path: "docs/4_Advanced/advanced_instrumental_variables/advanced_instrumental_variables1.html" },
+      { code: "A04", title: "Instrumental Variables II", path: "docs/4_Advanced/advanced_instrumental_variables/advanced_instrumental_variables2.html" },
+      { code: "A05", title: "Panel Data", path: "docs/4_Advanced/advanced_panel_data/advanced_panel_data.html" },
+      { code: "A06", title: "Synthetic Control", path: "docs/4_Advanced/advanced_synthetic_control/advanced_synthetic_control.html" },
+      { code: "A07", title: "Geospatial Analysis I", path: "docs/4_Advanced/advanced_geospatial/advanced_geospatial.html" },
+      { code: "A08", title: "Geospatial Analysis II", path: "docs/4_Advanced/advanced_geospatial/advanced_geospatial_2.html" },
+      { code: "A09", title: "Classification & Clustering", path: "docs/4_Advanced/advanced_classification_and_clustering/advanced_classification_and_clustering.html" },
+      { code: "A10", title: "Introduction to Sentiment Analysis", path: "docs/4_Advanced/advanced_sentiment_analysis/sentiment_analysis.html" },
+      { code: "A11", title: "Transcription (Whisper)", path: "docs/4_Advanced/advanced_transcription/advanced_transcription_whisper.html" },
+      { code: "A12", title: "Vocalization", path: "docs/4_Advanced/advanced_vocalization/advanced_vocalization_draft.html" },
+      { code: "A13", title: "Word Embeddings (Python)", path: "docs/4_Advanced/advanced_word_embeddings/advanced_word_embeddings_python_version.html" },
+      { code: "A14", title: "Word Embeddings (R)", path: "docs/4_Advanced/advanced_word_embeddings/advanced_word_embeddings_r_version.html" },
+      { code: "A15", title: "LLM APIs II", path: "docs/4_Advanced/advanced_llm_apis2/advanced_llm_apis2.html" },
+      { code: "A16", title: "Fine-Tuning (Ollama LLM)", path: "docs/4_Advanced/advanced_ollama_llm/fine_tuning_llm.html" },
+      { code: "A17", title: "Network Analysis — Workshop Pre-Reading", path: "docs/4_Advanced/advanced_network_analysis/intro_to_python_network_analysis.html" },
+      { code: "A18", title: "Network Analysis", path: "docs/4_Advanced/advanced_network_analysis/network_analysis_notebook.html" },
+      { code: "A19", title: "Network Analysis II", path: "docs/4_Advanced/advanced_network_analysis/network_analysis_notebook_II.html" }
+    ]
+  },
+
+  /* ---- Courses: each is its own top-level category ---- */
+
+  {
+    id: "amne-376", name: "AMNE 376",
+    description: "Course-specific content — no prerequisites stated.",
+    items: [
+      { code: "AMNE1", title: "A Study of Richter's Kouroi Through Image Embedding", path: "docs/AMNE-376/amne_376_image_embedding.html" }
+    ]
+  },
+  {
+    id: "econ-227", name: "ECON 227",
+    description: "Course-specific content.",
+    items: [
+      { code: "ECON227-1", title: "How Do Large Language Models Predict?", path: "docs/ECON-227/llm_distributions.html" }
+    ]
+  },
+  {
+    id: "econ-226-227", name: "ECON 226/227",
+    description: "\"Introduction to Statistics\" — same content as the Beginner Intro to Statistics I node; no unique content of its own.",
+    items: [],
+    highlightCodes: ["B01"]
+  },
+  {
+    id: "econ-325", name: "ECON 325",
+    description: "\"Introduction to Statistics\" — same content as the Beginner Intro to Statistics I node; no unique content of its own.",
+    items: [],
+    highlightCodes: ["B01"]
+  },
+  {
+    id: "econ-326", name: "ECON 326",
+    description: "\"Issues in Regression\" — same content as the Intermediate - Econometrics node of the same name; no unique content of its own.",
+    items: [],
+    highlightCodes: ["IE05"]
+  },
+  {
+    id: "geog-374", name: "GEOG 374",
+    description: "Same as Intermediate - Geospatial; no unique content of its own.",
+    items: [],
+    highlightCodes: ["IG01", "IG02", "IG03", "IG04", "IG05"]
+  },
+  {
+    id: "hist-414", name: "HIST 414",
+    description: "Course-specific content — no prerequisites stated.",
+    items: [
+      { code: "HIST414-1", title: "Embedding Driven Text Analysis of Crease's Stance Towards Chinese Immigrants", path: "docs/hist_workshop/text_embeddings_workshop.html" }
+    ]
+  },
+  {
+    id: "soci-280", name: "SOCI 280",
+    description: "Course-specific content — no prerequisites stated.",
+    items: [
+      { code: "SOCI280-1", title: "Introduction to Sentiment Analysis: Identifying and Mapping Disinformation Campaigns using NLP", path: "docs/SOCI-280/soci_280_bert.html" }
+    ]
+  },
+  {
+    id: "soci-415", name: "SOCI 415",
+    description: "Network analysis content. CBDB Dataset requires the KINMATRIX Dataset notebook; the other two have no stated prerequisites.",
+    items: [
+      { code: "SOCI415-A", title: "Introduction to Network Analysis", path: "docs/SOCI-415/soci_415_network_analysis.html" },
+      { code: "SOCI415-B", title: "Network Analysis: KINMATRIX Dataset", path: "docs/SOCI-415/kinmatrix.html" },
+      { code: "SOCI415-C", title: "Network Analysis: CBDB Dataset", path: "docs/SOCI-415/cbdb_dataset.html" }
+    ]
+  }
+];
+
+// Row order, bottom to top (y = 0 is lowest on screen). Only categories
+// with their own items need a row — the cross-reference-only courses
+// (ECON 226/227, ECON 325, ECON 326, GEOG 374) have none, so they don't
+// appear here at all; they just highlight nodes that already live in
+// another row.
+const ROW_ORDER = [
+  "getting-started", "beginner", "intermediate-econ", "intermediate-geo", "advanced", "research",
+  "soci-280", "econ-227", "amne-376", "hist-414", "soci-415", "all"
+];
+
+// Most categories just spread their items evenly across x within their row.
+// A few have real prerequisite structure, so they get a small hand-placed
+// DAG layout instead: level 0 = no prerequisites, and each level up
+// depends on something in the level below.
+const CUSTOM_LAYOUTS = {
+  "getting-started": {
+    "GS-JN": { level: 0, x: 0 },
+    "GS-PY": { level: 1, x: -3 },
+    "GS-R":  { level: 1, x: 3 },
+    "GS-D1": { level: 2, x: 0 },
+    "GS-D2": { level: 3, x: 0 }
+  },
+  "intermediate-econ": {
+    "IE01": { level: 0, x: 0 },
+    "IE02": { level: 1, x: -3 },
+    "IE04": { level: 1, x: 3 },
+    "IE03": { level: 2, x: -4.5 },
+    "IE05": { level: 2, x: -1.5 }
+  },
+  "beginner": {
+    "B01": { level: 0, x: -8 },
+    "B02": { level: 0, x: -4.5 },
+    "B03": { level: 0, x: -1 },
+    "B08": { level: 0, x: 6 },
+    "B04": { level: 1, x: 6 },
+    "B09": { level: 1, x: 9 },
+    "B10": { level: 2, x: 6 },
+    "B05": { level: 3, x: 6 },
+    "B06": { level: 4, x: 4 },
+    "B11": { level: 4, x: 8 },
+    "B07": { level: 5, x: 4 }
+  },
+  "advanced": {
+    "A01": { level: 0, x: -9 },    "A02": { level: 1, x: -9 },
+    "A06": { level: 1, x: -7.4 },  "A05": { level: 0, x: -5.8 },
+    "A03": { level: 0, x: -4.2 },  "A04": { level: 1, x: -4.2 },
+    "A07": { level: 0, x: -2.6 },  "A08": { level: 1, x: -2.6 },
+    "A09": { level: 0, x: -0.4 },
+    "A10": { level: 0, x: 0.8 },
+    "A11": { level: 0, x: 2.1 },
+    "A12": { level: 0, x: 3.3 },
+    "A13": { level: 0, x: 4.5 },
+    "A14": { level: 0, x: 5.7 },
+    "A15": { level: 0, x: 7.0 },
+    "A16": { level: 0, x: 8.2 },
+    "A17": { level: 0, x: 9.4 }, "A18": { level: 1, x: 9.4 }, "A19": { level: 2, x: 9.4 }
+  },
+  "research": {
+    "RS01": { level: 0, x: 0 },
+    "RS02": { level: 1, x: 0 },
+    "RS03": { level: 2, x: 0 },
+    "RS04": { level: 3, x: 0 },
+    "RS05": { level: 4, x: 0 },
+    "RS06": { level: 5, x: -4 },
+    "RS07": { level: 6, x: -4 },
+    "RS08": { level: 5, x: 3 },
+    "RS09": { level: 6, x: -2 },
+    "RS10": { level: 6, x: -0.6 },
+    "RS11": { level: 6, x: 0.85 },
+    "RS12": { level: 6, x: 2.3 },
+    "RS13": { level: 6, x: 3.7 },
+    "RS14": { level: 6, x: 5.1 },
+    "RS15": { level: 6, x: 6.6 },
+    "RS16": { level: 6, x: 8.0 },
+    "RS17": { level: 6, x: 9.4 }
+  },
+  // SOCI 415: CBDB Dataset sits above KINMATRIX (its prerequisite);
+  // Introduction to Network Analysis is independent, off to the side.
+  "soci-415": {
+    "SOCI415-A": { level: 0, x: -3 },
+    "SOCI415-B": { level: 0, x: 3 },
+    "SOCI415-C": { level: 1, x: 3 }
+  }
+};
+
+const allNodes = [];
+CATEGORIES.forEach(cat => {
+  const rowY = ROW_ORDER.indexOf(cat.id);
+  const custom = CUSTOM_LAYOUTS[cat.id];
+  const n = cat.items.length;
+  // Normalize the vertical step so the tallest chain in this category's
+  // tree still fits within the row band (max offset ~0.85), no matter how
+  // many levels it ends up with.
+  let maxLevel = 0;
+  if (custom) Object.values(custom).forEach(v => { if (v.level > maxLevel) maxLevel = v.level; });
+  const step = maxLevel > 0 ? 0.85 / maxLevel : 0.28;
+  cat.items.forEach((item, i) => {
+    let x, y;
+    if (custom && custom[item.code]) {
+      x = custom[item.code].x;
+      y = rowY + custom[item.code].level * step;
+    } else {
+      x = n === 1 ? 0 : -9 + i * (18 / (n - 1));
+      y = rowY;
+    }
+    allNodes.push({ ...item, categoryId: cat.id, categoryName: cat.name, x, y });
+  });
+});
+
+const nodeByCode = Object.fromEntries(allNodes.map(n => [n.code, n]));
+
+// Reverse lookup: which categories (by name) cross-reference a given node
+// code via highlightCodes. Powers the "Also in: ..." line in the hover
+// panel — e.g. hovering Intro to Statistics II shows both ECON 325 and
+// ECON 226/227, since both reference it without owning it.
+const categoriesReferencingCode = {};
+CATEGORIES.forEach(cat => {
+  (cat.highlightCodes || []).forEach(code => {
+    (categoriesReferencingCode[code] = categoriesReferencingCode[code] || []).push(cat.name);
+  });
+});
+
+const CONNECTIONS = [
+  // Getting Started
+  { from: "GS-JN", to: "GS-PY" },
+  { from: "GS-JN", to: "GS-R" },
+  { from: "GS-JN", to: "GS-D1" },
+  { from: "GS-R",  to: "GS-D1" },
+  { from: "GS-D1", to: "GS-D2" },
+
+  // Intermediate - Econometrics. Intro to Regression's own prerequisites
+  // reach back into Getting Started (cross-category — lines still work the
+  // same way, they just span rows).
+  { from: "GS-R",  to: "IE01" },
+  { from: "GS-JN", to: "IE01" },
+  { from: "IE01",  to: "IE02" }, // Multiple Regression requires Intro to Regression
+  { from: "IE02",  to: "IE03" }, // Interactions & Nonlinear Terms requires Multiple Regression
+  { from: "IE01",  to: "IE04" }, // Summary Statistics requires Intro to Regression
+  { from: "IE02",  to: "IE05" }, // Issues in Regression requires Multiple Regression
+
+  // Intermediate - Geospatial (GEOG 374 labs)
+  { from: "GS-JN", to: "IG01" }, { from: "GS-R", to: "IG01" }, { from: "GS-D2", to: "IG01" },
+  { from: "GS-JN", to: "IG02" }, { from: "GS-R", to: "IG02" }, { from: "GS-D2", to: "IG02" },
+  { from: "GS-JN", to: "IG03" }, { from: "GS-R", to: "IG03" }, { from: "GS-D2", to: "IG03" },
+  { from: "GS-JN", to: "IG04" }, { from: "GS-R", to: "IG04" }, { from: "GS-D2", to: "IG04" },
+  { from: "GS-JN", to: "IG05" }, { from: "GS-R", to: "IG05" },
+
+  // Beginner. "Sampling and dependence" read as "Sampling Distributions"
+  // (B11), the closest match.
+  { from: "GS-JN", to: "B01" },
+  { from: "GS-JN", to: "B02" }, { from: "GS-R", to: "B02" },
+  { from: "GS-JN", to: "B03" }, { from: "GS-R", to: "B03" }, // Intro to Central Tendency: same as Intro to Statistics II
+  { from: "GS-JN", to: "B08" }, { from: "GS-R", to: "B08" }, // Intro to Data Viz I: same as the two above
+  { from: "B08", to: "B04" }, // Central Tendency requires Intro to Data Viz I
+  { from: "B08", to: "B09" }, // Intro to Data Viz II requires Intro to Data Viz I
+  { from: "B04", to: "B10" }, // Distributions requires Central Tendency
+  { from: "B10", to: "B05" }, // Dispersion & Dependence requires Distributions
+  { from: "B05", to: "B06" }, // Confidence Intervals requires Dispersion & Dependence
+  { from: "B05", to: "B11" }, // Sampling Distributions requires Dispersion & Dependence
+  { from: "B06", to: "B07" }, // Hypothesis Testing requires Confidence Intervals
+
+  // Advanced. "Expectations and Summary statistics" is read as the
+  // Intermediate - Econometrics "Summary Statistics" node (IE04).
+  { from: "IE04", to: "A01" }, { from: "GS-D2", to: "A01" }, { from: "IG04", to: "A01" }, // Diff-in-Diff
+  { from: "A01", to: "A02" }, // Linear Differencing Models requires Diff-in-Diff
+  { from: "IE02", to: "A03" }, // Instrumental Variables I requires Multiple Regression
+  { from: "A03", to: "A04" }, // Instrumental Variables II requires IV I
+  { from: "IE04", to: "A05" }, // Panel Data requires Summary Statistics
+  { from: "A05", to: "A06" }, { from: "A01", to: "A06" }, { from: "IE05", to: "A06" }, // Synthetic Control
+  { from: "IE02", to: "A07" }, // Geospatial Analysis I requires Multiple Regression
+  { from: "A07", to: "A08" }, // Geospatial Analysis II requires Geospatial Analysis I
+  { from: "B04", to: "A09" }, // Classification & Clustering requires Central Tendency
+  { from: "GS-JN", to: "A10" }, { from: "GS-R", to: "A10" }, // Sentiment Analysis
+  // A11 Transcription: no prerequisites stated
+  { from: "GS-JN", to: "A12" }, // Vocalization requires Intro to Jupyter
+  { from: "GS-R", to: "A13" }, // Word Embeddings (Python) requires Intro to R, as stated
+  { from: "GS-R", to: "A14" }, // Word Embeddings (R) requires Intro to R
+  // A15 LLM APIs II, A16 Fine-Tuning: no prerequisites stated
+  // A17 Network Analysis Workshop Pre-Reading: no prerequisites stated
+  { from: "A17", to: "A18" }, // Network Analysis requires the pre-reading
+  { from: "A18", to: "A19" }, // Network Analysis II requires Network Analysis
+
+  // Learn to Research (R version).
+  { from: "GS-JN", to: "RS01" }, // Setting Up Jupyter and R
+  { from: "RS01", to: "RS02" },  // Working with R Scripts
+  { from: "RS02", to: "RS03" },  // R Essentials
+  { from: "RS03", to: "RS04" },  // Opening Datasets
+  { from: "RS04", to: "RS05" },  // Generating Variables
+  { from: "RS05", to: "RS06" },  // Conducting Within Group Analysis
+  { from: "RS06", to: "RS07" },  // Combining Data Sets
+  { from: "RS05", to: "RS08" },  // Creating Meaningful Visuals
+  { from: "RS08", to: "RS09" },  // Combining Graphs
+  // The following 7 all require Intro to Regression + Creating Meaningful Visuals:
+  { from: "IE01", to: "RS10" }, { from: "RS08", to: "RS10" }, // Conducting Regression Analysis
+  { from: "IE01", to: "RS11" }, { from: "RS08", to: "RS11" }, // Exporting Regression Output
+  { from: "IE01", to: "RS12" }, { from: "RS08", to: "RS12" }, // Dummy Variables and Interactions
+  { from: "IE01", to: "RS13" }, { from: "RS08", to: "RS13" }, // Good Regression Practice
+  { from: "IE01", to: "RS14" }, { from: "RS08", to: "RS14" }, // Panel Data Regressions
+  { from: "IE01", to: "RS16" }, { from: "RS08", to: "RS16" }, // Instrumental Variable Analysis
+  { from: "IE01", to: "RS17" }, { from: "RS08", to: "RS17" }, // R Workflow Guide
+  { from: "IE04", to: "RS15" }, { from: "GS-D2", to: "RS15" }, { from: "IG04", to: "RS15" }, { from: "RS08", to: "RS15" }, // Difference-in-Differences Analysis
+
+  // SOCI 415
+  { from: "SOCI415-B", to: "SOCI415-C" } // CBDB Dataset requires KINMATRIX Dataset
+].map(c => ({ ...c, source: nodeByCode[c.from], target: nodeByCode[c.to] }));
+
+/* =========================================================================
+   CHART
+   ========================================================================= */
+(function () {
+  const width = parseInt(d3.select("#course-map").style("width"));
+  const height = parseInt(d3.select("#course-map").style("height")) - 20;
+  const xscale = width / 20;
+  const yscale = height / (ROW_ORDER.length + 1.5); // auto-scales as rows are added
+  const xcoord = x => x * xscale + width / 2;
+  const ycoord = y => height - y * yscale - 0.9 * yscale;
+
+  // Anchor each node at its category-row position, then let a force
+  // simulation relax the layout: forceLink pulls prerequisite-connected
+  // nodes toward each other (so chains sprawl outward into whatever open
+  // space exists instead of stacking in a straight line), and forceCollide
+  // enforces a hard minimum distance so nothing overlaps. forceX/forceY
+  // keep everything from drifting too far from its category row — strong
+  // vertically (rows stay recognizable), weak horizontally (free to spread).
+  allNodes.forEach(d => {
+    d.ax = xcoord(d.x);
+    d.ay = ycoord(d.y);
+    d.x = d.ax;
+    d.y = d.ay;
+  });
+  const MIN_NODE_DISTANCE = 26;
+  const sim = d3.forceSimulation(allNodes)
+    .force("x", d3.forceX(d => d.ax).strength(0.25))
+    .force("y", d3.forceY(d => d.ay).strength(0.7))
+    .force("link", d3.forceLink(CONNECTIONS).id(d => d.code).distance(46).strength(0.2))
+    .force("collide", d3.forceCollide(MIN_NODE_DISTANCE / 2))
+    .stop();
+  for (let i = 0; i < 400; i++) sim.tick();
+
+  const svg = d3.select("#course-map svg").attr("width", width).attr("height", height);
+  const linkLayer = svg.append("g").attr("fill", "none").attr("stroke-width", 1.5);
+  const nodeLayer = svg.append("g");
+  const labelLayer = svg.append("g");
+  const hitLayer = svg.append("g");
+
+  function colors() {
+    const s = getComputedStyle(document.documentElement);
+    const v = n => s.getPropertyValue(n).trim();
+    return { bg: v("--color-bg"), fg: v("--color-fg"), fgMuted: v("--color-fg-muted"), highlight: v("--chart-1") };
+  }
+
+  const categoryInfoDiv = d3.select("#category-info");
+  const categoryInfoTemplate = _.template(d3.select("#category-info-template").html());
+  const itemInfoDiv = d3.select("#item-info");
+  const itemInfoTemplate = _.template(d3.select("#item-info-template").html());
+
+  let currentCategory = CATEGORIES[0];
+
+  const nav = d3.select("#category-nav");
+  CATEGORIES.forEach(cat => {
+    nav.append("div").html(cat.name).on("click", function () {
+      d3.select("#category-nav div.highlight").classed("highlight", false);
+      d3.select(this).classed("highlight", true);
+      currentCategory = cat;
+      render(300);
+      categoryInfoDiv.html(categoryInfoTemplate({
+        name: cat.name,
+        description: cat.description,
+        ownCount: cat.items.length,
+        total: cat.items.length + (cat.highlightCodes ? cat.highlightCodes.length : 0),
+        noHighlight: cat.id === "all"
+      }));
+    });
+  });
+
+  function showItemInfo(event, d) {
+    itemInfoDiv.html(itemInfoTemplate({
+      code: d.code, title: d.title, category: d.categoryName, path: d.path,
+      description: d.description || null, date: d.date || null,
+      courses: categoriesReferencingCode[d.code] || []
+    }));
+    // Highlight only this node's own prerequisites — edges where it's the
+    // target (requires something), not edges where it's the source (is a
+    // prerequisite for something else). E.g. hovering RS08 highlights
+    // RS05→RS08, not RS08→RS09/RS08→RS10/etc.
+    const col = colors();
+    const isOwnPrereq = conn => conn.to === d.code;
+    linkLayer.selectAll("line")
+      .transition().duration(150)
+      .attr("stroke", conn => (isOwnPrereq(conn) ? col.highlight : col.fgMuted))
+      .attr("stroke-width", conn => (isOwnPrereq(conn) ? 3 : 1.5))
+      .attr("opacity", conn => (isOwnPrereq(conn) ? 1 : 0.1));
+  }
+  // No mouseout handler — per request, whatever a hover reveals (the info
+  // card and the highlighted prerequisite lines) stays on screen until a
+  // different node is hovered, rather than resetting when the mouse leaves.
+
+  function render(duration) {
+    const c = colors();
+
+    // A node is highlighted if it's owned by the selected category, or
+    // cross-referenced by it via highlightCodes (e.g. selecting ECON 325
+    // highlights the Beginner Intro to Statistics nodes it points at).
+    // "All" is the one exception: it never highlights anything, even its
+    // own nodes — it's a home for uncategorized notebooks, not a filter.
+    function isHighlighted(d) {
+      if (currentCategory.id === "all") return false;
+      return d.categoryId === currentCategory.id ||
+        (currentCategory.highlightCodes && currentCategory.highlightCodes.includes(d.code));
+    }
+
+    linkLayer.selectAll("line")
+      .data(CONNECTIONS, d => d.from + "->" + d.to)
+      .join(
+        enter => enter.append("line")
+          .attr("x1", d => d.source.x).attr("y1", d => d.source.y)
+          .attr("x2", d => d.target.x).attr("y2", d => d.target.y)
+          .attr("stroke", c.fgMuted)
+          .attr("opacity", 0)
+          .transition().duration(duration)
+          .attr("opacity", 0.5),
+        update => update.transition().duration(duration)
+          .attr("x1", d => d.source.x).attr("y1", d => d.source.y)
+          .attr("x2", d => d.target.x).attr("y2", d => d.target.y)
+          .attr("stroke", c.fgMuted)
+          .attr("opacity", 0.5)
+      );
+
+    nodeLayer.selectAll("circle")
+      .data(allNodes, d => d.code)
+      .join(
+        enter => enter.append("circle")
+          .attr("r", 10)
+          .attr("cx", d => d.x).attr("cy", d => d.y)
+          .attr("fill", d => (isHighlighted(d) ? c.highlight : c.bg))
+          .attr("stroke", d => (isHighlighted(d) ? c.highlight : c.fgMuted))
+          .attr("stroke-width", 1.5)
+          .attr("opacity", 0)
+          .transition().duration(duration).attr("opacity", 1),
+        update => update.transition().duration(duration)
+          .attr("fill", d => (isHighlighted(d) ? c.highlight : c.bg))
+          .attr("stroke", d => (isHighlighted(d) ? c.highlight : c.fgMuted))
+      );
+
+    labelLayer.selectAll("text")
+      .data(allNodes, d => d.code)
+      .join(
+        enter => enter.append("text")
+          .attr("x", d => d.x).attr("y", d => d.y)
+          .attr("text-anchor", "middle").attr("dy", "3px")
+          .attr("font-family", "inherit").attr("font-size", 8).attr("font-weight", 600)
+          .attr("fill", d => (isHighlighted(d) ? "#ffffff" : c.fg))
+          .text(d => d.code),
+        update => update.transition().duration(duration)
+          .attr("fill", d => (isHighlighted(d) ? "#ffffff" : c.fg))
+      );
+
+    hitLayer.selectAll("circle")
+      .data(allNodes, d => d.code)
+      .join(enter => enter.append("circle")
+        .attr("r", 10).attr("fill", "transparent")
+        .attr("cx", d => d.x).attr("cy", d => d.y)
+        .on("mouseover", showItemInfo));
+  }
+
+  render(0);
+  categoryInfoDiv.html(categoryInfoTemplate({
+    name: currentCategory.name,
+    description: currentCategory.description,
+    ownCount: currentCategory.items.length,
+    total: currentCategory.items.length + (currentCategory.highlightCodes ? currentCategory.highlightCodes.length : 0),
+    noHighlight: currentCategory.id === "all"
+  }));
+  itemInfoDiv.html(itemInfoTemplate({ code: null, title: null, category: null, path: null, description: null, date: null, courses: [] }));
+  d3.select("#category-nav div:nth-child(1)").classed("highlight", true);
+})();
+</script>
+</body>
+</html>
