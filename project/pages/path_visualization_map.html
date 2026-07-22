@@ -19,7 +19,10 @@
   --color-fg-muted: #7D7D7D;
   --color-tooltip-border: rgba(0, 0, 0, 0.1);
   --color-link: #0052cc;
-  --chart-1: #0052cc; /* highlight for the selected category */
+  --color-node: #00AADD;       /* all nodes, default state */
+  --color-connector: #7D7D7D;       /* all connector lines, default state */
+  --color-connector-hover: #041746; /* connector lines touching the hovered node */
+  --color-accent: #041746;          /* selected-category node + nav highlight */
 }
 
 * { box-sizing: border-box; }
@@ -30,7 +33,7 @@ body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-se
   padding: 6px 14px; border-radius: 999px; border: 1px solid var(--color-tooltip-border);
   background: var(--color-surface); font-size: 13px; cursor: pointer; color: var(--color-fg);
 }
-#category-nav div.highlight { background: var(--chart-1); border-color: var(--chart-1); color: #ffffff; }
+#category-nav div.highlight { background: var(--color-accent); border-color: var(--color-accent); color: #ffffff; }
 
 main { display: flex; gap: 16px; padding: 16px 20px; align-items: flex-start; }
 
@@ -46,6 +49,7 @@ aside { flex: 1 1 35%; min-width: 260px; display: flex; flex-direction: column; 
 .panel h3, .panel h4 { margin: 0 0 6px 0; }
 .panel p { margin: 0 0 8px 0; }
 .panel .muted { color: var(--color-fg-muted); font-size: 12px; }
+#category-panel { border: none; background: transparent; padding: 4px 4px 0 4px; }
 
 /* Matches the site's index-listing cards (thumbnail + title + description
    + date) — same treatment, just a single card instead of a grid, shown
@@ -56,10 +60,44 @@ aside { flex: 1 1 35%; min-width: 260px; display: flex; flex-direction: column; 
   min-height: 260px;
   display: flex;
   flex-direction: column;
+  /* Hover-lift, ported from the site's listing-card style.css — same
+     effect, just retargeted to this card's own markup since there's no
+     Quarto grid/link wrapper here to hang .quarto-grid-item/-link off of. */
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+#item-info:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 0.75rem 1.5rem rgba(0, 0, 0, 0.25);
 }
 #item-info .item-thumb {
   width: 100%; height: 140px; display: block;
-  background: linear-gradient(90deg, #0052cc 0%, #0052cc 50%, #041746 50%, #041746 100%);
+  object-fit: contain; background: #FFFFFF;
+  transition: transform 0.3s ease;
+}
+#item-info:hover .item-thumb {
+  transform: scale(1.04);
+}
+.item-thumb-wrap { position: relative; }
+/* Language-version toggle for Learn to Research nodes (R / Stata /
+   PyStata). UI only for now — buttons just switch which one looks
+   active; nothing behind them is wired to real paths yet. */
+.lang-toggle {
+  position: absolute; top: 8px; right: 8px;
+  display: flex; gap: 4px;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 999px; padding: 3px;
+}
+.lang-btn {
+  border: none; background: transparent; cursor: pointer;
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.02em;
+  padding: 4px 8px; border-radius: 999px; color: var(--color-fg-muted);
+}
+.lang-btn:hover { color: var(--color-fg); }
+.lang-btn.active { background: var(--color-accent); color: #ffffff; }
+@media (prefers-reduced-motion: reduce) {
+  #item-info, #item-info .item-thumb { transition: none; }
+  #item-info:hover { transform: none; box-shadow: none; }
+  #item-info:hover .item-thumb { transform: none; }
 }
 #item-info .item-body { padding: 14px 16px; }
 #item-info .item-body h4 { font-size: 14px; line-height: 1.35; margin: 0 0 6px 0; }
@@ -89,24 +127,26 @@ aside { flex: 1 1 35%; min-width: 260px; display: flex; flex-direction: column; 
 
 <script type="text/template" id="category-info-template">
   <h3><%= name %></h3>
-  <p><%= description %></p>
-  <% if (noHighlight) { %>
-    <p class="muted">These nodes aren't highlighted — this category is just a home for them, not a filter.</p>
-  <% } else if (total === 0) { %>
-    <p class="muted">Nothing highlighted for this view.</p>
-  <% } else { %>
-    <p class="muted"><%= total %> file<%= total === 1 ? "" : "s" %> in this category<% if (ownCount === 0) { %> (all cross-referenced from other categories)<% } %></p>
-  <% } %>
+  <p>There are <%= total %> node<%= total === 1 ? "" : "s" %> in this category.</p>
 </script>
 
 <script type="text/template" id="item-info-template">
   <% if (code) { %>
-    <div class="item-thumb"></div>
+    <div class="item-thumb-wrap">
+      <img class="item-thumb" src="index/placeholder_images/placeholder.png" alt="">
+      <% if (categoryId === "research") { %>
+        <div class="lang-toggle" role="group" aria-label="Notebook language">
+          <button type="button" class="lang-btn active" data-lang="r">R</button>
+          <button type="button" class="lang-btn" data-lang="stata">Stata</button>
+          <button type="button" class="lang-btn" data-lang="pystata">PyStata</button>
+        </div>
+      <% } %>
+    </div>
     <div class="item-body">
       <h4><%= title %></h4>
       <p class="item-desc"><%= description ? description : "No description available yet." %></p>
       <div class="item-meta">
-        <span class="muted"><%= code %> · <%= category %></span>
+        <span class="muted"><%= category %></span>
         <% if (date) { %><span class="item-date"><%= date %></span><% } %>
       </div>
       <% if (courses && courses.length) { %><p class="muted" style="margin-top:6px;">Also in: <%= courses.join(", ") %></p><% } %>
@@ -322,8 +362,8 @@ const CATEGORIES = [
 // appear here at all; they just highlight nodes that already live in
 // another row.
 const ROW_ORDER = [
-  "getting-started", "beginner", "intermediate-econ", "intermediate-geo", "advanced", "research",
-  "soci-280", "econ-227", "amne-376", "hist-414", "soci-415", "all"
+  "getting-started", "beginner", "intermediate-econ", "intermediate-geo", "advanced", "research", "all",
+  "soci-280", "econ-227", "amne-376", "hist-414", "soci-415"
 ];
 
 // Most categories just spread their items evenly across x within their row.
@@ -382,15 +422,27 @@ const CUSTOM_LAYOUTS = {
     "RS06": { level: 5, x: -4 },
     "RS07": { level: 6, x: -4 },
     "RS08": { level: 5, x: 3 },
-    "RS09": { level: 6, x: -2 },
-    "RS10": { level: 6, x: -0.6 },
-    "RS11": { level: 6, x: 0.85 },
-    "RS12": { level: 6, x: 2.3 },
-    "RS13": { level: 6, x: 3.7 },
-    "RS14": { level: 6, x: 5.1 },
-    "RS15": { level: 6, x: 6.6 },
-    "RS16": { level: 6, x: 8.0 },
-    "RS17": { level: 6, x: 9.4 }
+    "RS09": { level: 9, x: -2 },
+    "RS10": { level: 9, x: -0.6 },
+    "RS11": { level: 9, x: 0.85 },
+    "RS12": { level: 9, x: 2.3 },
+    "RS13": { level: 9, x: 3.7 },
+    "RS14": { level: 9, x: 5.1 },
+    "RS15": { level: 9, x: 6.6 },
+    "RS16": { level: 9, x: 8.0 },
+    "RS17": { level: 9, x: 9.4 }
+  },
+  // ALL: no prerequisite structure, just two loose clusters flanking the
+  // main chain (left / right) instead of one flat row, so they nestle into
+  // whatever open space sits beside the tree instead of floating above it.
+  "all": {
+    "ALL01": { level: 0,   x: -9.4 },
+    "ALL02": { level: 1.4, x: -7.6 },
+    "ALL03": { level: 0.6, x: -8.6 },
+    "ALL04": { level: 2,   x: -6.6 },
+    "ALL05": { level: 0,   x: 7.4 },
+    "ALL06": { level: 1.3, x: 8.6 },
+    "ALL07": { level: 0.6, x: 9.6 }
   },
   // SOCI 415: CBDB Dataset sits above KINMATRIX (its prerequisite);
   // Introduction to Network Analysis is independent, off to the side.
@@ -402,16 +454,23 @@ const CUSTOM_LAYOUTS = {
 };
 
 const allNodes = [];
+// Most categories' internal chains fit in a modest vertical band so they
+// don't reach into the next row. Research's chain is taller (RS08's
+// children now sit many levels above it, by request), so it gets a much
+// bigger band to actually reach up into rather than being rescaled down
+// to fit the default.
+const LEVEL_CEILING = { research: 1.9 };
 CATEGORIES.forEach(cat => {
   const rowY = ROW_ORDER.indexOf(cat.id);
   const custom = CUSTOM_LAYOUTS[cat.id];
   const n = cat.items.length;
   // Normalize the vertical step so the tallest chain in this category's
-  // tree still fits within the row band (max offset ~0.85), no matter how
-  // many levels it ends up with.
+  // tree still fits within the row band, no matter how many levels it
+  // ends up with.
   let maxLevel = 0;
   if (custom) Object.values(custom).forEach(v => { if (v.level > maxLevel) maxLevel = v.level; });
-  const step = maxLevel > 0 ? 0.85 / maxLevel : 0.28;
+  const ceiling = LEVEL_CEILING[cat.id] || 0.85;
+  const step = maxLevel > 0 ? ceiling / maxLevel : 0.28;
   cat.items.forEach((item, i) => {
     let x, y;
     if (custom && custom[item.code]) {
@@ -533,44 +592,163 @@ const CONNECTIONS = [
   const xcoord = x => x * xscale + width / 2;
   const ycoord = y => height - y * yscale - 0.9 * yscale;
 
+  // Which nodes actually participate in a prerequisite edge at all —
+  // used below to anchor isolated nodes (no stated prereqs, e.g. most
+  // course items) more tightly to their category position instead of
+  // letting collision-avoidance scatter them away from their siblings.
+  const hasConnections = new Set();
+  CONNECTIONS.forEach(c => { hasConnections.add(c.from); hasConnections.add(c.to); });
+
+  // Small deterministic per-node offset (stable across reloads, not truly
+  // random) so siblings that share an anchor level don't all land on
+  // exactly the same y — a dead-flat horizontal row of nodes reads as
+  // mechanical/gridded rather than organic.
+  function hashJitter(code, range) {
+    let h = 0;
+    for (let i = 0; i < code.length; i++) h = (h * 31 + code.charCodeAt(i)) | 0;
+    return ((Math.abs(h) % 1000) / 1000 - 0.5) * range;
+  }
+
   // Anchor each node at its category-row position, then let a force
   // simulation relax the layout: forceLink pulls prerequisite-connected
   // nodes toward each other (so chains sprawl outward into whatever open
   // space exists instead of stacking in a straight line), and forceCollide
   // enforces a hard minimum distance so nothing overlaps. forceX/forceY
   // keep everything from drifting too far from its category row — strong
-  // vertically (rows stay recognizable), weak horizontally (free to spread).
+  // vertically (rows stay recognizable), weak horizontally (free to spread) —
+  // and stronger still for isolated nodes, so they stay clustered near the
+  // rest of their category/course instead of drifting off alone.
   allNodes.forEach(d => {
-    d.ax = xcoord(d.x);
-    d.ay = ycoord(d.y);
+    d.ax = xcoord(d.x) + hashJitter(d.code + "x", 10);
+    d.ay = ycoord(d.y) + hashJitter(d.code + "y", 16);
     d.x = d.ax;
     d.y = d.ay;
   });
   const MIN_NODE_DISTANCE = 26;
+
+  // Origin is GS-JN's anchor position — the true root of the graph (nearly
+  // everything traces back to it directly or indirectly) — rather than an
+  // arbitrary canvas-center point. Uses its fixed anchor (ax/ay), not its
+  // live simulated position, so the origin doesn't move out from under the
+  // simulation while it's running.
+  const gsjnNode = allNodes.find(d => d.code === "GS-JN");
+  const origin = gsjnNode ? { x: gsjnNode.ax, y: gsjnNode.ay } : { x: width / 2, y: height / 2 };
+
+  // Custom force: every node must be farther from the origin than whatever
+  // it directly requires. Without this, forceLink + forceCollide can end up
+  // shoving a downstream node (e.g. one of RS08's many children) back
+  // toward the center, past its own prerequisite — reading as the chain
+  // folding back into itself instead of sprawling outward. This runs
+  // alongside the other forces each tick and just nudges velocity, same as
+  // any other d3-force.
+  const RADIAL_GAP = 22; // minimum extra distance from origin a node must keep over its prereq
+  function forceRadialOrder(alpha) {
+    CONNECTIONS.forEach(c => {
+      const s = c.source, t = c.target;
+      const sDist = Math.hypot(s.x - origin.x, s.y - origin.y);
+      const tDist = Math.hypot(t.x - origin.x, t.y - origin.y) || 0.001;
+      const minDist = sDist + RADIAL_GAP;
+      if (tDist < minDist) {
+        const ux = (t.x - origin.x) / tDist, uy = (t.y - origin.y) / tDist;
+        const push = (minDist - tDist) * alpha * 5;
+        t.vx = (t.vx || 0) + ux * push;
+        t.vy = (t.vy || 0) + uy * push;
+      }
+    });
+  }
+
+  // Custom force: a node must sit visually *above* (smaller pixel y) each
+  // thing it directly requires — e.g. RS08's children (RS09, RS14, ...)
+  // should read as sitting above RS08, not level with or below it.
+  const VERTICAL_GAP = 30;
+  function forceVerticalOrder(alpha) {
+    CONNECTIONS.forEach(c => {
+      const s = c.source, t = c.target;
+      if (t.y > s.y - VERTICAL_GAP) {
+        const push = (s.y - VERTICAL_GAP - t.y) * alpha * 5;
+        t.vy = (t.vy || 0) + push;
+      }
+    });
+  }
+
+  // Weak global cohesion, pulling everything toward GS-JN's x — same fix
+  // as before (keeps the graph from splitting into a left mass and a right
+  // mass), just now centered on the actual root node instead of an
+  // arbitrary canvas point. Still horizontal-only: vertical position is
+  // meaningful (foundational content low, advanced high), so pulling
+  // toward a fixed vertical center would fight the ordering forces above.
+  const gravityX = d3.forceX(origin.x).strength(0.018);
+
+  // forceLink pulls every connected pair together, but a node with
+  // prerequisites in more than one category (e.g. RS10 needs both RS08,
+  // same category, and IE01, a different one) should sit closer to the
+  // same-category prereq than the cross-category one. Same-category edges
+  // get a stronger pull; cross-category edges a weaker one. This also
+  // directly helps "Learn to Research" read as one cohesive cluster:
+  // its many internal (research-to-research) links now pull harder than
+  // its external links out to Getting Started / Intermediate Econometrics
+  // / etc., instead of every connection competing equally.
+  const linkForce = d3.forceLink(CONNECTIONS).id(d => d.code).distance(46)
+    .strength(l => (l.source.categoryId === l.target.categoryId ? 0.35 : 0.1));
+
   const sim = d3.forceSimulation(allNodes)
-    .force("x", d3.forceX(d => d.ax).strength(0.25))
-    .force("y", d3.forceY(d => d.ay).strength(0.7))
-    .force("link", d3.forceLink(CONNECTIONS).id(d => d.code).distance(46).strength(0.2))
+    .force("x", d3.forceX(d => d.ax).strength(d => (hasConnections.has(d.code) ? 0.25 : 0.5)))
+    .force("y", d3.forceY(d => d.ay).strength(d => (hasConnections.has(d.code) ? 0.7 : 0.9)))
+    .force("link", linkForce)
     .force("collide", d3.forceCollide(MIN_NODE_DISTANCE / 2))
+    .force("radialOrder", forceRadialOrder)
+    .force("verticalOrder", forceVerticalOrder)
+    .force("gravityX", gravityX)
     .stop();
-  for (let i = 0; i < 400; i++) sim.tick();
+
+  // Hard boundary clamp, applied every tick: whatever the forces above do,
+  // no node is allowed to end up outside the visible canvas.
+  const EDGE_MARGIN = 16;
+  function clampToBounds() {
+    allNodes.forEach(d => {
+      d.x = Math.max(EDGE_MARGIN, Math.min(width - EDGE_MARGIN, d.x));
+      d.y = Math.max(EDGE_MARGIN, Math.min(height - EDGE_MARGIN, d.y));
+    });
+  }
+  for (let i = 0; i < 700; i++) { sim.tick(); clampToBounds(); }
 
   const svg = d3.select("#course-map svg").attr("width", width).attr("height", height);
   const linkLayer = svg.append("g").attr("fill", "none").attr("stroke-width", 1.5);
   const nodeLayer = svg.append("g");
-  const labelLayer = svg.append("g");
   const hitLayer = svg.append("g");
 
   function colors() {
     const s = getComputedStyle(document.documentElement);
     const v = n => s.getPropertyValue(n).trim();
-    return { bg: v("--color-bg"), fg: v("--color-fg"), fgMuted: v("--color-fg-muted"), highlight: v("--chart-1") };
+    return {
+      bg: v("--color-bg"), fg: v("--color-fg"), fgMuted: v("--color-fg-muted"),
+      node: v("--color-node"), connector: v("--color-connector"), connectorHover: v("--color-connector-hover"), accent: v("--color-accent")
+    };
   }
 
   const categoryInfoDiv = d3.select("#category-info");
   const categoryInfoTemplate = _.template(d3.select("#category-info-template").html());
   const itemInfoDiv = d3.select("#item-info");
   const itemInfoTemplate = _.template(d3.select("#item-info-template").html());
+
+  // Learn to Research language-version toggle (R / Stata / PyStata).
+  // Delegated on the container since the card's contents are replaced
+  // wholesale on every hover — a listener bound to the buttons directly
+  // would need re-attaching each time, this doesn't. UI only for now:
+  // just swaps which button looks active, no path-switching behavior yet.
+  itemInfoDiv.on("click", event => {
+    const btn = event.target.closest(".lang-btn");
+    if (!btn) return;
+    btn.parentElement.querySelectorAll(".lang-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+  });
+
+  // All shows the total across the whole map (it's a catch-all, not a
+  // filtered subset); every other category shows its own item + cross-
+  // referenced count.
+  function categoryNodeCount(cat) {
+    return cat.id === "all" ? allNodes.length : cat.items.length + (cat.highlightCodes ? cat.highlightCodes.length : 0);
+  }
 
   let currentCategory = CATEGORIES[0];
 
@@ -583,17 +761,14 @@ const CONNECTIONS = [
       render(300);
       categoryInfoDiv.html(categoryInfoTemplate({
         name: cat.name,
-        description: cat.description,
-        ownCount: cat.items.length,
-        total: cat.items.length + (cat.highlightCodes ? cat.highlightCodes.length : 0),
-        noHighlight: cat.id === "all"
+        total: categoryNodeCount(cat)
       }));
     });
   });
 
   function showItemInfo(event, d) {
     itemInfoDiv.html(itemInfoTemplate({
-      code: d.code, title: d.title, category: d.categoryName, path: d.path,
+      code: d.code, title: d.title, category: d.categoryName, categoryId: d.categoryId, path: d.path,
       description: d.description || null, date: d.date || null,
       courses: categoriesReferencingCode[d.code] || []
     }));
@@ -605,7 +780,7 @@ const CONNECTIONS = [
     const isOwnPrereq = conn => conn.to === d.code;
     linkLayer.selectAll("line")
       .transition().duration(150)
-      .attr("stroke", conn => (isOwnPrereq(conn) ? col.highlight : col.fgMuted))
+      .attr("stroke", conn => (isOwnPrereq(conn) ? col.connectorHover : col.connector))
       .attr("stroke-width", conn => (isOwnPrereq(conn) ? 3 : 1.5))
       .attr("opacity", conn => (isOwnPrereq(conn) ? 1 : 0.1));
   }
@@ -633,14 +808,14 @@ const CONNECTIONS = [
         enter => enter.append("line")
           .attr("x1", d => d.source.x).attr("y1", d => d.source.y)
           .attr("x2", d => d.target.x).attr("y2", d => d.target.y)
-          .attr("stroke", c.fgMuted)
+          .attr("stroke", c.connector)
           .attr("opacity", 0)
           .transition().duration(duration)
           .attr("opacity", 0.5),
         update => update.transition().duration(duration)
           .attr("x1", d => d.source.x).attr("y1", d => d.source.y)
           .attr("x2", d => d.target.x).attr("y2", d => d.target.y)
-          .attr("stroke", c.fgMuted)
+          .attr("stroke", c.connector)
           .attr("opacity", 0.5)
       );
 
@@ -650,28 +825,19 @@ const CONNECTIONS = [
         enter => enter.append("circle")
           .attr("r", 10)
           .attr("cx", d => d.x).attr("cy", d => d.y)
-          .attr("fill", d => (isHighlighted(d) ? c.highlight : c.bg))
-          .attr("stroke", d => (isHighlighted(d) ? c.highlight : c.fgMuted))
+          .attr("fill", d => (isHighlighted(d) ? c.accent : c.node))
+          .attr("stroke", d => (isHighlighted(d) ? c.accent : c.node))
           .attr("stroke-width", 1.5)
           .attr("opacity", 0)
           .transition().duration(duration).attr("opacity", 1),
         update => update.transition().duration(duration)
-          .attr("fill", d => (isHighlighted(d) ? c.highlight : c.bg))
-          .attr("stroke", d => (isHighlighted(d) ? c.highlight : c.fgMuted))
+          .attr("fill", d => (isHighlighted(d) ? c.accent : c.node))
+          .attr("stroke", d => (isHighlighted(d) ? c.accent : c.node))
       );
 
-    labelLayer.selectAll("text")
-      .data(allNodes, d => d.code)
-      .join(
-        enter => enter.append("text")
-          .attr("x", d => d.x).attr("y", d => d.y)
-          .attr("text-anchor", "middle").attr("dy", "3px")
-          .attr("font-family", "inherit").attr("font-size", 8).attr("font-weight", 600)
-          .attr("fill", d => (isHighlighted(d) ? "#ffffff" : c.fg))
-          .text(d => d.code),
-        update => update.transition().duration(duration)
-          .attr("fill", d => (isHighlighted(d) ? "#ffffff" : c.fg))
-      );
+    // Node codes stay on each node's data (d.code) for internal wiring —
+    // keying, connection lookups, the hover card — but aren't drawn as
+    // visible text on the map itself.
 
     hitLayer.selectAll("circle")
       .data(allNodes, d => d.code)
@@ -684,12 +850,9 @@ const CONNECTIONS = [
   render(0);
   categoryInfoDiv.html(categoryInfoTemplate({
     name: currentCategory.name,
-    description: currentCategory.description,
-    ownCount: currentCategory.items.length,
-    total: currentCategory.items.length + (currentCategory.highlightCodes ? currentCategory.highlightCodes.length : 0),
-    noHighlight: currentCategory.id === "all"
+    total: categoryNodeCount(currentCategory)
   }));
-  itemInfoDiv.html(itemInfoTemplate({ code: null, title: null, category: null, path: null, description: null, date: null, courses: [] }));
+  itemInfoDiv.html(itemInfoTemplate({ code: null, title: null, category: null, categoryId: null, path: null, description: null, date: null, courses: [] }));
   d3.select("#category-nav div:nth-child(1)").classed("highlight", true);
 })();
 </script>
