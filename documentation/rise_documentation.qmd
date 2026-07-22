@@ -1,0 +1,36 @@
+---
+title: RISE Slideshows on UBC JupyterOpen
+author: Alex Ronczewski
+date: 2026-07-16
+number-sections: true
+---
+
+[RISE](https://github.com/jupyterlab-contrib/rise) (`jupyterlab_rise`) is a JupyterLab extension that renders a notebook as a live [Reveal.js](https://revealjs.com/) slideshow, so slides can execute code cells during a presentation. This document explains why RISE does not work out of the box on [UBC JupyterOpen](https://open.jupyter.ubc.ca/) and how our setup notebook fixes it.
+
+## The Issue
+
+There are two separate problems on JupyterOpen:
+
+1. **RISE is not installed.** A plain `pip install` goes into the server's base environment, which is reset every time the server restarts. The extension has to be installed into the user's home folder (`~/.local`) to persist between sessions.
+
+2. **The slideshow opens as a blank white page.** JupyterOpen disables the `@jupyterlab/notebook-extension:cell-executor` plugin because it runs cells through its own executor. The RISE slideshow page depends on that plugin to run cells, so with it disabled the Reveal view never renders. It has to be re-enabled per user through a `page_config.json` override in the home folder.
+
+## The Fix
+
+The setup notebook at `project/docs/setup_rise.ipynb` handles both problems. Students/Teachers run it once, and the changes persist because everything is written to the home folder. It does the following:
+
+1. Installs `jupyterlab_rise==0.43.1` with `pip install --user --force-reinstall --no-deps`, so the package lands in `~/.local` without touching the managed base environment, then enables the server extension with `jupyter server extension enable jupyterlab_rise --user`.
+2. Writes `~/.jupyter/labconfig/page_config.json` with `disabledExtensions["@jupyterlab/notebook-extension:cell-executor"] = false`, which re-enables the cell executor for that user only.
+3. Verifies both changes and prompts the user to restart their server through the Hub Control Panel (File -> Hub Control Panel, then Stop My Server and Start My Server). A browser refresh is not enough; the server must restart to pick up the new configuration.
+
+## Usage
+
+After the restart, open a notebook, open the command palette with `Ctrl+Shift+C`, and run **Open as Reveal Slideshow**. The slides open in a new tab.
+
+Two things to note:
+
+* Slide structure is set per cell in the property inspector (right sidebar), where each cell can be marked as a slide, sub-slide, fragment, skip, or notes.
+
+## Extension Source
+
+The extension is the upstream [jupyterlab-contrib/rise](https://github.com/jupyterlab-contrib/rise) project, pinned at version 0.43.1, which requires JupyterLab 4.1.2 or newer.

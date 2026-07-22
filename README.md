@@ -1,6 +1,6 @@
-# prAxIs: "Unpacking the Black Box: Critical AI Literacies for Arts Students"
+# Praxis: "Unpacking the Black Box: Critical AI Literacies for Arts Students"
 
-A repository for our the large TLEF project: Unpacking the Black Box: Critical AI Literacies for Arts Students.
+A repository for our large TLEF project: Unpacking the Black Box: Critical AI Literacies for Arts Students.
 
 ## Important Documents
 
@@ -38,9 +38,18 @@ This repository is organized into several distinct parts, housed in the `main` b
 
 We use the [Quarto](https://quarto.org/) framework to write content and build the website, although we also can support raw `.ipynb` notebooks, as well.
 
+### Zenodo Archive
+
+Published Praxis notebooks are archived on Zenodo, where each notebook is assigned a persistent DOI for citation and long-term preservation.
+
 ### Large Files
 
 Large files are problematic in Git: because they are stored as binaries _any_ change to them (including inconsequential ones) creates a new version of the file, which is then stored in the repository's commit history.  This means that the repo can quickly balloon in size to an unmanageable degree.  We use the [git Large File Storage](https://git-lfs.github.com/) system.
 
 Currently, the list of filetypes which should be automatically version controlled is in the `.gitattributes` file in the main repository.  However, you should avoid committing large files whenever possible.
 
+#### RISE Jupyter
+
+To use the RISE extension to create interactive slideshows for UBC JupyterOpen please follow the instructions at `project/docs/setup_rise.ipynb`.
+
+Read documentation about it at `\praxis-ubc\documentation\rise_documentation.qmd`. 

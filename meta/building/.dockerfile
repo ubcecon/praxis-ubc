@@ -12,20 +12,7 @@ RUN mkdir output
 # Remove the locally-rendered notebooks' .qmd so Quarto skips them (their self-contained
 # HTML is placed into the output after render). Collapsed into a SINGLE layer to stay under
 # the image layer-depth cap.
-RUN rm -f ./docs/SOCI-415/soci_415_network_analysis.qmd \
-    ./docs/SOCI-415/kinmatrix.qmd \
-    ./docs/SOCI-415/cbdb_dataset.qmd \
-    ./docs/ECON-227/llm_distributions.qmd \
-    ./docs/hist_workshop/text_embeddings_workshop.qmd \
-    ./docs/intro_to_cnns/intro_to_cnn.qmd \
-    ./docs/intro_to_convolutions/intro_to_convolution.qmd \
-    ./docs/intro_to_deep_learning/intro_to_fundamental_ML.qmd \
-    ./docs/AMNE-376/amne_376_image_embedding.qmd \
-    ./docs/SOCI-280/soci_280_bert.qmd \
-    ./docs/OCR/ocr_notebook.qmd \
-    ./docs/image_analysis/image_analysis.qmd \
-    ./docs/CTree_CEA/political_economy.qmd \
-    ./docs/1_Getting_Started/getting_started_intro_to_data/getting_started_intro_to_data2.qmd \
+RUN rm -f ./docs/1_Getting_Started/getting_started_intro_to_data/getting_started_intro_to_data2.qmd \
     ./docs/1_Getting_Started/getting_started_intro_to_jupyter/getting_started_intro_to_jupyter.qmd \
     ./docs/1_Getting_Started/getting_started_intro_to_python/getting_started_intro_to_python.qmd \
     ./docs/1_Getting_Started/getting_started_intro_to_r/getting_started_intro_to_r.qmd \
@@ -118,19 +105,6 @@ RUN quarto render --output-dir /app/output
 # image is now Quarto 1.4.557 so freshly rendered pages no longer reference it, but the strip
 # stays as a version-independent safety net for the pre-rendered HTML. All in one layer.
 RUN mkdir -p /app/output/docs && cd /app/docs && cp --parents \
-    SOCI-415/soci_415_network_analysis.html \
-    SOCI-415/kinmatrix.html \
-    SOCI-415/cbdb_dataset.html \
-    ECON-227/llm_distributions.html \
-    hist_workshop/text_embeddings_workshop.html \
-    intro_to_cnns/intro_to_cnn.html \
-    intro_to_convolutions/intro_to_convolution.html \
-    intro_to_deep_learning/intro_to_fundamental_ML.html \
-    AMNE-376/amne_376_image_embedding.html \
-    SOCI-280/soci_280_bert.html \
-    OCR/ocr_notebook.html \
-    image_analysis/image_analysis.html \
-    CTree_CEA/political_economy.html \
     1_Getting_Started/getting_started_intro_to_data/getting_started_intro_to_data2.html \
     1_Getting_Started/getting_started_intro_to_jupyter/getting_started_intro_to_jupyter.html \
     1_Getting_Started/getting_started_intro_to_python/getting_started_intro_to_python.html \

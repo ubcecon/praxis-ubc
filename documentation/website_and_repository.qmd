@@ -1,9 +1,8 @@
 ---
 title: Understanding the Website and Repository
 author: Alex Ronczewski
-date: 2025-11-21
+date: 2026-07-19
 number-sections: true
-version: 1.0
 ---
 
 ## Table of Contents
@@ -57,18 +56,19 @@ Step by step **sub_new.dockerfile**:
 
 - Imports the rocker/tidyverse:4.2.2 base image
 - Creates a directory called `/app`
-- Install's system dependencies with specific versions numbers into `/app`. The dependencies have specific version numbers so that an update does not break the code. 
-- Install's Python, Quarto and necessary R Packages. All of these again with version numbers. 
+- Install's system dependencies with specific versions numbers into `/app`. The dependencies have specific version numbers so that an update does not break the code. Two exceptions are `curl` and `python3-pip`, which are left unpinned, if issue arise later we should pin them. 
+- Install's Python, Quarto and necessary R Packages. All of these again with version numbers. Quarto is pinned to **1.4.557** (up from 1.3.450). This was a security fix. Quarto versions before 1.4 add a `<script>` tag pointing at `polyfill.io` to every rendered MathJax page, and that domain was hijacked by attackers in a 2024 supply chain attack. The 1.4 versions resolved the malware. 
 
-This base dockerfile is saved to [DockerHub](https://hub.docker.com/) as `jlgraves/comet-test:test` so it can be used for our main .dockerfile. 
+This base dockerfile is saved to [DockerHub](https://hub.docker.com/) so it can be used for our main .dockerfile. As of **2026-06-03** the published image is `alexr951/comet-base:safe`; it was previously `jlgraves/comet-test:test`, and the rebuild/rename came with the Quarto security bump described above.
 
 ### .dockerfile:
 
-- This dockerfile begins with using the jlgraves/comet-test:test image
-- Setting `/app` as the working directory. 
-- It then removes certain .qmd files to avoid rendering them during the website build process. 
+- This dockerfile begins with using the `alexr951/comet-base:safe` image (see the note on the base image update above).
+- Setting `/app` as the working directory and copying `renv.lock` plus the whole `project/` folder into it.
 - Creates an output directory with `mkdir`
-- It then copies pre-rendered .html files into the directory `/app/output`.
+- Renders the entire website with `quarto render --output-dir /app/output`. Because `_quarto.yml` sets `freeze: true`, no notebook code is executed during this render: all code output comes from the pre-computed freeze cache committed under `project/_freeze`. This is how the website shows code output without the Docker image needing any Python/R packages or datasets, see [6.2 Showing Code Output with Quarto Freeze](#62-showing-code-output-with-quarto-freeze).
+- Strips any leftover `polyfill.io` script tag out of the rendered HTML with a `sed` command. The current base image already uses a Quarto version that never adds this script, so this step is really just a leftover from the malware fix. It can be dropped in the future, but right now it causes no issue so it stays.
+- Injects the per-notebook "Launch this notebook" button by appending `meta/building/launch_notebook.html` into the `<body>` of every rendered page. This is described in [4. Quarto Configuration & Website Structure](#4-quarto-configuration--website-structure).
 
 Finally it starts from nginx:alpine base for minimal resource use. Alpine Linux is very lightweight so it is perfect for this use case.  It then copies the rendered HTML content into Nginx’s served directory and finally exposes port 80 and runs Nginx in foreground mode.
 
@@ -86,11 +86,12 @@ Under **render:** _quarto.yml specifies which files and folders to include in th
 - "*.ipynb"
 - "*.r"
 
-These tags all include `*` meaning that Quarto include files by pattern `media/*` means all files under folders called media/ are included and `*.qmd` means all .qmd files are included. When we use `!` it means we are ignoring these files, these files are .qmd's for which we have pre-rendered .html files already prepared. These are the same .qmd files which we ignored in the Dockerfile. For our .qmd and .ipynb files we also have tags under **execute**:
+These tags all include `*` meaning that Quarto include files by pattern `media/*` means all files under folders called media/ are included and `*.qmd` means all .qmd files are included. When we use `!` it means we are ignoring these files. For our .qmd and .ipynb files we also have tags under **execute**:
 
 - eval: false means notebooks are not executed during site build.
 - keep-ipynb: false indicates not to keep output .ipynb files.
 - cache: false avoids using or keeping any cache created by computations.
+- freeze: true means the build never executes code, it re-uses the pre-computed results committed under `project/_freeze`. Notebooks that should show code output override `eval` in their own header and are executed once locally by the author, see [6.2 Showing Code Output with Quarto Freeze](#62-showing-code-output-with-quarto-freeze).
 
 The next section of `project/_quarto.yml` corresponds to the websites appearance and navigation. We can configure all aspects of how the final website looks including: favicon, footer, navbar, title etc. The most important is the Navbar section which represents the Navigation Bar at the top of the [prAxIs Website](https://ubcecon.github.io/praxis-ubc/). We created the navbar itself and then add tags for text and file paths. An example of this is: 
 
@@ -101,7 +102,13 @@ The next section of `project/_quarto.yml` corresponds to the websites appearance
 
 Which creates a button with "SOCI-280" written on it that redirects to the page: `pages/index/index_SOCI280.qmd` which acts as a landing page for all of our SOCI-280 related notebooks and outline. 
 
-Lower down we have the Launch prAxIs menu which consists of links for JupyterOpen, Syzygy, Google Collab, Local Download and the Github Repository. The links for JupyterOpen, Syzygy, and Google Collab pulls the praxis-notebooks branch of the repository and opens it in the online code editor. Finally we have the `format:` section where we select **.css** themes from `styles.css` and `comet_theme.scss`. 
+Lower down we have the Launch prAxIs menu which consists of links for JupyterOpen, Syzygy, Google Collab, Local Download and the Github Repository. The links for JupyterOpen, Syzygy, and Google Collab pulls the praxis-notebooks branch of the repository and opens it in the online code editor. Finally we have the `format:` section where we select **.css** themes from `styles.css` and `comet_theme.scss`. This section also enables lightbox (`lightbox: match: auto`), which lets readers click any image or plot on the site to zoom it full screen. The `match: auto` setting applies it to every figure automatically, no per-image unique code is needed.
+
+The Launch prAxIs menu above launches the *whole* repository. There is also a **per-notebook launch button**: every rendered notebook page on the website gets a small "Launch this notebook" dropdown (with JupyterOpen and Google Colab options) directly under its title. This button is not part of `_quarto.yml`, it is injected at build time by the `.dockerfile`, which appends `meta/building/launch_notebook.html` into each page. That HTML file holds a hard-coded list of the notebooks that should get the button along with the JupyterOpen/Colab URLs they point to, so if you add a new launchable notebook you have to add its path to that list. JupyterOpen pulls the notebook's data folder by itself through its `git-pull` link, but Colab does not, so the workflow also runs `add_colab_setup.py` (described in Section 6.1) to add a setup cell that clones the data folder when the notebook is opened in Colab.
+
+Inside `format:` there is also `include-in-header: metadata.html`. This injects `project/metadata.html` into the `<head>` of every page. That file holds the site's SEO keywords plus two analytics tools we use to track how people find and use the site: a **Google Search Console** verification tag (which lets us see search traffic, the queries people search, and indexing data in [Search Console](https://search.google.com/search-console)) and a **Cloudflare Web Analytics** beacon (which gives us page view and visitor counts without using cookies). If you ever need to move the analytics to a different account, the verification token and the Cloudflare beacon token both live in `project/metadata.html`.
+
+It also contains a small script that swaps the light and dark versions of images when the site theme is toggled. 
 
 ## 5. Navigation and Index Pages
 
@@ -110,11 +117,11 @@ Under `project/pages/index` there are .qmd index files for each class and one fo
 An example of this is the Index for SOCI 280:
 ```{bash}
  contents:
-    - "../../docs/SOCI-280/soci_280_bert_stub.qmd"
+    - "../../docs/SOCI-280/soci_280_bert.qmd"
     - "../../docs/SOCI-280/soci_280_lesson_plan.qmd"
 ```
 
-When we navigate to the [SOCI-280 Page](https://ubcecon.github.io/praxis-ubc/pages/index/index_SOCI280.html) on the website we see that there are two notebooks below, the first being `SOCI-280/soci_280_bert_stub` and the second being the `soci_280_lesson_plan`. 
+When we navigate to the [SOCI-280 Page](https://ubcecon.github.io/praxis-ubc/pages/index/index_SOCI280.html) on the website we see that there are two notebooks below, the first being `SOCI-280/soci_280_bert` and the second being the `soci_280_lesson_plan`.
 
 For each index below the .qmd header there space for a text block which has information on the class and sometimes has the Lesson Plan. 
 
@@ -123,7 +130,7 @@ For each index below the .qmd header there space for a text block which has info
 This section is much longer so it will be subdivided into:
 
 - 6.1: Explaning each step of comet_main.yml
-- 6.2: Showing rendered .html files instead of unrendered .html files on the website.  
+- 6.2: Showing code output on the website with Quarto freeze.
 
 ### 6.1 Explaining comet_main.yml
 
@@ -201,15 +208,25 @@ Installs Quarto enabling notebook conversion and rendering.
 4. Set up Python:
 Installs a compatible Python version for use by conversion and cleaning scripts. Version is not specified we use `3.x` and the runner decided on a compatible version. 
 
-5. Convert QMD to IPYNB and Clean Titles:
+5. Convert QMD to IPYNB, Clean Titles, Callouts and Images:
 
-- Copies a Python script (clean_ipynb_titles.py) from `meta/scripts/clean_ipynb_titles.py` to the notebooks directory.
-- Converts each .qmd (Quarto Markdown) notebook to .ipynb (Jupyter Notebook) using the `quarto convert` command, skipping files with "plan" in their name to ignore lesson plans.
-- Cleans notebook titles via the Python script, warning if conversion fails.
+- Copies four Python scripts from `meta/scripts/` into the notebooks directory: `clean_ipynb_titles.py`, `convert_ipynb_callouts.py`, `clean_ipynb_images.py`, and `add_colab_setup.py`.
+- Converts each .qmd (Quarto Markdown) notebook to .ipynb (Jupyter Notebook) using the `quarto convert` command, skipping files with "plan" or "stub" in their name to ignore lesson plans and redirect stubs.
+- Runs the four scripts on each converted .ipynb in order, warning if conversion fails.
 
 It is important to note what this Python script does and why it is here. There was an issue when we *launch* the notebooks to JupyterOpen, Google Collab or any other online code execution platform that the titles on the .ipynb Jupyter notebooks were not displaying correctly. It is caused by the command `quarto convert` and how it works. Quarto expects the first cell to be a raw cell, but the conversion process sometimes creates it as a markdown cell instead. This lead to the titles being displayed in a very ugly manner. The fix is running the `clean_ipynb_titles.py` Python script on all of the .ipynb files. 
 
-The script parses out the YAML using regular expressions, extracts key information: title, author, and date, then replaces the YAML block with formatted Markdown content so it is displayed in a nice way. The rest of the first cell's content is retained after the generated title block. This fixes the ugly titles. 
+The script parses out the YAML using regular expressions, extracts key information: title, author, and date, then replaces the YAML block with formatted Markdown content so it is displayed correctly. The rest of the first cell's content is retained after the generated title block. This fixes the ugly titles.
+
+The other three scripts were added later and all deal with the same underlying issue. A .qmd renders correctly on the website, but once that same content is converted to .ipynb and opened in JupyterOpen or Colab it loses its formatting, because those platforms do not understand Quarto's syntax correctly.
+
+`convert_ipynb_callouts.py` handles callouts. Quarto callout blocks (`::: callout-tip`, `::: callout-warning`, and so on) show up as raw `:::` text in a launched notebook. The script rewrites each one as a styled HTML table with a coloured side bar, a tinted background, and an emoji label. It uses nested tables with `bgcolor` attributes rather than a CSS `style` block because Colab strips inline styles but keeps `bgcolor`.
+
+`clean_ipynb_images.py` handles images. Quarto's figure and multi-column layouts (`::: {layout-ncol=2}`, `::: {.columns}`, and `![alt](src){width="50%"}` style attributes) do not render in Jupyter or Colab, so images go missing or the attributes print as literal text. The script rewrites these blocks as plain HTML image tables that display anywhere, and drops the trailing `{...}` attribute clutter.
+
+`add_colab_setup.py` supports the per-notebook launch button (see [4. Quarto Configuration & Website Structure](#4-quarto-configuration--website-structure)). It inserts a setup cell near the top of the notebook that, clones that notebook's data folder from the `praxis-notebooks` branch so the notebook's relative data paths resolve. The cell does nothing on JupyterOpen, which already pulls the data folder through its launch link.
+
+The scripts run in order (titles, callouts, images, then Colab setup). 
 
 6. Upload Converted Notebooks:
 Uploads the rendered (converted and cleaned) notebooks as an artifact named rendered-notebooks. Fails if no files are found.
@@ -263,17 +280,15 @@ Often you have to run **comet_main.yml** on a different branch to test some new 
 
 3. If you have trouble visualizing the output and how all of these jobs link together you can view the workflow visually at [The Github Actions Page](https://github.com/ubcecon/praxis-ubc/actions/runs/19557283413), here you can see the run time and output of each job and sub-job. 
 
-### 6.2 Showing Rendered .html files with code output. 
+### 6.2 Showing Code Output with Quarto Freeze
 
-On our website we want to have the code output showing as this leads to students being able to view the most important parts of the notebooks without launching them and running them, but this is difficult as if we want to render the notebooks with code output we would have to remove the **execute** tag in `_quarto.yml`. The `execute` tag is showed below: 
+On our website we want to have the code output showing as this leads to students being able to view the most important parts of the notebooks without launching them and running them, but this is difficult as executing the notebooks during the build is not an option. Because our build pipeline exists within a Docker Container we would have to have all relevant packages, and datasets included in the .dockerfile. Some of the datasets are private and we can not host them on our repository/website for copyright images and if we were to include the remaining data the size of the .dockerfile would be multiple gigabytes. Along with this all of the packages need to have a version number (to be robust to updates) and have to be compatible with each other which would lead to a extremely complex .env file.
 
-- eval: false means notebooks are not executed during site build.
-- keep-ipynb: false indicates not to keep output .ipynb files.
-- cache: false avoids using or keeping any cache created by computations.
+The solution is [Quarto freeze](https://quarto.org/docs/projects/code-execution.html#freeze). The `execute:` section of `_quarto.yml` sets `freeze: true`, which tells Quarto to never execute code during a project render and to instead re-use pre-computed results stored under `project/_freeze`. We execute the notebook once locally (where the packages and datasets are available), the results are saved into `_freeze`, and that folder is committed to the repository. The Docker build then renders the site from the freeze cache, so the pages show full code output while the Docker image needs no packages or data at all. One thing to keep in mind: the freeze cache stores the *entire* executed document, prose included, not just the code output. So any edit to a frozen notebook, even a text-only one, will not show up on the website until the notebook is re-rendered locally and the updated `_freeze` folder is committed.
 
-Because our build pipeline exists within a Docker Container and infrastructure we would have to have all relevant packages, and datasets included in the .dockerfile. Some of the datasets are private and we can not host them on our repository/website for copyright images and if we were to include the remaining data the size of the .dockerfile would be multiple gigabytes - not exactly lightweight. Along with this all of the packages need to have a version number (to be robust to updates) and have to be compatible with each other which would lead to a complex .env file. The solution to this is described below, a way to have a rendered .html without the problems with data and packages described above.
+To add code output for a new notebook:
 
-First we need to manually create a full encapsulated .html from each .qmd file we are planning to have rendered. If we do not add this to the header the .html is generated along with all outputs, images, libs and other related files. This would lead to a lot of unneeded files in the repository, and the size of the repository would grow uncontrollably. We need to make these .html "Self-Contained." This is done by adding these commands to the .qmd header: 
+- Add an execute block to the .qmd header so the notebook opts in to execution:
 
 ```{bash}
 execute:
@@ -282,23 +297,16 @@ execute:
   output: true
 ```
 
-and: 
-```{bash}
-html:
-    embed-resources: true
-    self-contained-math: true
-```
+- From the `project/` directory (where `_quarto.yml` is located) run `quarto render docs/CLASS/FILENAME.qmd`. Running from the project directory is required so Quarto applies the navbar and theme from `_quarto.yml`. This executes the notebook and writes the results into `project/_freeze/docs/CLASS/FILENAME/`.
+- Commit the .qmd together with its new `_freeze` folder. That is the whole change: no Dockerfile edits, no `!` exclusions in `_quarto.yml`, and no stub or index changes are needed.
+- Whenever the code in the notebook changes, re-render locally the same way so the freeze cache is refreshed, and commit the updated `_freeze` folder.
 
-Once this is done for our file we can run locally `quarto render docs/CLASS/FILENAME.qmd` **from the `project/` directory** (where `_quarto.yml` is located) and a .html file will be created in `praxis-ubc\project\_site\docs\CLASS\...`. Running from the project directory is required so Quarto applies the navbar and theme from `_quarto.yml`. This output folder is `.gitignored` so it is not a problem that files are created here. We then copy this .html and put it into the directory where the original .qmd is. In the case of SOCI415 it would be `praxis-ubc\project\docs\SOCI-415.` It is important that the .html files are created within the repository as they need to have the nav-bar and website layout. 
- 
-Now that the .html files are created we need to make changes to the `.dockerfile`, and `_quarto.yml`. As of **2025-11-21** all of these changes are already made for existing files, but will have to be made for new files: 
+Two warnings from past incidents:
 
-- In the .dockerfile under `praxis-ubc\meta\building\.dockerfile` we need to remove the .qmd so it is not rendered and then in the next step copy the .html to the output directory which has the files for the website. Example code of this is: `RUN rm -f ./docs/SOCI-415/soci_415_network_analysis.qmd` and `COPY ./project/docs/SOCI-415/soci_415_network_analysis.html /app/output/docs/SOCI-415/`. This means the .qmd with the new "self-containing" header is not rendered as if it was rendered we would get an error that we are missing various libraries, or data (the build would fail).
-- In the `_quarto.yml` add a line like `“!docs/SOCI-415/soci_415_network_analysis.qmd"`, the `!` makes quarto ignore the file in the build. This will be for the given notebook. This is similar to above the .qmd is not used for "constructing" the website. If this is not removed we get an error here.
-- Now under the directory where the original .qmd is add a `_stub.qmd` with an html redirect link an example is: <meta http-equiv="refresh" content="0; url=soci_415_network_analysis.html">, check the formatting in any of the files under `project/docs/CLASS` it is more clear there. The stub acts as a redirect to the "self-contained" .html. 
-- Change the index under `project/pages/index/index_CLASS.qmd` to be the stub and not the original .qmd. 
+- Render the freeze cache with a Quarto version matching the Docker image (currently **1.4.557**, so any 1.4.x). A newer local Quarto writes `_freeze`/`site_libs` files that the 1.4 render in Docker can mix badly with, this previously broke the listing filter on the index pages.
+- Do not add `embed-resources: true` to notebook headers. It was part of the old pre-rendered .html workflow that freeze replaced, and it inlines every plot and library into the page, which made pages tens of megabytes and very slow to load.
 
-Once all of these changes are implemented and the site is rebuilt there will be rendered .html files with code output showing. This solutuion does not affect the build time and we do not need to add packages or datasets. 
+Before freeze (Summer 2026) we handled code output by committing self-contained pre-rendered .html files, excluding their .qmd's from the build, and adding redirect stubs. That workflow is fully retired: the Dockerfile no longer removes .qmd files or copies .html files, and the stubs have been deleted.
 
 ## 7. Local Development & Testing
 
