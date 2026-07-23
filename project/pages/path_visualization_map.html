@@ -78,6 +78,7 @@ aside { flex: 1 1 35%; min-width: 260px; display: flex; flex-direction: column; 
   transform: scale(1.04);
 }
 .item-thumb-wrap { position: relative; }
+#item-info .item-thumb.clickable { cursor: pointer; }
 /* Language-version toggle for Learn to Research nodes (R / Stata /
    PyStata). UI only for now — buttons just switch which one looks
    active; nothing behind them is wired to real paths yet. */
@@ -100,6 +101,7 @@ aside { flex: 1 1 35%; min-width: 260px; display: flex; flex-direction: column; 
   #item-info:hover .item-thumb { transform: none; }
 }
 #item-info .item-body { padding: 14px 16px; }
+#item-info .item-body.clickable { cursor: pointer; }
 #item-info .item-body h4 { font-size: 14px; line-height: 1.35; margin: 0 0 6px 0; }
 #item-info .item-desc {
   font-size: 12.5px; color: var(--color-fg-muted); line-height: 1.5; margin: 0 0 10px 0;
@@ -127,22 +129,22 @@ aside { flex: 1 1 35%; min-width: 260px; display: flex; flex-direction: column; 
 
 <script type="text/template" id="category-info-template">
   <h3><%= name %></h3>
-  <p>There are <%= total %> node<%= total === 1 ? "" : "s" %> in this category.</p>
+  <p>There <%= total === 1 ? "is" : "are" %> <%= total %> node<%= total === 1 ? "" : "s" %> in this category.</p>
 </script>
 
 <script type="text/template" id="item-info-template">
   <% if (code) { %>
     <div class="item-thumb-wrap">
-      <img class="item-thumb" src="index/placeholder_images/placeholder.png" alt="">
+      <img class="item-thumb<% if (path) { %> clickable<% } %>" src="index/placeholder_images/placeholder.png" alt=""<% if (path) { %> title="Open this notebook"<% } %>>
       <% if (categoryId === "research") { %>
         <div class="lang-toggle" role="group" aria-label="Notebook language">
-          <button type="button" class="lang-btn active" data-lang="r">R</button>
-          <button type="button" class="lang-btn" data-lang="stata">Stata</button>
-          <button type="button" class="lang-btn" data-lang="pystata">PyStata</button>
+          <button type="button" class="lang-btn<%= activeLang === "r" ? " active" : "" %>" data-lang="r">R</button>
+          <button type="button" class="lang-btn<%= activeLang === "stata" ? " active" : "" %>" data-lang="stata">Stata</button>
+          <button type="button" class="lang-btn<%= activeLang === "pystata" ? " active" : "" %>" data-lang="pystata">PyStata</button>
         </div>
       <% } %>
     </div>
-    <div class="item-body">
+    <div class="item-body<% if (path) { %> clickable<% } %>"<% if (path) { %> title="Open this notebook"<% } %>>
       <h4><%= title %></h4>
       <p class="item-desc"><%= description ? description : "No description available yet." %></p>
       <div class="item-meta">
@@ -207,23 +209,143 @@ const CATEGORIES = [
     id: "research", name: "Learn to Research",
     description: "The econ490 applied research curriculum. These notebooks exist in parallel Python/R/Stata versions with identical content — using the R version exclusively here, so no content links for now.",
     items: [
-      { code: "RS01", title: "Setting Up Jupyter and R" },
-      { code: "RS02", title: "Working with R Scripts" },
-      { code: "RS03", title: "R Essentials" },
-      { code: "RS04", title: "Opening Datasets" },
-      { code: "RS05", title: "Generating Variables" },
-      { code: "RS06", title: "Conducting Within Group Analysis" },
-      { code: "RS07", title: "Combining Data Sets" },
-      { code: "RS08", title: "Creating Meaningful Visuals" },
-      { code: "RS09", title: "Combining Graphs" },
-      { code: "RS10", title: "Conducting Regression Analysis" },
-      { code: "RS11", title: "Exporting Regression Output" },
-      { code: "RS12", title: "Dummy Variables and Interactions" },
-      { code: "RS13", title: "Good Regression Practice" },
-      { code: "RS14", title: "Panel Data Regressions" },
-      { code: "RS15", title: "Difference-in-Differences Analysis" },
-      { code: "RS16", title: "Instrumental Variable Analysis" },
-      { code: "RS17", title: "R Workflow Guide" }
+      {
+        code: "RS01", title: "Setting Up Jupyter and R",
+        path: "docs/5_Research/econ490-r/01_Setting_Up.html",
+        langVersions: {
+          r: { title: "Setting Up Jupyter and R", path: "docs/5_Research/econ490-r/01_Setting_Up.html" },
+          stata: { title: "Jupyter and Stata", path: "docs/5_Research/econ490-stata/01_Setting_Up.html" },
+          pystata: { title: "Setting up PyStata for your Windows computer", path: "docs/5_Research/econ490-pystata/01_Setting_Up_PyStata.html" }
+        }
+      },
+      { code: "RS02", title: "Working with R Scripts",
+        path: "docs/5_Research/econ490-r/02_Working_Rscripts.html",
+        langVersions: {
+          r: { title: "Working with R Scripts", path: "docs/5_Research/econ490-r/02_Working_Rscripts.html" },
+          stata: { title: "Working with Do-Files", path: "docs/5_Research/econ490-stata/02_Working_Dofiles.html" },
+          pystata: { title: "Working with Do-Files", path: "docs/5_Research/econ490-pystata/02_Working_Dofiles.html" }
+        }
+      },
+      { code: "RS03", title: "R Essentials",
+        path: "docs/5_Research/econ490-r/03_R_Essentials.html",
+        langVersions: {
+          r: { title: "R Essentials", path: "docs/5_Research/econ490-r/03_R_Essentials.html" },
+          stata: { title: "Stata Essentials", path: "docs/5_Research/econ490-stata/03_Stata_Essentials.html" },
+          pystata: { title: "Stata Essentials", path: "docs/5_Research/econ490-pystata/03_Stata_Essentials.html" }
+        }
+      },
+      { code: "RS04", title: "Opening Datasets",
+        path: "docs/5_Research/econ490-r/04_Opening_Data_Sets.html",
+        langVersions: {
+          r: { title: "Opening Datasets", path: "docs/5_Research/econ490-r/04_Opening_Data_Sets.html" },
+          stata: { title: "Working with Locals and Globals", path: "docs/5_Research/econ490-stata/04_Locals_and_Globals.html" },
+          pystata: { title: "Working with Locals and Globals", path: "docs/5_Research/econ490-pystata/04_Locals_and_Globals.html" }
+        }
+      },
+      { code: "RS05", title: "Generating Variables",
+        path: "docs/5_Research/econ490-r/05_Creating_Variables.html",
+        langVersions: {
+          r: { title: "Generating Variables", path: "docs/5_Research/econ490-r/05_Creating_Variables.html" },
+          stata: { title: "Opening Datasets", path: "docs/5_Research/econ490-stata/05_Opening_Data_Sets.html" },
+          pystata: { title: "Opening Datasets", path: "docs/5_Research/econ490-pystata/05_Opening_Data_Sets.html" }
+        }
+      },
+      { code: "RS06", title: "Conducting Within Group Analysis",
+        path: "docs/5_Research/econ490-r/06_Within_Group.html",
+        langVersions: {
+          r: { title: "Conducting Within Group Analysis", path: "docs/5_Research/econ490-r/06_Within_Group.html" },
+          stata: { title: "Generating Variables", path: "docs/5_Research/econ490-stata/06_Creating_Variables.html" },
+          pystata: { title: "Generating Variables", path: "docs/5_Research/econ490-pystata/06_Creating_Variables.html" }
+        }
+      },
+      { code: "RS07", title: "Combining Data Sets",
+        path: "docs/5_Research/econ490-r/07_Combining_Datasets.html",
+        langVersions: {
+          r: { title: "Combining Data Sets", path: "docs/5_Research/econ490-r/07_Combining_Datasets.html" },
+          stata: { title: "Conducting Within Group Analysis", path: "docs/5_Research/econ490-stata/07_Within_Group.html" },
+          pystata: { title: "Conducting Within Group Analysis", path: "docs/5_Research/econ490-pystata/07_Within_Group.html" }
+        }
+      },
+      { code: "RS08", title: "Creating Meaningful Visuals",
+        path: "docs/5_Research/econ490-r/08_ggplot_graphs.html",
+        langVersions: {
+          r: { title: "Creating Meaningful Visuals", path: "docs/5_Research/econ490-r/08_ggplot_graphs.html" },
+          stata: { title: "Combining Datasets", path: "docs/5_Research/econ490-stata/08_Merge_Append.html" },
+          pystata: { title: "Combining Datasets", path: "docs/5_Research/econ490-pystata/08_Merge_Append.html" }
+        }
+      },
+      { code: "RS09", title: "Combining Graphs",
+        path: "docs/5_Research/econ490-r/09_Combining_Graphs.html",
+        langVersions: {
+          r: { title: "Combining Graphs", path: "docs/5_Research/econ490-r/09_Combining_Graphs.html" },
+          stata: { title: "Creating Meaningful Visuals", path: "docs/5_Research/econ490-stata/09_Stata_Graphs.html" },
+          pystata: { title: "Creating Meaningful Visuals", path: "docs/5_Research/econ490-pystata/09_Stata_Graphs.html" }
+        }
+      },
+      { code: "RS10", title: "Conducting Regression Analysis",
+        path: "docs/5_Research/econ490-r/10_Linear_Reg.html",
+        langVersions: {
+          r: { title: "Conducting Regression Analysis", path: "docs/5_Research/econ490-r/10_Linear_Reg.html" },
+          stata: { title: "Combining Graphs", path: "docs/5_Research/econ490-stata/10_Combining_Graphs.html" },
+          pystata: { title: "Combining Graphs", path: "docs/5_Research/econ490-pystata/10_Combining_Graphs.html" }
+        }
+      },
+      { code: "RS11", title: "Exporting Regression Output",
+        path: "docs/5_Research/econ490-r/11_Exporting_Output.html",
+        langVersions: {
+          r: { title: "Exporting Regression Output", path: "docs/5_Research/econ490-r/11_Exporting_Output.html" },
+          stata: { title: "Conducting Regression Analysis", path: "docs/5_Research/econ490-stata/11_Linear_Reg.html" },
+          pystata: { title: "Conducting Regression Analysis", path: "docs/5_Research/econ490-pystata/11_Linear_Reg.html" }
+        }
+      },
+      { code: "RS12", title: "Dummy Variables and Interactions",
+        path: "docs/5_Research/econ490-r/12_Dummy.html",
+        langVersions: {
+          r: { title: "Dummy Variables and Interactions", path: "docs/5_Research/econ490-r/12_Dummy.html" },
+          stata: { title: "Exporting Regression Output", path: "docs/5_Research/econ490-stata/12_Exporting_Output.html" },
+          pystata: { title: "Exporting Regression Output", path: "docs/5_Research/econ490-pystata/12_Exporting_Output.html" }
+        }
+      },
+      { code: "RS13", title: "Good Regression Practice",
+        path: "docs/5_Research/econ490-r/13_PostReg.html",
+        langVersions: {
+          r: { title: "Good Regression Practice", path: "docs/5_Research/econ490-r/13_PostReg.html" },
+          stata: { title: "Using Dummy Variables and Interactions", path: "docs/5_Research/econ490-stata/13_Dummy.html" },
+          pystata: { title: "Using Dummy Variables and Interactions", path: "docs/5_Research/econ490-pystata/13_Dummy.html" }
+        }
+      },
+      { code: "RS14", title: "Panel Data Regressions",
+        path: "docs/5_Research/econ490-r/14_Panel_Data.html",
+        langVersions: {
+          r: { title: "Panel Data Regressions", path: "docs/5_Research/econ490-r/14_Panel_Data.html" },
+          stata: { title: "Good Regression Practices", path: "docs/5_Research/econ490-stata/14_PostReg.html" },
+          pystata: { title: "Good Regression Practices", path: "docs/5_Research/econ490-pystata/14_PostReg.html" }
+        }
+      },
+      { code: "RS15", title: "Difference-in-Differences Analysis",
+        path: "docs/5_Research/econ490-r/15_Diff_in_Diff.html",
+        langVersions: {
+          r: { title: "Difference-in-Differences Analysis", path: "docs/5_Research/econ490-r/15_Diff_in_Diff.html" },
+          stata: { title: "Panel Data Regressions", path: "docs/5_Research/econ490-stata/15_Panel_Data.html" },
+          pystata: { title: "Panel Data Regressions", path: "docs/5_Research/econ490-pystata/15_Panel_Data.html" }
+        }
+      },
+      { code: "RS16", title: "Instrumental Variable Analysis",
+        path: "docs/5_Research/econ490-r/16_IV.html",
+        langVersions: {
+          r: { title: "Instrumental Variable Analysis", path: "docs/5_Research/econ490-r/16_IV.html" },
+          stata: { title: "Differences-in-Differences Analysis", path: "docs/5_Research/econ490-stata/16_Diff_in_Diff.html" },
+          pystata: { title: "Differences-in-Differences Analysis", path: "docs/5_Research/econ490-pystata/16_Diff_in_Diff.html" }
+        }
+      },
+      { code: "RS17", title: "R Workflow Guide",
+        path: "docs/5_Research/econ490-r/17_Wf_Guide.html",
+        langVersions: {
+          r: { title: "R Workflow Guide", path: "docs/5_Research/econ490-r/17_Wf_Guide.html" },
+          stata: { title: "Instrumental Variable Analysis", path: "docs/5_Research/econ490-stata/17_IV.html" },
+          pystata: { title: "Instrumental Variable Analysis", path: "docs/5_Research/econ490-pystata/17_IV.html" }
+        }
+      }
     ]
   },
   {
@@ -734,13 +856,52 @@ const CONNECTIONS = [
   // Learn to Research language-version toggle (R / Stata / PyStata).
   // Delegated on the container since the card's contents are replaced
   // wholesale on every hover — a listener bound to the buttons directly
-  // would need re-attaching each time, this doesn't. UI only for now:
-  // just swaps which button looks active, no path-switching behavior yet.
+  // would need re-attaching each time, this doesn't.
+  //
+  // Same delegation also handles clicking the thumbnail/title/description:
+  // navigates to the node's real page, when it has one, using whichever
+  // language is currently selected. Paths in the data (e.g.
+  // "docs/2_Beginner/...") are relative to the project root, and this file
+  // sits one level down in pages/, hence the "../" prefix. Navigates
+  // window.top rather than just this iframe, so clicking actually takes
+  // the visitor to the notebook instead of loading it inside the small
+  // map iframe.
+  let currentHoveredNode = null;
+  let currentLang = "r";
+  function openNotebook(path) {
+    const url = "../" + path;
+    try { (window.top || window).location.href = url; }
+    catch (e) { window.location.href = url; }
+  }
+  // Resolves the title/path actually being shown right now: the node's
+  // language-specific version if it's a Research node with langVersions
+  // data for the selected language, otherwise just the node's own
+  // title/path as normal.
+  function resolveVersion(d, lang) {
+    if (d.langVersions && d.langVersions[lang]) return d.langVersions[lang];
+    return { title: d.title, path: d.path };
+  }
+  function renderItemCard(d, lang) {
+    currentHoveredNode = d;
+    currentLang = lang;
+    const v = resolveVersion(d, lang);
+    itemInfoDiv.html(itemInfoTemplate({
+      code: d.code, title: v.title, category: d.categoryName, categoryId: d.categoryId, path: v.path,
+      description: d.description || null, date: d.date || null,
+      courses: categoriesReferencingCode[d.code] || [],
+      activeLang: lang
+    }));
+  }
   itemInfoDiv.on("click", event => {
+    const navTarget = event.target.closest(".item-thumb.clickable, .item-body.clickable");
+    if (navTarget && currentHoveredNode) {
+      const v = resolveVersion(currentHoveredNode, currentLang);
+      if (v.path) openNotebook(v.path);
+      return;
+    }
     const btn = event.target.closest(".lang-btn");
-    if (!btn) return;
-    btn.parentElement.querySelectorAll(".lang-btn").forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
+    if (!btn || !currentHoveredNode) return;
+    renderItemCard(currentHoveredNode, btn.dataset.lang);
   });
 
   // All shows the total across the whole map (it's a catch-all, not a
@@ -767,11 +928,7 @@ const CONNECTIONS = [
   });
 
   function showItemInfo(event, d) {
-    itemInfoDiv.html(itemInfoTemplate({
-      code: d.code, title: d.title, category: d.categoryName, categoryId: d.categoryId, path: d.path,
-      description: d.description || null, date: d.date || null,
-      courses: categoriesReferencingCode[d.code] || []
-    }));
+    renderItemCard(d, "r"); // fresh hover always starts back on the R version
     // Highlight only this node's own prerequisites — edges where it's the
     // target (requires something), not edges where it's the source (is a
     // prerequisite for something else). E.g. hovering RS08 highlights
@@ -852,7 +1009,7 @@ const CONNECTIONS = [
     name: currentCategory.name,
     total: categoryNodeCount(currentCategory)
   }));
-  itemInfoDiv.html(itemInfoTemplate({ code: null, title: null, category: null, categoryId: null, path: null, description: null, date: null, courses: [] }));
+  itemInfoDiv.html(itemInfoTemplate({ code: null, title: null, category: null, categoryId: null, path: null, description: null, date: null, courses: [], activeLang: null }));
   d3.select("#category-nav div:nth-child(1)").classed("highlight", true);
 })();
 </script>
