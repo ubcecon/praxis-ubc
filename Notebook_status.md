@@ -2,52 +2,54 @@
 
 Total .qmd notebooks in `project/docs/`: **96**
 
-**PRE-RENDERED** — self-contained .html with code outputs baked in
-**REGULAR** — not pre-rendered; displays as static code in Docker build
+**FROZEN** — executed locally with Quarto 1.4.557, outputs cached in `project/_freeze/` and rendered from cache at build time
+**REGULAR** — no freeze cache; renders live (or as static code) in the Docker build
+
+Notebooks with no executable code cells (`getting_started_intro_to_data1`-style setup pages, `01_Setting_Up`, `01_Setting_Up_PyStata`, `intro_to_python_network_analysis`, `advanced_vocalization_draft`) produce no freeze cache and simply render as markdown each build.
 
 ## 1. Getting Started (5 notebooks)
 
-- `getting_started_intro_to_python` — **PRE-RENDERED**
-- `getting_started_intro_to_data2` — **PRE-RENDERED**
-- `getting_started_intro_to_jupyter` — **PRE-RENDERED**
-- `getting_started_intro_to_r` — **PRE-RENDERED**
+- `getting_started_intro_to_python` — **FROZEN**
+- `getting_started_intro_to_data2` — **FROZEN**
+- `getting_started_intro_to_jupyter` — **FROZEN**
+- `getting_started_intro_to_r` — **FROZEN**
 - `getting_started_intro_to_data1` — REGULAR
 
 ## 2. Beginner (11 notebooks)
 
-- `beginner_central_tendency` — **PRE-RENDERED**
-- `beginner_confidence_intervals` — **PRE-RENDERED**
-- `beginner_dispersion_and_dependence` — **PRE-RENDERED**
-- `beginner_distributions` — **PRE-RENDERED**
-- `beginner_hypothesis_testing` — **PRE-RENDERED**
-- `beginner_intro_to_central_tendency` — **PRE-RENDERED**
-- `beginner_intro_to_data_visualization1` — **PRE-RENDERED**
-- `beginner_intro_to_data_visualization2` — **PRE-RENDERED**
-- `beginner_intro_to_statistics2` — **PRE-RENDERED**
-- `beginner_sampling_distributions` — **PRE-RENDERED**
+- `beginner_central_tendency` — **FROZEN**
+- `beginner_confidence_intervals` — **FROZEN**
+- `beginner_dispersion_and_dependence` — **FROZEN**
+- `beginner_distributions` — **FROZEN**
+- `beginner_hypothesis_testing` — **FROZEN**
+- `beginner_intro_to_central_tendency` — **FROZEN**
+- `beginner_intro_to_data_visualization1` — **FROZEN**
+- `beginner_intro_to_data_visualization2` — **FROZEN**
+- `beginner_intro_to_statistics2` — **FROZEN**
+- `beginner_sampling_distributions` — **FROZEN**
 - `beginner_intro_to_statistics1` — REGULAR
 
 ## 3. Intermediate (5 notebooks)
 
-- `GTsummary` — **PRE-RENDERED**
-- `intermediate_interactions_and_nonlinear_terms` — **PRE-RENDERED**
-- `intermediate_intro_to_regression` — **PRE-RENDERED**
-- `intermediate_multiple_regression` — **PRE-RENDERED**
+- `GTsummary` — **FROZEN**
+- `intermediate_interactions_and_nonlinear_terms` — **FROZEN**
+- `intermediate_intro_to_regression` — **FROZEN**
+- `intermediate_multiple_regression` — **FROZEN**
 - `intermediate_issues_in_regression` — REGULAR
 
 ## 4. Advanced (19 notebooks)
 
-- `advanced_instrumental_variables1` — **PRE-RENDERED**
-- `advanced_instrumental_variables2` — **PRE-RENDERED**
-- `advanced_linear_differencing` — **PRE-RENDERED**
-- `advanced_synthetic_control` — **PRE-RENDERED**
-- `advanced_vocalization_draft` — **PRE-RENDERED**
-- `advanced_word_embeddings_python_version` — **PRE-RENDERED**
-- `intro_to_python_network_analysis` — **PRE-RENDERED**
-- `network_analysis_notebook` — **PRE-RENDERED**
-- `network_analysis_notebook_II` — **PRE-RENDERED**
-- `advanced_geospatial` — **PRE-RENDERED**
-- `advanced_geospatial_2` — **PRE-RENDERED**
+- `advanced_instrumental_variables1` — **FROZEN**
+- `advanced_instrumental_variables2` — **FROZEN**
+- `advanced_linear_differencing` — **FROZEN**
+- `advanced_synthetic_control` — **FROZEN**
+- `advanced_vocalization_draft` — **FROZEN**
+- `advanced_word_embeddings_python_version` — **FROZEN**
+- `intro_to_python_network_analysis` — **FROZEN**
+- `network_analysis_notebook` — **FROZEN**
+- `network_analysis_notebook_II` — **FROZEN**
+- `advanced_geospatial` — **FROZEN**
+- `advanced_geospatial_2` — **FROZEN**
 - `advanced_classification_and_clustering` — REGULAR
 - `advanced_difference_in_differences` — REGULAR
 - `advanced_word_embeddings_r_version` — REGULAR
@@ -59,52 +61,47 @@ Total .qmd notebooks in `project/docs/`: **96**
 
 ## 5. econ490-r (17 notebooks)
 
-- 01_Setting_Up — **PRE-RENDERED**
-- 02_Working_Rscripts — **PRE-RENDERED**
-- 03_R_Essentials — **PRE-RENDERED**
-- 04_Opening_Data_Sets — **PRE-RENDERED**
-- 05_Creating_Variables — **PRE-RENDERED**
-- 07_Combining_Datasets — **PRE-RENDERED**
-- 08_ggplot_graphs — **PRE-RENDERED**
-- 09_Combining_Graphs — **PRE-RENDERED**
-- 10_Linear_Reg — **PRE-RENDERED**
-- 11_Exporting_Output — **PRE-RENDERED**
-- 12_Dummy — **PRE-RENDERED**
-- 13_PostReg — **PRE-RENDERED**
-- 14_Panel_Data — **PRE-RENDERED**
-- 15_Diff_in_Diff — **PRE-RENDERED**
-- 16_IV — **PRE-RENDERED**
+- 01_Setting_Up — **FROZEN**
+- 02_Working_Rscripts — **FROZEN**
+- 03_R_Essentials — **FROZEN**
+- 04_Opening_Data_Sets — **FROZEN**
+- 05_Creating_Variables — **FROZEN**
+- 07_Combining_Datasets — **FROZEN**
+- 08_ggplot_graphs — **FROZEN**
+- 09_Combining_Graphs — **FROZEN**
+- 10_Linear_Reg — **FROZEN**
+- 11_Exporting_Output — **FROZEN**
+- 12_Dummy — **FROZEN**
+- 13_PostReg — **FROZEN**
+- 14_Panel_Data — **FROZEN**
+- 15_Diff_in_Diff — **FROZEN**
+- 16_IV — **FROZEN**
 - 06_Within_Group — REGULAR
 - 17_Wf_Guide — REGULAR
 
 ## 6. econ490-stata (18 notebooks)
 
-- 01 through 18 — **ALL PRE-RENDERED**
+- 01 through 18 — **ALL FROZEN**
 
 ## 7. econ490-pystata (18 notebooks)
 
-- 01_Setting_Up_PyStata — **PRE-RENDERED**
-- 02_Working_Dofiles — **PRE-RENDERED**
-- 09_Stata_Graphs — **PRE-RENDERED**
-- 11_Linear_Reg — **PRE-RENDERED**
-- 14_PostReg — **PRE-RENDERED**
-- 03 through 08, 10, 12, 13, 15-18 — REGULAR
+- 01 through 18 — **ALL FROZEN**
 
 ## 8. Projects (3 notebooks)
 
-- `Projects_Example_Project_ECON325` — **PRE-RENDERED**
-- `Projects_Example_Project_ECON326` — **PRE-RENDERED**
+- `Projects_Example_Project_ECON325` — **FROZEN**
+- `Projects_Example_Project_ECON326` — **FROZEN**
 - `intermediate_stargazer` — REGULAR
 
 ## Overall Totals
 
-- **PRE-RENDERED**: 69
-- **REGULAR**: 27
+- **FROZEN**: 82
+- **REGULAR**: 14
 - **Total**: 96
 
 ## Excluded Notebooks (4)
 
-These were not pre-rendered due to hardware and maintanance reasons:
+These were not frozen due to hardware and maintanance reasons:
 
 - `advanced_llm_apis2` — Requires a locally running Ollama server.
 - `fine_tuning_llm` — Requires GPU compute and large model downloads.

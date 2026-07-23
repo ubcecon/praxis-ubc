@@ -9,23 +9,17 @@ COPY ./meta/building/renv.lock ./project ./
 
 RUN mkdir output
 
-# Remove the locally-rendered notebooks' .qmd so Quarto skips them (their self-contained
-# HTML is placed into the output after render). Collapsed into a SINGLE layer to stay under
-# the image layer-depth cap.
-RUN rm -f \
-
-# Quarto render all documents
+# Quarto render all documents (all notebooks now render from the _freeze cache;
+# the pre-rendered-HTML splice workflow is retired). Extra deno heap for the
+# largest pages (e.g. econ490-stata 05_Opening_Data_Sets).
+ENV QUARTO_DENO_EXTRA_OPTIONS="--v8-flags=--max-old-space-size=8192"
 RUN quarto render --output-dir /app/output
 
-# Place the pre-rendered self-contained HTML (already present under /app/docs from the COPY
-# above) into the rendered output, then strip the compromised polyfill.io shim that Quarto
-# <1.4 injected into MathJax pages. polyfill.io was taken over by a malicious operator (2024
-# supply-chain attack); the shim is unnecessary for MathJax 3 on modern browsers. The base
-# image is now Quarto 1.4.557 so freshly rendered pages no longer reference it, but the strip
-# stays as a version-independent safety net for the pre-rendered HTML. All in one layer.
-RUN mkdir -p /app/output/docs && cd /app/docs && cp --parents \
-    /app/output/docs/ \
-    && find /app/output -name '*.html' -exec \
+# Strip the compromised polyfill.io shim that Quarto <1.4 injected into MathJax pages.
+# polyfill.io was taken over by a malicious operator (2024 supply-chain attack); the base
+# image is Quarto 1.4.557 so rendered pages no longer reference it, but the strip stays
+# as a version-independent safety net.
+RUN find /app/output -name '*.html' -exec \
     sed -i 's#<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>##g' {} +
 
 # Add the per-notebook launch button (chooses which notebooks get it via launch_notebook.html)
