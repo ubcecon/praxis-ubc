@@ -13,10 +13,6 @@ RUN mkdir output
 # HTML is placed into the output after render). Collapsed into a SINGLE layer to stay under
 # the image layer-depth cap.
 RUN rm -f \
-    ./docs/3_Intermediate/intermediate_interactions_and_nonlinear_terms/intermediate_interactions_and_nonlinear_terms.qmd \
-    ./docs/3_Intermediate/intermediate_intro_to_regression/intermediate_intro_to_regression.qmd \
-    ./docs/3_Intermediate/intermediate_multiple_regression/intermediate_multiple_regression.qmd \
-    ./docs/3_Intermediate/intermediate_summary_statistics/GTsummary.qmd \
     ./docs/4_Advanced/advanced_geospatial/advanced_geospatial.qmd \
     ./docs/4_Advanced/advanced_geospatial/advanced_geospatial_2.qmd \
     ./docs/4_Advanced/advanced_instrumental_variables/advanced_instrumental_variables1.qmd \
@@ -78,9 +74,7 @@ RUN rm -f \
     ./docs/5_Research/econ490-stata/15_Panel_Data.qmd \
     ./docs/5_Research/econ490-stata/16_Diff_in_Diff.qmd \
     ./docs/5_Research/econ490-stata/17_IV.qmd \
-    ./docs/5_Research/econ490-stata/18_Wf_Guide2.qmd \
-    ./docs/6_Projects/projects_example_project_econ325/Projects_Example_Project_ECON325.qmd \
-    ./docs/6_Projects/projects_example_project_econ326/Projects_Example_Project_ECON326.qmd
+    ./docs/5_Research/econ490-stata/18_Wf_Guide2.qmd
 
 # Quarto render all documents
 RUN quarto render --output-dir /app/output
@@ -92,10 +86,6 @@ RUN quarto render --output-dir /app/output
 # image is now Quarto 1.4.557 so freshly rendered pages no longer reference it, but the strip
 # stays as a version-independent safety net for the pre-rendered HTML. All in one layer.
 RUN mkdir -p /app/output/docs && cd /app/docs && cp --parents \
-    3_Intermediate/intermediate_interactions_and_nonlinear_terms/intermediate_interactions_and_nonlinear_terms.html \
-    3_Intermediate/intermediate_intro_to_regression/intermediate_intro_to_regression.html \
-    3_Intermediate/intermediate_multiple_regression/intermediate_multiple_regression.html \
-    3_Intermediate/intermediate_summary_statistics/GTsummary.html \
     4_Advanced/advanced_geospatial/advanced_geospatial.html \
     4_Advanced/advanced_geospatial/advanced_geospatial_2.html \
     4_Advanced/advanced_instrumental_variables/advanced_instrumental_variables1.html \
@@ -158,8 +148,6 @@ RUN mkdir -p /app/output/docs && cd /app/docs && cp --parents \
     5_Research/econ490-stata/16_Diff_in_Diff.html \
     5_Research/econ490-stata/17_IV.html \
     5_Research/econ490-stata/18_Wf_Guide2.html \
-    6_Projects/projects_example_project_econ325/Projects_Example_Project_ECON325.html \
-    6_Projects/projects_example_project_econ326/Projects_Example_Project_ECON326.html \
     /app/output/docs/ \
     && find /app/output -name '*.html' -exec \
     sed -i 's#<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>##g' {} +
