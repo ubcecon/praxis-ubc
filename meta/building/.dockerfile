@@ -31,21 +31,6 @@ RUN rm -f \
     ./docs/5_Research/econ490-pystata/16_Diff_in_Diff.qmd \
     ./docs/5_Research/econ490-pystata/17_IV.qmd \
     ./docs/5_Research/econ490-pystata/18_Wf_Guide2.qmd \
-    ./docs/5_Research/econ490-r/01_Setting_Up.qmd \
-    ./docs/5_Research/econ490-r/02_Working_Rscripts.qmd \
-    ./docs/5_Research/econ490-r/03_R_Essentials.qmd \
-    ./docs/5_Research/econ490-r/04_Opening_Data_Sets.qmd \
-    ./docs/5_Research/econ490-r/05_Creating_Variables.qmd \
-    ./docs/5_Research/econ490-r/07_Combining_Datasets.qmd \
-    ./docs/5_Research/econ490-r/08_ggplot_graphs.qmd \
-    ./docs/5_Research/econ490-r/09_Combining_Graphs.qmd \
-    ./docs/5_Research/econ490-r/10_Linear_Reg.qmd \
-    ./docs/5_Research/econ490-r/11_Exporting_Output.qmd \
-    ./docs/5_Research/econ490-r/12_Dummy.qmd \
-    ./docs/5_Research/econ490-r/13_PostReg.qmd \
-    ./docs/5_Research/econ490-r/14_Panel_Data.qmd \
-    ./docs/5_Research/econ490-r/15_Diff_in_Diff.qmd \
-    ./docs/5_Research/econ490-r/16_IV.qmd \
     ./docs/5_Research/econ490-stata/01_Setting_Up.qmd \
     ./docs/5_Research/econ490-stata/02_Working_Dofiles.qmd \
     ./docs/5_Research/econ490-stata/03_Stata_Essentials.qmd \
@@ -93,21 +78,6 @@ RUN mkdir -p /app/output/docs && cd /app/docs && cp --parents \
     5_Research/econ490-pystata/16_Diff_in_Diff.html \
     5_Research/econ490-pystata/17_IV.html \
     5_Research/econ490-pystata/18_Wf_Guide2.html \
-    5_Research/econ490-r/01_Setting_Up.html \
-    5_Research/econ490-r/02_Working_Rscripts.html \
-    5_Research/econ490-r/03_R_Essentials.html \
-    5_Research/econ490-r/04_Opening_Data_Sets.html \
-    5_Research/econ490-r/05_Creating_Variables.html \
-    5_Research/econ490-r/07_Combining_Datasets.html \
-    5_Research/econ490-r/08_ggplot_graphs.html \
-    5_Research/econ490-r/09_Combining_Graphs.html \
-    5_Research/econ490-r/10_Linear_Reg.html \
-    5_Research/econ490-r/11_Exporting_Output.html \
-    5_Research/econ490-r/12_Dummy.html \
-    5_Research/econ490-r/13_PostReg.html \
-    5_Research/econ490-r/14_Panel_Data.html \
-    5_Research/econ490-r/15_Diff_in_Diff.html \
-    5_Research/econ490-r/16_IV.html \
     5_Research/econ490-stata/01_Setting_Up.html \
     5_Research/econ490-stata/02_Working_Dofiles.html \
     5_Research/econ490-stata/03_Stata_Essentials.html \
