@@ -4,7 +4,7 @@ FROM alexr951/comet-base:safe AS builder
 
 WORKDIR /app
 
-# Copy files from Github (places the pre-rendered notebook .html under /app/docs/...)
+# Copy project sources (incl. project/_freeze cache) into the build stage
 COPY ./meta/building/renv.lock ./project ./
 
 RUN mkdir output
