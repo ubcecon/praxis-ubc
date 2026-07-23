@@ -13,17 +13,6 @@ RUN mkdir output
 # HTML is placed into the output after render). Collapsed into a SINGLE layer to stay under
 # the image layer-depth cap.
 RUN rm -f \
-    ./docs/4_Advanced/advanced_geospatial/advanced_geospatial.qmd \
-    ./docs/4_Advanced/advanced_geospatial/advanced_geospatial_2.qmd \
-    ./docs/4_Advanced/advanced_instrumental_variables/advanced_instrumental_variables1.qmd \
-    ./docs/4_Advanced/advanced_instrumental_variables/advanced_instrumental_variables2.qmd \
-    ./docs/4_Advanced/advanced_linear_differencing/advanced_linear_differencing.qmd \
-    ./docs/4_Advanced/advanced_network_analysis/intro_to_python_network_analysis.qmd \
-    ./docs/4_Advanced/advanced_network_analysis/network_analysis_notebook.qmd \
-    ./docs/4_Advanced/advanced_network_analysis/network_analysis_notebook_II.qmd \
-    ./docs/4_Advanced/advanced_synthetic_control/advanced_synthetic_control.qmd \
-    ./docs/4_Advanced/advanced_vocalization/advanced_vocalization_draft.qmd \
-    ./docs/4_Advanced/advanced_word_embeddings/advanced_word_embeddings_python_version.qmd \
     ./docs/5_Research/econ490-pystata/01_Setting_Up_PyStata.qmd \
     ./docs/5_Research/econ490-pystata/02_Working_Dofiles.qmd \
     ./docs/5_Research/econ490-pystata/09_Stata_Graphs.qmd \
@@ -86,17 +75,6 @@ RUN quarto render --output-dir /app/output
 # image is now Quarto 1.4.557 so freshly rendered pages no longer reference it, but the strip
 # stays as a version-independent safety net for the pre-rendered HTML. All in one layer.
 RUN mkdir -p /app/output/docs && cd /app/docs && cp --parents \
-    4_Advanced/advanced_geospatial/advanced_geospatial.html \
-    4_Advanced/advanced_geospatial/advanced_geospatial_2.html \
-    4_Advanced/advanced_instrumental_variables/advanced_instrumental_variables1.html \
-    4_Advanced/advanced_instrumental_variables/advanced_instrumental_variables2.html \
-    4_Advanced/advanced_linear_differencing/advanced_linear_differencing.html \
-    4_Advanced/advanced_network_analysis/intro_to_python_network_analysis.html \
-    4_Advanced/advanced_network_analysis/network_analysis_notebook.html \
-    4_Advanced/advanced_network_analysis/network_analysis_notebook_II.html \
-    4_Advanced/advanced_synthetic_control/advanced_synthetic_control.html \
-    4_Advanced/advanced_vocalization/advanced_vocalization_draft.html \
-    4_Advanced/advanced_word_embeddings/advanced_word_embeddings_python_version.html \
     5_Research/econ490-pystata/01_Setting_Up_PyStata.html \
     5_Research/econ490-pystata/02_Working_Dofiles.html \
     5_Research/econ490-pystata/09_Stata_Graphs.html \
