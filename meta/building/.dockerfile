@@ -12,20 +12,7 @@ RUN mkdir output
 # Remove the locally-rendered notebooks' .qmd so Quarto skips them (their self-contained
 # HTML is placed into the output after render). Collapsed into a SINGLE layer to stay under
 # the image layer-depth cap.
-RUN rm -f ./docs/1_Getting_Started/getting_started_intro_to_data/getting_started_intro_to_data2.qmd \
-    ./docs/1_Getting_Started/getting_started_intro_to_jupyter/getting_started_intro_to_jupyter.qmd \
-    ./docs/1_Getting_Started/getting_started_intro_to_python/getting_started_intro_to_python.qmd \
-    ./docs/1_Getting_Started/getting_started_intro_to_r/getting_started_intro_to_r.qmd \
-    ./docs/2_Beginner/beginner_central_tendency/beginner_central_tendency.qmd \
-    ./docs/2_Beginner/beginner_confidence_intervals/beginner_confidence_intervals.qmd \
-    ./docs/2_Beginner/beginner_dispersion_and_dependence/beginner_dispersion_and_dependence.qmd \
-    ./docs/2_Beginner/beginner_distributions/beginner_distributions.qmd \
-    ./docs/2_Beginner/beginner_hypothesis_testing/beginner_hypothesis_testing.qmd \
-    ./docs/2_Beginner/beginner_intro_to_central_tendency/beginner_intro_to_central_tendency.qmd \
-    ./docs/2_Beginner/beginner_intro_to_data_visualization1/beginner_intro_to_data_visualization1.qmd \
-    ./docs/2_Beginner/beginner_intro_to_data_visualization2/beginner_intro_to_data_visualization2.qmd \
-    ./docs/2_Beginner/beginner_intro_to_statistics2/beginner_intro_to_statistics2.qmd \
-    ./docs/2_Beginner/beginner_sampling_distributions/beginner_sampling_distributions.qmd \
+RUN rm -f \
     ./docs/3_Intermediate/intermediate_interactions_and_nonlinear_terms/intermediate_interactions_and_nonlinear_terms.qmd \
     ./docs/3_Intermediate/intermediate_intro_to_regression/intermediate_intro_to_regression.qmd \
     ./docs/3_Intermediate/intermediate_multiple_regression/intermediate_multiple_regression.qmd \
@@ -105,20 +92,6 @@ RUN quarto render --output-dir /app/output
 # image is now Quarto 1.4.557 so freshly rendered pages no longer reference it, but the strip
 # stays as a version-independent safety net for the pre-rendered HTML. All in one layer.
 RUN mkdir -p /app/output/docs && cd /app/docs && cp --parents \
-    1_Getting_Started/getting_started_intro_to_data/getting_started_intro_to_data2.html \
-    1_Getting_Started/getting_started_intro_to_jupyter/getting_started_intro_to_jupyter.html \
-    1_Getting_Started/getting_started_intro_to_python/getting_started_intro_to_python.html \
-    1_Getting_Started/getting_started_intro_to_r/getting_started_intro_to_r.html \
-    2_Beginner/beginner_central_tendency/beginner_central_tendency.html \
-    2_Beginner/beginner_confidence_intervals/beginner_confidence_intervals.html \
-    2_Beginner/beginner_dispersion_and_dependence/beginner_dispersion_and_dependence.html \
-    2_Beginner/beginner_distributions/beginner_distributions.html \
-    2_Beginner/beginner_hypothesis_testing/beginner_hypothesis_testing.html \
-    2_Beginner/beginner_intro_to_central_tendency/beginner_intro_to_central_tendency.html \
-    2_Beginner/beginner_intro_to_data_visualization1/beginner_intro_to_data_visualization1.html \
-    2_Beginner/beginner_intro_to_data_visualization2/beginner_intro_to_data_visualization2.html \
-    2_Beginner/beginner_intro_to_statistics2/beginner_intro_to_statistics2.html \
-    2_Beginner/beginner_sampling_distributions/beginner_sampling_distributions.html \
     3_Intermediate/intermediate_interactions_and_nonlinear_terms/intermediate_interactions_and_nonlinear_terms.html \
     3_Intermediate/intermediate_intro_to_regression/intermediate_intro_to_regression.html \
     3_Intermediate/intermediate_multiple_regression/intermediate_multiple_regression.html \
