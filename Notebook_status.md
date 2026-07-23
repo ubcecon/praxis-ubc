@@ -5,7 +5,7 @@ Total .qmd notebooks in `project/docs/`: **96**
 **FROZEN** — executed locally with Quarto 1.4.557, outputs cached in `project/_freeze/` and rendered from cache at build time
 **REGULAR** — no freeze cache; renders live (or as static code) in the Docker build
 
-Notebooks with no executable code cells (`getting_started_intro_to_data1`-style setup pages, `01_Setting_Up`, `01_Setting_Up_PyStata`, `intro_to_python_network_analysis`, `advanced_vocalization_draft`) produce no freeze cache and simply render as markdown each build.
+Five FROZEN-set notebooks have no executable code cells and therefore no freeze cache — they render as plain markdown each build: `econ490-r/01_Setting_Up`, `econ490-stata/01_Setting_Up`, `econ490-pystata/01_Setting_Up_PyStata`, `intro_to_python_network_analysis`, `advanced_vocalization_draft`. (82 FROZEN = 77 cached + these 5.)
 
 ## 1. Getting Started (5 notebooks)
 
