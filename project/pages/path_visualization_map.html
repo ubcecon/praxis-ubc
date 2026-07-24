@@ -9,16 +9,13 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.13.6/underscore-min.js" crossorigin="anonymous"></script>
 
 <style>
-/* =========================================================================
-   COLOR PALETTE — same Comet variables used elsewhere in the project.
-   ========================================================================= */
+/* 1. COLOR PALETTE + THUMBNAIL STYLES */
 :root {
   --color-bg: #FFFFFF;
   --color-surface: #f8f9fa;
   --color-fg: #041746;
   --color-fg-muted: #7D7D7D;
   --color-tooltip-border: rgba(0, 0, 0, 0.1);
-  --color-link: #0052cc;
   --color-node: #00AADD;       /* all nodes, default state */
   --color-connector: #7D7D7D;       /* all connector lines, default state */
   --color-connector-hover: #041746; /* connector lines touching the hovered node */
@@ -51,19 +48,14 @@ aside { flex: 1 1 35%; min-width: 260px; display: flex; flex-direction: column; 
 .panel .muted { color: var(--color-fg-muted); font-size: 12px; }
 #category-panel { border: none; background: transparent; padding: 4px 4px 0 4px; }
 
-/* Matches the site's index-listing cards (thumbnail + title + description
-   + date) — same treatment, just a single card instead of a grid, shown
-   here for whatever node is currently hovered. */
+/* Hover mirrors addition to style.css */
 #item-info {
   padding: 0;
   overflow: hidden;
   min-height: 260px;
   display: flex;
   flex-direction: column;
-  /* Hover-lift, ported from the site's listing-card style.css — same
-     effect, just retargeted to this card's own markup since there's no
-     Quarto grid/link wrapper here to hang .quarto-grid-item/-link off of. */
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease; /* hover-lift */
 }
 #item-info:hover {
   transform: translateY(-6px);
@@ -79,9 +71,8 @@ aside { flex: 1 1 35%; min-width: 260px; display: flex; flex-direction: column; 
 }
 .item-thumb-wrap { position: relative; }
 #item-info .item-thumb.clickable { cursor: pointer; }
-/* Language-version toggle for Learn to Research nodes (R / Stata /
-   PyStata). UI only for now — buttons just switch which one looks
-   active; nothing behind them is wired to real paths yet. */
+
+/* Language-version toggle (R / Stata / PyStata) — Learn to Research only */
 .lang-toggle {
   position: absolute; top: 8px; right: 8px;
   display: flex; gap: 4px;
@@ -106,7 +97,7 @@ aside { flex: 1 1 35%; min-width: 260px; display: flex; flex-direction: column; 
 #item-info .item-desc {
   font-size: 12.5px; color: var(--color-fg-muted); line-height: 1.5; margin: 0 0 10px 0;
   display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
-  line-clamp: 4; /* standardized property alongside the legacy -webkit- one, for tooling/lint compatibility */
+  line-clamp: 4; 
 }
 #item-info .item-meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 #item-info .item-date { font-size: 10.5px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--color-fg-muted); white-space: nowrap; }
@@ -162,24 +153,7 @@ aside { flex: 1 1 35%; min-width: 260px; display: flex; flex-direction: column; 
 </script>
 
 <script>
-/* =========================================================================
-   DATA — built directly from _quarto.yml plus course details supplied
-   directly.
-
-   - "Getting Started" comes from docs/1_Getting_Started/ (5 files) and has
-     real prerequisite structure (see CONNECTIONS + CUSTOM_LAYOUTS).
-   - "Beginner" / "Intermediate - Econometrics" / "Intermediate -
-     Geospatial" / "Advanced" come from the docs/2_Beginner, 3_Intermediate,
-     3_Intermediate/geog_374, and 4_Advanced folders.
-   - "Learn to Research" is the econ490 curriculum (R version only; the
-     Python/Stata versions are identical content, not separately listed).
-   - Each course (AMNE 376, ECON 227, ECON 226/227, ECON 325, ECON 326,
-     GEOG 374, HIST 414, SOCI 280, SOCI 415) is its own top-level category.
-     Where a course's content is the same material already shown elsewhere
-     (e.g. GEOG 374 = the Intermediate - Geospatial labs), that category
-     has no items of its own — it just cross-references the existing node
-     codes via `highlightCodes`, so nothing is duplicated on the map.
-   ========================================================================= */
+/*2. DATA: CATEGORIES */
 const CATEGORIES = [
   {
     id: "all", name: "All",
@@ -412,9 +386,6 @@ const CATEGORIES = [
       { code: "A19", title: "Network Analysis II", path: "docs/4_Advanced/advanced_network_analysis/network_analysis_notebook_II.html" }
     ]
   },
-
-  /* ---- Courses: each is its own top-level category ---- */
-
   {
     id: "amne-376", name: "AMNE 376",
     description: "Course-specific content — no prerequisites stated.",
@@ -478,148 +449,16 @@ const CATEGORIES = [
   }
 ];
 
-// Row order, bottom to top (y = 0 is lowest on screen). Only categories
-// with their own items need a row — the cross-reference-only courses
-// (ECON 226/227, ECON 325, ECON 326, GEOG 374) have none, so they don't
-// appear here at all; they just highlight nodes that already live in
-// another row.
+/* 3. LAYOUT: rows */
+
 const ROW_ORDER = [
   "getting-started", "beginner", "intermediate-econ", "intermediate-geo", "advanced", "research", "all",
   "soci-280", "econ-227", "amne-376", "hist-414", "soci-415"
 ];
 
-// Most categories just spread their items evenly across x within their row.
-// A few have real prerequisite structure, so they get a small hand-placed
-// DAG layout instead: level 0 = no prerequisites, and each level up
-// depends on something in the level below.
-const CUSTOM_LAYOUTS = {
-  "getting-started": {
-    "GS-JN": { level: 0, x: 0 },
-    "GS-PY": { level: 1, x: -3 },
-    "GS-R":  { level: 1, x: 3 },
-    "GS-D1": { level: 2, x: 0 },
-    "GS-D2": { level: 3, x: 0 }
-  },
-  "intermediate-econ": {
-    "IE01": { level: 0, x: 0 },
-    "IE02": { level: 1, x: -3 },
-    "IE04": { level: 1, x: 3 },
-    "IE03": { level: 2, x: -4.5 },
-    "IE05": { level: 2, x: -1.5 }
-  },
-  "beginner": {
-    "B01": { level: 0, x: -8 },
-    "B02": { level: 0, x: -4.5 },
-    "B03": { level: 0, x: -1 },
-    "B08": { level: 0, x: 6 },
-    "B04": { level: 1, x: 6 },
-    "B09": { level: 1, x: 9 },
-    "B10": { level: 2, x: 6 },
-    "B05": { level: 3, x: 6 },
-    "B06": { level: 4, x: 4 },
-    "B11": { level: 4, x: 8 },
-    "B07": { level: 5, x: 4 }
-  },
-  "advanced": {
-    "A01": { level: 0, x: -9 },    "A02": { level: 1, x: -9 },
-    "A06": { level: 1, x: -7.4 },  "A05": { level: 0, x: -5.8 },
-    "A03": { level: 0, x: -4.2 },  "A04": { level: 1, x: -4.2 },
-    "A07": { level: 0, x: -2.6 },  "A08": { level: 1, x: -2.6 },
-    "A09": { level: 0, x: -0.4 },
-    "A10": { level: 0, x: 0.8 },
-    "A11": { level: 0, x: 2.1 },
-    "A12": { level: 0, x: 3.3 },
-    "A13": { level: 0, x: 4.5 },
-    "A14": { level: 0, x: 5.7 },
-    "A15": { level: 0, x: 7.0 },
-    "A16": { level: 0, x: 8.2 },
-    "A17": { level: 0, x: 9.4 }, "A18": { level: 1, x: 9.4 }, "A19": { level: 2, x: 9.4 }
-  },
-  "research": {
-    "RS01": { level: 0, x: 0 },
-    "RS02": { level: 1, x: 0 },
-    "RS03": { level: 2, x: 0 },
-    "RS04": { level: 3, x: 0 },
-    "RS05": { level: 4, x: 0 },
-    "RS06": { level: 5, x: -4 },
-    "RS07": { level: 6, x: -4 },
-    "RS08": { level: 5, x: 3 },
-    "RS09": { level: 9, x: -2 },
-    "RS10": { level: 9, x: -0.6 },
-    "RS11": { level: 9, x: 0.85 },
-    "RS12": { level: 9, x: 2.3 },
-    "RS13": { level: 9, x: 3.7 },
-    "RS14": { level: 9, x: 5.1 },
-    "RS15": { level: 9, x: 6.6 },
-    "RS16": { level: 9, x: 8.0 },
-    "RS17": { level: 9, x: 9.4 }
-  },
-  // ALL: no prerequisite structure, just two loose clusters flanking the
-  // main chain (left / right) instead of one flat row, so they nestle into
-  // whatever open space sits beside the tree instead of floating above it.
-  "all": {
-    "ALL01": { level: 0,   x: -9.4 },
-    "ALL02": { level: 1.4, x: -7.6 },
-    "ALL03": { level: 0.6, x: -8.6 },
-    "ALL04": { level: 2,   x: -6.6 },
-    "ALL05": { level: 0,   x: 7.4 },
-    "ALL06": { level: 1.3, x: 8.6 },
-    "ALL07": { level: 0.6, x: 9.6 }
-  },
-  // SOCI 415: CBDB Dataset sits above KINMATRIX (its prerequisite);
-  // Introduction to Network Analysis is independent, off to the side.
-  "soci-415": {
-    "SOCI415-A": { level: 0, x: -3 },
-    "SOCI415-B": { level: 0, x: 3 },
-    "SOCI415-C": { level: 1, x: 3 }
-  }
-};
+/* 4. DATA: CONNECTIONS (prerequisites)*/
+const RAW_CONNECTIONS = [
 
-const allNodes = [];
-// Most categories' internal chains fit in a modest vertical band so they
-// don't reach into the next row. Research's chain is taller (RS08's
-// children now sit many levels above it, by request), so it gets a much
-// bigger band to actually reach up into rather than being rescaled down
-// to fit the default.
-const LEVEL_CEILING = { research: 1.9 };
-CATEGORIES.forEach(cat => {
-  const rowY = ROW_ORDER.indexOf(cat.id);
-  const custom = CUSTOM_LAYOUTS[cat.id];
-  const n = cat.items.length;
-  // Normalize the vertical step so the tallest chain in this category's
-  // tree still fits within the row band, no matter how many levels it
-  // ends up with.
-  let maxLevel = 0;
-  if (custom) Object.values(custom).forEach(v => { if (v.level > maxLevel) maxLevel = v.level; });
-  const ceiling = LEVEL_CEILING[cat.id] || 0.85;
-  const step = maxLevel > 0 ? ceiling / maxLevel : 0.28;
-  cat.items.forEach((item, i) => {
-    let x, y;
-    if (custom && custom[item.code]) {
-      x = custom[item.code].x;
-      y = rowY + custom[item.code].level * step;
-    } else {
-      x = n === 1 ? 0 : -9 + i * (18 / (n - 1));
-      y = rowY;
-    }
-    allNodes.push({ ...item, categoryId: cat.id, categoryName: cat.name, x, y });
-  });
-});
-
-const nodeByCode = Object.fromEntries(allNodes.map(n => [n.code, n]));
-
-// Reverse lookup: which categories (by name) cross-reference a given node
-// code via highlightCodes. Powers the "Also in: ..." line in the hover
-// panel — e.g. hovering Intro to Statistics II shows both ECON 325 and
-// ECON 226/227, since both reference it without owning it.
-const categoriesReferencingCode = {};
-CATEGORIES.forEach(cat => {
-  (cat.highlightCodes || []).forEach(code => {
-    (categoriesReferencingCode[code] = categoriesReferencingCode[code] || []).push(cat.name);
-  });
-});
-
-const CONNECTIONS = [
   // Getting Started
   { from: "GS-JN", to: "GS-PY" },
   { from: "GS-JN", to: "GS-R" },
@@ -701,12 +540,140 @@ const CONNECTIONS = [
 
   // SOCI 415
   { from: "SOCI415-B", to: "SOCI415-C" } // CBDB Dataset requires KINMATRIX Dataset
-].map(c => ({ ...c, source: nodeByCode[c.from], target: nodeByCode[c.to] }));
+]
 
-/* =========================================================================
-   CHART
-   ========================================================================= */
+/*5. AUTO-LAYOUT */
+const LEVEL_STEP = 0.22;       // vertical distance per level of prerequisite depth
+const SIBLING_SPACING = 1.6;   // horizontal gap between siblings that would otherwise overlap
+const WIDE_PARENT_THRESHOLD = 6;  // a node with at least this many dependents...
+const WIDE_PARENT_EXTRA_LEVELS = 2; // ...pushes them this many extra levels away
+const SEMI_CIRCLE_THRESHOLD = 5;      // a sibling group of MORE than this many...
+const SEMI_CIRCLE_SPAN = Math.PI * 0.78;  // ...sprawls across this total angle (~140°)...
+const SEMI_CIRCLE_X_RADIUS = 5.5;         // ...this wide (unit x-space)...
+const SEMI_CIRCLE_LEVEL_RADIUS = 11;      // ...and this tall at its peak (level units)
+
+function computeAutoLayout(cat) {
+  const codes = cat.items.map(it => it.code);
+  const codeSet = new Set(codes);
+
+  const parentsOf = {};
+  const childrenOf = {};
+  codes.forEach(c => { parentsOf[c] = []; childrenOf[c] = []; });
+  RAW_CONNECTIONS.forEach(c => {
+    if (codeSet.has(c.from) && codeSet.has(c.to)) {
+      parentsOf[c.to].push(c.from);
+      childrenOf[c.from].push(c.to);
+    }
+  });
+
+  const levelOf = {};
+  function level(code) {
+    if (levelOf[code] !== undefined) return levelOf[code];
+    levelOf[code] = 0;
+    const parents = parentsOf[code];
+    levelOf[code] = parents.length
+      ? Math.max(...parents.map(p => {
+          const step = childrenOf[p].length >= WIDE_PARENT_THRESHOLD ? 1 + WIDE_PARENT_EXTRA_LEVELS : 1;
+          return level(p) + step;
+        }))
+      : 0;
+    return levelOf[code];
+  }
+  codes.forEach(level);
+
+  const byLevel = {};
+  codes.forEach(c => { (byLevel[levelOf[c]] = byLevel[levelOf[c]] || []).push(c); });
+
+  const xOf = {};
+  Object.keys(byLevel).map(Number).sort((a, b) => a - b).forEach(l => {
+    const atLevel = byLevel[l];
+
+    if (l === 0) {
+      // keeps same category nodes close
+      const n = atLevel.length;
+      const spacing = 2.2;
+      const totalWidth = Math.min(spacing * (n - 1), 18);
+      atLevel.forEach((code, i) => {
+        xOf[code] = n === 1 ? 0 : -totalWidth / 2 + i * (totalWidth / (n - 1));
+      });
+      return;
+    }
+
+    // Everyone else starts at the average x of their intra-category
+    // parent(s), directly under/between them.
+    atLevel.forEach(code => {
+      const parents = parentsOf[code];
+      xOf[code] = parents.reduce((sum, p) => sum + (xOf[p] ?? 0), 0) / parents.length;
+    });
+
+    // Distirbutes dependents into a semi-circle
+    const groups = {};
+    atLevel.forEach(code => {
+      const key = xOf[code].toFixed(1);
+      (groups[key] = groups[key] || []).push(code);
+    });
+    Object.values(groups).forEach(group => {
+      if (group.length < 2) return;
+      const baseX = xOf[group[0]];
+
+      if (group.length > SEMI_CIRCLE_THRESHOLD) {
+        const baseLevel = levelOf[group[0]]; // shared level before this adjustment
+        const n = group.length;
+        group.forEach((code, i) => {
+          const t = i / (n - 1); // 0..1 across the group
+          const angle = -SEMI_CIRCLE_SPAN / 2 + t * SEMI_CIRCLE_SPAN; // sweeps left to right
+          xOf[code] = baseX + SEMI_CIRCLE_X_RADIUS * Math.sin(angle);
+          levelOf[code] = baseLevel + SEMI_CIRCLE_LEVEL_RADIUS * Math.cos(angle); // tallest in the middle, tapering at the ends
+        });
+        return;
+      }
+
+      const spread = SIBLING_SPACING * (group.length - 1);
+      group.forEach((code, i) => { xOf[code] = baseX - spread / 2 + i * SIBLING_SPACING; });
+    });
+  });
+
+  return { level: levelOf, x: xOf };
+}
+
+/* 6. BUILD NODE LIST */
+const BIASED_SIDELINE_IDS = ["amne-376", "econ-227", "hist-414", "soci-280", "soci-415"];
+const SIDE_START_BIAS = 6.5;
+const sideBiasOf = {};
+BIASED_SIDELINE_IDS.forEach((id, i) => { sideBiasOf[id] = (i % 2 === 0) ? -SIDE_START_BIAS : SIDE_START_BIAS; });
+
+const allNodes = [];
+CATEGORIES.forEach(cat => {
+  const rowY = ROW_ORDER.indexOf(cat.id);
+  const layout = computeAutoLayout(cat);
+  const bias = sideBiasOf[cat.id];
+  cat.items.forEach(item => {
+    let x = layout.x[item.code] ?? 0;
+    if (bias !== undefined) x = bias + x * 0.6; // start on that side, keeping the category's own internal spread (e.g. SOCI 415's chain) compact around it
+    const y = rowY + (layout.level[item.code] || 0) * LEVEL_STEP;
+    allNodes.push({ ...item, categoryId: cat.id, categoryName: cat.name, x, y });
+  });
+});
+
+const nodeByCode = Object.fromEntries(allNodes.map(n => [n.code, n]));
+
+// code -> [category names that cross-reference it via highlightCodes].
+// Powers the hover card's "Also in: ..." line.
+const categoriesReferencingCode = {};
+CATEGORIES.forEach(cat => {
+  (cat.highlightCodes || []).forEach(code => {
+    (categoriesReferencingCode[code] = categoriesReferencingCode[code] || []).push(cat.name);
+  });
+});
+
+// Now that every node exists, resolve RAW_CONNECTIONS into the
+// { source, target } form the force simulation and renderer use.
+const CONNECTIONS = RAW_CONNECTIONS.map(c => ({ ...c, source: nodeByCode[c.from], target: nodeByCode[c.to] }));
+
+
+
 (function () {
+  /* 7. CHART SETUP */
   const width = parseInt(d3.select("#course-map").style("width"));
   const height = parseInt(d3.select("#course-map").style("height")) - 20;
   const xscale = width / 20;
@@ -714,56 +681,32 @@ const CONNECTIONS = [
   const xcoord = x => x * xscale + width / 2;
   const ycoord = y => height - y * yscale - 0.9 * yscale;
 
-  // Which nodes actually participate in a prerequisite edge at all —
-  // used below to anchor isolated nodes (no stated prereqs, e.g. most
-  // course items) more tightly to their category position instead of
-  // letting collision-avoidance scatter them away from their siblings.
+  // pulls no prereq nodes closer
   const hasConnections = new Set();
   CONNECTIONS.forEach(c => { hasConnections.add(c.from); hasConnections.add(c.to); });
 
-  // Small deterministic per-node offset (stable across reloads, not truly
-  // random) so siblings that share an anchor level don't all land on
-  // exactly the same y — a dead-flat horizontal row of nodes reads as
-  // mechanical/gridded rather than organic.
+  // avoids horizontal distribution
   function hashJitter(code, range) {
     let h = 0;
     for (let i = 0; i < code.length; i++) h = (h * 31 + code.charCodeAt(i)) | 0;
     return ((Math.abs(h) % 1000) / 1000 - 0.5) * range;
   }
 
-  // Anchor each node at its category-row position, then let a force
-  // simulation relax the layout: forceLink pulls prerequisite-connected
-  // nodes toward each other (so chains sprawl outward into whatever open
-  // space exists instead of stacking in a straight line), and forceCollide
-  // enforces a hard minimum distance so nothing overlaps. forceX/forceY
-  // keep everything from drifting too far from its category row — strong
-  // vertically (rows stay recognizable), weak horizontally (free to spread) —
-  // and stronger still for isolated nodes, so they stay clustered near the
-  // rest of their category/course instead of drifting off alone.
+  /* 8. FORCE SIMULATION */
   allNodes.forEach(d => {
     d.ax = xcoord(d.x) + hashJitter(d.code + "x", 10);
     d.ay = ycoord(d.y) + hashJitter(d.code + "y", 16);
     d.x = d.ax;
     d.y = d.ay;
   });
-  const MIN_NODE_DISTANCE = 26;
+  const MIN_NODE_DISTANCE = 36;
 
-  // Origin is GS-JN's anchor position — the true root of the graph (nearly
-  // everything traces back to it directly or indirectly) — rather than an
-  // arbitrary canvas-center point. Uses its fixed anchor (ax/ay), not its
-  // live simulated position, so the origin doesn't move out from under the
-  // simulation while it's running.
+  // Origin = GS-JN
   const gsjnNode = allNodes.find(d => d.code === "GS-JN");
   const origin = gsjnNode ? { x: gsjnNode.ax, y: gsjnNode.ay } : { x: width / 2, y: height / 2 };
 
-  // Custom force: every node must be farther from the origin than whatever
-  // it directly requires. Without this, forceLink + forceCollide can end up
-  // shoving a downstream node (e.g. one of RS08's many children) back
-  // toward the center, past its own prerequisite — reading as the chain
-  // folding back into itself instead of sprawling outward. This runs
-  // alongside the other forces each tick and just nudges velocity, same as
-  // any other d3-force.
-  const RADIAL_GAP = 22; // minimum extra distance from origin a node must keep over its prereq
+  // dependent must be further than prereq
+  const RADIAL_GAP = 22;
   function forceRadialOrder(alpha) {
     CONNECTIONS.forEach(c => {
       const s = c.source, t = c.target;
@@ -779,52 +722,64 @@ const CONNECTIONS = [
     });
   }
 
-  // Custom force: a node must sit visually *above* (smaller pixel y) each
-  // thing it directly requires — e.g. RS08's children (RS09, RS14, ...)
-  // should read as sitting above RS08, not level with or below it.
+  // Requires prereqs are bellow dependents
+  // gap increases if the prereq has many dependents
+  const dependentCountOf = {};
+  CONNECTIONS.forEach(c => { dependentCountOf[c.from] = (dependentCountOf[c.from] || 0) + 1; });
+
   const VERTICAL_GAP = 30;
+  const WIDE_VERTICAL_GAP = 65;
   function forceVerticalOrder(alpha) {
     CONNECTIONS.forEach(c => {
       const s = c.source, t = c.target;
-      if (t.y > s.y - VERTICAL_GAP) {
-        const push = (s.y - VERTICAL_GAP - t.y) * alpha * 5;
+      const gap = (dependentCountOf[c.from] || 0) >= WIDE_PARENT_THRESHOLD ? WIDE_VERTICAL_GAP : VERTICAL_GAP;
+      if (t.y > s.y - gap) {
+        const push = (s.y - gap - t.y) * alpha * 5;
         t.vy = (t.vy || 0) + push;
       }
     });
   }
 
-  // Weak global cohesion, pulling everything toward GS-JN's x — same fix
-  // as before (keeps the graph from splitting into a left mass and a right
-  // mass), just now centered on the actual root node instead of an
-  // arbitrary canvas point. Still horizontal-only: vertical position is
-  // meaningful (foundational content low, advanced high), so pulling
-  // toward a fixed vertical center would fight the ordering forces above.
-  const gravityX = d3.forceX(origin.x).strength(0.018);
+  // Positions independent nodes
+  const SIDELINE_SET = new Set(["all", "amne-376", "econ-227", "hist-414", "soci-280", "soci-415"]);
+  const canvasMiddle = { x: width / 2, y: height / 2 };
+  const SIDELINE_MIDDLE_BUFFER = 190; // must stay at least this far from the canvas middle
+  const SIDELINE_EDGE_BUFFER = 60;    // ...and at least this far from the canvas edge
+  function forceSidelineRing(alpha) {
+    const maxDist = Math.min(width, height) / 2 - SIDELINE_EDGE_BUFFER;
+    allNodes.forEach(d => {
+      if (!SIDELINE_SET.has(d.categoryId)) return;
+      const dx = d.x - canvasMiddle.x, dy = d.y - canvasMiddle.y;
+      const dist = Math.hypot(dx, dy) || 0.001;
+      const ux = dx / dist, uy = dy / dist;
+      if (dist < SIDELINE_MIDDLE_BUFFER) {
+        const push = (SIDELINE_MIDDLE_BUFFER - dist) * alpha * 6;
+        d.vx = (d.vx || 0) + ux * push;
+        d.vy = (d.vy || 0) + uy * push;
+      } else if (dist > maxDist) {
+        const push = (dist - maxDist) * alpha * 6;
+        d.vx = (d.vx || 0) - ux * push;
+        d.vy = (d.vy || 0) - uy * push;
+      }
+    });
+  }
 
-  // forceLink pulls every connected pair together, but a node with
-  // prerequisites in more than one category (e.g. RS10 needs both RS08,
-  // same category, and IE01, a different one) should sit closer to the
-  // same-category prereq than the cross-category one. Same-category edges
-  // get a stronger pull; cross-category edges a weaker one. This also
-  // directly helps "Learn to Research" read as one cohesive cluster:
-  // its many internal (research-to-research) links now pull harder than
-  // its external links out to Getting Started / Intermediate Econometrics
-  // / etc., instead of every connection competing equally.
+  // Same-category prerequisite links pull harder than cross-category ones
   const linkForce = d3.forceLink(CONNECTIONS).id(d => d.code).distance(46)
     .strength(l => (l.source.categoryId === l.target.categoryId ? 0.35 : 0.1));
 
   const sim = d3.forceSimulation(allNodes)
-    .force("x", d3.forceX(d => d.ax).strength(d => (hasConnections.has(d.code) ? 0.25 : 0.5)))
-    .force("y", d3.forceY(d => d.ay).strength(d => (hasConnections.has(d.code) ? 0.7 : 0.9)))
+    .force("x", d3.forceX(d => d.ax).strength(d => (SIDELINE_SET.has(d.categoryId) ? 0.08 : (hasConnections.has(d.code) ? 0.25 : 0.5))))
+    .force("y", d3.forceY(d => d.ay).strength(d => (SIDELINE_SET.has(d.categoryId) ? 0.08 : (hasConnections.has(d.code) ? 0.7 : 0.9))))
     .force("link", linkForce)
     .force("collide", d3.forceCollide(MIN_NODE_DISTANCE / 2))
     .force("radialOrder", forceRadialOrder)
     .force("verticalOrder", forceVerticalOrder)
-    .force("gravityX", gravityX)
+    .force("gravityX", d3.forceX(origin.x).strength(d => (SIDELINE_SET.has(d.categoryId) ? 0 : 0.018)))
+    .force("sidelineRing", forceSidelineRing)
     .stop();
 
-  // Hard boundary clamp, applied every tick: whatever the forces above do,
-  // no node is allowed to end up outside the visible canvas.
+  // Keeps every node inside the visible canvas, applied every tick.
   const EDGE_MARGIN = 16;
   function clampToBounds() {
     allNodes.forEach(d => {
@@ -834,6 +789,7 @@ const CONNECTIONS = [
   }
   for (let i = 0; i < 700; i++) { sim.tick(); clampToBounds(); }
 
+  /* 9. RENDERING */
   const svg = d3.select("#course-map svg").attr("width", width).attr("height", height);
   const linkLayer = svg.append("g").attr("fill", "none").attr("stroke-width", 1.5);
   const nodeLayer = svg.append("g");
@@ -853,30 +809,15 @@ const CONNECTIONS = [
   const itemInfoDiv = d3.select("#item-info");
   const itemInfoTemplate = _.template(d3.select("#item-info-template").html());
 
-  // Learn to Research language-version toggle (R / Stata / PyStata).
-  // Delegated on the container since the card's contents are replaced
-  // wholesale on every hover — a listener bound to the buttons directly
-  // would need re-attaching each time, this doesn't.
-  //
-  // Same delegation also handles clicking the thumbnail/title/description:
-  // navigates to the node's real page, when it has one, using whichever
-  // language is currently selected. Paths in the data (e.g.
-  // "docs/2_Beginner/...") are relative to the project root, and this file
-  // sits one level down in pages/, hence the "../" prefix. Navigates
-  // window.top rather than just this iframe, so clicking actually takes
-  // the visitor to the notebook instead of loading it inside the small
-  // map iframe.
+  /* 10. INTERACTIONS: hover card + language toggle + click-to-open */
   let currentHoveredNode = null;
   let currentLang = "r";
+
   function openNotebook(path) {
     const url = "../" + path;
     try { (window.top || window).location.href = url; }
     catch (e) { window.location.href = url; }
   }
-  // Resolves the title/path actually being shown right now: the node's
-  // language-specific version if it's a Research node with langVersions
-  // data for the selected language, otherwise just the node's own
-  // title/path as normal.
   function resolveVersion(d, lang) {
     if (d.langVersions && d.langVersions[lang]) return d.langVersions[lang];
     return { title: d.title, path: d.path };
@@ -904,9 +845,7 @@ const CONNECTIONS = [
     renderItemCard(currentHoveredNode, btn.dataset.lang);
   });
 
-  // All shows the total across the whole map (it's a catch-all, not a
-  // filtered subset); every other category shows its own item + cross-
-  // referenced count.
+  /* 11. CATEGORY NAV */
   function categoryNodeCount(cat) {
     return cat.id === "all" ? allNodes.length : cat.items.length + (cat.highlightCodes ? cat.highlightCodes.length : 0);
   }
@@ -929,10 +868,6 @@ const CONNECTIONS = [
 
   function showItemInfo(event, d) {
     renderItemCard(d, "r"); // fresh hover always starts back on the R version
-    // Highlight only this node's own prerequisites — edges where it's the
-    // target (requires something), not edges where it's the source (is a
-    // prerequisite for something else). E.g. hovering RS08 highlights
-    // RS05→RS08, not RS08→RS09/RS08→RS10/etc.
     const col = colors();
     const isOwnPrereq = conn => conn.to === d.code;
     linkLayer.selectAll("line")
@@ -941,18 +876,9 @@ const CONNECTIONS = [
       .attr("stroke-width", conn => (isOwnPrereq(conn) ? 3 : 1.5))
       .attr("opacity", conn => (isOwnPrereq(conn) ? 1 : 0.1));
   }
-  // No mouseout handler — per request, whatever a hover reveals (the info
-  // card and the highlighted prerequisite lines) stays on screen until a
-  // different node is hovered, rather than resetting when the mouse leaves.
-
   function render(duration) {
     const c = colors();
 
-    // A node is highlighted if it's owned by the selected category, or
-    // cross-referenced by it via highlightCodes (e.g. selecting ECON 325
-    // highlights the Beginner Intro to Statistics nodes it points at).
-    // "All" is the one exception: it never highlights anything, even its
-    // own nodes — it's a home for uncategorized notebooks, not a filter.
     function isHighlighted(d) {
       if (currentCategory.id === "all") return false;
       return d.categoryId === currentCategory.id ||
@@ -992,10 +918,8 @@ const CONNECTIONS = [
           .attr("stroke", d => (isHighlighted(d) ? c.accent : c.node))
       );
 
-    // Node codes stay on each node's data (d.code) for internal wiring —
-    // keying, connection lookups, the hover card — but aren't drawn as
-    // visible text on the map itself.
-
+    // (d.code stays on each node's data for internal wiring, but isn't
+    // drawn as visible text on the map.)
     hitLayer.selectAll("circle")
       .data(allNodes, d => d.code)
       .join(enter => enter.append("circle")
@@ -1004,6 +928,7 @@ const CONNECTIONS = [
         .on("mouseover", showItemInfo));
   }
 
+  /* 12. INIT */
   render(0);
   categoryInfoDiv.html(categoryInfoTemplate({
     name: currentCategory.name,
