@@ -54,8 +54,25 @@ Every notebook you have worked through in COMET or prAxIs starts the same way: `
 Data is born in **operational systems**: the checkout that records a sale, the payroll system that records your hours, the interview software running a survey. Those systems write into databases, because they need guarantees a file cannot give: never lose a row, never let two edits collide, never accept an impossible value. Statistical agencies work the same way; a release like Statistics Canada's Labour Force Survey starts as interview records in databases and passes through cleaning, coding, and weighting steps before anything public appears. The tidy CSV at the end is the visible tip of that process, and someone designed every step behind it. That someone is doing **data engineering**!
 
 ```{mermaid}
-flowchart LR
-    A["Operational systems<br/>checkouts, payroll,<br/>survey software"] --> B["Databases<br/>rules enforced,<br/>nothing lost"] --> C["Extraction and cleaning<br/>queries, coding,<br/>weighting"] --> D["The CSV<br/>you are handed"] --> E["Notebooks, models,<br/>dashboards, further analysis"]
+flowchart TB
+    subgraph ARC1["Querying data"]
+        direction LR
+        NB1["1. Why databases<br/>exist"] --> NB2["2. Basic<br/>SQL"] --> NB3["3. Advanced<br/>SQL"] --> NB4["4. Cleaning<br/>real data"]
+    end
+    subgraph ARC2["Designing and storing data"]
+        direction LR
+        NB5["5. Modeling<br/>and schemas"] --> NB6["6. Storage, speed,<br/>transactions"] --> NB7["7. OLTP, OLAP,<br/>warehouses"]
+    end
+    subgraph ARC3["Keeping data flowing"]
+        direction LR
+        NB8["8. Pipelines I:<br/>scripts to graphs"] --> NB9["9. Pipelines II:<br/>quality, lineage, time"]
+    end
+    subgraph ARC4["Data for AI"]
+        direction LR
+        NB10["10. Embeddings and<br/>vector search"] --> NB11["11. Capstone: RAG"]
+    end
+    ARC1 --> ARC2 --> ARC3 --> ARC4
+    style NB1 fill:#c8e6c9,stroke:#2e7d32,stroke-width:3px
 ```
 
 Machine learning uses the same foundation. The training corpus of a large language model is the output of a pipeline that crawls the web, filters and deduplicates it, and stores it in formats built for scale (they appear in Notebook 6). A production recommender or fraud model is retrained on features extracted, by queries, from operational databases. A retrieval-augmented (RAG) chatbot is (in its simplest form) a database attached to a model: the model's answers are only as good as what the data contains. This is an old observation in the field: the figure below, from a well-known Google paper, shows how little of a real ML system is the model itself, and how much is the data infrastructure around it.
