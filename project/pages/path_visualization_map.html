@@ -40,6 +40,13 @@ main { display: flex; gap: 16px; padding: 16px 20px; align-items: flex-start; }
   background: var(--color-surface); overflow: hidden;
 }
 #course-map svg { display: block; }
+#zoom-hint {
+  position: absolute; bottom: 8px; right: 10px;
+  font-size: 11px; color: var(--color-fg-muted);
+  background: var(--color-surface); padding: 3px 8px; border-radius: 999px;
+  border: 1px solid var(--color-tooltip-border);
+  pointer-events: none;
+}
 
 aside { flex: 1 1 35%; min-width: 260px; display: flex; flex-direction: column; gap: 12px; }
 .panel { border: 1px solid var(--color-tooltip-border); border-radius: 8px; background: var(--color-surface); padding: 14px 16px; font-size: 13px; line-height: 1.5; }
@@ -109,7 +116,10 @@ aside { flex: 1 1 35%; min-width: 260px; display: flex; flex-direction: column; 
 <div id="category-nav"></div>
 
 <main>
-  <div id="course-map"><svg></svg></div>
+  <div id="course-map">
+    <svg></svg>
+    <div id="zoom-hint">Ctrl / ⌘ + scroll to zoom</div>
+  </div>
   <aside>
     <div class="panel" id="category-panel">
       <div id="category-info"></div>
@@ -172,11 +182,11 @@ const CATEGORIES = [
     id: "getting-started", name: "Getting Started",
     description: "Onboarding: notebooks, Python, R, and first steps working with data in R. Connections below show the actual prerequisite order.",
     items: [
-      { code: "GS-JN", title: "Intro to Jupyter Notebooks", path: "docs/1_Getting_Started/getting_started_intro_to_jupyter/getting_started_intro_to_jupyter.qmd" },
-      { code: "GS-PY", title: "Intro to Python", path: "docs/1_Getting_Started/getting_started_intro_to_python/getting_started_intro_to_python.qmd" },
-      { code: "GS-R",  title: "Intro to R", path: "docs/1_Getting_Started/getting_started_intro_to_r/getting_started_intro_to_r.qmd" },
-      { code: "GS-D1", title: "Intro to Data in R (Part 1)", path: "docs/1_Getting_Started/getting_started_intro_to_data/getting_started_intro_to_data1.qmd" },
-      { code: "GS-D2", title: "Intro to Data in R (Part 2)", path: "docs/1_Getting_Started/getting_started_intro_to_data/getting_started_intro_to_data2.qmd" }
+      { code: "GS-JN", title: "Intro to Jupyter Notebooks", path: "docs/1_Getting_Started/getting_started_intro_to_jupyter/getting_started_intro_to_jupyter.html" },
+      { code: "GS-PY", title: "Intro to Python", path: "docs/1_Getting_Started/getting_started_intro_to_python/getting_started_intro_to_python.html" },
+      { code: "GS-R",  title: "Intro to R", path: "docs/1_Getting_Started/getting_started_intro_to_r/getting_started_intro_to_r.html" },
+      { code: "GS-D1", title: "Intro to Data in R (Part 1)", path: "docs/1_Getting_Started/getting_started_intro_to_data/getting_started_intro_to_data1.html" },
+      { code: "GS-D2", title: "Intro to Data in R (Part 2)", path: "docs/1_Getting_Started/getting_started_intro_to_data/getting_started_intro_to_data2.html" }
     ]
   },
   {
@@ -346,7 +356,7 @@ const CATEGORIES = [
       { code: "IE01", title: "Intro to Regression", path: "docs/3_Intermediate/intermediate_intro_to_regression" },
       { code: "IE02", title: "Multiple Regression", path: "docs/3_Intermediate/intermediate_multiple_regression" },
       { code: "IE03", title: "Interactions & Nonlinear Terms", path: "docs/3_Intermediate/intermediate_interactions_and_nonlinear_terms" },
-      { code: "IE04", title: "Summary Statistics (gtsummary)", path: "docs/3_Intermediate/intermediate_summary_statistics/GTsummary.qmd" },
+      { code: "IE04", title: "Summary Statistics (gtsummary)", path: "docs/3_Intermediate/intermediate_summary_statistics/GTsummary.html" },
       { code: "IE05", title: "Issues in Regression", path: "docs/3_Intermediate/intermediate_issues_in_regression/intermediate_issues_in_regression.html" }
     ]
   },
@@ -818,9 +828,20 @@ const CONNECTIONS = RAW_CONNECTIONS.map(c => ({ ...c, source: nodeByCode[c.from]
 
   /* 9. RENDERING */
   const svg = d3.select("#course-map svg").attr("width", width).attr("height", height);
-  const linkLayer = svg.append("g").attr("fill", "none").attr("stroke-width", 1.5);
-  const nodeLayer = svg.append("g");
-  const hitLayer = svg.append("g");
+  const zoomLayer = svg.append("g");
+  const linkLayer = zoomLayer.append("g").attr("fill", "none").attr("stroke-width", 1.5);
+  const nodeLayer = zoomLayer.append("g");
+  const hitLayer = zoomLayer.append("g");
+  const menuLayer = zoomLayer.append("g"); // on-map language picker for Research nodes, drawn last so it's on top
+
+  // Zoom
+  const zoomBehavior = d3.zoom()
+    .scaleExtent([0.5, 6])
+    .filter(event => (event.type === "wheel" ? (event.ctrlKey || event.metaKey) : !event.button))
+    .on("zoom", event => {
+      zoomLayer.attr("transform", event.transform);
+    });
+  svg.call(zoomBehavior);
 
   function colors() {
     const s = getComputedStyle(document.documentElement);
@@ -849,6 +870,42 @@ const CONNECTIONS = RAW_CONNECTIONS.map(c => ({ ...c, source: nodeByCode[c.from]
     if (d.langVersions && d.langVersions[lang]) return d.langVersions[lang];
     return { title: d.title, path: d.path };
   }
+
+  // Small R / Stata / PyStata picker
+  const LANG_OPTIONS = [{ key: "r", label: "R" }, { key: "stata", label: "Stata" }, { key: "pystata", label: "Py" }];
+  function updateLangMenu(d) {
+    menuLayer.selectAll("*").remove();
+    if (!d || !d.langVersions) return;
+    const col = colors();
+    const spacing = 24;
+    const startX = d.x - spacing;
+    const menuY = d.y - 18;
+    const langAtBuildTime = (currentHoveredNode === d) ? currentLang : "r";
+    LANG_OPTIONS.forEach((opt, i) => {
+      const active = currentHoveredNode === d && currentLang === opt.key;
+      const g = menuLayer.append("g")
+        .attr("transform", `translate(${startX + i * spacing}, ${menuY})`)
+        .style("cursor", "pointer")
+        .on("mouseover", () => {
+          if (currentHoveredNode !== d) renderItemCard(d, langAtBuildTime);
+        })
+        .on("click", event => {
+          event.stopPropagation();
+          renderItemCard(d, opt.key);
+        });
+      g.append("rect")
+        .attr("x", -11).attr("y", -9).attr("width", 22).attr("height", 18).attr("rx", 4)
+        .attr("fill", active ? col.accent : col.bg)
+        .attr("stroke", active ? col.accent : col.fgMuted).attr("stroke-width", 1);
+      g.append("text")
+        .attr("text-anchor", "middle").attr("dy", "3px")
+        .attr("font-size", 8).attr("font-weight", 600)
+        .attr("fill", active ? "#ffffff" : col.fg)
+        .style("pointer-events", "none")
+        .text(opt.label);
+    });
+  }
+
   function renderItemCard(d, lang) {
     currentHoveredNode = d;
     currentLang = lang;
@@ -859,6 +916,7 @@ const CONNECTIONS = RAW_CONNECTIONS.map(c => ({ ...c, source: nodeByCode[c.from]
       courses: categoriesReferencingCode[d.code] || [],
       activeLang: lang
     }));
+    updateLangMenu(d);
   }
   itemInfoDiv.on("click", event => {
     const navTarget = event.target.closest(".item-thumb.clickable, .item-body.clickable");
@@ -894,7 +952,8 @@ const CONNECTIONS = RAW_CONNECTIONS.map(c => ({ ...c, source: nodeByCode[c.from]
   });
 
   function showItemInfo(event, d) {
-    renderItemCard(d, "r"); // fresh hover always starts back on the R version
+    const lang = (currentHoveredNode === d) ? currentLang : "r";
+    renderItemCard(d, lang);
     const col = colors();
     const isOwnPrereq = conn => conn.to === d.code;
     linkLayer.selectAll("line")
@@ -952,7 +1011,13 @@ const CONNECTIONS = RAW_CONNECTIONS.map(c => ({ ...c, source: nodeByCode[c.from]
       .join(enter => enter.append("circle")
         .attr("r", 10).attr("fill", "transparent")
         .attr("cx", d => d.x).attr("cy", d => d.y)
-        .on("mouseover", showItemInfo));
+        .style("cursor", d => (d.path ? "pointer" : "default"))
+        .on("mouseover", showItemInfo)
+        .on("click", (event, d) => {
+          const lang = (currentHoveredNode && currentHoveredNode.code === d.code) ? currentLang : "r";
+          const v = resolveVersion(d, lang);
+          if (v.path) openNotebook(v.path);
+        }));
   }
 
   /* 12. INIT */
