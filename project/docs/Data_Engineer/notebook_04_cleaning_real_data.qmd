@@ -3,7 +3,7 @@ title: "Cleaning Real Data"
 author: Alex Ronczewski
 date: 2026-07-25
 image: /pages/index/placeholder_images/placeholder.png
-description: "The fourth notebook in the Data Engineering stream. The survey we have been querying was clean because somebody cleaned it, this time we have to do it. A messy pilot file arrives, we write the cleaning as a SQL script over raw data we never touch."
+description: "The fourth notebook in the Data Engineering stream. The survey we have been querying was clean because somebody cleaned it, this time we have to do it. We get a messy pilot file, and we write the cleaning as a SQL script over raw data we never touch."
 categories:
   - Python
   - SQL
@@ -64,7 +64,7 @@ flowchart TB
 
 Three notebooks in, and every query we have written has (mostly) just worked. That was not luck. The survey came out of software that refused incorrect entries and standardized spellings and varaibles, and somebody set that software up.
 
-Real data does not always arrive like that, like today. Before the main survey existed the team ran a **pilot**: 46 interviews over six months, kept in one spreadsheet that three people took turns editing. It has resurfaced, and the research lead wants one number out of it, the average hourly wage. That is your job today.
+Real data does not always arrive like that; like today. Before the main survey existed the team ran a **pilot**: 46 interviews over six months, kept in one spreadsheet that three people took turns editing. It has resurfaced, and the research lead wants one number out of it, the average hourly wage. That is your job today.
 
 This is the notebook where you stop being a person who queries data and start being the person who makes data queryable. It is also the last stop before Notebook 5, where we design the schema that would have prevented all of this in the first place.
 
@@ -79,7 +79,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 ```
 
-Before we get into the nitty-gritty: left alone, `read_csv` guesses a type for each column and quietly turns anything it dislikes into a missing value, so `n/a` and `refused` would vanish before we would have the chance to work with them. We want the true file, not a guess of what could be in it: `dtype=str` reads everything as text and `keep_default_na=False` leaves the blanks alone.
+Our cleanign starts before we even load the data, left alone, `read_csv` guesses a type for each column and quietly turns anything it dislikes into a missing value, so `n/a` and `refused` would vanish before we would have the chance to work with them. We want the true file, not a guess of what could be in it: `dtype=str` reads everything as text and `keep_default_na=False` leaves the blanks alone.
 
 ```{python}
 raw = pd.read_csv("datasets/wage_survey_pilot.csv", dtype=str, keep_default_na=False)
@@ -97,14 +97,14 @@ pd.read_csv("datasets/provinces.csv").to_sql("provinces", conn, index=False, if_
 %sql sqlite:///datasets/wage_survey.db
 ```
 
-Now look at it. Six rows is enough:
+Now we inspect the data. 
 
 ```{python}
 %%sql
 SELECT * FROM survey_raw LIMIT 6
 ```
 
-![The pilot file as its authors saw it. Three people, one spreadsheet, and nothing stopping anyone from typing anything into it.](media/NB4/pilot_spreadsheet.png)
+![The pilot file in Excel. Three people editing, and nothing stopping anyone from typing anything into it.](media/NB4/pilot_spreadsheet.png)
 
 Manpreet Singh appears twice. One province (British Columbia) is spelled four different ways. Two of the six dates are written in a format the other four are not. And somebody's wage is `44,000`, which is an impossible hourly wage.
 
@@ -117,7 +117,7 @@ SELECT COUNT(*) AS records,
 FROM survey_raw
 ```
 
-236,336.79 dollars an hour. `CAST(x AS REAL)` tells SQLite to read a value as a decimal number, and it did that for all 46 rows without a single error. This is the whole problem with messy data: nothing failed, and the answer is nonsense.
+236,336.79 dollars an hour. `CAST(x AS REAL)` tells SQLite to read a value as a decimal number, and it did that for all 46 rows without a single error. This is the whole problem with messy data: nothing failed, and the answer is nonsensical.
 
 ::: {.callout-important}
 ## Raw data is immutable
@@ -131,7 +131,7 @@ This is the single most important habit in the notebook. A hand edit disappears 
 
 So rather than hunt these one at a time, let's count all of them in one query.
 
-`UNION ALL` stacks the results of several queries into one table as long as they return the same columns, so each line below is one problem and how many records have it. 
+`UNION ALL` stacks the results of several queries into one table as long as they return the same columns, so each line below is one problem and how many rows have it. 
 
 Where does the list of queries to check even come from? Reading the six rows above is a good start, and it is what caught the province spellings, but it does not scale: this file holds 46 records, the next one could be 2TB of data, and no amount of scrolling finds the one row in a million that ruins your average. What scales is running the same fixed set of checks every time without looking at the data at all: distinct values in each category, minimum and maximum of each number, how many entries fail to convert to the type you expect, and the row count against the number of distinct people. Those are all aggregates, so the database answers them in one pass whether the file holds 46 rows or 46 million. We can keep the query list as a test suite to re-run whenever we need (which is exactly what Notebook 9 builds).
 
@@ -161,7 +161,7 @@ SELECT 'records, and distinct names among them',
 
 There is our damage report. A few notes on what these mean:
 
-`9999999` and `-1` are **sentinel values**: numbers chosen to mean "no value here" in a column that had no way to say so. Here `9999999` means the respondent refused and `-1` means they did not know. This convention is older than SQL and it is still used everywhere in survey data. A sentinel passes every type check you can throw at it and then walks straight into your average, which is most of where that 236,336.79 came from.
+`9999999` and `-1` are **sentinel values**: numbers chosen to mean "no value here" in a column which normally has no way to say so. Here `9999999` means the respondent refused and `-1` means they did not know. This convention is older than SQL and it is still used everywhere in survey data. A sentinel passes every type check you can throw at it poisons your average, which is most of where that 236,336.79 came from.
 
 The punctuation is worse, because `CAST` does not fail. Handed text it cannot read it just returns 0 and moves on:
 
@@ -174,7 +174,7 @@ WHERE hourly_wage LIKE '%$%' OR hourly_wage LIKE '%,%'
 
 A real wage of `$26.75` turns into 0, and a 44,000 dollar salary turns into **44.0**, because `CAST` stopped reading at the comma. Forty-four dollars an hour is a completely believable number, and that is what makes it dangerous. It survives every sanity check you would think to run.
 
-Dates are the third one. SQLite understands exactly one written form, the ISO 8601 form `2025-01-14` (YYYY-MM-DD) and returns NULL for everything else. That is not SQLite being fussy: ISO dates sort correctly as plain text, so `survey_date < '2025-04-01'` just works. The alternatives are ambiguous, since `04/02/2025` could be February or April, and the only reason we can tell this file is day-first is that another row reads `15/01/2025` and there is no fifteenth month.
+SQLite understands exactly one written form of dates, the ISO 8601 form `2025-01-14` (YYYY-MM-DD) and returns NULL for everything else. THis is not SQLite being fussy: ISO dates sort correctly as plain text, so `survey_date < '2025-04-01'` just works immediately. The alternatives are ambiguous, since `04/02/2025` could be February or April, and the only reason we can tell this file is day-first is that another row reads `15/01/2025` and there is no fifteenth month.
 
 ![xkcd 1179. A fun comic about data formats!](media/NB4/iso_8601_2x.png)
 
@@ -182,7 +182,7 @@ Dates are the third one. SQLite understands exactly one written form, the ISO 86
 
 Now we write the fix. All of it, once, as a view.
 
-Notebook 3 used `CREATE VIEW` to store a query permanently inside the database file, and that is exactly what a cleaning process should be: it copies no data, it re-runs itself every time anyone selects from it. Anybody with the file can read what it does and argue with it, and improve it. `DROP VIEW IF EXISTS` in front makes the pair safe to re-run.
+Notebook 3 used `CREATE VIEW` to store a query permanently inside the database file, and that is exactly what a cleaning process should be: it copies no data, it re-runs itself every time anyone selects from it. Anybody with the file can read what it does, argue with it, and improve it. `DROP VIEW IF EXISTS` in front makes the pair safe to re-run.
 
 Read the comments down the right-hand side (marked with **--**). Each one is a decision, and each decision is a line somebody could disagree with:
 
@@ -233,7 +233,7 @@ The `CASE` for provinces has no `ELSE`, which is on purpose. A `CASE` with no ma
 
 The hours rule is also important. Three entries read as zero hours if you just `CAST` them, and only one of those is a person who worked zero hours: Mathieu Girard, who was on leave and said so in the notes. `forty` and the blank are unknown. Zero and unknown are different values, and a careless `CAST` makes them identical.
 
-Here are the same six rows we started with, on the way out:
+Here are the same six rows we started with, after we ran the script:
 
 ```{python}
 %%sql
@@ -242,7 +242,7 @@ SELECT * FROM pilot_typed ORDER BY row_id LIMIT 6
 
 Four spellings of BC have become one, and both awkward dates are gone: Luc Tremblay's `15/01/2025` and Peter Novak's `January 22 2025` come back as `2025-01-15` and `2025-01-22`. Novak's wage reads 44000.0 too, rather than the 44.0 a plain `CAST` gave us. 
 
-Now that the column is finally made of numbers, look down it: all six wages are in the tens of thousands.
+Now that the column is finally made of numbers, look down it: all six hourly wages are in the tens of thousands.
 
 ## 5. The column that changed meaning
 
@@ -260,7 +260,7 @@ GROUP BY month
 ```{python}
 plt.figure(figsize=(9, 5))
 plt.bar(monthly["month"], monthly["avg_wage"], color="tab:green")
-plt.yscale("log")
+plt.yscale("log") #log scale on y-axis
 plt.ylabel("average of the wage column (log scale)")
 plt.title("Something happened to this column in April")
 plt.show()
@@ -277,11 +277,11 @@ FROM survey_raw
 WHERE notes LIKE '%form%'
 ```
 
-The old form asked for an annual salary, the new one asks for an hourly wage, and both answers went into a column called `hourly_wage`. Notebook 1 listed this failure as "no enforced types or meaning: a column is whatever anyone types into it". The column name lied for three months and nothing anywhere noticed.
+The old form asked for an annual salary, the new one asks for an hourly wage, and both answers went into a column called `hourly_wage`. Notebook 1 listed this failure as "no enforced types or meaning: a column is whatever anyone types into it". The column name lied for three months of the data.
 
-The fix is arithmetic: an annual salary divided by the weeks and hours behind it is an hourly wage, so `salary / (weekly_hours * 52)` for everything collected before April.
+The fix is arithmetic: an annual salary divided by the weeks and hours worked becomes a hourly wage, so `salary / (weekly_hours * 52)` for everything collected before April.
 
-That is a big assumption to make on the strength of a note in a spreadsheet, so let's test it. Several people were interviewed more than once and some of those repeats exist across the form change, which gives us a free check: if the rule is right, a person's converted salary should land near the hourly wage they reported later (with a small posibility of a raise of job change).
+That is a big assumption to make on the strength of a note in a spreadsheet, so let's test it. Several people were interviewed more than once and some of those repeats exist across the form change, which gives us a free check: if the rule is right, a person's converted salary should land near the hourly wage they reported later (with a small posibility of a raise or a job change).
 
 ```{python}
 %%sql
@@ -302,7 +302,7 @@ Manpreet Singh's January salary of 52,500 over a 40-hour week converts to **25.2
 
 ## 6. One person, four names
 
-There is one more big proble in the data. Luc Tremblay was interviewed four times, but he only shows up twice, because the file spells his name three different ways and grouping on `respondent` only catches the identical ones.
+There is one more big problem in the data. Luc Tremblay was interviewed four times, but he only shows up twice, because the file spells his name three different ways and grouping on `respondent` only catches the identical ones.
 
 ```{python}
 %%sql
@@ -310,7 +310,7 @@ SELECT COUNT(*) AS records, COUNT(DISTINCT respondent) AS name_strings
 FROM survey_raw
 ```
 
-Forty-one name strings across 46 records, and whether that is 41 people is a question the file cannot answer. A spreadsheet has no notion of identity, so `Tremblay, Luc` and `Luc Tremblay` are unrelated pieces of text to it. Working out which records are the same person is called **entity resolution**, and it is one of the standard problems in survey and administrative data, where the same human shows up as `Smith, J.`, `John Smith` and `J. Smith `.
+Forty-one name strings across 46 records, and whether that is 41 people is a question the file cannot answer. A spreadsheet has no notion of identity, so `Tremblay, Luc` and `Luc Tremblay` are unrelated pieces of text to it. Working out which records are the same person is called **entity resolution**, and it is one of the standard problems in survey and administrative data, where the same person shows up as `Smith, J.`, `John Smith` and `J. Smith `.
 
 The first logical move is a **normalized key**, which rewrite the name so the differences you do not care about disappear. `TRIM` and `LOWER` kill spacing and capitalization, `REPLACE(x, '.', '')` kills the periods, and since the comma tells us whether a name is written last-first or first-last, `instr` and `substr` can put both into the same order.
 
@@ -339,11 +339,11 @@ HAVING records > 1                                                              
 ORDER BY records DESC, name_key
 ```
 
-Four people account for ten of the 46 records, and the key worked: `Luc Tremblay` and `Tremblay, Luc` now produce the same `tremblay, luc`, but look at the last row. `Tremblay, L.` normalizes to `tremblay, l`, which is still a different string, so he sits on his own with a single record while his other three are grouped above him. Any key you build will have a case like this, because exact matching is exact.
+Four people account for ten of the 46 records, and the key worked: `Luc Tremblay` and `Tremblay, Luc` now produce the same `tremblay, luc`, but look at the last row. `Tremblay, L.` normalizes to `tremblay, l`, which is still a different string, so he sits on his own with a single record while his other three are grouped above him. Any key you build will have a case like this, because exact matching is by nature - exact.
 
-So we escalate one step further to **fuzzy matching**: instead of asking whether two strings are equal, mathematically measure how similar they are. `difflib.SequenceMatcher(None, a, b).ratio()` returns a number between 0 and 1 where 1 means identical, and `itertools.combinations` computes every pair of names. We set a similarity bar of 0.6, but you can experiment with different bars. 
+So we escalate one step further to **fuzzy matching**: instead of asking whether two strings are equal, we can mathematically measure how similar they are. `difflib.SequenceMatcher(None, a, b).ratio()` returns a number between 0 and 1 where 1 means identical, and `itertools.combinations` computes every pair of names. We set a similarity bar of 0.6, but you can experiment with different bars. 
 
-(Learn more about comparing text and other natural language processing techniques in this praxis notebook: [Text Analysis Overview](https://ubcecon.github.io/praxis-ubc/docs/text_analysis/text_analysis.html).)
+(Learn more about comparing text and other natural language processing techniques in this prAxIs notebook: [Text Analysis Overview](https://ubcecon.github.io/praxis-ubc/docs/text_analysis/text_analysis.html).)
 
 ```{python}
 names = sorted(pd.read_sql("SELECT DISTINCT TRIM(respondent) AS name FROM survey_raw", conn)["name"])
@@ -356,12 +356,12 @@ print(len(names), "names,", len(names) * (len(names) - 1) // 2, "pairs compared"
 pd.DataFrame(candidates, columns=["name_a", "name_b", "similarity"]).sort_values("similarity", ascending=False)
 ```
 
-Three pairs clear the bar and all three are Luc Tremblay. Note that 41 names took 820 comparisons, and the pair count grows with the square of the records, so a million records would be 500 billion comparisons. Real systems avoid that with **blocking**: only compare records inside groups that could plausibly match at all, usually formed on something cheap like a last name or a postal code.
+Three pairs clear the bar and all three are Luc Tremblay. Note that 41 names took 820 comparisons, and the pair count grows with the square of the records, so a million records would be 500 billion comparisons. Real data systems avoid that with **blocking**: only compare records inside groups that could plausibly match at all, usually formed on something computationally simple like a last name or a postal code.
 
 ![The four ways this file spells one man, the key that merges three of them, and the similarity score that catches the fourth.](media/NB4/entity_resolution.png)
 
 ::: {.callout-important}
-## Fuzzy matching proposes, but a human decides
+## Fuzzy matching proposes, but a human should always decide
 
 That output is a review list for us, not a set of merges we must make. Splitting one person into two records costs you a slightly smaller sample. Merging two people into one invents a person who does not exist and corrupts every variable at once. Those two mistakes are not equally bad, so you set the threshold low, look at the result, and decide.
 :::
@@ -411,13 +411,13 @@ SELECT COUNT(*) AS people,
 FROM pilot_clean
 ```
 
-Thirty-nine people, 33 usable wages, with an average of 25.40 an hour. That is the number the research lead asked for, and unlike the 236,336.79 we can defend every step between the file and it. Two views, no hand edits, and re-running the whole thing is one `SELECT`. Done!
+Thirty-nine people, 33 usable wages, with an average of $25.40 an hour. That is the number the research lead asked for, and unlike the 236,336.79 we can defend every step between the file and it. Additionally re-running the whole thing is one `SELECT`. Done!
 
 ## 7. The same script, eight ways
 
 This is the most important part of this notebook, far more than any numerical result we have found.
 
-Look back at what we just wrote and count the places we made a call. Convert the old-form salaries, or drop those records as not comparable? One row per person, or one row per interview? How we deal with NULL values. Everyone, or only the full-time workers, the way Notebook 2's briefing did it? None of those is wrong. A careful analyst could pick any combination and defend it in a seminar.
+Look back at what we just wrote and count the places we made a cleaning decision. Convert the old-form salaries, or drop those records as not comparable? One row per person, or one row per interview? How we deal with NULL values. Everyone, or only the full-time workers, the way Notebook 2's briefing did it? None of those is wrong. A careful analyst could pick any combination and defend it properly.
 
 So let's stop arguing and run all of them. Because the cleaning is code, this costs us one function:
 
@@ -465,9 +465,7 @@ bot.set_xlabel("each column is one pipeline, green means the choice was switched
 plt.show()
 ```
 
-Read the bottom panel. The four pipelines on the left all converted the old-form salaries and the four on the right all dropped them, and that single decision accounts for essentially the whole spread. This is of course a dramatic example, but decisions like this stack up and accuracy is important. Whether you keep one row per person or one per interview moves the answer only by a few cents.
-
-That is worth knowing before you spend a week on it. Some cleaning decisions are bookkeeping and some are the entire result, and the only way to tell them apart is to try both and look.
+Read the bottom panel. The four pipelines on the left all converted the old-form salaries and the four on the right all dropped them. This single decision accounts for essentially the whole spread. This is of course a dramatic example, but decisions like this stack up and accuracy is important. Whether you keep one row per person or one per interview moves the answer only by a few cents.
 
 ::: {.callout-important}
 ## This is a real method
@@ -481,7 +479,7 @@ You cannot do any of this if your cleaning lives in a spreadsheet you edited by 
 
 Some things in this file cannot be repaired, because repairing them would mean knowing values we do not have, but that does not mean we just ignore them.
 
-Two rules worth having. First, the statistical one is the rule behind every boxplot: take the first and third quartiles, and flag anything more than 1.5 interquartile ranges outside them. `NTILE(4)` is the window function that splits the ordered rows into quarters. Seoncd, the `CASE` without an `ELSE` shows up again here, returning the wage for one quarter and NULL for the rest, and `MAX` ignores NULLs.
+Two rules worth having. First, the statistical one is the rule behind every boxplot: take the first and third quartiles, and flag anything more than 1.5 interquartile ranges outside them. `NTILE(4)` is the window function that splits the ordered rows into quarters. Second, the `CASE` without an `ELSE` shows up again here, returning the wage for one quarter and NULL for the rest, and `MAX` ignores NULLs.
 
 ```{python}
 %%sql
