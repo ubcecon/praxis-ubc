@@ -5,9 +5,1114 @@ page-layout: full
 ---
 
 ```{=html}
-<iframe
-  src="path_visualization_map.html"
-  style="width: 100%; height: 85vh; border: none; display: block;"
-  title="Praxis content map">
-</iframe>
+<style>
+
+#pvz-root {
+  --color-bg: #FFFFFF;
+  --color-surface: #f8f9fa;
+  --color-surface-translucent: rgba(255, 255, 255, 0.85); 
+  --color-fg: #041746;
+  --color-fg-muted: #7D7D7D;
+  --color-tooltip-border: rgba(0, 0, 0, 0.1);
+  --color-node: #00AADD;
+  --color-connector: #7D7D7D;
+  --color-connector-hover: #041746;
+  --color-accent: #041746;
+  --color-accent-text: #FFFFFF; 
+}
+[data-bs-theme="dark"] #pvz-root {
+  --color-bg: #0a1929;        /* $background-dark */
+  --color-surface: #1a2332;   /* $surface-dark */
+  --color-surface-translucent: rgba(26, 35, 50, 0.85); /* $surface-dark, translucent */
+  --color-fg: #e8e8e8;        /* $gray-dark-1 */
+  --color-fg-muted: #b0b0b0;  /* $gray-dark-2 */
+  --color-tooltip-border: rgba(255, 255, 255, 0.1);
+  --color-node: #33BBEE;
+  --color-connector: #8A93A6;
+  --color-connector-hover: #5c9fff; /* $galaxy-blue-light — dark-mode equivalent of the light accent */
+  --color-accent: #5c9fff;
+  --color-accent-text: #FFFFFF;
+}
+
+#pvz-root, #pvz-root * { box-sizing: border-box; }
+#pvz-root {
+  font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  background: var(--color-bg) !important; color: var(--color-fg) !important;
+}
+
+#pvz-root #category-nav { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 20px; border-bottom: 1px solid var(--color-tooltip-border); }
+#pvz-root #category-nav div {
+  padding: 6px 14px; border-radius: 999px; border: 1px solid var(--color-tooltip-border);
+  background: var(--color-surface) !important; font-size: 13px; cursor: pointer; color: var(--color-fg) !important;
+}
+#pvz-root #category-nav div.highlight { background: var(--color-accent) !important; border-color: var(--color-accent) !important; color: var(--color-accent-text) !important; }
+
+#pvz-root main { display: flex; gap: 16px; padding: 16px 20px; align-items: flex-start; }
+
+#pvz-root #course-map {
+  position: relative; flex: 1 1 65%; height: 640px;
+  border: 1px solid var(--color-tooltip-border); border-radius: 8px;
+  background: var(--color-surface); overflow: hidden;
+}
+#pvz-root #course-map svg { display: block; }
+#pvz-root #zoom-hint {
+  position: absolute; bottom: 8px; right: 10px;
+  font-size: 11px; color: var(--color-fg-muted) !important;
+  background: var(--color-surface); padding: 3px 8px; border-radius: 999px;
+  border: 1px solid var(--color-tooltip-border);
+  pointer-events: none;
+}
+
+#pvz-root aside { flex: 1 1 35%; min-width: 260px; display: flex; flex-direction: column; gap: 12px; }
+#pvz-root .panel { border: 1px solid var(--color-tooltip-border); border-radius: 8px; background: var(--color-surface); padding: 14px 16px; font-size: 13px; line-height: 1.5; }
+#pvz-root .panel h3, #pvz-root .panel h4 { margin: 0 0 6px 0; color: var(--color-fg) !important; }
+#pvz-root .panel p { margin: 0 0 8px 0; color: var(--color-fg) !important; }
+#pvz-root .panel .muted { color: var(--color-fg-muted) !important; font-size: 12px; }
+#pvz-root #category-panel { border: none; background: transparent; padding: 4px 4px 0 4px; }
+
+#pvz-root #item-info {
+  padding: 0;
+  overflow: hidden;
+  min-height: 260px;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+#pvz-root #item-info:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 0.75rem 1.5rem rgba(0, 0, 0, 0.25);
+}
+#pvz-root #item-info .item-thumb {
+  width: 100%; height: 140px; display: block;
+  object-fit: contain; background: var(--color-bg);
+  transition: transform 0.3s ease;
+}
+#pvz-root #item-info:hover .item-thumb { transform: scale(1.04); }
+#pvz-root .item-thumb-wrap { position: relative; }
+#pvz-root #item-info .item-thumb.clickable { cursor: pointer; }
+
+#pvz-root .lang-toggle {
+  position: absolute; top: 8px; right: 8px;
+  display: flex; gap: 4px;
+  background: var(--color-surface-translucent);
+  border-radius: 999px; padding: 3px;
+}
+#pvz-root .lang-btn {
+  border: none; background: transparent; cursor: pointer;
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.02em;
+  padding: 4px 8px; border-radius: 999px; color: var(--color-fg-muted) !important;
+}
+#pvz-root .lang-btn:hover { color: var(--color-fg) !important; }
+#pvz-root .lang-btn.active { background: var(--color-accent) !important; color: var(--color-accent-text) !important; }
+@media (prefers-reduced-motion: reduce) {
+  #pvz-root #item-info, #pvz-root #item-info .item-thumb { transition: none; }
+  #pvz-root #item-info:hover { transform: none; box-shadow: none; }
+  #pvz-root #item-info:hover .item-thumb { transform: none; }
+}
+#pvz-root #item-info .item-body { padding: 14px 16px; }
+#pvz-root #item-info .item-body.clickable { cursor: pointer; }
+#pvz-root #item-info .item-body h4 { font-size: 14px; line-height: 1.35; margin: 0 0 6px 0; }
+#pvz-root #item-info .item-desc {
+  font-size: 12.5px; color: var(--color-fg-muted) !important; line-height: 1.5; margin: 0 0 10px 0;
+  display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
+  line-clamp: 4;
+}
+#pvz-root #item-info .item-meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+#pvz-root #item-info .item-date { font-size: 10.5px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--color-fg-muted) !important; white-space: nowrap; }
+#pvz-root #item-info .item-placeholder-body { padding: 14px 16px; }
+</style>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.13.6/underscore-min.js" crossorigin="anonymous"></script>
+
+<div id="pvz-root">
+<div id="category-nav"></div>
+
+<main>
+  <div id="course-map">
+    <svg></svg>
+    <div id="zoom-hint">Ctrl / ⌘ + scroll to zoom</div>
+  </div>
+  <aside>
+    <div class="panel" id="category-panel">
+      <div id="category-info"></div>
+    </div>
+    <div class="panel" id="item-info"></div>
+  </aside>
+</main>
+
+<script type="text/template" id="category-info-template">
+  <h3><%= name %></h3>
+  <p>There <%= total === 1 ? "is" : "are" %> <%= total %> node<%= total === 1 ? "" : "s" %> in this category.</p>
+</script>
+
+<script type="text/template" id="item-info-template">
+  <% if (code) { %>
+    <div class="item-thumb-wrap">
+      <img class="item-thumb<% if (path) { %> clickable<% } %>" src="<%= image ? image : 'index/placeholder_images/placeholder.png' %>" alt=""<% if (path) { %> title="Open this notebook"<% } %>>
+      <% if (categoryId === "research") { %>
+        <div class="lang-toggle" role="group" aria-label="Notebook language">
+          <button type="button" class="lang-btn<%= activeLang === "r" ? " active" : "" %>" data-lang="r">R</button>
+          <button type="button" class="lang-btn<%= activeLang === "stata" ? " active" : "" %>" data-lang="stata">Stata</button>
+          <button type="button" class="lang-btn<%= activeLang === "pystata" ? " active" : "" %>" data-lang="pystata">PyStata</button>
+        </div>
+      <% } %>
+    </div>
+    <div class="item-body<% if (path) { %> clickable<% } %>"<% if (path) { %> title="Open this notebook"<% } %>>
+      <h4><%= title %></h4>
+      <p class="item-desc"><%= description ? description : "No description available yet." %></p>
+      <div class="item-meta">
+        <span class="muted"><%= category %></span>
+        <% if (date) { %><span class="item-date"><%= date %></span><% } %>
+      </div>
+      <% if (courses && courses.length) { %><p class="muted" style="margin-top:6px;">Also in: <%= courses.join(", ") %></p><% } %>
+    </div>
+  <% } else { %>
+    <div class="item-placeholder-body">
+      <h4>Praxis Content Map</h4>
+      <p>Hover any node to see which file it is. Click a category above to highlight what falls under it.</p>
+    </div>
+  <% } %>
+</script>
+
+<script>
+/*2. DATA: CATEGORIES */
+const CATEGORIES = [
+  {
+    id: "all", name: "All",
+    description: "Standalone notebooks that aren't part of any other category.",
+    items: [
+      { code: "ALL01", title: "Optical Character Recognition (OCR)", path: "docs/OCR/ocr_notebook.html" },
+      { code: "ALL02", title: "Text Analysis Overview", path: "docs/text_analysis/text_analysis.html" },
+      { code: "ALL03", title: "Word Embeddings and National Constitutions", path: "docs/CTree_CEA/political_economy.html" },
+      { code: "ALL04", title: "A Visual Introduction to Fundamental Modern Machine Learning", path: "docs/intro_to_deep_learning/intro_to_fundamental_ML.html" },
+      { code: "ALL05", title: "Introduction to Convolutional Neural Networks (CNNs)", path: "docs/intro_to_cnns/intro_to_cnn.html" },
+      { code: "ALL06", title: "Image Analysis Workshop: Computer Vision for Social Science Research", path: "docs/image_analysis/image_analysis.html" },
+      { code: "ALL07", title: "Introduction to Convolutions", path: "docs/intro_to_convolutions/intro_to_convolution.html" }
+    ]
+  },
+  {
+    id: "getting-started", name: "Getting Started",
+    description: "Onboarding: notebooks, Python, R, and first steps working with data in R. Connections below show the actual prerequisite order.",
+    items: [
+      { code: "GS-JN", title: "Intro to Jupyter Notebooks", path: "docs/1_Getting_Started/getting_started_intro_to_jupyter/getting_started_intro_to_jupyter.html" },
+      { code: "GS-PY", title: "Intro to Python", path: "docs/1_Getting_Started/getting_started_intro_to_python/getting_started_intro_to_python.html" },
+      { code: "GS-R",  title: "Intro to R", path: "docs/1_Getting_Started/getting_started_intro_to_r/getting_started_intro_to_r.html" },
+      { code: "GS-D1", title: "Intro to Data in R (Part 1)", path: "docs/1_Getting_Started/getting_started_intro_to_data/getting_started_intro_to_data1.html" },
+      { code: "GS-D2", title: "Intro to Data in R (Part 2)", path: "docs/1_Getting_Started/getting_started_intro_to_data/getting_started_intro_to_data2.html" }
+    ]
+  },
+  {
+    id: "research", name: "Learn to Research",
+    description: "The econ490 applied research curriculum. These notebooks exist in parallel Python/R/Stata versions with identical content — using the R version exclusively here, so no content links for now.",
+    items: [
+      {
+        code: "RS01", title: "Setting Up Jupyter and R",
+        path: "docs/5_Research/econ490-r/01_Setting_Up.html",
+        langVersions: {
+          r: { title: "Setting Up Jupyter and R", path: "docs/5_Research/econ490-r/01_Setting_Up.html" },
+          stata: { title: "Jupyter and Stata", path: "docs/5_Research/econ490-stata/01_Setting_Up.html" },
+          pystata: { title: "Setting up PyStata for your Windows computer", path: "docs/5_Research/econ490-pystata/01_Setting_Up_PyStata.html" }
+        }
+      },
+      { code: "RS02", title: "Working with R Scripts",
+        path: "docs/5_Research/econ490-r/02_Working_Rscripts.html",
+        langVersions: {
+          r: { title: "Working with R Scripts", path: "docs/5_Research/econ490-r/02_Working_Rscripts.html" },
+          stata: { title: "Working with Do-Files", path: "docs/5_Research/econ490-stata/02_Working_Dofiles.html" },
+          pystata: { title: "Working with Do-Files", path: "docs/5_Research/econ490-pystata/02_Working_Dofiles.html" }
+        }
+      },
+      { code: "RS03", title: "R Essentials",
+        path: "docs/5_Research/econ490-r/03_R_Essentials.html",
+        langVersions: {
+          r: { title: "R Essentials", path: "docs/5_Research/econ490-r/03_R_Essentials.html" },
+          stata: { title: "Stata Essentials", path: "docs/5_Research/econ490-stata/03_Stata_Essentials.html" },
+          pystata: { title: "Stata Essentials", path: "docs/5_Research/econ490-pystata/03_Stata_Essentials.html" }
+        }
+      },
+      { code: "RS04", title: "Opening Datasets",
+        path: "docs/5_Research/econ490-r/04_Opening_Data_Sets.html",
+        langVersions: {
+          r: { title: "Opening Datasets", path: "docs/5_Research/econ490-r/04_Opening_Data_Sets.html" },
+          stata: { title: "Working with Locals and Globals", path: "docs/5_Research/econ490-stata/04_Locals_and_Globals.html" },
+          pystata: { title: "Working with Locals and Globals", path: "docs/5_Research/econ490-pystata/04_Locals_and_Globals.html" }
+        }
+      },
+      { code: "RS05", title: "Generating Variables",
+        path: "docs/5_Research/econ490-r/05_Creating_Variables.html",
+        langVersions: {
+          r: { title: "Generating Variables", path: "docs/5_Research/econ490-r/05_Creating_Variables.html" },
+          stata: { title: "Opening Datasets", path: "docs/5_Research/econ490-stata/05_Opening_Data_Sets.html" },
+          pystata: { title: "Opening Datasets", path: "docs/5_Research/econ490-pystata/05_Opening_Data_Sets.html" }
+        }
+      },
+      { code: "RS06", title: "Conducting Within Group Analysis",
+        path: "docs/5_Research/econ490-r/06_Within_Group.html",
+        langVersions: {
+          r: { title: "Conducting Within Group Analysis", path: "docs/5_Research/econ490-r/06_Within_Group.html" },
+          stata: { title: "Generating Variables", path: "docs/5_Research/econ490-stata/06_Creating_Variables.html" },
+          pystata: { title: "Generating Variables", path: "docs/5_Research/econ490-pystata/06_Creating_Variables.html" }
+        }
+      },
+      { code: "RS07", title: "Combining Data Sets",
+        path: "docs/5_Research/econ490-r/07_Combining_Datasets.html",
+        langVersions: {
+          r: { title: "Combining Data Sets", path: "docs/5_Research/econ490-r/07_Combining_Datasets.html" },
+          stata: { title: "Conducting Within Group Analysis", path: "docs/5_Research/econ490-stata/07_Within_Group.html" },
+          pystata: { title: "Conducting Within Group Analysis", path: "docs/5_Research/econ490-pystata/07_Within_Group.html" }
+        }
+      },
+      { code: "RS08", title: "Creating Meaningful Visuals",
+        path: "docs/5_Research/econ490-r/08_ggplot_graphs.html",
+        langVersions: {
+          r: { title: "Creating Meaningful Visuals", path: "docs/5_Research/econ490-r/08_ggplot_graphs.html" },
+          stata: { title: "Combining Datasets", path: "docs/5_Research/econ490-stata/08_Merge_Append.html" },
+          pystata: { title: "Combining Datasets", path: "docs/5_Research/econ490-pystata/08_Merge_Append.html" }
+        }
+      },
+      { code: "RS09", title: "Combining Graphs",
+        path: "docs/5_Research/econ490-r/09_Combining_Graphs.html",
+        langVersions: {
+          r: { title: "Combining Graphs", path: "docs/5_Research/econ490-r/09_Combining_Graphs.html" },
+          stata: { title: "Creating Meaningful Visuals", path: "docs/5_Research/econ490-stata/09_Stata_Graphs.html" },
+          pystata: { title: "Creating Meaningful Visuals", path: "docs/5_Research/econ490-pystata/09_Stata_Graphs.html" }
+        }
+      },
+      { code: "RS10", title: "Conducting Regression Analysis",
+        path: "docs/5_Research/econ490-r/10_Linear_Reg.html",
+        langVersions: {
+          r: { title: "Conducting Regression Analysis", path: "docs/5_Research/econ490-r/10_Linear_Reg.html" },
+          stata: { title: "Combining Graphs", path: "docs/5_Research/econ490-stata/10_Combining_Graphs.html" },
+          pystata: { title: "Combining Graphs", path: "docs/5_Research/econ490-pystata/10_Combining_Graphs.html" }
+        }
+      },
+      { code: "RS11", title: "Exporting Regression Output",
+        path: "docs/5_Research/econ490-r/11_Exporting_Output.html",
+        langVersions: {
+          r: { title: "Exporting Regression Output", path: "docs/5_Research/econ490-r/11_Exporting_Output.html" },
+          stata: { title: "Conducting Regression Analysis", path: "docs/5_Research/econ490-stata/11_Linear_Reg.html" },
+          pystata: { title: "Conducting Regression Analysis", path: "docs/5_Research/econ490-pystata/11_Linear_Reg.html" }
+        }
+      },
+      { code: "RS12", title: "Dummy Variables and Interactions",
+        path: "docs/5_Research/econ490-r/12_Dummy.html",
+        langVersions: {
+          r: { title: "Dummy Variables and Interactions", path: "docs/5_Research/econ490-r/12_Dummy.html" },
+          stata: { title: "Exporting Regression Output", path: "docs/5_Research/econ490-stata/12_Exporting_Output.html" },
+          pystata: { title: "Exporting Regression Output", path: "docs/5_Research/econ490-pystata/12_Exporting_Output.html" }
+        }
+      },
+      { code: "RS13", title: "Good Regression Practice",
+        path: "docs/5_Research/econ490-r/13_PostReg.html",
+        langVersions: {
+          r: { title: "Good Regression Practice", path: "docs/5_Research/econ490-r/13_PostReg.html" },
+          stata: { title: "Using Dummy Variables and Interactions", path: "docs/5_Research/econ490-stata/13_Dummy.html" },
+          pystata: { title: "Using Dummy Variables and Interactions", path: "docs/5_Research/econ490-pystata/13_Dummy.html" }
+        }
+      },
+      { code: "RS14", title: "Panel Data Regressions",
+        path: "docs/5_Research/econ490-r/14_Panel_Data.html",
+        langVersions: {
+          r: { title: "Panel Data Regressions", path: "docs/5_Research/econ490-r/14_Panel_Data.html" },
+          stata: { title: "Good Regression Practices", path: "docs/5_Research/econ490-stata/14_PostReg.html" },
+          pystata: { title: "Good Regression Practices", path: "docs/5_Research/econ490-pystata/14_PostReg.html" }
+        }
+      },
+      { code: "RS15", title: "Difference-in-Differences Analysis",
+        path: "docs/5_Research/econ490-r/15_Diff_in_Diff.html",
+        langVersions: {
+          r: { title: "Difference-in-Differences Analysis", path: "docs/5_Research/econ490-r/15_Diff_in_Diff.html" },
+          stata: { title: "Panel Data Regressions", path: "docs/5_Research/econ490-stata/15_Panel_Data.html" },
+          pystata: { title: "Panel Data Regressions", path: "docs/5_Research/econ490-pystata/15_Panel_Data.html" }
+        }
+      },
+      { code: "RS16", title: "Instrumental Variable Analysis",
+        path: "docs/5_Research/econ490-r/16_IV.html",
+        langVersions: {
+          r: { title: "Instrumental Variable Analysis", path: "docs/5_Research/econ490-r/16_IV.html" },
+          stata: { title: "Differences-in-Differences Analysis", path: "docs/5_Research/econ490-stata/16_Diff_in_Diff.html" },
+          pystata: { title: "Differences-in-Differences Analysis", path: "docs/5_Research/econ490-pystata/16_Diff_in_Diff.html" }
+        }
+      },
+      { code: "RS17", title: "R Workflow Guide",
+        path: "docs/5_Research/econ490-r/17_Wf_Guide.html",
+        langVersions: {
+          r: { title: "R Workflow Guide", path: "docs/5_Research/econ490-r/17_Wf_Guide.html" },
+          stata: { title: "Instrumental Variable Analysis", path: "docs/5_Research/econ490-stata/17_IV.html" },
+          pystata: { title: "Instrumental Variable Analysis", path: "docs/5_Research/econ490-pystata/17_IV.html" }
+        }
+      }
+    ]
+  },
+  {
+    id: "beginner", name: "Beginner",
+    description: "Foundational statistics: intro sequence, central tendency, distributions, confidence intervals, and hypothesis testing.",
+    items: [
+      { code: "B01", title: "Intro to Statistics I",  path: "docs/2_Beginner/beginner_intro_to_statistics1/beginner_intro_to_statistics1.html" },
+      { code: "B02", title: "Intro to Statistics II", path: "docs/2_Beginner/beginner_intro_to_statistics2/beginner_intro_to_statistics2.html" },
+      { code: "B03", title: "Intro to Central Tendency", path: "docs/2_Beginner/beginner_intro_to_central_tendency/beginner_intro_to_central_tendency.html" },
+      { code: "B04", title: "Central Tendency", path: "docs/2_Beginner/beginner_central_tendency/beginner_central_tendency.html" },
+      { code: "B05", title: "Dispersion & Dependence", path: "docs/2_Beginner/beginner_dispersion_and_dependence/beginner_dispersion_and_dependence.html" },
+      { code: "B06", title: "Confidence Intervals", path: "docs/2_Beginner/beginner_confidence_intervals/beginner_confidence_intervals.html" },
+      { code: "B07", title: "Hypothesis Testing", path: "docs/2_Beginner/beginner_hypothesis_testing/beginner_hypothesis_testing.html" },
+      { code: "B08", title: "Intro to Data Visualization I", path: "docs/2_Beginner/beginner_intro_to_data_visualization1/beginner_intro_to_data_visualization1.html" },
+      { code: "B09", title: "Intro to Data Visualization II", path: "docs/2_Beginner/beginner_intro_to_data_visualization2/beginner_intro_to_data_visualization2.html" },
+      { code: "B10", title: "Distributions", path: "docs/2_Beginner/beginner_distributions/beginner_distributions.html" },
+      { code: "B11", title: "Sampling Distributions", path: "docs/2_Beginner/beginner_sampling_distributions/beginner_sampling_distributions.html" }
+    ]
+  },
+  {
+    id: "intermediate-econ", name: "Intermediate - Econometrics",
+    description: "Regression modelling: simple/multiple regression, interactions & nonlinear terms, issues in regression, and summary statistics.",
+    items: [
+      { code: "IE01", title: "Intro to Regression", path: "docs/3_Intermediate/intermediate_intro_to_regression" },
+      { code: "IE02", title: "Multiple Regression", path: "docs/3_Intermediate/intermediate_multiple_regression" },
+      { code: "IE03", title: "Interactions & Nonlinear Terms", path: "docs/3_Intermediate/intermediate_interactions_and_nonlinear_terms" },
+      { code: "IE04", title: "Summary Statistics (gtsummary)", path: "docs/3_Intermediate/intermediate_summary_statistics/GTsummary.html" },
+      { code: "IE05", title: "Issues in Regression", path: "docs/3_Intermediate/intermediate_issues_in_regression/intermediate_issues_in_regression.html" }
+    ]
+  },
+  {
+    id: "intermediate-geo", name: "Intermediate - Geospatial",
+    description: "GEOG 374 labs — chi-square, t-test, ANOVA, regression, and a climate disasters case study.",
+    items: [
+      { code: "IG01", title: "Lab 02 — ANOVA", path: "docs/3_Intermediate/geog_374/Lab_02_ANOVA/Lab_02_ANOVA.html" },
+      { code: "IG02", title: "Lab 03 — Regression", path: "docs/3_Intermediate/geog_374/Lab_03_Regression/Lab_03_Regression.html" },
+      { code: "IG03", title: "Lab 05 — Chi-square", path: "docs/3_Intermediate/geog_374/Lab_05_Chisquare/Lab_05_Chisquare.html" },
+      { code: "IG04", title: "Lab 06 — T-test", path: "docs/3_Intermediate/geog_374/Lab_06_Ttest/Lab_06_Ttest.html" },
+      { code: "IG05", title: "Climate Disasters", path: "docs/3_Intermediate/geog_374/Climate_Disasters/Climate_Disasters.html" }
+    ]
+  },
+  {
+    id: "advanced", name: "Advanced",
+    description: "Advanced econometrics and computational/NLP methods: causal inference (DiD, IV, synthetic control, panel data), geospatial analysis, classification, sentiment analysis, transcription, vocalization, word embeddings, LLM APIs, fine-tuning, and network analysis.",
+    items: [
+      { code: "A01", title: "Difference in Differences", path: "docs/4_Advanced/advanced_difference_in_differences/advanced_difference_in_differences.html" },
+      { code: "A02", title: "Linear Differencing Models", path: "docs/4_Advanced/advanced_linear_differencing/advanced_linear_differencing.html" },
+      { code: "A03", title: "Instrumental Variables I", path: "docs/4_Advanced/advanced_instrumental_variables/advanced_instrumental_variables1.html" },
+      { code: "A04", title: "Instrumental Variables II", path: "docs/4_Advanced/advanced_instrumental_variables/advanced_instrumental_variables2.html" },
+      { code: "A05", title: "Panel Data", path: "docs/4_Advanced/advanced_panel_data/advanced_panel_data.html" },
+      { code: "A06", title: "Synthetic Control", path: "docs/4_Advanced/advanced_synthetic_control/advanced_synthetic_control.html" },
+      { code: "A07", title: "Geospatial Analysis I", path: "docs/4_Advanced/advanced_geospatial/advanced_geospatial.html" },
+      { code: "A08", title: "Geospatial Analysis II", path: "docs/4_Advanced/advanced_geospatial/advanced_geospatial_2.html" },
+      { code: "A09", title: "Classification & Clustering", path: "docs/4_Advanced/advanced_classification_and_clustering/advanced_classification_and_clustering.html" },
+      { code: "A10", title: "Introduction to Sentiment Analysis", path: "docs/4_Advanced/advanced_sentiment_analysis/sentiment_analysis.html" },
+      { code: "A11", title: "Transcription (Whisper)", path: "docs/4_Advanced/advanced_transcription/advanced_transcription_whisper.html" },
+      { code: "A12", title: "Vocalization", path: "docs/4_Advanced/advanced_vocalization/advanced_vocalization_draft.html" },
+      { code: "A13", title: "Word Embeddings (Python)", path: "docs/4_Advanced/advanced_word_embeddings/advanced_word_embeddings_python_version.html" },
+      { code: "A14", title: "Word Embeddings (R)", path: "docs/4_Advanced/advanced_word_embeddings/advanced_word_embeddings_r_version.html" },
+      { code: "A15", title: "LLM APIs II", path: "docs/4_Advanced/advanced_llm_apis2/advanced_llm_apis2.html" },
+      { code: "A16", title: "Fine-Tuning (Ollama LLM)", path: "docs/4_Advanced/advanced_ollama_llm/fine_tuning_llm.html" },
+      { code: "A17", title: "Network Analysis — Workshop Pre-Reading", path: "docs/4_Advanced/advanced_network_analysis/intro_to_python_network_analysis.html" },
+      { code: "A18", title: "Network Analysis", path: "docs/4_Advanced/advanced_network_analysis/network_analysis_notebook.html" },
+      { code: "A19", title: "Network Analysis II", path: "docs/4_Advanced/advanced_network_analysis/network_analysis_notebook_II.html" }
+    ]
+  },
+  {
+    id: "causal-ml", name: "Causal Machine Learning",
+    description: "The Causal ML stream: prediction vs causality, regularization, trees and forests, then treatment effects — post-double selection, propensity scores, double ML, and causal forests. Notebooks build on each other in order.",
+    items: [
+      { code: "CML01", title: "Prediction, Inference, and Causality", path: "docs/Causal_ML/notebook_01_prediction_inference_causality.html" },
+      { code: "CML02", title: "Regularization: Ridge and Lasso", path: "docs/Causal_ML/notebook_02_regularization_ridge_lasso.html" },
+      { code: "CML03", title: "Trees, Forests, and Boosting", path: "docs/Causal_ML/notebook_03_trees_forests_boosting.html" },
+      { code: "CML04", title: "From Prediction to Treatment Effects", path: "docs/Causal_ML/notebook_04_prediction_to_treatment_effects.html" },
+      { code: "CML05", title: "Post-Double-Selection Lasso", path: "docs/Causal_ML/notebook_05_post_double_selection.html" },
+      { code: "CML06", title: "Propensity Scores and Doubly-Robust Estimation", path: "docs/Causal_ML/notebook_06_propensity_ipw.html" },
+      { code: "CML07", title: "Double Machine Learning", path: "docs/Causal_ML/notebook_07_double_machine_learning.html" },
+      { code: "CML08", title: "Heterogeneous Effects and Causal Forests", path: "docs/Causal_ML/notebook_08_heterogeneous_effects_causal_forests.html" }
+    ]
+  },
+  {
+    id: "amne-376", name: "AMNE 376",
+    description: "Course-specific content — no prerequisites stated.",
+    items: [
+      { code: "AMNE1", title: "A Study of Richter's Kouroi Through Image Embedding", path: "docs/AMNE-376/amne_376_image_embedding.html" }
+    ]
+  },
+  {
+    id: "econ-227", name: "ECON 227",
+    description: "Course-specific content.",
+    items: [
+      { code: "ECON227-1", title: "How Do Large Language Models Predict?", path: "docs/ECON-227/llm_distributions.html" }
+    ]
+  },
+  {
+    id: "econ-226-227", name: "ECON 226/227",
+    description: "\"Introduction to Statistics\" — same content as the Beginner Intro to Statistics I node; no unique content of its own.",
+    items: [],
+    highlightCodes: ["B01"]
+  },
+  {
+    id: "econ-325", name: "ECON 325",
+    description: "\"Introduction to Statistics\" — same content as the Beginner Intro to Statistics I node; no unique content of its own.",
+    items: [],
+    highlightCodes: ["B01"]
+  },
+  {
+    id: "econ-326", name: "ECON 326",
+    description: "\"Issues in Regression\" — same content as the Intermediate - Econometrics node of the same name; no unique content of its own.",
+    items: [],
+    highlightCodes: ["IE05"]
+  },
+  {
+    id: "geog-374", name: "GEOG 374",
+    description: "Same as Intermediate - Geospatial; no unique content of its own.",
+    items: [],
+    highlightCodes: ["IG01", "IG02", "IG03", "IG04", "IG05"]
+  },
+  {
+    id: "hist-414", name: "HIST 414",
+    description: "Course-specific content — no prerequisites stated.",
+    items: [
+      { code: "HIST414-1", title: "Embedding Driven Text Analysis of Crease's Stance Towards Chinese Immigrants", path: "docs/hist_workshop/text_embeddings_workshop.html" }
+    ]
+  },
+  {
+    id: "soci-280", name: "SOCI 280",
+    description: "Course-specific content — no prerequisites stated.",
+    items: [
+      { code: "SOCI280-1", title: "Introduction to Sentiment Analysis: Identifying and Mapping Disinformation Campaigns using NLP", path: "docs/SOCI-280/soci_280_bert.html" }
+    ]
+  },
+  {
+    id: "soci-415", name: "SOCI 415",
+    description: "Network analysis content. CBDB Dataset requires the KINMATRIX Dataset notebook; the other two have no stated prerequisites.",
+    items: [
+      { code: "SOCI415-A", title: "Introduction to Network Analysis", path: "docs/SOCI-415/soci_415_network_analysis.html" },
+      { code: "SOCI415-B", title: "Network Analysis: KINMATRIX Dataset", path: "docs/SOCI-415/kinmatrix.html" },
+      { code: "SOCI415-C", title: "Network Analysis: CBDB Dataset", path: "docs/SOCI-415/cbdb_dataset.html" }
+    ]
+  }
+];
+
+/* 3. LAYOUT: rows */
+
+const ROW_ORDER = [
+  "getting-started", "beginner", "intermediate-econ", "intermediate-geo", "advanced", "causal-ml", "research", "all",
+  "soci-280", "econ-227", "amne-376", "hist-414", "soci-415"
+];
+
+/* 4. DATA: CONNECTIONS (prerequisites)*/
+const RAW_CONNECTIONS = [
+
+  // Getting Started
+  { from: "GS-JN", to: "GS-PY" },
+  { from: "GS-JN", to: "GS-R" },
+  { from: "GS-JN", to: "GS-D1" },
+  { from: "GS-R",  to: "GS-D1" },
+  { from: "GS-D1", to: "GS-D2" },
+
+  // Intermediate - Econometrics. Intro to Regression's own prerequisites
+  // reach back into Getting Started (cross-category — lines still work the
+  // same way, they just span rows).
+  { from: "GS-R",  to: "IE01" },
+  { from: "GS-JN", to: "IE01" },
+  { from: "IE01",  to: "IE02" }, // Multiple Regression requires Intro to Regression
+  { from: "IE02",  to: "IE03" }, // Interactions & Nonlinear Terms requires Multiple Regression
+  { from: "IE01",  to: "IE04" }, // Summary Statistics requires Intro to Regression
+  { from: "IE02",  to: "IE05" }, // Issues in Regression requires Multiple Regression
+
+  // Intermediate - Geospatial (GEOG 374 labs)
+  { from: "GS-JN", to: "IG01" }, { from: "GS-R", to: "IG01" }, { from: "GS-D2", to: "IG01" },
+  { from: "GS-JN", to: "IG02" }, { from: "GS-R", to: "IG02" }, { from: "GS-D2", to: "IG02" },
+  { from: "GS-JN", to: "IG03" }, { from: "GS-R", to: "IG03" }, { from: "GS-D2", to: "IG03" },
+  { from: "GS-JN", to: "IG04" }, { from: "GS-R", to: "IG04" }, { from: "GS-D2", to: "IG04" },
+  { from: "GS-JN", to: "IG05" }, { from: "GS-R", to: "IG05" },
+
+  // Beginner. "Sampling and dependence" read as "Sampling Distributions"
+  // (B11), the closest match.
+  { from: "GS-JN", to: "B01" },
+  { from: "GS-JN", to: "B02" }, { from: "GS-R", to: "B02" },
+  { from: "GS-JN", to: "B03" }, { from: "GS-R", to: "B03" }, // Intro to Central Tendency: same as Intro to Statistics II
+  { from: "GS-JN", to: "B08" }, { from: "GS-R", to: "B08" }, // Intro to Data Viz I: same as the two above
+  { from: "B08", to: "B04" }, // Central Tendency requires Intro to Data Viz I
+  { from: "B08", to: "B09" }, // Intro to Data Viz II requires Intro to Data Viz I
+  { from: "B04", to: "B10" }, // Distributions requires Central Tendency
+  { from: "B10", to: "B05" }, // Dispersion & Dependence requires Distributions
+  { from: "B05", to: "B06" }, // Confidence Intervals requires Dispersion & Dependence
+  { from: "B05", to: "B11" }, // Sampling Distributions requires Dispersion & Dependence
+  { from: "B06", to: "B07" }, // Hypothesis Testing requires Confidence Intervals
+
+  // Advanced. "Expectations and Summary statistics" is read as the
+  // Intermediate - Econometrics "Summary Statistics" node (IE04).
+  { from: "IE04", to: "A01" }, { from: "GS-D2", to: "A01" }, { from: "IG04", to: "A01" }, // Diff-in-Diff
+  { from: "A01", to: "A02" }, // Linear Differencing Models requires Diff-in-Diff
+  { from: "IE02", to: "A03" }, // Instrumental Variables I requires Multiple Regression
+  { from: "A03", to: "A04" }, // Instrumental Variables II requires IV I
+  { from: "IE04", to: "A05" }, // Panel Data requires Summary Statistics
+  { from: "A05", to: "A06" }, { from: "A01", to: "A06" }, { from: "IE05", to: "A06" }, // Synthetic Control
+  { from: "IE02", to: "A07" }, // Geospatial Analysis I requires Multiple Regression
+  { from: "A07", to: "A08" }, // Geospatial Analysis II requires Geospatial Analysis I
+  { from: "B04", to: "A09" }, // Classification & Clustering requires Central Tendency
+  { from: "GS-JN", to: "A10" }, { from: "GS-R", to: "A10" }, // Sentiment Analysis
+  // A11 Transcription: no prerequisites stated
+  { from: "GS-JN", to: "A12" }, // Vocalization requires Intro to Jupyter
+  { from: "GS-R", to: "A13" }, // Word Embeddings (Python) requires Intro to R, as stated
+  { from: "GS-R", to: "A14" }, // Word Embeddings (R) requires Intro to R
+  // A15 LLM APIs II, A16 Fine-Tuning: no prerequisites stated
+  // A17 Network Analysis Workshop Pre-Reading: no prerequisites stated
+  { from: "A17", to: "A18" }, // Network Analysis requires the pre-reading
+  { from: "A18", to: "A19" }, // Network Analysis II requires Network Analysis
+
+  // Learn to Research (R version).
+  { from: "GS-JN", to: "RS01" }, // Setting Up Jupyter and R
+  { from: "RS01", to: "RS02" },  // Working with R Scripts
+  { from: "RS02", to: "RS03" },  // R Essentials
+  { from: "RS03", to: "RS04" },  // Opening Datasets
+  { from: "RS04", to: "RS05" },  // Generating Variables
+  { from: "RS05", to: "RS06" },  // Conducting Within Group Analysis
+  { from: "RS06", to: "RS07" },  // Combining Data Sets
+  { from: "RS05", to: "RS08" },  // Creating Meaningful Visuals
+  { from: "RS08", to: "RS09" },  // Combining Graphs
+  // The following 7 all require Intro to Regression + Creating Meaningful Visuals:
+  { from: "IE01", to: "RS10" }, { from: "RS08", to: "RS10" }, // Conducting Regression Analysis
+  { from: "IE01", to: "RS11" }, { from: "RS08", to: "RS11" }, // Exporting Regression Output
+  { from: "IE01", to: "RS12" }, { from: "RS08", to: "RS12" }, // Dummy Variables and Interactions
+  { from: "IE01", to: "RS13" }, { from: "RS08", to: "RS13" }, // Good Regression Practice
+  { from: "IE01", to: "RS14" }, { from: "RS08", to: "RS14" }, // Panel Data Regressions
+  { from: "IE01", to: "RS16" }, { from: "RS08", to: "RS16" }, // Instrumental Variable Analysis
+  { from: "IE01", to: "RS17" }, { from: "RS08", to: "RS17" }, // R Workflow Guide
+  { from: "IE04", to: "RS15" }, { from: "GS-D2", to: "RS15" }, { from: "IG04", to: "RS15" }, { from: "RS08", to: "RS15" }, // Difference-in-Differences Analysis
+
+  // Causal Machine Learning. Prerequisites as stated in each notebook:
+  // NB1 -> Intro to Regression + Multiple Regression + basic Python;
+  // NB2-NB8 each need the previous notebook of the stream; NB4 also asks
+  // for exposure to diff-in-diff and instrumental variables.
+  { from: "IE01", to: "CML01" }, { from: "IE02", to: "CML01" }, { from: "GS-PY", to: "CML01" },
+  { from: "CML01", to: "CML02" },
+  { from: "CML02", to: "CML03" },
+  { from: "CML03", to: "CML04" }, { from: "A01", to: "CML04" }, { from: "A03", to: "CML04" },
+  { from: "CML04", to: "CML05" },
+  { from: "CML05", to: "CML06" },
+  { from: "CML06", to: "CML07" },
+  { from: "CML07", to: "CML08" },
+
+  // SOCI 415
+  { from: "SOCI415-B", to: "SOCI415-C" } // CBDB Dataset requires KINMATRIX Dataset
+]
+
+/*5. AUTO-LAYOUT */
+const LEVEL_STEP = 0.22;       // vertical distance per level of prerequisite depth
+const SIBLING_SPACING = 1.6;   // horizontal gap between siblings that would otherwise overlap
+const WIDE_PARENT_THRESHOLD = 6;  // a node with at least this many dependents...
+const WIDE_PARENT_EXTRA_LEVELS = 2; // ...pushes them this many extra levels away
+const SEMI_CIRCLE_THRESHOLD = 5;      // a sibling group of MORE than this many...
+const SEMI_CIRCLE_SPAN = Math.PI * 0.78;  // ...sprawls across this total angle (~140°)...
+const SEMI_CIRCLE_X_RADIUS = 5.5;         // ...this wide (unit x-space)...
+const SEMI_CIRCLE_LEVEL_RADIUS = 11;      // ...and this tall at its peak (level units)
+
+function computeAutoLayout(cat) {
+  const codes = cat.items.map(it => it.code);
+  const codeSet = new Set(codes);
+
+  const parentsOf = {};
+  const childrenOf = {};
+  codes.forEach(c => { parentsOf[c] = []; childrenOf[c] = []; });
+  RAW_CONNECTIONS.forEach(c => {
+    if (codeSet.has(c.from) && codeSet.has(c.to)) {
+      parentsOf[c.to].push(c.from);
+      childrenOf[c.from].push(c.to);
+    }
+  });
+
+  const levelOf = {};
+  function level(code) {
+    if (levelOf[code] !== undefined) return levelOf[code];
+    levelOf[code] = 0;
+    const parents = parentsOf[code];
+    levelOf[code] = parents.length
+      ? Math.max(...parents.map(p => {
+          const step = childrenOf[p].length >= WIDE_PARENT_THRESHOLD ? 1 + WIDE_PARENT_EXTRA_LEVELS : 1;
+          return level(p) + step;
+        }))
+      : 0;
+    return levelOf[code];
+  }
+  codes.forEach(level);
+
+  const byLevel = {};
+  codes.forEach(c => { (byLevel[levelOf[c]] = byLevel[levelOf[c]] || []).push(c); });
+
+  const xOf = {};
+  Object.keys(byLevel).map(Number).sort((a, b) => a - b).forEach(l => {
+    const atLevel = byLevel[l];
+
+    if (l === 0) {
+      // keeps same category nodes close
+      const n = atLevel.length;
+      const spacing = 2.2;
+      const totalWidth = Math.min(spacing * (n - 1), 18);
+      atLevel.forEach((code, i) => {
+        xOf[code] = n === 1 ? 0 : -totalWidth / 2 + i * (totalWidth / (n - 1));
+      });
+      return;
+    }
+
+    // Everyone else starts at the average x of their intra-category
+    // parent(s), directly under/between them.
+    atLevel.forEach(code => {
+      const parents = parentsOf[code];
+      xOf[code] = parents.reduce((sum, p) => sum + (xOf[p] ?? 0), 0) / parents.length;
+    });
+
+    // Distirbutes dependents into a semi-circle
+    const groups = {};
+    atLevel.forEach(code => {
+      const key = xOf[code].toFixed(1);
+      (groups[key] = groups[key] || []).push(code);
+    });
+    Object.values(groups).forEach(group => {
+      if (group.length < 2) return;
+      const baseX = xOf[group[0]];
+
+      if (group.length > SEMI_CIRCLE_THRESHOLD) {
+        const baseLevel = levelOf[group[0]]; // shared level before this adjustment
+        const n = group.length;
+        group.forEach((code, i) => {
+          const t = i / (n - 1); // 0..1 across the group
+          const angle = -SEMI_CIRCLE_SPAN / 2 + t * SEMI_CIRCLE_SPAN; // sweeps left to right
+          xOf[code] = baseX + SEMI_CIRCLE_X_RADIUS * Math.sin(angle);
+          levelOf[code] = baseLevel + SEMI_CIRCLE_LEVEL_RADIUS * Math.cos(angle); // tallest in the middle, tapering at the ends
+        });
+        return;
+      }
+
+      const spread = SIBLING_SPACING * (group.length - 1);
+      group.forEach((code, i) => { xOf[code] = baseX - spread / 2 + i * SIBLING_SPACING; });
+    });
+  });
+
+  return { level: levelOf, x: xOf };
+}
+
+/* 6. BUILD NODE LIST */
+const BIASED_SIDELINE_IDS = ["amne-376", "econ-227", "hist-414", "soci-280", "soci-415"];
+const SIDE_START_BIAS = 6.5;
+const sideBiasOf = {};
+BIASED_SIDELINE_IDS.forEach((id, i) => { sideBiasOf[id] = (i % 2 === 0) ? -SIDE_START_BIAS : SIDE_START_BIAS; });
+
+const allNodes = [];
+CATEGORIES.forEach(cat => {
+  const rowY = ROW_ORDER.indexOf(cat.id);
+  const layout = computeAutoLayout(cat);
+  const bias = sideBiasOf[cat.id];
+  cat.items.forEach(item => {
+    let x = layout.x[item.code] ?? 0;
+    if (bias !== undefined) x = bias + x * 0.6; // start on that side, keeping the category's own internal spread (e.g. SOCI 415's chain) compact around it
+    const y = rowY + (layout.level[item.code] || 0) * LEVEL_STEP;
+    allNodes.push({ ...item, categoryId: cat.id, categoryName: cat.name, x, y });
+  });
+});
+
+const nodeByCode = Object.fromEntries(allNodes.map(n => [n.code, n]));
+
+
+const categoriesReferencingCode = {};
+CATEGORIES.forEach(cat => {
+  (cat.highlightCodes || []).forEach(code => {
+    (categoriesReferencingCode[code] = categoriesReferencingCode[code] || []).push(cat.name);
+  });
+});
+
+const CONNECTIONS = RAW_CONNECTIONS.map(c => ({ ...c, source: nodeByCode[c.from], target: nodeByCode[c.to] }));
+
+
+
+(function () {
+  /* 7. CHART SETUP */
+  const width = parseInt(d3.select("#course-map").style("width"));
+  const height = parseInt(d3.select("#course-map").style("height")) - 20;
+  const xscale = width / 20;
+  const yscale = height / (ROW_ORDER.length + 1.5); // auto-scales as rows are added
+  const xcoord = x => x * xscale + width / 2;
+  const ycoord = y => height - y * yscale - 0.9 * yscale;
+
+  // pulls no prereq nodes closer
+  const hasConnections = new Set();
+  CONNECTIONS.forEach(c => { hasConnections.add(c.from); hasConnections.add(c.to); });
+
+  // avoids horizontal distribution
+  function hashJitter(code, range) {
+    let h = 0;
+    for (let i = 0; i < code.length; i++) h = (h * 31 + code.charCodeAt(i)) | 0;
+    return ((Math.abs(h) % 1000) / 1000 - 0.5) * range;
+  }
+
+  /* 8. FORCE SIMULATION */
+  allNodes.forEach(d => {
+    d.ax = xcoord(d.x) + hashJitter(d.code + "x", 10);
+    d.ay = ycoord(d.y) + hashJitter(d.code + "y", 16);
+    d.x = d.ax;
+    d.y = d.ay;
+  });
+  const MIN_NODE_DISTANCE = 36;
+
+  // Origin = GS-JN
+  const gsjnNode = allNodes.find(d => d.code === "GS-JN");
+  const origin = gsjnNode ? { x: gsjnNode.ax, y: gsjnNode.ay } : { x: width / 2, y: height / 2 };
+
+  // dependent must be further than prereq
+  const RADIAL_GAP = 22;
+  function forceRadialOrder(alpha) {
+    CONNECTIONS.forEach(c => {
+      const s = c.source, t = c.target;
+      const sDist = Math.hypot(s.x - origin.x, s.y - origin.y);
+      const tDist = Math.hypot(t.x - origin.x, t.y - origin.y) || 0.001;
+      const minDist = sDist + RADIAL_GAP;
+      if (tDist < minDist) {
+        const ux = (t.x - origin.x) / tDist, uy = (t.y - origin.y) / tDist;
+        const push = (minDist - tDist) * alpha * 5;
+        t.vx = (t.vx || 0) + ux * push;
+        t.vy = (t.vy || 0) + uy * push;
+      }
+    });
+  }
+
+  const dependentCountOf = {};
+  CONNECTIONS.forEach(c => { dependentCountOf[c.from] = (dependentCountOf[c.from] || 0) + 1; });
+
+  const VERTICAL_GAP = 30;
+  const WIDE_VERTICAL_GAP = 65;
+  function forceVerticalOrder(alpha) {
+    CONNECTIONS.forEach(c => {
+      const s = c.source, t = c.target;
+      const gap = (dependentCountOf[c.from] || 0) >= WIDE_PARENT_THRESHOLD ? WIDE_VERTICAL_GAP : VERTICAL_GAP;
+      if (t.y > s.y - gap) {
+        const push = (s.y - gap - t.y) * alpha * 5;
+        t.vy = (t.vy || 0) + push;
+      }
+    });
+  }
+
+  // Positions independent nodes
+  const SIDELINE_SET = new Set(["all", "amne-376", "econ-227", "hist-414", "soci-280", "soci-415"]);
+  const canvasMiddle = { x: width / 2, y: height / 2 };
+  const SIDELINE_MIDDLE_BUFFER = 190; // must stay at least this far from the canvas middle
+  const SIDELINE_EDGE_BUFFER = 60;    // ...and at least this far from the canvas edge
+  function forceSidelineRing(alpha) {
+    const maxDist = Math.min(width, height) / 2 - SIDELINE_EDGE_BUFFER;
+    allNodes.forEach(d => {
+      if (!SIDELINE_SET.has(d.categoryId)) return;
+      const dx = d.x - canvasMiddle.x, dy = d.y - canvasMiddle.y;
+      const dist = Math.hypot(dx, dy) || 0.001;
+      const ux = dx / dist, uy = dy / dist;
+      if (dist < SIDELINE_MIDDLE_BUFFER) {
+        const push = (SIDELINE_MIDDLE_BUFFER - dist) * alpha * 6;
+        d.vx = (d.vx || 0) + ux * push;
+        d.vy = (d.vy || 0) + uy * push;
+      } else if (dist > maxDist) {
+        const push = (dist - maxDist) * alpha * 6;
+        d.vx = (d.vx || 0) - ux * push;
+        d.vy = (d.vy || 0) - uy * push;
+      }
+    });
+  }
+
+  // Same-category prerequisite links pull harder than cross-category ones
+  const linkForce = d3.forceLink(CONNECTIONS).id(d => d.code).distance(46)
+    .strength(l => (l.source.categoryId === l.target.categoryId ? 0.35 : 0.1));
+
+  const sim = d3.forceSimulation(allNodes)
+    .force("x", d3.forceX(d => d.ax).strength(d => (SIDELINE_SET.has(d.categoryId) ? 0.08 : (hasConnections.has(d.code) ? 0.25 : 0.5))))
+    .force("y", d3.forceY(d => d.ay).strength(d => (SIDELINE_SET.has(d.categoryId) ? 0.08 : (hasConnections.has(d.code) ? 0.7 : 0.9))))
+    .force("link", linkForce)
+    .force("collide", d3.forceCollide(MIN_NODE_DISTANCE / 2))
+    .force("radialOrder", forceRadialOrder)
+    .force("verticalOrder", forceVerticalOrder)
+    .force("gravityX", d3.forceX(origin.x).strength(d => (SIDELINE_SET.has(d.categoryId) ? 0 : 0.018)))
+    .force("sidelineRing", forceSidelineRing)
+    .stop();
+
+  // Keeps every node inside the visible canvas, applied every tick.
+  const EDGE_MARGIN = 16;
+  function clampToBounds() {
+    allNodes.forEach(d => {
+      d.x = Math.max(EDGE_MARGIN, Math.min(width - EDGE_MARGIN, d.x));
+      d.y = Math.max(EDGE_MARGIN, Math.min(height - EDGE_MARGIN, d.y));
+    });
+  }
+  for (let i = 0; i < 700; i++) { sim.tick(); clampToBounds(); }
+
+  /* 9. RENDERING */
+  const svg = d3.select("#course-map svg").attr("width", width).attr("height", height);
+  const zoomLayer = svg.append("g");
+  const linkLayer = zoomLayer.append("g").attr("fill", "none").attr("stroke-width", 1.5);
+  const nodeLayer = zoomLayer.append("g");
+  const hitLayer = zoomLayer.append("g");
+  const menuLayer = zoomLayer.append("g"); // on-map language picker for Research nodes, drawn last so it's on top
+
+  // Zoom
+  const zoomBehavior = d3.zoom()
+    .scaleExtent([0.5, 6])
+    .filter(event => (event.type === "wheel" ? (event.ctrlKey || event.metaKey) : !event.button))
+    .on("zoom", event => {
+      zoomLayer.attr("transform", event.transform);
+    });
+  svg.call(zoomBehavior);
+
+  function colors() {
+    const s = getComputedStyle(document.getElementById("pvz-root"));
+    const v = n => s.getPropertyValue(n).trim();
+    return {
+      bg: v("--color-bg"), fg: v("--color-fg"), fgMuted: v("--color-fg-muted"),
+      node: v("--color-node"), connector: v("--color-connector"), connectorHover: v("--color-connector-hover"),
+      accent: v("--color-accent"), accentText: v("--color-accent-text")
+    };
+  }
+
+
+  function resolveImageUrl(img) {
+    if (!img) return null;
+    if (/^https?:\/\//.test(img) || img.startsWith("/")) return img;
+    return "../" + img; // same project-root-relative convention as node paths
+  }
+  function fetchPageMeta(path) {
+    if (!path || Object.prototype.hasOwnProperty.call(metaCache, path)) return;
+    metaCache[path] = null; // marks "fetch in flight" so a second hover doesn't re-fetch
+    const url = "../" + path;
+    fetch(url)
+      .then(r => (r.ok ? r.text() : Promise.reject(new Error("status " + r.status))))
+      .then(text => {
+        const doc = new DOMParser().parseFromString(text, "text/html");
+        const descEl = doc.querySelector('meta[name="description"]') || doc.querySelector('meta[property="og:description"]');
+        const imgEl = doc.querySelector('meta[property="og:image"]') || doc.querySelector('meta[name="twitter:image"]');
+        const description = descEl ? descEl.getAttribute("content") : null;
+        const image = resolveImageUrl(imgEl ? imgEl.getAttribute("content") : null);
+        metaCache[path] = { description, image };
+        if (!description && !image) {
+          console.debug("Praxis content map:", url, "loaded fine but has no <meta name=\"description\"> or <meta property=\"og:image\"> — "
+            + "that notebook's front matter likely doesn't set description:/image:, so this one just doesn't have real data yet.");
+        }
+
+        if (currentHoveredNode && resolveVersion(currentHoveredNode, currentLang).path === path) {
+          renderItemCard(currentHoveredNode, currentLang);
+        }
+      })
+      .catch(err => {
+        console.warn("Praxis content map: fetch failed for", url, "—", err.message,
+          "(check this URL loads directly in a new tab — if it 404s, the path resolution is off; if it loads fine but this still fails, could be a CORS/network issue)");
+        metaCache[path] = { description: null, image: null };
+      });
+  }
+  function enrichedInfoFor(path) {
+    if (!path) return {};
+    fetchPageMeta(path); // no-ops if already cached or in flight
+    return metaCache[path] || {};
+  }
+
+  const categoryInfoDiv = d3.select("#category-info");
+  const categoryInfoTemplate = _.template(d3.select("#category-info-template").html());
+  const itemInfoDiv = d3.select("#item-info");
+  const itemInfoTemplate = _.template(d3.select("#item-info-template").html());
+
+  /* 10. INTERACTIONS: hover card + language toggle + click-to-open */
+  let currentHoveredNode = null;
+  let currentLang = "r";
+
+  function openNotebook(path) {
+    const url = "../" + path;
+    try { (window.top || window).location.href = url; }
+    catch (e) { window.location.href = url; }
+  }
+  function resolveVersion(d, lang) {
+    if (d.langVersions && d.langVersions[lang]) return d.langVersions[lang];
+    return { title: d.title, path: d.path };
+  }
+
+  // Small R / Stata / PyStata picker
+  const LANG_OPTIONS = [{ key: "r", label: "R" }, { key: "stata", label: "Stata" }, { key: "pystata", label: "Py" }];
+  function updateLangMenu(d) {
+    menuLayer.selectAll("*").remove();
+    if (!d || !d.langVersions) return;
+    const col = colors();
+    const spacing = 24;
+    const startX = d.x - spacing;
+    const menuY = d.y - 18;
+
+    const langAtBuildTime = (currentHoveredNode === d) ? currentLang : "r";
+    LANG_OPTIONS.forEach((opt, i) => {
+      const active = currentHoveredNode === d && currentLang === opt.key;
+      const g = menuLayer.append("g")
+        .attr("transform", `translate(${startX + i * spacing}, ${menuY})`)
+        .style("cursor", "pointer")
+        .on("mouseover", () => {
+          if (currentHoveredNode !== d) renderItemCard(d, langAtBuildTime);
+        })
+        .on("click", event => {
+          event.stopPropagation();
+          renderItemCard(d, opt.key);
+        });
+      g.append("rect")
+        .attr("x", -11).attr("y", -9).attr("width", 22).attr("height", 18).attr("rx", 4)
+        .attr("fill", active ? col.accent : col.bg)
+        .attr("stroke", active ? col.accent : col.fgMuted).attr("stroke-width", 1);
+      g.append("text")
+        .attr("text-anchor", "middle").attr("dy", "3px")
+        .attr("font-size", 8).attr("font-weight", 600)
+        .attr("fill", active ? col.accentText : col.fg)
+        .style("pointer-events", "none")
+        .text(opt.label);
+    });
+  }
+
+  function renderItemCard(d, lang) {
+    currentHoveredNode = d;
+    currentLang = lang;
+    const v = resolveVersion(d, lang);
+    const enriched = enrichedInfoFor(v.path);
+    itemInfoDiv.html(itemInfoTemplate({
+      code: d.code, title: v.title, category: d.categoryName, categoryId: d.categoryId, path: v.path,
+      description: enriched.description || d.description || null,
+      image: enriched.image,
+      date: d.date || null,
+      courses: categoriesReferencingCode[d.code] || [],
+      activeLang: lang
+    }));
+    updateLangMenu(d);
+  }
+  itemInfoDiv.on("click", event => {
+    const navTarget = event.target.closest(".item-thumb.clickable, .item-body.clickable");
+    if (navTarget && currentHoveredNode) {
+      const v = resolveVersion(currentHoveredNode, currentLang);
+      if (v.path) openNotebook(v.path);
+      return;
+    }
+    const btn = event.target.closest(".lang-btn");
+    if (!btn || !currentHoveredNode) return;
+    renderItemCard(currentHoveredNode, btn.dataset.lang);
+  });
+
+  /* 11. CATEGORY NAV */
+  function categoryNodeCount(cat) {
+    return cat.id === "all" ? allNodes.length : cat.items.length + (cat.highlightCodes ? cat.highlightCodes.length : 0);
+  }
+
+  let currentCategory = CATEGORIES[0];
+
+  const nav = d3.select("#category-nav");
+  CATEGORIES.forEach(cat => {
+    nav.append("div").html(cat.name).on("click", function () {
+      d3.select("#category-nav div.highlight").classed("highlight", false);
+      d3.select(this).classed("highlight", true);
+      currentCategory = cat;
+      render(300);
+      categoryInfoDiv.html(categoryInfoTemplate({
+        name: cat.name,
+        total: categoryNodeCount(cat)
+      }));
+    });
+  });
+
+  function showItemInfo(event, d) {
+
+    const lang = (currentHoveredNode === d) ? currentLang : "r";
+    renderItemCard(d, lang);
+    const col = colors();
+    const isOwnPrereq = conn => conn.to === d.code;
+    linkLayer.selectAll("line")
+      .transition().duration(150)
+      .attr("stroke", conn => (isOwnPrereq(conn) ? col.connectorHover : col.connector))
+      .attr("stroke-width", conn => (isOwnPrereq(conn) ? 3 : 1.5))
+      .attr("opacity", conn => (isOwnPrereq(conn) ? 1 : 0.1));
+  }
+  function render(duration) {
+    const c = colors();
+
+    function isHighlighted(d) {
+      if (currentCategory.id === "all") return false;
+      return d.categoryId === currentCategory.id ||
+        (currentCategory.highlightCodes && currentCategory.highlightCodes.includes(d.code));
+    }
+
+    linkLayer.selectAll("line")
+      .data(CONNECTIONS, d => d.from + "->" + d.to)
+      .join(
+        enter => enter.append("line")
+          .attr("x1", d => d.source.x).attr("y1", d => d.source.y)
+          .attr("x2", d => d.target.x).attr("y2", d => d.target.y)
+          .attr("stroke", c.connector)
+          .attr("opacity", 0)
+          .transition().duration(duration)
+          .attr("opacity", 0.5),
+        update => update.transition().duration(duration)
+          .attr("x1", d => d.source.x).attr("y1", d => d.source.y)
+          .attr("x2", d => d.target.x).attr("y2", d => d.target.y)
+          .attr("stroke", c.connector)
+          .attr("opacity", 0.5)
+      );
+
+    nodeLayer.selectAll("circle")
+      .data(allNodes, d => d.code)
+      .join(
+        enter => enter.append("circle")
+          .attr("r", 10)
+          .attr("cx", d => d.x).attr("cy", d => d.y)
+          .attr("fill", d => (isHighlighted(d) ? c.accent : c.node))
+          .attr("stroke", d => (isHighlighted(d) ? c.accent : c.node))
+          .attr("stroke-width", 1.5)
+          .attr("opacity", 0)
+          .transition().duration(duration).attr("opacity", 1),
+        update => update.transition().duration(duration)
+          .attr("fill", d => (isHighlighted(d) ? c.accent : c.node))
+          .attr("stroke", d => (isHighlighted(d) ? c.accent : c.node))
+      );
+
+    hitLayer.selectAll("circle")
+      .data(allNodes, d => d.code)
+      .join(enter => enter.append("circle")
+        .attr("r", 10).attr("fill", "transparent")
+        .attr("cx", d => d.x).attr("cy", d => d.y)
+        .style("cursor", d => (d.path ? "pointer" : "default"))
+        .on("mouseover", (event, d) => {
+          showItemInfo(event, d); 
+
+          nodeLayer.selectAll("circle").filter(n => n.code === d.code)
+            .transition().duration(150).attr("r", 14).attr("stroke-width", 3);
+        })
+        .on("mouseout", (event, d) => {
+          nodeLayer.selectAll("circle").filter(n => n.code === d.code)
+            .transition().duration(150).attr("r", 10).attr("stroke-width", 1.5);
+          
+          const col = colors();
+          linkLayer.selectAll("line")
+            .transition().duration(150)
+            .attr("stroke", col.connector)
+            .attr("stroke-width", 1.5)
+            .attr("opacity", 0.5);
+        })
+        .on("click", (event, d) => {
+          const lang = (currentHoveredNode && currentHoveredNode.code === d.code) ? currentLang : "r";
+          const v = resolveVersion(d, lang);
+          if (v.path) openNotebook(v.path);
+        }));
+  }
+
+  /* 12. INIT */
+  render(0);
+
+  new MutationObserver(() => {
+    const theme = document.documentElement.getAttribute("data-bs-theme") || "(none)";
+    console.info("Praxis content map: detected theme change ->", theme, "— re-rendering graph colors.");
+    render(0);
+    if (currentHoveredNode) updateLangMenu(currentHoveredNode); 
+  }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-bs-theme"] });
+
+  window.pvzDebug = function () {
+    const theme = document.documentElement.getAttribute("data-bs-theme") || "(no data-bs-theme attribute set)";
+    console.log("data-bs-theme on <html>:", theme);
+    console.log("colors() currently resolves to:", colors());
+    render(0);
+    console.log("Re-rendered. If the graph still looks wrong now, the issue is upstream of this script (stale build, or the toggle isn't actually setting data-bs-theme on <html> — check the Elements panel while toggling).");
+  };
+
+  categoryInfoDiv.html(categoryInfoTemplate({
+    name: currentCategory.name,
+    total: categoryNodeCount(currentCategory)
+  }));
+  itemInfoDiv.html(itemInfoTemplate({ code: null, title: null, category: null, categoryId: null, path: null, description: null, image: null, date: null, courses: [], activeLang: null }));
+  d3.select("#category-nav div:nth-child(1)").classed("highlight", true);
+})();
+</script>
+</div>
 ```
