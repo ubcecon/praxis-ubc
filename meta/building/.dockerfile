@@ -22,10 +22,14 @@ RUN quarto render --output-dir /app/output
 RUN find /app/output -name '*.html' -exec \
     sed -i 's#<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>##g' {} +
 
+# Metadata index for the path visualization page (one JSON fetch)
+COPY ./meta/scripts/extract_pvz_meta.py /extract_pvz_meta.py
+RUN python3 /extract_pvz_meta.py /app/output /app/output/pages/pvz_meta.json
+
 # Add the per-notebook launch button (chooses which notebooks get it via launch_notebook.html)
 COPY ./meta/building/launch_notebook.html /launch_notebook.html
 RUN find /app/output -name '*.html' -exec sh -c \
-    'for f; do grep -q "praxis-launch-notebook" "$f" || sed -i "/<body/r /launch_notebook.html" "$f"; done' sh {} +
+    'for f; do grep -q "praxis-launch-notebook" "$f" || sed -i "/^<body/r /launch_notebook.html" "$f"; done' sh {} +
 
 # Final Stage on lightweight linux
 FROM nginx:alpine

@@ -20,7 +20,11 @@ page-layout: full
   --color-accent: #041746;
   --color-accent-text: #FFFFFF; 
 }
-[data-bs-theme="dark"] #pvz-root {
+/* Quarto 1.4's toggle sets quarto-dark on the body element; data-bs-theme kept for newer Quarto.
+   NB: never write a literal body/html open-tag in this file — the dockerfile's
+   launch-button sed injects HTML after any line containing one. */
+[data-bs-theme="dark"] #pvz-root,
+body.quarto-dark #pvz-root {
   --color-bg: #0a1929;        /* $background-dark */
   --color-surface: #1a2332;   /* $surface-dark */
   --color-surface-translucent: rgba(26, 35, 50, 0.85); /* $surface-dark, translucent */
@@ -62,6 +66,14 @@ page-layout: full
   border: 1px solid var(--color-tooltip-border);
   pointer-events: none;
 }
+#pvz-root #map-tooltip {
+  position: absolute; display: none; pointer-events: none;
+  max-width: 230px; padding: 5px 9px; border-radius: 6px;
+  font-size: 12px; line-height: 1.4;
+  background: var(--color-surface-translucent); color: var(--color-fg) !important;
+  border: 1px solid var(--color-tooltip-border);
+}
+#pvz-root #map-tooltip .tooltip-cat { display: block; font-size: 10.5px; color: var(--color-fg-muted) !important; }
 
 #pvz-root aside { flex: 1 1 35%; min-width: 260px; display: flex; flex-direction: column; gap: 12px; }
 #pvz-root .panel { border: 1px solid var(--color-tooltip-border); border-radius: 8px; background: var(--color-surface); padding: 14px 16px; font-size: 13px; line-height: 1.5; }
@@ -131,7 +143,8 @@ page-layout: full
 <main>
   <div id="course-map">
     <svg></svg>
-    <div id="zoom-hint">Ctrl / ⌘ + scroll to zoom</div>
+    <div id="map-tooltip"></div>
+    <div id="zoom-hint">Drag to pan · Ctrl / ⌘ + scroll to zoom · Double-click to reset</div>
   </div>
   <aside>
     <div class="panel" id="category-panel">
@@ -842,14 +855,20 @@ const CONNECTIONS = RAW_CONNECTIONS.map(c => ({ ...c, source: nodeByCode[c.from]
   const hitLayer = zoomLayer.append("g");
   const menuLayer = zoomLayer.append("g"); // on-map language picker for Research nodes, drawn last so it's on top
 
-  // Zoom
+  // Zoom. d3's default wheelDelta multiplies by 10 when ctrlKey is held —
+  // and our filter requires ctrl/⌘ for wheel zoom, so every step got the 10x.
+  // Supply the same formula without that multiplier.
   const zoomBehavior = d3.zoom()
-    .scaleExtent([0.5, 6])
+    .scaleExtent([1, 6]) // whole graph fits at 1; below that it just drifts into a corner
+    .translateExtent([[0, 0], [width, height]]) // can't pan the graph out of view
     .filter(event => (event.type === "wheel" ? (event.ctrlKey || event.metaKey) : !event.button))
+    .wheelDelta(event => -event.deltaY * (event.deltaMode === 1 ? 0.05 : event.deltaMode ? 1 : 0.002))
     .on("zoom", event => {
       zoomLayer.attr("transform", event.transform);
     });
   svg.call(zoomBehavior);
+  svg.on("dblclick.zoom", null); // default double-click 2x jump is disorienting
+  svg.on("dblclick", () => svg.transition().duration(300).call(zoomBehavior.transform, d3.zoomIdentity));
 
   function colors() {
     const s = getComputedStyle(document.getElementById("pvz-root"));
@@ -862,6 +881,7 @@ const CONNECTIONS = RAW_CONNECTIONS.map(c => ({ ...c, source: nodeByCode[c.from]
   }
 
 
+  const metaCache = {};
   function resolveImageUrl(img) {
     if (!img) return null;
     if (/^https?:\/\//.test(img) || img.startsWith("/")) return img;
@@ -900,6 +920,37 @@ const CONNECTIONS = RAW_CONNECTIONS.map(c => ({ ...c, source: nodeByCode[c.from]
     fetchPageMeta(path); // no-ops if already cached or in flight
     return metaCache[path] || {};
   }
+
+  // Build-time metadata index (written into the image next to this page).
+  // Pre-fills the cache in one fetch; per-page fetch above stays as the
+  // fallback when it's absent (e.g. quarto preview outside the container).
+  fetch("pvz_meta.json")
+    .then(r => (r.ok ? r.json() : Promise.reject(new Error("status " + r.status))))
+    .then(index => {
+      Object.entries(index).forEach(([path, meta]) => {
+        if (metaCache[path]) return; // a per-page fetch already resolved this one
+        metaCache[path] = { description: meta.description, image: resolveImageUrl(meta.image) };
+      });
+      if (currentHoveredNode) renderItemCard(currentHoveredNode, currentLang);
+    })
+    .catch(err => console.info("Praxis content map: no pvz_meta.json (" + err.message + ") — falling back to per-page metadata fetches."));
+
+  // On-map tooltip: names the node under the cursor (the side card holds the detail)
+  const mapTooltip = d3.select("#map-tooltip");
+  const mapEl = document.getElementById("course-map");
+  function moveMapTooltip(event) {
+    const [mx, my] = d3.pointer(event, mapEl);
+    mapTooltip
+      .style("left", Math.min(mx + 14, mapEl.clientWidth - 240) + "px")
+      .style("top", Math.min(my + 14, mapEl.clientHeight - 56) + "px");
+  }
+
+  // The lang picker must survive node-mouseout (you travel node -> picker to click
+  // it), so it's only dismissed when the pointer leaves the map entirely.
+  d3.select("#course-map").on("mouseleave", () => {
+    menuLayer.selectAll("*").remove();
+    mapTooltip.style("display", "none");
+  });
 
   const categoryInfoDiv = d3.select("#category-info");
   const categoryInfoTemplate = _.template(d3.select("#category-info-template").html());
@@ -1065,12 +1116,19 @@ const CONNECTIONS = RAW_CONNECTIONS.map(c => ({ ...c, source: nodeByCode[c.from]
         .attr("cx", d => d.x).attr("cy", d => d.y)
         .style("cursor", d => (d.path ? "pointer" : "default"))
         .on("mouseover", (event, d) => {
-          showItemInfo(event, d); 
+          showItemInfo(event, d);
+
+          const v = resolveVersion(d, currentLang);
+          mapTooltip.style("display", "block")
+            .html(`${v.title}<span class="tooltip-cat">${d.categoryName}</span>`);
+          moveMapTooltip(event);
 
           nodeLayer.selectAll("circle").filter(n => n.code === d.code)
             .transition().duration(150).attr("r", 14).attr("stroke-width", 3);
         })
+        .on("mousemove", moveMapTooltip)
         .on("mouseout", (event, d) => {
+          mapTooltip.style("display", "none");
           nodeLayer.selectAll("circle").filter(n => n.code === d.code)
             .transition().duration(150).attr("r", 10).attr("stroke-width", 1.5);
           
@@ -1091,19 +1149,38 @@ const CONNECTIONS = RAW_CONNECTIONS.map(c => ({ ...c, source: nodeByCode[c.from]
   /* 12. INIT */
   render(0);
 
-  new MutationObserver(() => {
-    const theme = document.documentElement.getAttribute("data-bs-theme") || "(none)";
+  // Resize: rescale x positions to the new canvas width (height is fixed)
+  let lastWidth = width;
+  window.addEventListener("resize", () => {
+    const newWidth = parseInt(d3.select("#course-map").style("width"));
+    if (!newWidth || newWidth === lastWidth) return;
+    const k = newWidth / lastWidth;
+    lastWidth = newWidth;
+    allNodes.forEach(d => { d.x *= k; d.ax *= k; });
+    svg.attr("width", newWidth);
+    zoomBehavior.translateExtent([[0, 0], [newWidth, height]]);
+    render(0);
+    if (currentHoveredNode) updateLangMenu(currentHoveredNode);
+  });
+
+  // Quarto 1.4 toggles quarto-dark/quarto-light classes on the body element;
+  // newer Quarto sets data-bs-theme on the html root. Watch both.
+  const themeObserver = new MutationObserver(() => {
+    const theme = document.body.classList.contains("quarto-dark") ? "dark"
+      : (document.documentElement.getAttribute("data-bs-theme") || "light");
     console.info("Praxis content map: detected theme change ->", theme, "— re-rendering graph colors.");
     render(0);
-    if (currentHoveredNode) updateLangMenu(currentHoveredNode); 
-  }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-bs-theme"] });
+    if (currentHoveredNode) updateLangMenu(currentHoveredNode);
+  });
+  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-bs-theme"] });
+  themeObserver.observe(document.body, { attributes: true, attributeFilter: ["class"] });
 
   window.pvzDebug = function () {
-    const theme = document.documentElement.getAttribute("data-bs-theme") || "(no data-bs-theme attribute set)";
-    console.log("data-bs-theme on <html>:", theme);
+    console.log("body classList:", document.body.className || "(none)");
+    console.log("data-bs-theme on html root:", document.documentElement.getAttribute("data-bs-theme") || "(no data-bs-theme attribute set)");
     console.log("colors() currently resolves to:", colors());
     render(0);
-    console.log("Re-rendered. If the graph still looks wrong now, the issue is upstream of this script (stale build, or the toggle isn't actually setting data-bs-theme on <html> — check the Elements panel while toggling).");
+    console.log("Re-rendered. If the graph still looks wrong now, the issue is upstream of this script (stale build, or the toggle isn't actually setting quarto-dark on the body element — check the Elements panel while toggling).");
   };
 
   categoryInfoDiv.html(categoryInfoTemplate({
