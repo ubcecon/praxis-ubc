@@ -94,8 +94,10 @@ To show the issue and its fix, we need to remake the live system. So we simulate
 import os
 import time
 import sqlite3
+import duckdb
 import numpy as np
 import pandas as pd
+import statsmodels.formula.api as smf
 import matplotlib.pyplot as plt
 ```
 
@@ -371,8 +373,6 @@ dim_date["quarter"] = dates.dt.quarter
 Load, into the engine Notebook 6 taught for this workload. Handing `duckdb.connect` a filename gives the warehouse permanent space on disk, the same way SQLite files work, and `CREATE OR REPLACE TABLE` is `CREATE TABLE` that overwrites any previous version, so tonight's run replaces last night's:
 
 ```{python}
-import duckdb
-
 warehouse = duckdb.connect("datasets/wage_warehouse.duckdb")
 warehouse.execute("CREATE OR REPLACE TABLE fact_response AS SELECT * FROM fact_response")
 warehouse.execute("CREATE OR REPLACE TABLE dim_respondent AS SELECT * FROM dim_respondent")
@@ -431,8 +431,6 @@ model_data.head(3)
 A quarter million rows, model-ready. `statsmodels` is Python's standard econometrics library, the one behind most regression output you have seen in COMET, and its formula interface reads like R: outcome on the left of the `~`, regressors on the right. We will run a regression on log_wage with regressors of if the person has a college education, has a bachelor or graduate dregree, if they are a union member and their age. 
 
 ```{python}
-import statsmodels.formula.api as smf
-
 fit = smf.ols("log_wage ~ college + bachelor + graduate + union_member + age", data=model_data).fit()
 
 comparison = pd.DataFrame({
