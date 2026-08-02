@@ -3,7 +3,7 @@ title: "Pipelines I: Scripts to Graphs"
 author: Alex Ronczewski
 date: 2026-07-30
 image: /pages/index/placeholder_images/placeholder.png
-description: "The eighth notebook in the Data Engineering stream. The nightly ETL died halfway through, and the obvious retry double-counted a month. We rebuild the script so that crashes dont affect us: idempotent loads, incremental extracts, logging and retries. Our pipeline as a graph of tasks that an executor can run, skip, and refuse."
+description: "The eighth notebook in the Data Engineering stream. The nightly ETL died halfway through. We rebuild the script so that crashes dont affect us: idempotent loads, incremental extracts, logging and retries. Our pipeline is now a graph of tasks that an executor can run, skip, and refuse."
 categories:
   - Python
   - SQL
@@ -26,14 +26,14 @@ format:
 
 ### Prerequisites
 
-- Notebook 7 of this stream: the OLTP intake system, the star schema warehouse, and the ETL between them.
+- Notebook 7 of this stream: the OLTP intake system, the star schema warehouse, and the ETL connecting them together.
 
 ### Learning Outcomes
 
 By the end of this notebook you will be able to:
 
 1. Explain what a mid-run crash does to a batch job, and why per-statement transactions do not protect a whole pipeline.
-2. Make a load **idempotent**, so that running it twice equals running it once.
+2. Make a load **idempotent**, so that running it twice is the same as running it once.
 3. Write an **incremental** extract that fetches only what is new.
 4. Add **logging** and **retries** to a pipeline, and say when retrying is safe.
 5. Represent a pipeline as a **directed acyclic graph** in `networkx`, and predict what an executor will run, skip, and refuse.
@@ -62,15 +62,15 @@ flowchart TB
     style NB8 fill:#c8e6c9,stroke:#2e7d32,stroke-width:3px
 ```
 
-Our stream makes a big shift here. The first seven notebooks built things which are static: queries, schemas, a warehouse. This section is about keeping data *moving*, month after month, with nobody watching over it directly. Because after Notebook 7 shipped, the office did the natural next thing: they put our ETL on a schedule. It ran every night, it printed usually `success`, and everyone stopped thinking about it.
+This notebook is the beginning of a big shift. The first seven notebooks built things that are static: queries, schemas, a warehouse. This section is about keeping data *moving*, with nobody watching over it directly. Because after Notebook 7 shipped, the office did the natural next thing: they put our ETL on a schedule. It ran every night, it usually printed `success`, and everyone stopped thinking about it.
 
 > **The incident, from the survey office.** "Friday night the warehouse update timed out partway, some network thing. The on-call analyst re-ran it, and it finished fine. But Monday's report says September had over fifteen thousand responses, and we surveyed about ten. The pipeline says success. Please figure out what happened, and make it so this cannot happen again."
 
-This notebook is about answering this email. We will reproduce the whole incident, understand why the re-run made things worse, and then rebuild the script the way pipelines are actually built: safe to re-run, aware of what is new, logging it's steps, and finally, restructured as a graph of tasks.
+This notebook is about answering this email. We will reproduce the whole incident, learn why the re-run made things worse, and then rebuild the script the way pipelines are actually built in the real world: safe to re-run, knowing what content is new, logging it's steps, and finally, restructured as a graph of tasks.
 
 ## 2. Re-Running
 
-We rebuild everything from Notebook 7 first, condensed into two long cells: the simulated wave 2 data with its built-in wage values, and the two systems, the SQLite intake database and the DuckDB warehouse (if you need more context revisit Notebook 7). The new piece is that the data generator is now a function, `simulate_month`, because this notebook lives month by month and new data has to keep arriving each month for our simulation to work.
+We rebuild everything from Notebook 7 first, condensed into two long cells: the simulated wave 2 data with its built-in wage values, and the two systems: the SQLite intake database and the DuckDB warehouse (if you need more context revisit Notebook 7). The new piece is that the data generator is now a function, `simulate_month`, because the data loading in this notebook is not a one time event, rather it is month by month. In the real world new data keeps arriving constantly and we mirror that here. 
 
 ```{python}
 #Import our libraries
@@ -179,7 +179,7 @@ warehouse.execute("SELECT * FROM monthly_report ORDER BY year_month DESC LIMIT 3
 
 The warehouse is healthy through August 2028: a little over ten thousand responses a month, wages drifting up on the trend we built in. 
 
-Now September happens. Interviews pour into the intake system all month, which we replay in one short cell:
+Now we simulate september. Interviews pour into the intake system all month, which we replay in one short cell:
 
 ```{python}
 september = simulate_month("2028-09-01", 30, 250_001, 10_400)
@@ -189,11 +189,11 @@ print("intake system:", pd.read_sql("SELECT COUNT(*) FROM response", op).iloc[0,
 print("warehouse:", warehouse.execute("SELECT COUNT(*) FROM fact_response").df().iloc[0, 0], "responces")
 ```
 
-260,400 responses in the operational system, 250,000 in the warehouse. The gap is the new September entries, we use the night time script to clsoe this gap.
+260,400 responses in the operational system, 250,000 in the warehouse. The gap between them are the new September entries, we use the night time script to close this gap.
 
 ## 3. The night of the crash
 
-Here is the monthly update as the office scheduled it, Notebook 7's ETL (Extract, Transform, Load) pointed at one month: pull everything from September onward from the intake system (with Notebook 3's `?` placeholder carrying the date), add provinces and the full-time dummy variable, and append it to the fact table in our analyst database.
+Here is the monthly update as the office scheduled it, Notebook 7's ETL (Extract, Transform, Load) aimed at our new month. We pull everything from September onward from the intake system (with Notebook 3's `?` placeholder carrying the date), add provinces and the full-time dummy variable, and append it to the fact table in our analyst database.
 
 ```{python}
 pulled = pd.read_sql("SELECT * FROM response WHERE interview_date >= ?", op, params=("2028-09-01",))
@@ -208,7 +208,7 @@ print(f"{len(sept_fact)} rows extracted and transformed")
 
 The load runs in two chunks, half the month at a time (this is how real systems do it so memory stays flat and the progress is visible from the outside). This chunking is where the problem occurs. Notebook 6 proved that a single `INSERT` is atomic, all or nothing, and that promise still holds. But a batch job is *many* statements, often across systems no transaction can span, and per-statement atomicity does not necessairly imply per-job atomicity. Chunk one can be atomic, and the job can still half-happen due to chunk two or three.
 
-Reading the paragraph above has one logical question we need to answer first (and most likely many of you are thinking this): "why not then load the whole month as one statement and stay atomic?" At our size that would work, but it's a bandaid fix, because the *job* is still several statements with gaps between them: the crash can just as easily land between the load and the report refresh, or between the extract and the load, and one of those steps completing without the others is the same half-happened job. And at real production scale in the real world, the single-statement option disappears altogether: a billion-row insert held open in one transaction is an actual nightmare. Back to the crash! 
+Reading the paragraph above has one logical question we need to answer first (and most likely many of you are thinking this): "why not then load the whole month as one statement and stay atomic?" At our size that would work, but it's a bandaid fix, because the *job* is still several statements with gaps between them: the crash can just as easily land between the load and the report refresh, or between the extract and the load, and one of those steps completing without the others is the same half-happened job. And at real production scale in the real world, the single-statement option disappears altogether: a billion-row insert held open in one transaction is an actual nightmare.
 
 Friday, 3:14 a.m. Chunk one succeeds, and then the network to the warehouse drops. Tonight, we pretend to be the network by throwing an error on purpose. 
 
@@ -226,7 +226,7 @@ The script is dead, and this is what it left behind:
 warehouse.execute("SELECT COUNT(*) AS september_rows FROM fact_response WHERE date >= '2028-09-01'").df()
 ```
 
-Half of our September batch: 5,200 rows, committed, durable, but no error message shows us what happened. Every statement that ran kept its atomic promise, and the job still half-happened.
+Half of our September batch: 5,200 rows, committed correctly, but no error message shows us what happened. Every statement that ran kept its atomic promise, and the job still half-happened.
 
 > **Predict first.** Saturday morning, the on-call analyst sees the failure alert and does what every one of us would do: run the whole script again. It finishes without an error this time. September really had 10,400 responses. After the re-run, how many September rows does the warehouse hold?
 
@@ -249,7 +249,7 @@ warehouse.execute("""SELECT COUNT(*) AS rows, COUNT(DISTINCT response_id) AS rea
                      FROM fact_response WHERE date >= '2028-09-01'""").df()
 ```
 
-15,600 rows for 10,400 real responses. The crashed run's half-month is still in there (the 5,200 half completed rows). Nothing failed, nothing warned us, and the monthly report is now incorrect:
+15,600 rows for 10,400 real responses. The crashed run's half-month is still in the database (the 5,200 half completed rows). Nothing failed, no raised erorrs, and the monthly report is now incorrect:
 
 ```{python}
 report = warehouse.execute("SELECT * FROM monthly_report ORDER BY year_month").df()
@@ -271,12 +271,10 @@ Saturday's retry was the correct instinct, and Saturday's analyst did their job:
 ::: {.callout-important}
 ## Idempotent
 
-A task is **idempotent** if running it twice leaves the world exactly as running it once: the second run changes nothing. Idempotency is the pipeline's answer to the transaction. Notebook 6's engine guarantees all-or-nothing per statement; nobody guarantees it per job, so we design the job so that *partial + retry = correct*. Once every task is idempotent, "it crashed at 3 a.m." stops being an incident, because the fix is always the same: run it again.
+A task is **idempotent** if running it twice leaves the world exactly as running it once: the second run changes nothing. Idempotency is the pipeline's answer to the transaction. Notebook 6's engine guarantees all-or-nothing per statement; nobody guarantees it per job, so we design the job so that *partial + retry = correct*. Once every task is idempotent, the fix is always the same: run it again.
 :::
 
-For a load, the standard construction is **delete-then-insert, scoped to the batch**: first delete whatever the warehouse holds for the month being loaded, then insert the month fresh. If the previous run finished, the delete clears it and the insert replaces it. If the previous run half-finished, the delete clears the debris. If this run dies after the delete, the next run deletes nothing and inserts everything. It all leads to the same outcome.
-
-One syntax note first: DuckDB's own `.execute` takes the query and the values directly, with a list standing where `pd.read_sql`'s `params` tuple stood in Notebook 3. The `?` rule is exactly the same: SQL and data travel separately.
+For a load, the standard construction is **delete-then-insert, scoped to the batch**: first delete whatever the warehouse holds for the month being loaded, then insert the month fresh. If the previous run finished, the delete clears it and the insert replaces it. If the previous run half-finished, the delete clears the debris. If this run dies after the delete, the next run deletes nothing and inserts everything. It all leads to the same outcome. The job is idempotent. 
 
 ```{python}
 def load_month(fact_batch, month):
@@ -289,7 +287,7 @@ warehouse.execute("""SELECT COUNT(*) AS rows, COUNT(DISTINCT response_id) AS rea
                      FROM fact_response WHERE date >= '2028-09-01'""").df()
 ```
 
-10,400 and 10,400. Notice what just happened: the fixed loader loaded correctly *and repaired the corruption on the way through*, because the delete swept out all 15,600 damaged rows before inserting the clean month. That is an amazing characterisitc of idempotent design: recovery and normal operation are the same code path. You might be skeptical so for fun let's run it again and see. 
+10,400 and 10,400. Notice what just happened: the fixed loader loaded correctly *and repaired the corruption on the way*, because the delete swept out all 15,600 damaged rows before inserting the clean month. That is an amazing characterisitc of idempotent design: recovery and normal operation are the same code path. You might be skeptical so for fun let's run it again and see. 
 
 ```{python}
 load_month(retry_fact, "2028-09")
@@ -302,7 +300,7 @@ Same 10,400 rows, not 20,800 or some value in between. Exactly what we are looki
 
 ## 5. When it breaks anyway
 
-Networks will still drop no matter what improvements we make, so a pipeline that runs at 3 a.m. needs a diary to keep track of what happened while the engineers are asleep. Ours will be tiny, stamping each message with the time (`datetime.now()` reads the clock, and `.strftime` formats it, the same formatter dates have used all stream):
+Networks will still drop no matter what improvements we make, so a pipeline that runs at 3 a.m. needs a diary to keep track of what happened while the engineers are asleep. Ours will be tiny, stamping each message with the time (`datetime.now()` reads the current time):
 
 ```{python}
 def log(message):
@@ -334,34 +332,9 @@ with_retries(flaky_network_copy, attempts=4)
 
 Two failures absorbed by our ETL, with a success on the third try, and the log tells the whole story with timestamps to whoever reads it at work on Monday. 
 
-We have to be cautious though, as the wrapper's retries *automatically* what Saturday's analyst did *manually*, and we know how that went:
-
-::: {.callout-caution}
-## Wrong-query gallery #6
-
-After the incident, a colleague hardened the old nightly loader, the pre-section-4 one, like this:
-
-```python
-def nightly_load():
-    batch = fetch_new_rows()                  # extract + transform, as before
-    for chunk in split_into_chunks(batch):
-        warehouse.execute("INSERT INTO fact_response SELECT * FROM chunk")
-
-with_retries(nightly_load, attempts=3)
-```
-
-Tuesday night the network crashed during attempt 1, and attempt 2 worked without issue. `succeeded on attempt 2`, says the log. What did Wednesday's report look like, and what is the one-line fix?
-
-<details><summary>Show / hide answer</summary>
-
-Inflated again, just like before. Attempt 1 committed some chunks before dying, attempt 2 re-inserted every chunk. Retries *manufacture* duplicates when the task underneath is not idempotent. Automation amplifies whatever property the task has; it does not add safety on its own. The fix is section 4's one line at the top of the loop's job, `DELETE` the batch's months before inserting, after which retrying becomes exactly as safe as it feels.
-
-</details>
-:::
-
 ## 6. The arrows are the program
 
-Step back and look at what our script has now become: an extract of new responses, an extract of respondents, a transform that needs both, a load that needs the transform, a report that needs the load, and an archive step that needs only the raw extract. We have been writing it top to bottom like Python and a Jupyter Notebook implies, but the truth is that the top-to-bottom order was an accident. Nothing about *extract respondents* requires it to run after *extract responses*; they touch different tables and could run in either order, or at the same time on different machines. The real program is the arrows below:
+Step back and look at what our script has now become: an extraction of new responses, an extraction of respondents, a transform that needs both, a load that needs the transform, a report that needs the load, and an archive step that needs only the raw extract. We have been writing it top to bottom like Python and a Jupyter Notebook implies, but the truth is that the top-to-bottom order was an accident. Nothing about *extract respondents* requires it to run after *extract responses*; they touch different tables and could run in either order, or at the same time on different machines. The real program is the arrows which exist beneath it:
 
 ```{mermaid}
 flowchart LR
@@ -391,7 +364,7 @@ def archive_raw():
     if len(batch) == 0:
         log("archive_raw: nothing new to archive")
         return
-    month = batch["interview_date"].min()[:7]              # first seven characters: the month
+    month = batch["interview_date"].min()[:7]              
     batch.to_parquet(f"datasets/archive_{month}.parquet")
     log(f"archive_raw: {len(batch)} rows to the lake ({month})")
 
@@ -419,7 +392,7 @@ def report():
     log("report: monthly_report refreshed")
 ```
 
-We will now visualize our script as an object with arrows. A pipeline drawn as boxes and arrows is called a **directed graph** in mathematics. Tasks are boxes (nodes), dependencies are arrows (edges), and each edge points from a task to the task that needs it. Python's standard library for graphs is `networkx` (the same library behind the [prAxIs network analysis materials](https://ubcecon.github.io/praxis-ubc/docs/SOCI-415/soci_415_network_analysis.html), where it maps kinship instead of tasks). If you would like to learn more about Network Analysis and NetworkX have a look.
+We will now visualize our script as an object with arrows. A pipeline drawn as boxes and arrows is called a **directed graph** in mathematics. Tasks are boxes (nodes), dependencies are arrows (edges), and each edge points from a task to the task that needs it. Python's standard library for graphs is `networkx` (the same library behind the [prAxIs network analysis materials](https://ubcecon.github.io/praxis-ubc/docs/SOCI-415/soci_415_network_analysis.html), where it maps kinship in families instead of tasks). If you would like to learn more about Network Analysis and NetworkX have a look.
 
 We focus on two main `networkx` commands. `is_directed_acyclic_graph` checks that no task, followed forward along its arrows, ever leads back to itself; a graph that passes is a **DAG**, a directed acyclic graph, and acyclicity makes running the pipeline *possible*: if A needs B and B needs A, there is no order in which to start and it will loop forever. And `topological_sort` produces a valid running order, every task after everything it depends on.
 
@@ -434,10 +407,10 @@ pipeline.add_edges_from([
 ])
 
 print("acyclic:", nx.is_directed_acyclic_graph(pipeline))
-print("one valid order:", list(nx.topological_sort(pipeline)))
+print("one possible valid order:", list(nx.topological_sort(pipeline)))
 ```
 
-Our pipeline is a DAG! Compare that order to the script we have been writing all notebook: our top-to-bottom sequence was one topological sort of this graph, and the printed one is another, both equally valid. Drawing the graph makes the shape easier to talk about.
+Our pipeline is a DAG just like the flowchart above showed us! Compare that order to the script we have been writing all notebook: our top-to-bottom sequence was one topological sort of this graph, and the printed one is another, both equally valid. Drawing the graph makes the shape easier to talk about.
 
 ```{python}
 positions = {"extract_responses": (0, 1), "extract_respondents": (0, 0), "archive_raw": (1.1, 1.6),
@@ -450,7 +423,7 @@ plt.margins(x=0.12, y=0.15)
 plt.show()
 ```
 
-This is a elegant visualization of our pipeline. These pipelines can become really complex here is an example: ![Apache Airflow Complex DAG](/media/NB8/3-0-dags_complex_DAG.png)
+This is a elegant visualization of our rather simple pipeline. These pipelines can become really complex here is an example: ![Apache Airflow Complex DAG](/media/NB8/3-0-dags_complex_DAG.png)
 
 I have a little secret which I have been hiding since Notebook 1. Scroll up to the map in section 1: eleven notebooks, arrows showing what depends on what, no arrow ever pointing backward. The "you are here" diagram you have followed through this whole stream is a directed acyclic graph, and we have been executing it, one node per lesson, in topological order.
 
@@ -504,7 +477,7 @@ print(warehouse.execute("SELECT COUNT(*) FROM fact_response").df().iloc[0, 0], "
 
 Zero new rows extracted, and nothing loaded twice. Incremental extracts and idempotent loads made re-running so safe that the executor does not even need to know whether tonight is a real night or a retry. We could run it 500 times for fun and it would not matter. 
 
-Now we try sabotage it, twice. We seem to realy like breaking things on purpose in this stream. First, a cycle: suppose someone decides the extract should wait for the report, "so we only pull data after the numbers are out."
+Now we try sabotage it, twice. First, a cycle: suppose someone decides the extract should wait for the report, "so we only pull data after the numbers are out."
 
 ```{python}
 #| error: true
@@ -514,9 +487,9 @@ looped.add_edge("report", "extract_responses")
 run_pipeline(looped, tasks)
 ```
 
-Refused outright with a clear error, before a single task ran. The report now waits for the extract and the extract waits for the report; there is no first move, and the executor's opening check says so instead of hanging forever. 
+**ValueError: this graph has a cycle: no run order exists**. Refused outright with a clear error, before a single task ran. The report now waits for the extract and the extract waits for the report; there is no first move, and the executor's opening check let's us know so instead of running forever. 
 
-Second sabotage: a failure in the middle of the graph. We swap in a transform that dies, the kind of thing a renamed upstream column causes, and watch what the graph does with the damage:
+Second sabotage: a failure in the middle of the graph. We swap in a transform that dies, the kind of thing a renamed upstream column might cause, and watch what the graph does with the damage:
 
 ```{python}
 def broken_transform():
@@ -528,13 +501,13 @@ tasks_broken["transform"] = broken_transform
 run_pipeline(pipeline, tasks_broken)
 ```
 
-Read the log carefully. Both extracts ran, the archive still ran, because it hangs off `extract_responses` and can run correctly without the broken transform, and `load` and `report` were skipped, not failed: they never executed at all because transform failed, so the warehouse still holds exactly 281,200 correct facts. The graph is more than a visual of the pipeline. It just isolated an issue and *contained the blast*. Our wonderful DAG knows the difference between downstream and unrelated.
+Read the log carefully. Both extracts ran, the archive still ran, because it is connected to `extract_responses` and can run correctly without the broken transform, and `load` and `report` were skipped, not failed: they never executed at all because transform failed, so the warehouse still holds exactly 281,200 correct facts. The graph is more than a visual of the pipeline. It just isolated an issue and *contained the blast*. Our wonderful DAG knows the difference between downstream and unrelated and can stop issues from spreading. 
 
 ## 8. Conclusion
 
-The incident is closed and will never occur again. What happened: the load was chunked, chunk one committed before a network failure, and the retry stacked a full month onto the surviving half, because per-statement transactions do not protect multi-statement jobs. Why it will not happen again: the load is now idempotent, so any retry, human or automated, lands on the same correct state; the extract is incremental, so nobody edits dates into the script; failures are logged and retried by a wrapper that is safe precisely because the tasks under it are idempotent; and the whole update is a DAG walked by an executor that refuses cycles, contains failures, and treats a re-run as a non-event.
+The incident is closed and will never occur again. What happened: the load was chunked, chunk one committed before a network failure, and the retry stacked a full month onto the surviving half, because per-statement transactions do not protect multi-statement jobs. Why it will not happen again: the load is now idempotent, so any retry, human or automated, lands on the same correct state; the extract is incremental, so nobody edits dates into the script; failures are logged and retried by a wrapper that is safe because the tasks under it are idempotent; and the whole update is a DAG walked by an executor that refuses cycles, and contains failures. 
 
-That executor is also your first step into a job in the proper data industry. Enterprise solutions like Airflow, Prefect, Dagster, and dbt's DAG runner are, more or less, section 8's twenty lines with schedulers, retries, and dashboards attached to them; when a job posting says "orchestration experience," it is naming this notebook. What none of that machinery can catch is the failure that does not raise an error. The pipeline that runs green while the data inside it goes wrong. Notebook 9 is the next part: a new month arrives subtly broken, every task succeeds, and "the pipeline ran" and "the data is right" now do not mean the same thing. 
+That executor is also your first step into a job in the proper data industry. Enterprise solutions like Airflow, Prefect, Dagster, and dbt's DAG runner are, more or less, section 8's twenty lines with schedulers, retries, and dashboards attached to them. When a job posting says "orchestration experience," it is naming this notebook. What none of that machinery can catch is the failure that does not raise an error. The pipeline that runs green while the data inside it goes wrong. Notebook 9 is the next part: a new month arrives subtly broken, every task succeeds, and "the pipeline ran" and "the data is right" now do not mean the same thing. 
 
 ::: {.callout-note}
 ## You can now answer these interview questions
@@ -545,7 +518,7 @@ That executor is also your first step into a job in the proper data industry. En
 
 <details><summary>Show / hide model answers</summary>
 
-- Running it twice leaves the same state as running it once, typically via delete-then-insert scoped to the batch, or key-based overwrites. It matters because crashes and retries happen in the real world, and a retry against a non-idempotent task duplicates data.
+- Running it twice leaves the same state as running it once. It matters because crashes and retries happen in the real world, and a retry with a non-idempotent task duplicates data.
 - Re-running should produce exactly the state a clean single run would have produced, which requires every task to be idempotent; then recovery is just "run it again," with no manual cleanup.
 - Tasks depend on other tasks, and the dependency structure, a directed graph, determines what can run, in what order, and what a failure poisons. An orchestrator must refuse cycles, since a cyclic graph has no valid execution order at all.
 
