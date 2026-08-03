@@ -1,0 +1,526 @@
+---
+title: "Databases for AI: Embeddings and Vector Search"
+author: Alex Ronczewski
+date: 2026-08-02
+image: /pages/index/placeholder_images/placeholder.png
+description: "The tenth notebook in the Data Engineering stream. The warehouse adds a table of real consumer-complaint narratives and SQL fails at a simple request: find the ones about debt collectors harassing people. We turn text into embeddings, search by meaning with ORDER BY, show the places where keywords still win, and assemble the retrieval half of a RAG."
+categories:
+  - Python
+  - SQL
+  - data engineering
+execute:
+  eval: true
+  echo: true
+  output: true
+format:
+  html: default
+  ipynb:
+    jupyter:
+      kernelspec:
+        display_name: Python
+        language: python3
+        name: python3
+---
+
+## Outline
+
+### Prerequisites
+
+- Notebook 9 of this stream: the pipeline that loads and validates every new data batch.
+
+### Learning Outcomes
+
+By the end of this notebook you will be able to:
+
+1. Explain why keyword search fails on meaning (synonyms, phrasing, negation), and name situations where it succeeds.
+2. Turn text into **embeddings**, and interpret cosine similarity: close means related, far means unrelated.
+3. Run **vector search** and **hybrid search** in SQL against the warehouse.
+4. Explain retrieval-augmented generation (**RAG**) as retrieve plus generate, and justify a **chunking** grain with retrieval evidence.
+
+## 1. Where we are in the stream
+
+```{mermaid}
+flowchart TB
+    subgraph ARC1["Querying data"]
+        direction LR
+        NB1["1. Why databases<br/>exist"] --> NB2["2. Basic<br/>SQL"] --> NB3["3. Advanced<br/>SQL"] --> NB4["4. Cleaning<br/>real data"]
+    end
+    subgraph ARC2["Designing and storing data"]
+        direction LR
+        NB5["5. Modeling<br/>and schemas"] --> NB6["6. Storage, speed,<br/>transactions"] --> NB7["7. OLTP, OLAP,<br/>warehouses"]
+    end
+    subgraph ARC3["Keeping data flowing"]
+        direction LR
+        NB8["8. Pipelines I:<br/>scripts to graphs"] --> NB9["9. Pipelines II:<br/>quality, lineage, time"]
+    end
+    subgraph ARC4["Data for AI"]
+        direction LR
+        NB10["10. Embeddings and<br/>vector search"] --> NB11["11. Capstone: RAG"]
+    end
+    ARC1 --> ARC2 --> ARC3 --> ARC4
+    style NB10 fill:#c8e6c9,stroke:#2e7d32,stroke-width:3px
+```
+
+A new arc begins here, which we have been building towards for the whole stream. Nine notebooks gave us a warehouse filled with data we can trust, populated every night by a pipeline that checks its own work. This notebook is about what happened when different data appears: real text, from real people.
+
+> **The request, Tuesday 1:55 p.m.** "For the household-debt study we pulled 390 published complaint narratives from the CFPB, the American consumer-protection agency. The Deputy Minister's office wants to know what borrowers actually face from debt collectors: find the complaints where people describe collectors harassing them. This should take you an hour."
+
+It will not take an hour. By the end of section 3 you will watch every tool from Notebooks 2 through 9 fail at this request. First, every library the notebook needs:
+
+```{python}
+import os
+os.environ["USE_TF"] = "0"                             #transformers: use torch only, skip TensorFlow
+os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"    #disable a Windows-only cache warning
+import sqlite3
+import duckdb
+import numpy as np
+import pandas as pd
+import torch
+from transformers import AutoTokenizer, AutoModel
+from sklearn.decomposition import PCA
+import matplotlib.pyplot as plt
+
+pd.set_option("display.max_colwidth", 100)             #show more of each text column, needed for cell output readability
+```
+
+## 2. Text Data
+
+For the first time in this stream nothing is simulated. The [Consumer Financial Protection Bureau](https://www.consumerfinance.gov/data-research/consumer-complaints/) publishes complaints that American consumers file against financial companies. When a consumer agrees, the CFPB also publishes their story in their own words, scrubbed of anything that could identify them; every `XXXX` you see is that anonymization, blocking names, dates, and amounts. The database is public domain, so anyone can pull from it.
+
+We pulled 390 of these stories from March 2023, drawn evenly from six complaint categories. Our target category is labelled **Communication tactics**: the debt-collection label that covers harassing calls. The CFPB assigns these labels itself, which gives us a free answer key. We can grade every search we build against them.
+
+```{python}
+complaints = pd.read_csv("datasets/cfpb_complaints.csv")
+
+print("narratives:", len(complaints))
+complaints["issue"].value_counts()
+```
+
+390 narratives, 65 in each of six categories, including the 65 under Communication tactics. Here is what three of them look like; we print the first 250 characters of each:
+
+```{python}
+for i in range(3):
+    row = complaints.iloc[i]
+    print(f"[{row['state']} | {row['issue']}]")
+    print(row["narrative"][:250] + "...\n")
+```
+
+A mortgage payment that vanished between two servicers, a certified letter to a student-loan servicer, a family that lost its home in a wildfire and cannot get its insurance money released. This is real text written by real people in the United States, let's dig deeper and search for harassment. 
+
+## 3. Keyword search is limited
+
+Notebook 4 gave us a possible tool for text analysis while we were cleaning text. The SQL command `LIKE`, where `%` matches any run of characters, so `'%call%'` matches "call" anywhere inside a narrative. In these stories harassment usually means over the phone, so `call` is an obvious keyword to find this behaviour. Another option is harass, but people often describe situations of harassment without explicitly using the word so lots of example are missed. We load the complaints into a scratch SQLite database and try it:
+
+```{python}
+lite = sqlite3.connect(":memory:")
+complaints.to_sql("complaint", lite, index=False)
+
+print(pd.read_sql("SELECT COUNT(*) FROM complaint WHERE narrative LIKE '%call%'", lite).iloc[0, 0],
+      "of 390 complaints mention 'call'")
+pd.read_sql("""SELECT issue, COUNT(*) AS mentions_call FROM complaint
+               WHERE narrative LIKE '%call%' GROUP BY issue ORDER BY issue""", lite)
+```
+
+163 of 390, spread across all six categories. As a filter the word is worthless. Let's look deeper at some of the 163 hits. 
+
+```{python}
+they_call = pd.read_sql("""SELECT narrative FROM complaint
+    WHERE issue = 'Communication tactics' AND narrative LIKE '%calls me%'
+    ORDER BY complaint_id LIMIT 1""", lite)
+print("them calling:")
+print(they_call.iloc[0]["narrative"][:250] + "...\n")
+
+i_called = pd.read_sql("""SELECT narrative FROM complaint
+    WHERE narrative LIKE '%I called%' AND issue != 'Communication tactics'
+    ORDER BY complaint_id""", lite)
+print("calling them:")
+print(i_called.iloc[1]["narrative"][:250] + "...")
+```
+
+Call is correctly mentioned in both, but sitations are polar opposites. In the first, the calls *are* the harassment: numerous times a day, from different numbers, from blocked numbers. In the second, the customer is the one calling, trying to fix a billing dispute. `LIKE` sees the text string "call" and nothing more: not who is calling, not how often, not why. Meaning lives in context, and raw letters don't carry contextual meaning. 
+
+The next logical idea is dropping the generic word (call) and combining precise phrasings instead:
+
+> **Predict first.** Four patterns: `calls me`, `stop calling`, `keep calling`, `threaten`. There are 65 Communication tactics complaints. How many will the new chains catch, and will everything it catches be one of them?
+
+```{python}
+chain = pd.read_sql("""SELECT issue FROM complaint
+                       WHERE narrative LIKE '%calls me%' OR narrative LIKE '%stop calling%'
+                          OR narrative LIKE '%keep calling%' OR narrative LIKE '%threaten%'""", lite)
+print(f"the chain catches {len(chain)} complaints")
+chain["issue"].value_counts()
+```
+
+26 hits: 20 from our target category, and 6 from other categories. We improved our precision quite significantly,but two problems remain. First the strays; here is one, caught by `threaten` alone:
+
+```{python}
+stray = pd.read_sql("""SELECT issue, narrative FROM complaint
+                       WHERE narrative LIKE '%threaten%' AND issue != 'Communication tactics'
+                       ORDER BY complaint_id LIMIT 1""", lite)
+print(f"[{stray.iloc[0]['issue']}]")
+print(stray.iloc[0]["narrative"][:250] + "...")
+```
+
+A mortgage company "threatened" a {$380.00} insurance charge. This is not the harassment we are looking for, there are no debt collectors or repeated calls. It is the wrong story entirely. The bigger problem is everything the chain never sees:
+
+```{python}
+missed = pd.read_sql("""SELECT narrative FROM complaint
+    WHERE issue = 'Communication tactics'
+      AND narrative NOT LIKE '%calls me%' AND narrative NOT LIKE '%stop calling%'
+      AND narrative NOT LIKE '%keep calling%' AND narrative NOT LIKE '%threaten%'
+    ORDER BY complaint_id""", lite)
+print(f"{len(missed)} harassment complaints match none of the four patterns\n")
+for i in range(3):
+    print(missed.iloc[i]["narrative"][:250] + "...\n")
+```
+
+45 of the 65 harassment complaints slip through all four patterns. It is worth re-iterating that we have the answer key infront of us with the category names like Communication tactics. Normally we would just have text string, we use the category names to grade how well our search works. 
+
+Read how people actually write: "I've received multiple phone calls in the pass from this number asking to speak with the same person", "contacted by this XXXX company about 20 times by completely different ( spoofed ) phone numbers". These are examples of the harssment we are looking for, but they are not written uniformly, we are running into **synonym** and **phrasing** failures. Every pattern we add fixes some misses and creates new strays, and we could keep adding `OR` lines for a week without converging. This is simply a bad approach. 
+
+There is one more over-arching issue here: a complaint saying "the collector never calls me" would still match `calls me`, because matching characters cannot see a "never". That is the **negation** failure. `LIKE` matches characters. Our task asked for a meaning. Let's look at a way to derive that meaning. 
+
+## 4. Embeddings: coordinates of meaning
+
+::: {.callout-important}
+## Embeddings
+
+An **embedding** is a list of numbers that records where a piece of text sits in a space of meanings. A model trained on billions of sentences has learned which words tend to appear together, and it uses that experience to place every text at a point: texts about the same thing land close together, unrelated texts land far apart, whatever characters they happen to share. When similar text lands together we can compute distance and similarity mathematically.
+:::
+
+This all sounds quite abstact, and if you have not studied other natural language processing (NLP) techniques or linear algebra it may be unfamiliar. We will start with an example in two dimensions and build up from there. 
+
+A list of two numbers, like $(3, 4)$, is a **vector**: an arrow from the origin to that point in the plane. In the case of embeddings two arrows pointing the same direction agree; two arrows at a right angle are completely unrealted. The standard measurement of "how much do two arrows agree" is **cosine similarity**, the cosine of the angle between them mathematically is:
+
+$$
+\text{similarity}(a, b) \;=\; \cos(\theta) \;=\; \frac{a \cdot b}{\lVert a \rVert \, \lVert b \rVert}
+$$
+
+At the top is the **dot product** $a \cdot b$ multiplies matching coordinates and adds them up. The **length** $\lVert a \rVert$ is just how long the arrow is. The result is $1$ when the arrows point the same way, $0$ at a right angle, and $-1$ when they point in opposite directions. So cosine similarity ranges from $1$ to $-1$, with $1$ being identical and $-1$ being opposite. 
+
+Let's show this as a picture. The next cell builds three vectors: `b` points in a direction similar to `a`, and `c` sits at a right angle to it. The `cosine` function is the formula above. We draw both comparisons side by side, with the computed similarity in each title:
+
+```{python}
+a = np.array([3, 4])
+b = np.array([4, 1])      #points in a similar direction to a
+c = np.array([4, -3])     #at a right angle to a
+
+def cosine(u, v):
+    return u @ v / (np.linalg.norm(u) * np.linalg.norm(v))
+
+fig, axes = plt.subplots(1, 2, figsize=(10, 5))
+for ax, other, name in [(axes[0], b, "b"), (axes[1], c, "c")]:
+    ax.arrow(0, 0, a[0], a[1], head_width=0.25, length_includes_head=True)
+    ax.arrow(0, 0, other[0], other[1], head_width=0.25, length_includes_head=True)
+    ax.text(a[0] + 0.3, a[1], "a")
+    ax.text(other[0] + 0.3, other[1], name)
+    ax.set_xlim(-1, 6)
+    ax.set_ylim(-4.5, 5.5)
+    ax.grid(True)
+    ax.set_aspect("equal")
+    ax.set_title(f"similarity(a, {name}) = {cosine(a, other):.2f}")
+plt.show()
+```
+
+The vectors `a` and `b` are similar so they score a positive and high similarity; the right angle on the right scores exactly 0 as `a` and `c` are unrelated. The lengths of the arrows never matter, only the angle between them.
+
+Everything we just did in 2 dimensions works in any number of dimensions, 3, 300 or 3000. The model we use is `all-MiniLM-L6-v2`, a small, free, commonly used sentence-embedding model that maps any text to 384 numbers. The initial download is about 90 MB; after that it loads from a local cache. If you want to go deeper into the NLP side of all this we have a [prAxIs text embeddings workshop](https://ubcecon.github.io/praxis-ubc/docs/hist_workshop/text_embeddings_workshop.html).
+
+Let's load the model.
+
+```{python}
+tokenizer = AutoTokenizer.from_pretrained("sentence-transformers/all-MiniLM-L6-v2")
+model = AutoModel.from_pretrained("sentence-transformers/all-MiniLM-L6-v2").eval()
+```
+
+The model hands back one vector *per token*, and we want one per *text*. A **token** is the small unit of text the model actually reads, using the tokenizer. Let's 
+
+
+ a common word or a piece of a longer one. The tokenizer owns a fixed vocabulary of about 30,000 such pieces, lowercases everything, keeps familiar words whole, and assembles anything unfamiliar out of fragments. Watch it work:
+
+```{python}
+print(tokenizer.tokenize("The collector keeps calling about my debt"))
+print(tokenizer.tokenize("I called Comenity about my paycheque"))
+```
+
+The first sentence is seven everyday words, so it becomes seven tokens. In the second, the model has never met "Comenity" or the Canadian spelling of "paycheque", so it builds them from pieces: "come" plus "##nity", "pay" plus "##che" plus "##que", where `##` marks a fragment that continues the previous piece. Every token gets its own 384-number vector, which is why a sentence comes back as a stack of vectors and we need to squash that stack into one.
+
+Four steps: tokenize the batch, run the model, average each text's token vectors into one, then scale every vector to length one. The averaging step is called **mean pooling**, and the attention mask keeps padding tokens out of the average. We also explicitly never train this model, we just use it as is. 
+
+```{python}
+def embed(texts):
+    encoded = tokenizer(texts, padding=True, truncation=True, return_tensors="pt")
+    with torch.no_grad():
+        output = model(**encoded)                                #one vector per token
+    mask = encoded["attention_mask"].unsqueeze(-1)               #1 for real tokens, 0 for padding
+    vectors = (output.last_hidden_state * mask).sum(1) / mask.sum(1)   #mean pooling
+    vectors = vectors / vectors.norm(dim=1, keepdim=True)        #stretch to length one
+    return vectors.numpy()
+
+demo = embed(["The collector calls me five times a day", "They will not stop phoning me at all hours"])
+print("shape:", demo.shape)
+print("first five numbers of the first vector:", np.round(demo[0, :5], 3))   #np.round trims the printout
+print(f"similarity = {demo[0] @ demo[1]:.3f}")
+```
+
+Two sentences became two rows of 384 numbers each. The first five are -0.04, 0.081, 0.001, 0.011, -0.093, and individually they mean nothing; only the whole direction of all 384 numbers does. The vectors already have length one, so `demo[0] @ demo[1]` is their cosine similarity, exactly like `a @ b` in our 2-D warmup. The two sentences share barely a word and still score 0.341. To get a feel for these numbers, a small table of pairs:
+
+```{python}
+pairs = [("The collector calls me five times a day", "They will not stop phoning me at all hours"),
+         ("The collector calls me five times a day", "My credit report shows an account that is not mine"),
+         ("The collector calls me five times a day", "My escrow analysis came back wrong this year"),
+         ("The collector calls me five times a day", "The collector never calls me at all")]
+rows = []
+for a, b in pairs:
+    va, vb = embed([a, b])
+    rows.append({"sentence_b": b, "similarity": round(float(va @ vb), 3)})
+pd.DataFrame(rows)
+```
+
+Read the ranks before the raw values. The phone-call paraphrase is closest (0.341), the credit-report complaint further (0.191), the escrow complaint furthest (0.144). The absolute numbers are smaller than beginners expect, and that is normal for this model; the ordering is what carries information. Now look at the last row: the sentence and its exact opposite score 0.754, the highest on the table. Embeddings measure *topic*, and both sentences are exactly about collectors and calling. The "never" that flips the meaning barely moves the point. Remember this number, it comes back in the RAG section.
+
+Now the whole corpus. The narratives are long, so we embed them in batches of 64 and collect the results into one list; the comments in the cell walk through the plumbing. The warehouse then stores the vectors next to the text. DuckDB has a column type for exactly this, a fixed-length array written `FLOAT[384]`, and Notebook 9's `DESCRIBE` confirms what we built:
+
+```{python}
+texts = complaints["narrative"].tolist()               #.tolist turns the column into a plain list
+vectors = []
+for start in range(0, len(texts), 64):                 #count upwards in steps of 64
+    vectors.extend(embed(texts[start:start + 64]))     #.extend appends the whole batch at once
+complaints["embedding"] = [v.tolist() for v in vectors]
+
+warehouse = duckdb.connect("datasets/wage_warehouse.duckdb")
+warehouse.execute("""CREATE OR REPLACE TABLE complaint AS
+    SELECT complaint_id, state, issue, narrative, CAST(embedding AS FLOAT[384]) AS embedding
+    FROM complaints""")
+
+warehouse.execute("DESCRIBE complaint").df()[["column_name", "column_type"]]
+```
+
+The complaint table now holds text and coordinates side by side. Before searching, let's look at the space itself. 384 dimensions do not fit on a screen, so PCA (principal component analysis) presses them down to the two directions with the most spread; distances survive the pressing only roughly, but clusters stay visible:
+
+```{python}
+flat = PCA(n_components=2, random_state=42).fit_transform(np.array(vectors))   #learn and apply the 2-D projection
+
+plt.figure(figsize=(9, 6))
+for issue in complaints["issue"].unique():
+    inside = (complaints["issue"] == issue).to_numpy()                         #True/False mask for this category
+    plt.scatter(flat[inside, 0], flat[inside, 1], label=issue, s=22, alpha=0.8)
+plt.legend(fontsize=8)
+plt.title("390 complaints, 384 dimensions, pressed onto 2")
+plt.show()
+```
+
+Real text is messier than hand-picked examples, but the structure is there. Mortgage and payment troubles drift to the upper right, student-loan complaints pull to the right edge, and the credit-report disputes clump tightly at the bottom, partly because many of them are variations of the same template letter that circulates online. The middle is a blur, because real financial trouble rarely stays in one category. The model never saw the CFPB's labels, and still drew these neighbourhoods on its own.
+
+## 5. Vector search is ORDER BY
+
+Searching this space needs no new machinery: embed the query, compute the distance from the query to every complaint, sort, keep the closest. DuckDB's `array_cosine_distance` does the middle step: it is one minus the cosine similarity from section 4, so 0 means identical direction and bigger means further apart. Everything else is SQL you have written since Notebook 2. We wrap it in a helper that shows the first 80 characters of each hit, and start with the literal word from the request:
+
+```{python}
+def search(query, k=5):
+    qv = embed([query])[0].tolist()
+    return warehouse.execute("""SELECT round(array_cosine_distance(embedding, CAST(? AS FLOAT[384])), 3) AS distance,
+                                       issue, substr(narrative, 1, 80) AS start_of_narrative
+                                FROM complaint ORDER BY distance LIMIT ?""", [qv, k]).df()
+
+search("harassment")
+```
+
+Four of the five carry the Communication tactics label, from a single word no keyword pattern ever matched. But look at the top hit. It is a *student-loan* complaint, filed under "Dealing with your lender or servicer", about Navient contacting the writer's employer. The CFPB's filing system sorted it as a servicing matter; the model read the content, and the content is a harassment story. The label and the model disagree, and the model has a case. Real labels blur, and semantic search sees through the filing system. Still, a one-word query is a vague point in meaning space. Phrase the query the way a matching complaint would sound:
+
+```{python}
+search("debt collectors harassing me with constant phone calls", 10)
+```
+
+Ten out of ten from the target category, at distances 0.247 to 0.360. Read what the ranking found: "keeps calling me multiple times a day every single day", "CALLS EVERY SINGLE DAY 2-3X/DAY, AT ALL HOURS", "calls me numerous times a day under different numbers". None of those rows contain the word "harass". No keyword chain built this list; a meaning did.
+
+::: {.callout-caution}
+## Wrong-query gallery #6
+
+An analyst builds this exact search, glances at the numbers, and reasons: similarity is good, so surely bigger numbers are better. One `DESC` later:
+
+```{python}
+qv = embed(["debt collectors harassing me with constant phone calls"])[0].tolist()
+warehouse.execute("""SELECT round(array_cosine_distance(embedding, CAST(? AS FLOAT[384])), 3) AS distance,
+                            issue, substr(narrative, 1, 80) AS start_of_narrative
+                     FROM complaint ORDER BY distance DESC LIMIT 5""", [qv]).df()
+```
+
+A natural-disaster insurance dispute, student-loan paperwork, a credit-report inquiry: the five complaints in the whole table that have the *least* to do with collector harassment, served with complete confidence. What is the one-word bug?
+
+<details><summary>Show / hide answer</summary>
+
+`array_cosine_distance` returns a *distance*, where small means close, so sorting it descending hands you the far end of the space. Its sibling function `array_cosine_similarity` runs the other way, big means close, and mixing up the two conventions is the classic first bug of every vector application. Drop the `DESC` and the ranking snaps back to the one above. When a semantic ranking looks like nonsense, check the sort direction before blaming the model.
+
+</details>
+:::
+
+## 6. The scoreboard, and where keywords still win
+
+The CFPB's labels let us grade both engines instead of guessing. The keyword chain caught 26 complaints, 20 of them actually in the target category. For vector search, count the labels deeper into the ranking:
+
+```{python}
+top20 = warehouse.execute("""SELECT issue, substr(narrative, 1, 80) AS start_of_narrative FROM complaint
+    ORDER BY array_cosine_distance(embedding, CAST(? AS FLOAT[384])) LIMIT 20""", [qv]).df()
+print(f"top 20 by distance: {(top20['issue'] == 'Communication tactics').sum()} carry the target label")
+top20
+```
+
+18 of the top 20, from a single query written in plain language, against 20-of-26 for a hand-tuned four-pattern chain that also missed most of the category. For Thursday's briefing, this ranking is the deliverable: a human reads twenty complaints instead of 390, and that is the whole point of retrieval. The two "misses" in the list are worth reading before you call them misses. Like the Navient complaint, they are collector stories that were filed elsewhere.
+
+Vector search is not always the right tool though. Watch what happens when the query is an exact token instead of a meaning. Some complaints cite chapter and verse of debt-collection law, the FDCPA, statute 15 U.S.C. 1692, and the legal team wants precisely those citations:
+
+```{python}
+search("section 1692 FDCPA violation")
+```
+
+Every hit in the top five is a credit-report complaint citing the Fair Credit Reporting Act, statute 1681, a *different* law, and the complaints that actually cite 1692 appear nowhere in the list. To a meaning model, legal boilerplate all looks alike, and digits carry almost no meaning. Now the Notebook 4 tool:
+
+```{python}
+pd.read_sql("""SELECT issue, substr(narrative, 1, 80) AS start_of_narrative
+               FROM complaint WHERE narrative LIKE '%1692%'""", lite)
+```
+
+Exactly two complaints cite 1692, and `LIKE` returns exactly those two, guaranteed, every time, at zero cost. When you know the exact string, the exact code, the exact name, keyword search is the correct tool. Real systems refuse to choose and run **hybrid search**: hard SQL filters for what must be exact, vector ranking for what must be understood. In SQL they combine naturally. The Texas attorney general's office wants harassment complaints from Texas only:
+
+```{python}
+warehouse.execute("""SELECT state, round(array_cosine_distance(embedding, CAST(? AS FLOAT[384])), 3) AS distance,
+                            substr(narrative, 1, 80) AS start_of_narrative
+                     FROM complaint
+                     WHERE state = 'TX'
+                     ORDER BY distance LIMIT 3""", [qv]).df()
+```
+
+`WHERE` narrows to Texas exactly, the distance orders by meaning, and all three are collector-harassment stories. One query, both worlds.
+
+**Your turn.** A colleague studies mortgage servicing in California and wants the three complaints most about *escrow going wrong*, from California only. Write the hybrid query before running the next cell; only the filter and the query text change.
+
+```{python}
+warehouse.execute("""SELECT state, issue, round(array_cosine_distance(embedding, CAST(? AS FLOAT[384])), 3) AS distance,
+                            substr(narrative, 1, 80) AS start_of_narrative
+                     FROM complaint
+                     WHERE state = 'CA'
+                     ORDER BY distance LIMIT 3""",
+                  [embed(["my mortgage payment was misapplied and escrow is wrong"])[0].tolist()]).df()
+```
+
+Three California complaints, every one labelled Trouble during payment process, every one about escrow, from a query sharing almost no words with any of them.
+
+## 7. A database attached to a model
+
+You have probably heard **RAG** talked about like it is magic. You have now built most of it yourself:
+
+::: {.callout-important}
+## Retrieval-augmented generation
+
+**RAG** is a database attached to a language model. When a question arrives, the system does not ask the model to answer from memory. It embeds the question, runs exactly the vector search you built in section 5 against its own data, and pastes the top results into the prompt as context, with the instruction to answer *from that context*. Retrieve, then generate. The retrieval half is this notebook. The generation half is a language model reading what your database found, and that is Notebook 11.
+:::
+
+The last step we can take without a language model is to build the prompt. This function embeds a question, retrieves the three nearest complaints, and lays them out with the question underneath. Real systems pass whole chunks into the prompt; we trim each excerpt to 240 characters so the page stays readable:
+
+```{python}
+def build_prompt(question, k=3):
+    hits = warehouse.execute("""SELECT substr(narrative, 1, 240) AS excerpt FROM complaint
+        ORDER BY array_cosine_distance(embedding, CAST(? AS FLOAT[384])) LIMIT ?""",
+        [embed([question])[0].tolist(), k]).df()
+    context = "\n".join(f"- {excerpt}..." for excerpt in hits["excerpt"])
+    return f"Answer using only the complaint excerpts below.\n\nExcerpts:\n{context}\n\nQuestion: {question}"
+
+print(build_prompt("What do people say debt collectors are doing to them?"))
+```
+
+That printed block is a complete RAG prompt, grounded in real complaints from our warehouse instead of the model's memory: lapsed medical insurance sent to collections, aggressive threats at a local branch, a demand for proof of a debt that has gone unanswered. And recall the 0.754 from the pair table: if a "the collector never calls me" complaint existed, retrieval would happily put it in this context too, because retrieval reads topic, never stance. *Reading* the excerpts, including every "never" in them, is the language model's half of the job. That is why the two halves need each other.
+
+## 8. Chunking is a grain decision
+
+One design question stands between you and building real RAG systems, and you have met it three times already: what is one *row*? Notebook 2 named it the grain of a table, Notebook 5 wrote it into schemas, and Notebook 7 chose the grain of the fact table. In retrieval the same question is called **chunking**: when documents are long, what unit do you embed, the whole document or its pieces? The grain determines what the system can find.
+
+Our 390 narratives were short enough to embed whole. But the CFPB also receives long, multi-part complaints, and we shipped three real ones alongside the sample: an identity-theft story where fraudulent collections cost the writer their home, a hacked marketplace account that ended in collections two years later, and a second identity-theft story involving cars, an apartment, and a fake move to Florida. Each runs several paragraphs. Inside the first sits one buried sentence that matters for the briefing: the fraud cost the writer refinancing, and student loans for their daughter's education.
+
+```{python}
+longs = pd.read_csv("datasets/cfpb_long_complaints.csv")
+print(longs[["complaint_id", "issue", "state"]])
+print("lengths:", longs["narrative"].str.len().tolist())    #.str.len measures each text's characters
+```
+
+> **Predict first.** We embed each complaint as one block and search for the education-loans detail. The first complaint contains it. Will it win, and by how much?
+
+```{python}
+doc_vectors = embed([t.replace("\n", " ") for t in longs["narrative"]])
+question = embed(["the fraud made me unable to get student loans for my daughter"])[0]
+
+longs["distance"] = [round(1 - float(v @ question), 3) for v in doc_vectors]
+longs[["complaint_id", "issue", "distance"]].sort_values("distance")
+```
+
+The right complaint does come first, at 0.548 against 0.610 and 0.636, a margin too thin to trust. The reason is **dilution**: one sentence about a daughter's student loans was averaged together with paragraphs of disputes, bureaus, and lawyers, and all three documents drifted toward the same point, "long identity-theft complaint", which all three are. Now change the grain. Split every complaint into paragraphs and embed those (`zip` walks two lists in step, and `enumerate` counts the paragraphs as we go, so each keeps its complaint id and position):
+
+```{python}
+paragraphs = []
+for cid, text in zip(longs["complaint_id"], longs["narrative"]):
+    for number, para in enumerate(text.split("\n\n"), 1):
+        if para.strip():
+            paragraphs.append({"complaint_id": cid, "paragraph": number, "text": para.strip()})
+para_df = pd.DataFrame(paragraphs)
+
+para_vectors = embed(para_df["text"].tolist())
+para_df["distance"] = [round(1 - float(v @ question), 3) for v in para_vectors]
+
+print(para_df.sort_values("distance").iloc[0]["text"])
+para_df.sort_values("distance").head(3)[["complaint_id", "paragraph", "distance", "text"]]
+```
+
+The buried paragraph wins at 0.386, printed in full above the table, and it says it outright: *"denied refinancing for my home, student loans for my daughter 's education"*. Second place, at 0.460, is a neighbouring paragraph from the same complaint; the best paragraph from any *other* complaint is back at 0.599. At document grain the margin was 0.06; at paragraph grain it is a clear gap, and the search now hands the briefing the exact passage, with its complaint id and paragraph number attached, instead of a whole complaint to reread. You retrieve what you index. Chunk too big and signals dilute; chunk too small (single words, say) and there is no meaning left to embed. Choosing that grain, with retrieval evidence like this, is a core design decision of every RAG system you will ever build.
+
+## 9. Conclusion
+
+The Thursday briefing exists. The obvious keyword lit up 163 complaints across every category because characters carry no context; the four-pattern chain caught 20 of the 65 harassment stories and dragged in 6 strays; the embedding search put 18 of the target category in its top 20 from one plain-language query, found the harassment stories filed under other labels, and showed its own limits: it cannot read "never", and it fumbles statute numbers that `LIKE` nails for free. So the analyst files the vector top twenty, a `LIKE` query for the 1692 citations, and a note that the filing categories are softer than they look.
+
+The bigger idea is that storage follows the shape of data. Tables hold records, and now embedding columns hold *meaning*, at which point search becomes geometry and `ORDER BY distance LIMIT 5` becomes the strangest query this stream has taught. One piece is missing: something that can actually *read* the retrieved complaints, stances, negations, and all. That is a language model. The prompt is already printed above, and wiring the two together properly, with the schemas, pipelines, validation, and lineage of Notebooks 5 through 9 underneath, is the capstone.
+
+::: {.callout-note}
+## You can now answer these interview questions
+
+- Your product search matches keywords. When would you add semantic search, and when would you keep the keywords?
+- What is an embedding, and why does cosine similarity between two of them mean anything?
+- Explain RAG to a manager in three sentences, and name the design decision that most affects its quality.
+
+<details><summary>Show / hide model answers</summary>
+
+- Add semantic search where users describe things in their own words and the data phrases them differently: synonyms, paraphrases, vague requests. Keep keywords wherever the query is an exact token, codes, names, IDs, statute numbers, and for hard filters; production systems run both at once as hybrid search.
+- An embedding is a vector a trained model assigns to a piece of text so that texts about similar things point in similar directions. Cosine similarity measures the angle between two vectors, so on normalized embeddings it reads out how alike the topics are; it says nothing about stance, which is why a sentence and its negation can score very high.
+- RAG answers questions from your data instead of the model's memory: embed the question, retrieve the closest chunks from a vector-indexed store, and have the model answer only from what was retrieved. The decision that most affects quality is the chunking grain, because the system can only find what it indexed: whole documents dilute signals, single sentences lose context.
+
+</details>
+:::
+
+## Appendix: the landscape beyond tables
+
+A useful organizing idea for the whole database world: storage follows the shape of the data. Every shape has grown its own product category:
+
+| Shape of the data | Category | Names you will meet |
+|---|---|---|
+| rows and columns | relational | SQLite, DuckDB, PostgreSQL (Notebooks 1 to 9) |
+| nested documents | document store | MongoDB, CouchDB |
+| key and value, at speed | key-value store | Redis, Memcached |
+| nodes and edges | graph database | Neo4j, Neptune (Notebook 8's DAGs, as a product) |
+| vectors | vector database | Pinecone, Chroma, pgvector, sqlite-vec, DuckDB's vss extension |
+
+Two notes on the vector row. First, at 390 complaints our search compares the query against every row, and that is fine; at the millions of complaints the full CFPB database holds, vector databases switch to approximate indexes (the usual one is called HNSW) that find near-neighbours without touching every vector, the same reason Notebook 6 built an index instead of scanning. Second, the boundary is dissolving: PostgreSQL gains vectors through `pgvector`, SQLite through `sqlite-vec`, DuckDB through its `vss` extension, so the "vector database" is increasingly just a column type in the database you already run, which is exactly how we treated it today.
+
+## Connections
+
+- **Back to Notebook 4:** `LIKE` entered this stream during the cleaning work, and section 3 found its ceiling: characters, no meaning. It did not retire; it won the statute-citation round and took its seat inside hybrid search.
+- **Back to Notebooks 2, 5 and 7:** grain returns for the fourth time. Notebook 2 named it, Notebook 5 built schemas around it, Notebook 7 chose it for the fact table, and now the chunk grain decides what retrieval can find. Same decision, new coat.
+- **Forward to Notebook 11:** the capstone. The prompt printed in section 7 finally meets a model that can read it, and everything underneath it, schema, ETL, validation, lineage, becomes the RAG system you build and then deliberately break.
+
+### References
+
+- Consumer Financial Protection Bureau. *Consumer Complaint Database.* https://www.consumerfinance.gov/data-research/consumer-complaints/ The source of every narrative in this notebook: public domain, published with consumer consent, scrubbed of identifying details ([how the CFPB shares complaint data](https://www.consumerfinance.gov/complaint/data-use/)). Our 390-row sample comes from March 2023 across six issue categories.
+- Reimers, N., & Gurevych, I. (2019). *Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks.* EMNLP 2019. The paper behind the sentence-transformers family our model comes from.
+- Lewis, P., et al. (2020). *Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks.* NeurIPS 2020. Where RAG got its name; section 7 is its architecture in twelve lines.
+- Hugging Face model card. *sentence-transformers/all-MiniLM-L6-v2.* https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2 The exact model, its training recipe, and the mean-pooling code section 4 adapts.
+- DuckDB documentation. *Array functions and the vss extension.* https://duckdb.org/docs/stable/sql/functions/array `array_cosine_distance` and friends, plus the HNSW index for when corpora outgrow full scans.
+- Garcia, A. *sqlite-vec.* https://github.com/asg017/sqlite-vec Vector search inside SQLite, proof that even the smallest database in this stream can hold the newest shape.
+
+---
