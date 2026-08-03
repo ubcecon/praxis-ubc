@@ -23,7 +23,7 @@ RUN find /app/output -name '*.html' -exec \
     sed -i 's#<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>##g' {} +
 
 # Metadata index for the path visualization page (one JSON fetch)
-COPY ./meta/scripts/extract_pvz_meta.py /extract_pvz_meta.py
+COPY ./meta/scripts/extract_path_viz_meta.py /extract_pvz_meta.py
 RUN python3 /extract_pvz_meta.py /app/output /app/output/pages/pvz_meta.json
 
 # Add the per-notebook launch button (chooses which notebooks get it via launch_notebook.html)
