@@ -108,7 +108,7 @@ There is one catch, the same one from Notebook 1: we can't use the same data twi
 
 Suppose we fit the two learners and compute the effect all on the same households. The danger is overfitting, a core theme of Notebooks 1, 2, and 3. A flexible learner can fit the training data too well, memorizing the noise and not being able to generalize to new data. If we feed these overfitting estimators into the residual-on-residual regression the effect comes out wrong.
 
-We will make this happen on purpose to demonstrate it. We build a world where the true effect is 1, and we hand the residualizing to a learner that memorises its training data and dramatically overfits: an extremely-randomised forest grown until every household sits in its own leaf (check notebook 3). On the training data it predicts perfectly, so the leftovers collapse to nothing.
+We will make this happen on purpose to demonstrate it. We build a world where the true effect is 1, and we hand the residualizing to a learner that memorises its training data and dramatically overfits: an extremely-randomised forest grown until every household sits in its own leaf. On the training data it predicts perfectly, so the leftovers collapse to nothing.
 
 ```{python}
 def make_world(n, seed):
@@ -300,6 +300,22 @@ We built double machine learning a piece at a time. Here is the whole workflow g
 4. **Regress leftover on leftover.** Regress the outcome leftovers on the treatment leftovers. The slope is the estimated effect.
 5. **Report the uncertainty.** Take the standard error from the spread of the per-unit terms, and form the confidence interval.
 :::
+
+### 3.3 The conditions that make the estimate causal
+
+The recipe tells you how to compute the estimate, but by itself it does not make the estimate causal. The estimate of 8,800 dollars, and the confidence interval around it, identify the effect of eligibility only under the following statistical conditions. The first three are about the world and the data and are shared with Notebooks 4 to 6; the last two are the requirements DML places on its own machinery.
+
+::: {.callout-important}
+## Identification conditions for double machine learning
+
+1. **Unconfoundedness (selection on observables).** The nine covariates must capture every systematic reason a household is eligible that also matters for savings. In the partially linear model this is carried by the error terms: $\varepsilon$ and $v$ must average to zero given the covariates, so that once $g(X)$ and $m(X)$ are removed, the leftover eligibility $\tilde{D}$ is as good as random. Flexible learners make the *adjustment* for $X$ better; they do nothing about a confounder that is not in $X$, and this condition remains untestable.
+2. **Overlap.** The treatment must truly vary within every kind of household, so the leftover $\tilde{D} = D - m(X)$ has spread everywhere. If the covariates predicted eligibility perfectly for some households, their $\tilde{D}$ would collapse to zero and there would be nothing to regress on.
+3. **A random, independent sample.** The method for standard errors and cross-fitting treats households as i.i.d. draws, with no household's eligibility affecting another household's savings and a single version of the treatment (SUTVA and consistency).
+4. **The partially linear model, with a constant effect.** We wrote $Y = \theta D + g(X) + \varepsilon$, so $\theta$ is one number for everyone. Nonlinearity is allowed anywhere in $g(X)$ and $m(X)$, but not in how $D$ enters. If the effect actually varies across households, the DML slope estimates a particular variance-weighted average of those effects rather than the plain ATE, and Notebook 8 looks at that heterogeneity directly.
+5. **Nuisance learners that are good enough, plus orthogonalization and cross-fitting.** The learners for $g$ and $m$ do not have to be perfect, but they must converge to the truth relatively well: the rule of thumb from the theory is that each should have an error shrinking at roughly the rate $n^{-1/4}$, so the *product* of the two errors shrinks faster than $1/\sqrt{n}$. Given that, the residual-on-residual (Neyman-orthogonal) construction makes the estimate insensitive to the small errors that remain, and cross-fitting removes the contamination from overfitting we demonstrated in Section 2.2. Skip the cross-fitting, or use a learner too weak to learn the nuisances at that rate, and the guarantee behind the standard error breaks.
+:::
+
+Conditions 1 to 3 can't be fixed with a stronger learner; conditions 4 and 5 are necessary for using flexible machine learning inside a causal estimate. When you report a DML effect, these five are the statement of what the causal claim rests on.
 
 ## 4. Connections
 
