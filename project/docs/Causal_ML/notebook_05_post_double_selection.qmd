@@ -2,7 +2,7 @@
 title: "Post-Double-Selection Lasso"
 author: Alex Ronczewski
 date: 2026-06-22
-image: /pages/index/placeholder_images/placeholder.png
+image: /media/stream_icons/causal-ml-5.png
 description: "The fifth notebook in the Causal ML stream. We return to the growth data from Notebook 2 and the convergence question. A naive regression shows no convergence, and so does a lasso that picks controls by how well they predict growth. The fix is to pick controls twice, once for the outcome and once for the treatment, and keep both lists. That is post-double-selection lasso, and with it the convergence that was hidden appears."
 categories:
   - Python
@@ -174,6 +174,23 @@ Pointed at 1965 wealth, lasso keeps three controls: `sf65`, `lifee065`, and `hum
 
 With those three held fixed, the coefficient on 1965 wealth is $-0.0317$, with a standard error of $0.0140$ and a t-statistic of $-2.26$. It is now negative and far enough from zero to be significant. Holding schooling and health fixed, poorer countries did grow faster. The convergence the naive regression hid appears once we control for the right things.
 
+### 3.1 The conditions that make this estimate causal
+
+Post-double-selection is a clever way to choose controls, but choosing controls well is not what makes an estimate causal. The estimate of $-0.0317$ carries a causal meaning only under a set of statistical conditions, and we should be able to state them. The first two come from Notebook 4, the third is a background condition every method in this stream shares, and the last two are what post-double-selection adds on top.
+
+::: {.callout-important}
+## Identification conditions for post-double-selection lasso
+
+1. **Unconfoundedness (selection on observables).** Every variable that shapes both 1965 wealth and later growth must be among the 60 recorded characteristics. Formally, conditional on the controls $X$, the treatment is as good as randomly assigned: $(Y(0), Y(1)) \perp D \mid X$. This is an assumption about what the dataset contains, not something the data can verify, and if an important confounder was never measured, no way of selecting among the 60 can rescue the estimate.
+2. **The treatment varies once the controls are held fixed.** Countries with the same schooling and health must still differ in their 1965 wealth. This is the overlap condition from Notebook 4, in the form it takes for a continuous treatment: if the selected controls pinned down 1965 wealth exactly, holding them fixed would leave no variation to estimate the effect from.
+3. **A random, independent sample.** The theory behind the standard error and the penalty rule treats the 90 countries as independent and identically distributed (i.i.d.) draws. It also assumes no country's treatment spills over into another's outcome (part of what is called Stable Unit Treatment Value Assumption (SUTVA)).
+4. **The partially linear model is right.** We are estimating a single coefficient on 1965 wealth, so we assume the effect is one constant number and that the controls enter through a linear combination that approximates their influence well, with an error term that averages to zero given the treatment and the controls.
+5. **Approximate sparsity.** Among the 60 candidates, a small number of controls must be enough to capture (approximately) both what drives growth and what drives 1965 wealth. If the truth required most of the 60, no short list could stand in for it and lasso's selection would throw away signal that matters.
+:::
+
+When you report a post-double-selection estimate, this is the condition checklist your causal claim rests on.
+
+
 ## 4. The three answers side by side
 
 ```{python}
@@ -212,8 +229,8 @@ Notebook 4 fixed this same problem in a different way. There we removed the cont
 Lasso was just the tool we used to pick controls. Notebook 7 builds the generalized version, **double machine learning**, where a forest from Notebook 3 or any other predictor can do the picking on each side, and where an extra step called cross-fitting cleans up the small bias left from using the same countries both to choose the controls and to estimate the effect.
 :::
 
-- **Back to Notebook 4:** double selection is the lasso version of removing the controls from both sides. 
-- **Forward to Notebook 6:** estimating the chance of treatment from the controls, the propensity score, and using it to reweight.
+- **Back to [Notebook 4](notebook_04_prediction_to_treatment_effects.qmd):** double selection is the lasso version of removing the controls from both sides. 
+- **Forward to [Notebook 6](notebook_06_propensity_ipw.qmd):** estimating the chance of treatment from the controls, the propensity score, and using it to reweight.
 
 ### References
 
