@@ -311,6 +311,10 @@ window.Quarto = {
     <a class="dropdown-item" href="../../pages/index/index_Causal_ML.html">
  <span class="dropdown-text">Causal Machine Learning</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_Game_Theory.html">
+ <span class="dropdown-text">Game Theory</span></a>
+  </li>  
         <li><hr class="dropdown-divider"></li>
         <li>
     <a class="dropdown-item" href="../../pages/index/all.html">
@@ -507,7 +511,7 @@ window.Quarto = {
 <li>Choose <span class="math inline">\(\lambda\)</span> by cross-validation, reusing the method learned in Notebook 1.</li>
 <li>Explain why a lasso-selected coefficient is <strong>not</strong> yet a causal effect.</li>
 </ol>
-<div id="ffb40cd7" class="cell" data-execution_count="1">
+<div id="1f79abae" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
@@ -532,7 +536,7 @@ window.Quarto = {
 <h3 class="anchored" data-anchor-id="the-growth-data">1.1 The Growth Data</h3>
 <p>We will use the <strong>Barro-Lee growth data</strong>, a standard dataset in the study of economic growth. Each row is a country. The outcome is <code>Outcome</code>, the country’s average annual growth rate of GDP per capita over the period. The variable <code>gdpsh465</code> is the log of GDP per capita at the start of the period (1965), and the remaining columns are country characteristics measured around the same time: schooling and education rates, government spending, trade and market openness, political stability, and various other demographics. These variables have special codes: <code>65</code> means the variable was measured in 1965, a trailing <code>m</code> or <code>f</code> marks male or female, and a schooling prefix marks the level, <code>p</code> for primary, <code>s</code> for secondary, <code>h</code> or <code>high</code> for higher, <code>no</code> for none. <code>human</code> is an average-years-of-schooling measure. So <code>pf65</code> is female primary schooling in 1965, <code>highm65</code> is male higher schooling, and <code>humanm65</code> is average male schooling.</p>
 <p>We will load the data:</p>
-<div id="599dfd9f" class="cell" data-execution_count="2">
+<div id="765ce2e7" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>growth <span class="op">=</span> pd.read_csv(<span class="st">"datasets/GrowthData.csv"</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>target <span class="op">=</span> <span class="st">"Outcome"</span></span>
@@ -614,14 +618,14 @@ Covariates: 61</code></pre>
 </div>
 </div>
 </div>
-<p>So we have 90 countries and 61 covariates. 61 hyperparameters to fit 90 numbers leaves almost no room to spare, and once we split off a test set it gets far worse.</p>
+<p>So we have 90 countries and 61 covariates. 61 coefficients to fit 90 numbers leaves almost no room to spare, and once we split off a test set it gets far worse.</p>
 <p>A note on scaling, which mattered in Notebook 1 and matters even more here. Ridge and lasso work by penalizing the size of the coefficients, and the size of a coefficient depends on the units of its variable, a coefficient on income measured in dollars is a thousand times smaller than the same effect measured in thousands of dollars. If we penalize coefficients without first putting the variables on a common scale, the penalty falls unevenly. So we standardize every feature, and as in Notebook 1 we do it inside a pipeline so that the scaling is always learned from the training data alone.</p>
 </section>
 </section>
 <section id="why-ols-breaks-with-many-covariates" class="level2">
 <h2 class="anchored" data-anchor-id="why-ols-breaks-with-many-covariates">2. Why OLS breaks with many covariates</h2>
 <p>We split off a test set exactly as before, holding out 30% of the countries.</p>
-<div id="17e142e9" class="cell" data-execution_count="3">
+<div id="9fa8598c" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>X_train, X_test, y_train, y_test <span class="op">=</span> train_test_split(</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    X, y, test_size<span class="op">=</span><span class="fl">0.3</span>, random_state<span class="op">=</span>RANDOM_STATE)</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -633,7 +637,7 @@ Test countries    : 27</code></pre>
 </div>
 </div>
 <p>Now there are 63 countries in the training set and 61 covariates. Counting the intercept, that is 62 free coefficients to fit 63 points, so OLS has almost no room to spare and can bend nearly all the way to the training data. Let’s see what that does.</p>
-<div id="328dfe9f" class="cell" data-execution_count="4">
+<div id="5a846553" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>ols <span class="op">=</span> make_pipeline(StandardScaler(), LinearRegression())</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>ols.fit(X_train, y_train)</span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -654,7 +658,7 @@ Predict-the-mean test MSE: 0.00340</code></pre>
 </div>
 <p>The training <span class="math inline">\(R^2\)</span> is 1 and the training MSE is 0: OLS fits the countries it was trained on almost perfectly. But the test MSE is ten times larger than what we would get by ignoring every covariate and just predicting the average growth rate. A model with 61 controls does worse than a model with none. This is the same overfitting we saw in Notebook 1 with the <span class="math inline">\(k=1\)</span> nearest neighbour, only in a different setting, because with so little room to spare OLS fits the noise in the training countries and carries none of it over to new ones.</p>
 <p>This can be seen even more clearly in the coefficients OLS chose.</p>
-<div id="c7b30da1" class="cell" data-execution_count="5">
+<div id="9073e7d2" class="cell" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>ols_coefs <span class="op">=</span> pd.Series(ols[<span class="op">-</span><span class="dv">1</span>].coef_, index<span class="op">=</span>X.columns)</span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>plt.figure(figsize<span class="op">=</span>(<span class="dv">9</span>, <span class="dv">6</span>))</span>
@@ -683,7 +687,7 @@ Predict-the-mean test MSE: 0.00340</code></pre>
 \]</span></p>
 <p>The first term is the usual sum of squared residuals (OLS). The second is the <strong>penalty</strong>: the squared size of the coefficients, scaled by a number <span class="math inline">\(\lambda\)</span> we choose. When <span class="math inline">\(\lambda = 0\)</span> there is no penalty and ridge is just OLS. As <span class="math inline">\(\lambda\)</span> grows, large coefficients become expensive, so the fit pulls them toward zero. In the limit of huge <span class="math inline">\(\lambda\)</span> every coefficient is squeezed to nearly nothing and the model predicts close to a constant.</p>
 <p>The clearest way to see this is the <strong>coefficient path</strong>: fit ridge at many values of <span class="math inline">\(\lambda\)</span> and plot how each coefficient moves.</p>
-<div id="c1d849e0" class="cell" data-execution_count="6">
+<div id="934e15d1" class="cell" data-execution_count="6">
 <div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>scaler <span class="op">=</span> StandardScaler().fit(X_train)</span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>X_train_s <span class="op">=</span> scaler.transform(X_train)</span>
 <span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -714,7 +718,7 @@ Predict-the-mean test MSE: 0.00340</code></pre>
 </div>
 <p>On the left, where <span class="math inline">\(\lambda\)</span> is small, the coefficients are large and spread out: this is the unstable OLS fit from section 2. As we move right and the penalty grows, every line drifts smoothly toward zero, though nothing ever becomes exactly zero, it just keeps approaching it. The penalty is buying us stability: by refusing to let any coefficient grow large, ridge trades a little bias for a large reduction in variance. That is the same bias-variance tradeoff from Notebook 1, now showing up in a different model.</p>
 <p>In a live session (Local or Jupyter/Colab) we can see this penalty at work. Drag <span class="math inline">\(\lambda\)</span> below and watch the OLS coefficients on the left collapse toward zero as the penalty tightens.</p>
-<div id="651e3b72" class="cell" data-execution_count="7">
+<div id="78480340" class="cell" data-execution_count="7">
 <div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> ipywidgets <span class="im">import</span> interact, FloatLogSlider</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> show_ridge(lam):</span>
@@ -731,7 +735,7 @@ Predict-the-mean test MSE: 0.00340</code></pre>
 <span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>interact(show_ridge, lam<span class="op">=</span>FloatLogSlider(value<span class="op">=</span><span class="fl">1e-6</span>, base<span class="op">=</span><span class="dv">10</span>, <span class="bu">min</span><span class="op">=-</span><span class="dv">6</span>, <span class="bu">max</span><span class="op">=-</span><span class="dv">2</span>, step<span class="op">=</span><span class="fl">0.2</span>))<span class="op">;</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>We still have to choose <span class="math inline">\(\lambda\)</span>. As in Notebook 1 we let cross-validation do it, which the <code>RidgeCV</code> function runs for us over a grid of candidates.</p>
-<div id="198a0f63" class="cell" data-execution_count="8">
+<div id="1c1a7ab9" class="cell" data-execution_count="8">
 <div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>ridge <span class="op">=</span> make_pipeline(StandardScaler(), RidgeCV(alphas<span class="op">=</span>np.logspace(<span class="op">-</span><span class="dv">2</span>, <span class="dv">4</span>, <span class="dv">60</span>)))</span>
 <span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>ridge.fit(X_train, y_train)</span>
 <span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -762,7 +766,7 @@ Standardize before you penalize
 \]</span></p>
 <p>Where ridge shrinks coefficients smoothly toward zero, lasso pushes them <strong>exactly to zero</strong> and leaves them there. A coefficient of zero means the variable is dropped from the model, so lasso doesn’t only shrink the coefficients, it also <strong>selects</strong> which ones to keep. This is the key difference between ridge and lasso.</p>
 <p>The coefficient path makes the difference visible.</p>
-<div id="675392a9" class="cell" data-execution_count="9">
+<div id="0abb6491" class="cell" data-execution_count="9">
 <div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>lasso_lambdas <span class="op">=</span> np.logspace(<span class="op">-</span><span class="dv">4</span>, <span class="dv">0</span>, <span class="dv">60</span>)</span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>lasso_coefs <span class="op">=</span> np.array(</span>
 <span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>    [Lasso(alpha<span class="op">=</span>l, max_iter<span class="op">=</span><span class="dv">100000</span>).fit(X_train_s, y_train).coef_ <span class="cf">for</span> l <span class="kw">in</span> lasso_lambdas])</span>
@@ -790,7 +794,7 @@ Standardize before you penalize
 </div>
 <p>Read this plot from right to left. On the right, where the penalty is strong, every coefficient is zero: the model is empty. As we relax <span class="math inline">\(\lambda\)</span> and move left, variables switch on one at a time, their coefficients lifting off zero. The most useful predictors enter first, and the rest stay switched off until the penalty is weak enough to afford them. At any given <span class="math inline">\(\lambda\)</span>, the model uses only the handful of variables that have entered so far.</p>
 <p>We choose <span class="math inline">\(\lambda\)</span> by cross-validation again, with the <code>LassoCV</code> function, and check how many variables aren’t zero.</p>
-<div id="6d84b09a" class="cell" data-execution_count="10">
+<div id="800565a4" class="cell" data-execution_count="10">
 <div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>lasso <span class="op">=</span> make_pipeline(StandardScaler(), LassoCV(cv<span class="op">=</span><span class="dv">5</span>, random_state<span class="op">=</span>RANDOM_STATE, max_iter<span class="op">=</span><span class="dv">200000</span>))</span>
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>lasso.fit(X_train, y_train)</span>
 <span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -884,7 +888,7 @@ Think of the cost of moving a coefficient from a tiny value to exactly zero. Und
 </table>
 <p>Ridge is the better choice when you believe most covariates contribute a little and you mainly want stability, especially when predictors are correlated and OLS cannot tell them apart. Lasso is the better choice when you believe only a few covariates matter and you want a short, interpretable model.</p>
 <p>Putting the two fitted coefficient vectors side by side makes the difference concrete.</p>
-<div id="3f88f03b" class="cell" data-execution_count="11">
+<div id="08c9f0ce" class="cell" data-execution_count="11">
 <div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>ridge_c <span class="op">=</span> pd.Series(ridge[<span class="op">-</span><span class="dv">1</span>].coef_, index<span class="op">=</span>X.columns)</span>
 <span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>lasso_c <span class="op">=</span> pd.Series(lasso[<span class="op">-</span><span class="dv">1</span>].coef_, index<span class="op">=</span>X.columns)</span>
 <span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>order <span class="op">=</span> ridge_c.<span class="bu">abs</span>().sort_values().index</span>
@@ -912,7 +916,7 @@ Think of the cost of moving a coefficient from a tiny value to exactly zero. Und
 <section id="choosing-lambda-by-cross-validation" class="level2">
 <h2 class="anchored" data-anchor-id="choosing-lambda-by-cross-validation">6. Choosing <span class="math inline">\(\lambda\)</span> by cross-validation</h2>
 <p>We utilized <code>RidgeCV</code> and <code>LassoCV</code> above without really learning what they do, so let us make it explicit, because it is the same method as Notebook 1 showed us. To choose <span class="math inline">\(\lambda\)</span> we never touch the test set. Instead we split the <strong>training</strong> data into folds, fit at each candidate <span class="math inline">\(\lambda\)</span> on most of the folds, score on the held-out fold, and average. <code>LassoCV</code> keeps the whole grid of scores, so we can plot the cross-validation curve and see the choice it made.</p>
-<div id="69af0f27" class="cell" data-execution_count="12">
+<div id="14ff62d2" class="cell" data-execution_count="12">
 <div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>lasso_cv <span class="op">=</span> lasso[<span class="op">-</span><span class="dv">1</span>]</span>
 <span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>mean_cv_mse <span class="op">=</span> lasso_cv.mse_path_.mean(axis<span class="op">=</span><span class="dv">1</span>)</span>
 <span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -935,7 +939,7 @@ Think of the cost of moving a coefficient from a tiny value to exactly zero. Und
 </div>
 </div>
 <p>Only now, with <span class="math inline">\(\lambda\)</span> chosen for each method, do we break the seal on the test set and compare all three models once. This is the same method which we learned in notebook 1.</p>
-<div id="0685f0bf" class="cell" data-execution_count="13">
+<div id="6c70c0e3" class="cell" data-execution_count="13">
 <div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>results <span class="op">=</span> pd.DataFrame({</span>
 <span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">"model"</span>: [<span class="st">"OLS"</span>, <span class="st">"Ridge"</span>, <span class="st">"Lasso"</span>, <span class="st">"Predict the mean"</span>],</span>
 <span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"test MSE"</span>: [</span>
@@ -1700,7 +1704,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
     </div>
   </div>
 </footer>
-<script>var lightboxQuarto = GLightbox({"descPosition":"bottom","loop":false,"selector":".lightbox","openEffect":"zoom","closeEffect":"zoom"});
+<script>var lightboxQuarto = GLightbox({"closeEffect":"zoom","selector":".lightbox","descPosition":"bottom","loop":false,"openEffect":"zoom"});
 window.onload = () => {
   lightboxQuarto.on('slide_before_load', (data) => {
     const { slideIndex, slideNode, slideConfig, player, trigger } = data;

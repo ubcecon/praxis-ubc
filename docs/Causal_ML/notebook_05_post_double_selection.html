@@ -308,6 +308,10 @@ window.Quarto = {
     <a class="dropdown-item" href="../../pages/index/index_Causal_ML.html">
  <span class="dropdown-text">Causal Machine Learning</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_Game_Theory.html">
+ <span class="dropdown-text">Game Theory</span></a>
+  </li>  
         <li><hr class="dropdown-divider"></li>
         <li>
     <a class="dropdown-item" href="../../pages/index/all.html">
@@ -423,7 +427,10 @@ window.Quarto = {
   <li><a href="#too-many-controls-to-keep" id="toc-too-many-controls-to-keep" class="nav-link" data-scroll-target="#too-many-controls-to-keep">1.2 Too many controls to keep</a></li>
   </ul></li>
   <li><a href="#first-try-selection-on-the-outcome" id="toc-first-try-selection-on-the-outcome" class="nav-link" data-scroll-target="#first-try-selection-on-the-outcome">2. First try: Selection on the Outcome</a></li>
-  <li><a href="#post-double-selection" id="toc-post-double-selection" class="nav-link" data-scroll-target="#post-double-selection">3. Post-double-selection</a></li>
+  <li><a href="#post-double-selection" id="toc-post-double-selection" class="nav-link" data-scroll-target="#post-double-selection">3. Post-double-selection</a>
+  <ul class="collapse">
+  <li><a href="#the-conditions-that-make-this-estimate-causal" id="toc-the-conditions-that-make-this-estimate-causal" class="nav-link" data-scroll-target="#the-conditions-that-make-this-estimate-causal">3.1 The conditions that make this estimate causal</a></li>
+  </ul></li>
   <li><a href="#the-three-answers-side-by-side" id="toc-the-three-answers-side-by-side" class="nav-link" data-scroll-target="#the-three-answers-side-by-side">4. The three answers side by side</a></li>
   <li><a href="#connections" id="toc-connections" class="nav-link" data-scroll-target="#connections">5. Connections</a>
   <ul class="collapse">
@@ -498,7 +505,7 @@ window.Quarto = {
 <li>State the guarantee that makes choosing controls this way safe.</li>
 <li>Read the side-by-side result and connect it back to Notebook 4.</li>
 </ol>
-<div id="86979879" class="cell" data-execution_count="1">
+<div id="21bea7b1" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
@@ -514,7 +521,7 @@ window.Quarto = {
 <h2 class="anchored" data-anchor-id="the-convergence-question">1. The Convergence Question</h2>
 <p>One of the oldest questions in growth economics is <strong>convergence</strong>: do countries that start out poor grow faster and catch up to the rich ones? We can do this by lining up countries by how rich they were in 1965 and checking whether the poorer ones grew faster afterwards. If they did, the relationship between 1965 wealth and later growth is negative, and we call that convergence.</p>
 <p>We can just run it. We load the growth data from Notebook 2, take out a country’s wealth in 1965 and its growth rate afterwards, and regress growth on initial wealth with nothing else in the model.</p>
-<div id="8fcf61c3" class="cell" data-execution_count="2">
+<div id="cae664cd" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>growth <span class="op">=</span> pd.read_csv(<span class="st">"datasets/GrowthData.csv"</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>D <span class="op">=</span> growth[<span class="st">"gdpsh465"</span>].to_numpy()       <span class="co"># 1965 wealth (log GDP per capita): the treatment</span></span>
@@ -536,7 +543,7 @@ Growth on 1965 wealth, no controls: +0.0013  (se 0.0061)</code></pre>
 <h3 class="anchored" data-anchor-id="why-the-naive-answer-cannot-be-trusted">1.1 Why the naive answer cannot be trusted</h3>
 <p>The naive regression compares countries that were rich in 1965 with countries that were poor, and then asks how fast each group grew. The issue is that being rich in 1965 came bundled with everything else about a country. A country that was rich in 1965 also tended to have more schooling, better health, more developed institutions, and any of those can drive growth on its own. So when a country that was rich in 1965 grows slowly, we cannot tell whether it is because it was rich (convergence) or because of something else that came along with being rich.</p>
 <p>A variable that shapes both the treatment, 1965 wealth, and the outcome, growth, is a <strong>confounder</strong>. The diagram below is the same one from Notebook 4, relabelled for this question.</p>
-<div id="7491cc44" class="cell" data-execution_count="3">
+<div id="8f973c8a" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">7</span>, <span class="fl">4.5</span>))</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>nodes <span class="op">=</span> {<span class="st">"X"</span>: (<span class="fl">0.5</span>, <span class="fl">0.82</span>), <span class="st">"D"</span>: (<span class="fl">0.18</span>, <span class="fl">0.2</span>), <span class="st">"Y"</span>: (<span class="fl">0.82</span>, <span class="fl">0.2</span>)}</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>box <span class="op">=</span> <span class="bu">dict</span>(boxstyle<span class="op">=</span><span class="st">"round,pad=0.4"</span>, fc<span class="op">=</span><span class="st">"lightgrey"</span>, ec<span class="op">=</span><span class="st">"black"</span>, lw<span class="op">=</span><span class="fl">1.5</span>)</span>
@@ -570,7 +577,7 @@ Growth on 1965 wealth, no controls: +0.0013  (se 0.0061)</code></pre>
 <section id="too-many-controls-to-keep" class="level3">
 <h3 class="anchored" data-anchor-id="too-many-controls-to-keep">1.2 Too many controls to keep</h3>
 <p>The data hands us 60 country characteristics from around 1965 that we could control for. The most obvious move is to put all 60 into the regression (after all if we wish to control everything this makes the most sense), but notebook 2 showed why that does not work. We will run it once more here as a reminder. We are going to run this same regression several times with different sets of controls, so to avoid writing it out each time we first define a small function, <code>effect_of_D</code>: we hand it a set of controls, and it regresses growth on 1965 wealth plus those controls and returns the coefficient on 1965 wealth together with its standard error.</p>
-<div id="a0765066" class="cell" data-execution_count="4">
+<div id="36a25007" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> effect_of_D(C_use):</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    design <span class="op">=</span> sm.add_constant(np.column_stack([D, C_use]))</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    fit <span class="op">=</span> sm.OLS(Y, design).fit()</span>
@@ -594,7 +601,7 @@ Growth on 1965 wealth, no controls: +0.0013  (se 0.0061)</code></pre>
 <li><strong>how many controls we are sifting through.</strong> With 60 candidates, a few will look related to growth by pure luck, so the more candidates, the higher the bar.</li>
 <li><strong>how many countries we have.</strong> More data means more signal, so the bar can be lowered.</li>
 </ul>
-<div id="93e383ea" class="cell" data-execution_count="5">
+<div id="76f683d0" class="cell" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>C_std <span class="op">=</span> StandardScaler().fit_transform(C)   <span class="co"># lasso compares controls, so put them on a common scale</span></span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> select_controls(target):</span>
@@ -604,7 +611,7 @@ Growth on 1965 wealth, no controls: +0.0013  (se 0.0061)</code></pre>
 <span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> np.flatnonzero(fit.coef_)        <span class="co"># positions of the controls lasso kept</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>The exact size of the bar comes from theory (the references at the end), but the idea is all we need: it is set high enough that a control clears it only when its link to the target is almost certainly real and not random. We now point it at growth and regress on whatever it keeps.</p>
-<div id="6a3e7679" class="cell" data-execution_count="6">
+<div id="aafd2753" class="cell" data-execution_count="6">
 <div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>keep_for_growth <span class="op">=</span> select_controls(Y)</span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>b_single, se_single <span class="op">=</span> effect_of_D(C[:, keep_for_growth])</span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Controls that predict growth:"</span>, <span class="bu">len</span>(keep_for_growth))</span>
@@ -620,7 +627,7 @@ Estimate using them: +0.0013  (se 0.0061)</code></pre>
 <section id="post-double-selection" class="level2">
 <h2 class="anchored" data-anchor-id="post-double-selection">3. Post-double-selection</h2>
 <p>The fix is to do the selection twice: once pointing at growth, as above, and once pointing at 1965 wealth, the treatment. Then we keep every control that either of our two lassos flagged, the union of the two lists, and run the regression on that.</p>
-<div id="0b14ff0f" class="cell" data-execution_count="7">
+<div id="69855f23" class="cell" data-execution_count="7">
 <div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>keep_for_wealth <span class="op">=</span> select_controls(D)</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>union <span class="op">=</span> <span class="bu">sorted</span>(<span class="bu">set</span>(keep_for_growth) <span class="op">|</span> <span class="bu">set</span>(keep_for_wealth))</span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -638,10 +645,34 @@ Estimate using them: -0.0317  (se 0.0140, t = -2.26)</code></pre>
 </div>
 <p>Pointed at 1965 wealth, lasso keeps three controls: <code>sf65</code>, <code>lifee065</code>, and <code>humanf65</code>. Decoded with Notebook 2’s key, those are secondary schooling among women, life expectancy, and average years of schooling among women, all measured in 1965. They describe how educated and healthy a country’s people were at the start. The growth lasso didn’t keep them, because none predicts growth strongly on its own, yet each one predicts how rich a country was in 1965, so each one confounds the comparison. These are the controls single selection threw away, and they’re the ones we are looking for.</p>
 <p>With those three held fixed, the coefficient on 1965 wealth is <span class="math inline">\(-0.0317\)</span>, with a standard error of <span class="math inline">\(0.0140\)</span> and a t-statistic of <span class="math inline">\(-2.26\)</span>. It is now negative and far enough from zero to be significant. Holding schooling and health fixed, poorer countries did grow faster. The convergence the naive regression hid appears once we control for the right things.</p>
+<section id="the-conditions-that-make-this-estimate-causal" class="level3">
+<h3 class="anchored" data-anchor-id="the-conditions-that-make-this-estimate-causal">3.1 The conditions that make this estimate causal</h3>
+<p>Post-double-selection is a clever way to choose controls, but choosing controls well is not what makes an estimate causal. The estimate of <span class="math inline">\(-0.0317\)</span> carries a causal meaning only under a set of statistical conditions, and we should be able to state them. The first two come from Notebook 4, the third is a background condition every method in this stream shares, and the last two are what post-double-selection adds on top.</p>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Identification conditions for post-double-selection lasso
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ol type="1">
+<li><strong>Unconfoundedness (selection on observables).</strong> Every variable that shapes both 1965 wealth and later growth must be among the 60 recorded characteristics. Formally, conditional on the controls <span class="math inline">\(X\)</span>, the treatment is as good as randomly assigned: <span class="math inline">\((Y(0), Y(1)) \perp D \mid X\)</span>. This is an assumption about what the dataset contains, not something the data can verify, and if an important confounder was never measured, no way of selecting among the 60 can rescue the estimate.</li>
+<li><strong>The treatment varies once the controls are held fixed.</strong> Countries with the same schooling and health must still differ in their 1965 wealth. This is the overlap condition from Notebook 4, in the form it takes for a continuous treatment: if the selected controls pinned down 1965 wealth exactly, holding them fixed would leave no variation to estimate the effect from.</li>
+<li><strong>A random, independent sample.</strong> The theory behind the standard error and the penalty rule treats the 90 countries as independent and identically distributed (i.i.d.) draws. It also assumes no country’s treatment spills over into another’s outcome (part of what is called Stable Unit Treatment Value Assumption (SUTVA)).</li>
+<li><strong>The partially linear model is right.</strong> We are estimating a single coefficient on 1965 wealth, so we assume the effect is one constant number and that the controls enter through a linear combination that approximates their influence well, with an error term that averages to zero given the treatment and the controls.</li>
+<li><strong>Approximate sparsity.</strong> Among the 60 candidates, a small number of controls must be enough to capture (approximately) both what drives growth and what drives 1965 wealth. If the truth required most of the 60, no short list could stand in for it and lasso’s selection would throw away signal that matters.</li>
+</ol>
+</div>
+</div>
+<p>When you report a post-double-selection estimate, this is the condition checklist your causal claim rests on.</p>
+</section>
 </section>
 <section id="the-three-answers-side-by-side" class="level2">
 <h2 class="anchored" data-anchor-id="the-three-answers-side-by-side">4. The three answers side by side</h2>
-<div id="a8ec9537" class="cell" data-execution_count="8">
+<div id="74ddd031" class="cell" data-execution_count="8">
 <div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>labels <span class="op">=</span> [<span class="st">"all 60 controls</span><span class="ch">\n</span><span class="st">(OLS)"</span>, <span class="st">"single selection</span><span class="ch">\n</span><span class="st">(growth only)"</span>, <span class="st">"double selection"</span>]</span>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>coefs <span class="op">=</span> [b_all, b_single, b_pds]</span>
 <span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>bars95 <span class="op">=</span> [<span class="fl">1.96</span> <span class="op">*</span> se_all, <span class="fl">1.96</span> <span class="op">*</span> se_single, <span class="fl">1.96</span> <span class="op">*</span> se_pds]</span>
@@ -1408,7 +1439,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
     </div>
   </div>
 </footer>
-<script>var lightboxQuarto = GLightbox({"loop":false,"closeEffect":"zoom","openEffect":"zoom","selector":".lightbox","descPosition":"bottom"});
+<script>var lightboxQuarto = GLightbox({"loop":false,"closeEffect":"zoom","selector":".lightbox","openEffect":"zoom","descPosition":"bottom"});
 window.onload = () => {
   lightboxQuarto.on('slide_before_load', (data) => {
     const { slideIndex, slideNode, slideConfig, player, trigger } = data;

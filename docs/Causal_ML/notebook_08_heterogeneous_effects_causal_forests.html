@@ -308,6 +308,10 @@ window.Quarto = {
     <a class="dropdown-item" href="../../pages/index/index_Causal_ML.html">
  <span class="dropdown-text">Causal Machine Learning</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_Game_Theory.html">
+ <span class="dropdown-text">Game Theory</span></a>
+  </li>  
         <li><hr class="dropdown-divider"></li>
         <li>
     <a class="dropdown-item" href="../../pages/index/all.html">
@@ -504,7 +508,7 @@ window.Quarto = {
 <li>Visualize how an effect varies across the population.</li>
 <li>Use the CATE to <strong>target</strong> a policy.</li>
 </ol>
-<div id="d469abeb" class="cell" data-execution_count="1">
+<div id="8f8baaaa" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
@@ -538,7 +542,7 @@ CATE versus ATE
 </div>
 </div>
 <p>We use the same 401(k) data, treatment, and confounders as Notebook 7.</p>
-<div id="b2636d4b" class="cell" data-execution_count="2">
+<div id="1206917d" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>savings <span class="op">=</span> pd.read_csv(<span class="st">"datasets/Pension401k.csv"</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>confounders <span class="op">=</span> [<span class="st">"age"</span>, <span class="st">"inc"</span>, <span class="st">"educ"</span>, <span class="st">"fsize"</span>, <span class="st">"marr"</span>, <span class="st">"twoearn"</span>, <span class="st">"db"</span>, <span class="st">"pira"</span>, <span class="st">"hown"</span>]</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>D <span class="op">=</span> savings[<span class="st">"e401"</span>].to_numpy().astype(<span class="bu">float</span>)</span>
@@ -550,7 +554,7 @@ CATE versus ATE
 <h2 class="anchored" data-anchor-id="meta-learners">2. Meta-learners</h2>
 <p>The most direct way to estimate a CATE is to predict savings for a household twice, once as if eligible and once as if not, and subtract. These recipes are called <strong>meta-learners</strong>, because they build a causal estimate out of ordinary predictors.</p>
 <p>The <strong>T-learner</strong> (“T” for two) fits two separate models: one for the savings of eligible households as a function of their covariates, one for the savings of ineligible households. The CATE for any household is the gap between what the two models predict for it.</p>
-<div id="b3252e74" class="cell" data-execution_count="3">
+<div id="7ad23e3e" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>mu1 <span class="op">=</span> RandomForestRegressor(n_estimators<span class="op">=</span><span class="dv">300</span>, min_samples_leaf<span class="op">=</span><span class="dv">20</span>,</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>                            random_state<span class="op">=</span>RANDOM_STATE, n_jobs<span class="op">=-</span><span class="dv">1</span>).fit(X[D <span class="op">==</span> <span class="dv">1</span>], Y[D <span class="op">==</span> <span class="dv">1</span>])</span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>mu0 <span class="op">=</span> RandomForestRegressor(n_estimators<span class="op">=</span><span class="dv">300</span>, min_samples_leaf<span class="op">=</span><span class="dv">20</span>,</span>
@@ -567,7 +571,7 @@ CATE versus ATE
 <h3 class="anchored" data-anchor-id="why-the-t-learner-estimate-is-noisy">2.1 Why the T-learner estimate is noisy</h3>
 <p>Meta-learners are the natural first thing to try. They are simple, they reuse any predictor you already trust, and they simplify the CATE to just subtraction. When each treatment group is large and the outcome is fairly clean, they work well and are often used. The issue is that our data is difficult.</p>
 <p>Look again at the range the T-learner reported, from negative 142 to positive 103 thousand dollars. We do not believe eligibility swings savings by that much; the extremes come from the simple method being used on complex data. The T-learner reads the CATE off the gap between two models, each fit on its own group, so the estimate inherits the noise of both. Net financial assets have large tails, a handful of households hold enormous sums, so each forest is already noisy on its own, and subtracting one from the other magnifies it.</p>
-<div id="0cd67dcb" class="cell" data-execution_count="4">
+<div id="92e5f438" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"T-learner CATE spread (standard deviation): </span><span class="sc">{</span>cate_t<span class="sc">.</span>std()<span class="sc">:.1f}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>T-learner CATE spread (standard deviation): 14.7</code></pre>
@@ -593,8 +597,29 @@ How a causal forest differs from a random forest
 <p>A <strong>random forest</strong> (Notebook 3) splits the data into groups of similar units and averages the <strong>outcome</strong> in each: it predicts <span class="math inline">\(Y\)</span>. A <strong>causal forest</strong> splits into groups of similar units and estimates the <strong>treatment effect</strong> in each, after residualizing out the confounders the way Notebook 7 did: it predicts <span class="math inline">\(\tau(x)\)</span>. It targets effect instead of outcome.</p>
 </div>
 </div>
+<p>Because the CATE is a whole function rather than one number, it needs everything the ATE needed and a little bit more. Before fitting anything, we state the conditions under which the forest’s per-household effects have a causal meaning.</p>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Identification conditions for the causal forest
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ol type="1">
+<li><strong>Unconfoundedness (selection on observables), at every <span class="math inline">\(x\)</span>.</strong> Conditional on the nine covariates, eligibility must be as good as randomly assigned: <span class="math inline">\((Y(0), Y(1)) \perp D \mid X\)</span>. This is the same untestable assumption as in Notebooks 4 to 7, but it now has to do local work: the CATE at <span class="math inline">\(x\)</span> is identified only if there is no unmeasured confounding among households like <span class="math inline">\(x\)</span>. A forest finds heterogeneity in whatever it is given; if what it is given is confounded, it will find heterogeneous bias without any visible errors.</li>
+<li><strong>Overlap, at every <span class="math inline">\(x\)</span>.</strong> Each kind of household must have both eligible and ineligible members, <span class="math inline">\(0 &lt; P(D = 1 \mid X = x) &lt; 1\)</span>, because the forest estimates each local effect by comparing the two groups within a neighbourhood. Regions of the covariate space where nearly everyone is on one side produce CATE estimates that rest on almost no comparisons and should not be trusted.</li>
+<li><strong>A random, independent sample.</strong> The consistency and confidence-interval theory for causal forests treats households as i.i.d. draws, with no interference between households and one version of the treatment (SUTVA and consistency), just as always.</li>
+<li><strong>Honest trees.</strong> Each tree must not use the same households both to choose its splits and to estimate the effects inside its leaves; the sample is split so one part shapes the tree and the other fills it in. This <strong>honesty</strong> condition plays the role cross-fitting played in Notebook 7, and it is what the Wager-Athey theory needs for the estimates to be consistent and for their confidence intervals to be valid. The <code>econml</code> estimator we use below does this by default.</li>
+<li><strong>De-confounding through the DML residualization, and a CATE that varies smoothly.</strong> The forest inherits Notebook 7’s requirements for its internal step: the savings and eligibility models must be estimated well enough (with cross-fitting) for the residual-on-residual comparison inside each neighbourhood to be clean. And the theory assumes <span class="math inline">\(\tau(x)\)</span> changes smoothly with <span class="math inline">\(x\)</span>, so that households close in covariates have close effects; that is what justifies estimating a household’s effect from its neighbours at all.</li>
+</ol>
+</div>
+</div>
+<p>Points 1 to 3 are the same statement of unconfoundedness, overlap, and i.i.d. sampling that every method in this stream has rested on, now required locally rather than on average. Points 4 and 5 are the forest-specific conditions that make flexible, data-driven heterogeneity search compatible with valid inference.</p>
 <p>We use the <code>CausalForestDML</code> estimator from the <code>econml</code> package, which puts these pieces together for us. We give it a model for savings and a model for eligibility, the two nuisance predictors from Notebook 7, and it does the residualizing and the effect-splitting for us.</p>
-<div id="67d28f22" class="cell" data-execution_count="5">
+<div id="0360bfcb" class="cell" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> make_causal_forest():</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> CausalForestDML(</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>        model_y<span class="op">=</span>RandomForestRegressor(n_estimators<span class="op">=</span><span class="dv">200</span>, min_samples_leaf<span class="op">=</span><span class="dv">20</span>,</span>
@@ -607,7 +632,7 @@ How a causal forest differs from a random forest
 <section id="does-it-work-checking-on-a-known-result" class="level3">
 <h3 class="anchored" data-anchor-id="does-it-work-checking-on-a-known-result">3.1 Does it work? Checking on a known result</h3>
 <p>Before trusting the forest on real data, we first build a world where the true effect is not constant: it is 1 for households with a low value of the first covariate and climbs to about 4 for those with a high value. Then we ask whether the causal forest can find that rising shape.</p>
-<div id="b6186ded" class="cell" data-execution_count="6">
+<div id="add2ef23" class="cell" data-execution_count="6">
 <div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(RANDOM_STATE)</span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">4000</span></span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>X_sim <span class="op">=</span> rng.normal(<span class="dv">0</span>, <span class="dv">1</span>, (n, <span class="dv">5</span>))</span>
@@ -624,7 +649,7 @@ How a causal forest differs from a random forest
 </div>
 </div>
 <p>A correlation of 0.987 means the forest’s effect estimates line up almost perfectly with the truth. The plot shows it: households binned by the first covariate, the true effect against the estimated.</p>
-<div id="d9e88917" class="cell" data-execution_count="7">
+<div id="0ffb78d9" class="cell" data-execution_count="7">
 <div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>bins <span class="op">=</span> pd.qcut(X_sim[:, <span class="dv">0</span>], <span class="dv">12</span>, labels<span class="op">=</span><span class="va">False</span>)</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>true_by_bin <span class="op">=</span> [true_cate[bins <span class="op">==</span> b].mean() <span class="cf">for</span> b <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">12</span>)]</span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>est_by_bin <span class="op">=</span> [est_cate[bins <span class="op">==</span> b].mean() <span class="cf">for</span> b <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">12</span>)]</span>
@@ -650,7 +675,7 @@ How a causal forest differs from a random forest
 <section id="who-benefits-from-401k-eligibility" class="level3">
 <h3 class="anchored" data-anchor-id="who-benefits-from-401k-eligibility">3.2 Who benefits from 401(k) Eligibility</h3>
 <p>Now we turn it on the real question. We fit the causal forest to the 401(k) data and read off each household’s estimated effect.</p>
-<div id="99f1677a" class="cell" data-execution_count="8">
+<div id="6a222a51" class="cell" data-execution_count="8">
 <div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>forest <span class="op">=</span> make_causal_forest().fit(Y, D, X<span class="op">=</span>X)</span>
 <span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>cate <span class="op">=</span> forest.effect(X)</span>
 <span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Causal forest CATE: mean </span><span class="sc">{</span>cate<span class="sc">.</span>mean()<span class="sc">:.2f}</span><span class="ss">, standard deviation </span><span class="sc">{</span>cate<span class="sc">.</span>std()<span class="sc">:.1f}</span><span class="ss">"</span>)</span>
@@ -662,7 +687,7 @@ Share of households with a positive effect: 0.97</code></pre>
 </div>
 <p>The mean is 7.79 thousand dollars, close to Notebook 7’s average of 8.80, which is the consistency we expect: average the CATEs and you get back the ATE. The new information is in the spread. The standard deviation is 6.5, far tighter than the T-learner’s 14.7, because the forest estimates the effect directly instead of differencing two noisy predictions. And 97% of households have a positive effect, so eligibility helps almost everyone, but by very different amounts.</p>
 <p>Where does the effect come from? We group households by income and average the estimated effect in each quarter of the income distribution.</p>
-<div id="f60ac53d" class="cell" data-execution_count="9">
+<div id="8261aa16" class="cell" data-execution_count="9">
 <div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>income_quartile <span class="op">=</span> pd.qcut(savings[<span class="st">"inc"</span>], <span class="dv">4</span>, labels<span class="op">=</span>[<span class="st">"lowest"</span>, <span class="st">"second"</span>, <span class="st">"third"</span>, <span class="st">"highest"</span>])</span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>mean_by_income <span class="op">=</span> pd.Series(cate).groupby(income_quartile.values, observed<span class="op">=</span><span class="va">True</span>).mean()</span>
 <span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>mean_by_income <span class="op">=</span> mean_by_income.reindex([<span class="st">"lowest"</span>, <span class="st">"second"</span>, <span class="st">"third"</span>, <span class="st">"highest"</span>])</span>
@@ -690,7 +715,7 @@ highest    16.3</code></pre>
 </div>
 </div>
 <p>The effect climbs steeply with income: about 3.3 thousand dollars for the lowest-income quarter, rising to 16.3 thousand for the highest. This fits the economic theory. A household with little spare income cannot save much into a 401(k) however eligible it is, while a high-income household can. The distribution of effects below tells the same story: a bulge of modest effects with a long right tail of larger ones.</p>
-<div id="f5290ab8" class="cell" data-execution_count="10">
+<div id="9f804f6a" class="cell" data-execution_count="10">
 <div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>plt.figure(figsize<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">5</span>))</span>
 <span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>plt.hist(np.clip(cate, <span class="op">-</span><span class="dv">10</span>, <span class="dv">40</span>), bins<span class="op">=</span><span class="dv">40</span>, color<span class="op">=</span><span class="st">"tab:green"</span>, alpha<span class="op">=</span><span class="fl">0.8</span>)</span>
 <span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>plt.axvline(cate.mean(), color<span class="op">=</span><span class="st">"black"</span>, linestyle<span class="op">=</span><span class="st">"--"</span>, label<span class="op">=</span><span class="ss">f"mean = </span><span class="sc">{</span>cate<span class="sc">.</span>mean()<span class="sc">:.1f}</span><span class="ss">"</span>)</span>
@@ -712,7 +737,7 @@ highest    16.3</code></pre>
 <section id="targeting-a-policy" class="level2">
 <h2 class="anchored" data-anchor-id="targeting-a-policy">4. Targeting a Policy</h2>
 <p>Once we know who benefits, we can act on it. Suppose a program could extend 401(k) eligibility, but only to half the households. Spending that budget on the half with the largest estimated effects, rather than spreading it evenly.</p>
-<div id="81463494" class="cell" data-execution_count="11">
+<div id="b6e7911c" class="cell" data-execution_count="11">
 <div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>high_benefit <span class="op">=</span> cate <span class="op">&gt;=</span> np.median(cate)</span>
 <span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Average effect, households we would target (top half): </span><span class="sc">{</span>cate[high_benefit]<span class="sc">.</span>mean()<span class="sc">:.1f}</span><span class="ss">"</span>)</span>
 <span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Average effect, households we would skip (bottom half): </span><span class="sc">{</span>cate[<span class="op">~</span>high_benefit]<span class="sc">.</span>mean()<span class="sc">:.1f}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -1480,7 +1505,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
     </div>
   </div>
 </footer>
-<script>var lightboxQuarto = GLightbox({"openEffect":"zoom","closeEffect":"zoom","descPosition":"bottom","loop":false,"selector":".lightbox"});
+<script>var lightboxQuarto = GLightbox({"openEffect":"zoom","selector":".lightbox","closeEffect":"zoom","descPosition":"bottom","loop":false});
 window.onload = () => {
   lightboxQuarto.on('slide_before_load', (data) => {
     const { slideIndex, slideNode, slideConfig, player, trigger } = data;

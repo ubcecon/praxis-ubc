@@ -311,6 +311,10 @@ window.Quarto = {
     <a class="dropdown-item" href="../../pages/index/index_Causal_ML.html">
  <span class="dropdown-text">Causal Machine Learning</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_Game_Theory.html">
+ <span class="dropdown-text">Game Theory</span></a>
+  </li>  
         <li><hr class="dropdown-divider"></li>
         <li>
     <a class="dropdown-item" href="../../pages/index/all.html">
@@ -513,7 +517,7 @@ window.Quarto = {
 <li>Use <strong>k-fold cross-validation</strong> to select a hyperparameter.</li>
 <li>Articulate why a good <em>predictor</em> is <strong>not</strong> an answer to a <em>causal</em> question.</li>
 </ol>
-<div id="5b33c617" class="cell" data-execution_count="1">
+<div id="dc47a3d4" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
@@ -590,7 +594,7 @@ The key reframing
 <section id="k-saving-data" class="level3">
 <h3 class="anchored" data-anchor-id="k-saving-data">1.2 401(k) Saving Data</h3>
 <p>We will use the <strong>401(k)</strong> dataset, a standard dataset in the study of savings behaviour and a common example in causal-ML literature. Each row is a U.S. household from the 1991 Survey of Income and Program Participation. The outcome we model is <code>net_tfa</code>, the household’s <strong>net financial assets</strong> (everything it has saved, minus its debt), measured in thousands of dollars. The features are the household’s characteristics: income (<code>inc</code>, also in thousands), the age and years of education of the reference person, family size, and a set of dummy variables for being married, having two earners, owning a defined-benefit pension (<code>db</code>), owning an IRA (<code>pira</code>), and owning a home (<code>hown</code>). The last column, <code>e401</code>, marks whether the household is <strong>eligible</strong> for a 401(k); that is the variable the rest of this stream will treat as a cause, but here it is just one more feature to predict from.</p>
-<div id="0ec42b4d" class="cell" data-execution_count="2">
+<div id="aa0cb1b4" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>savings <span class="op">=</span> pd.read_csv(<span class="st">"datasets/Pension401k.csv"</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="co"># The features (X) we will predict from, and the target (y) we want to predict.</span></span>
@@ -698,7 +702,7 @@ The key reframing
 </div>
 </div>
 <p>We will print summary statistics for the dataset:</p>
-<div id="ee513e89" class="cell" data-execution_count="3">
+<div id="e967d46f" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Number of households:"</span>, <span class="bu">len</span>(savings))</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(savings[[<span class="st">"net_tfa"</span>, <span class="st">"inc"</span>, <span class="st">"age"</span>, <span class="st">"educ"</span>, <span class="st">"fsize"</span>]].describe().<span class="bu">round</span>(<span class="dv">1</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
@@ -715,7 +719,7 @@ max     1536.8   242.1    64.0    18.0    13.0</code></pre>
 </div>
 </div>
 <p>Net financial assets vary enormously: the typical household has saved only a few thousand dollars, but the spread runs from deep in debt to well over a million. Income is the obvious thing it should track, and the plot below shows that it does, with some natural variation. Each point is a household; nearby households along the income axis tend to have similar savings, but the cloud is wide. Income explains some of savings and a lot is left over to other factors.</p>
-<div id="0f30a3ba" class="cell" data-execution_count="4">
+<div id="2bae1b0c" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>sample <span class="op">=</span> savings.sample(<span class="dv">2000</span>, random_state<span class="op">=</span>RANDOM_STATE)</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>plt.figure(figsize<span class="op">=</span>(<span class="dv">9</span>, <span class="dv">6</span>))</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>sc <span class="op">=</span> plt.scatter(sample[<span class="st">"inc"</span>], sample[<span class="st">"age"</span>], c<span class="op">=</span>sample[<span class="st">"net_tfa"</span>].clip(<span class="op">-</span><span class="dv">50</span>, <span class="dv">150</span>),</span>
@@ -734,7 +738,7 @@ max     1536.8   242.1    64.0    18.0    13.0</code></pre>
 </div>
 </div>
 <p>The picture above is the basic premise of the model we’re about to use: to guess a household’s savings, find the households most like it and look at what they saved. Before we can do that we need to do one small thing first. The model compares households by measuring the distance between them, and distance is sensitive to scale: income runs into the hundreds while family size is a single digit, so without a fix the big-numbered feature would dominate every distance. So we put every feature on the same footing, subtracting its mean and dividing by its standard deviation. There’s a subtlety we have to respect here, since those means and standard deviations must be computed on the training data only, never on data we’re about to test on, or information leaks across the split we’re about to make. The way we enforce this is by bundling the scaling step together with the model into a single object, a <strong>pipeline</strong>, so that every time we fit, the scaling is recomputed on just the data being fit and nothing else.</p>
-<div id="55e7d091" class="cell" data-execution_count="5">
+<div id="df8567fe" class="cell" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> savings[target].to_numpy()</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>X <span class="op">=</span> savings[features]</span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -844,7 +848,7 @@ max     1536.8   242.1    64.0    18.0    13.0</code></pre>
 <p>A model can look <strong>perfect</strong> on the data you fit it to and be <strong>useless</strong> on new data.</p>
 </blockquote>
 <p>To see this we need new data. We don’t have a second sample of households, so we set one aside: we randomly hold out a chunk of our data, fit the model on the rest, and judge it on the held-out chunk it never saw. This is the <strong>train/test split</strong>.</p>
-<div id="1c2b07db" class="cell" data-execution_count="6">
+<div id="f7f4a5a5" class="cell" data-execution_count="6">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>X_train, X_test, y_train, y_test <span class="op">=</span> train_test_split(</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>    X, y, test_size<span class="op">=</span><span class="fl">0.3</span>, random_state<span class="op">=</span>RANDOM_STATE)</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -859,7 +863,7 @@ Test households    : 2975</code></pre>
 <h3 class="anchored" data-anchor-id="knn-1-nearest-neighbour">2.1 KNN &amp; 1-Nearest-Neighbour</h3>
 <p>The model we use to show this is <strong>k-nearest-neighbours (KNN)</strong>. To predict a household’s savings, KNN finds the <span class="math inline">\(k\)</span> households in the training data that are most similar to it (its nearest <em>neighbours</em>, measured by how close their features are) and returns the average savings of that group. The number <span class="math inline">\(k\)</span> is ours to choose.</p>
 <p>To see this in action we fit a 1-nearest-neighbour model: to predict any household’s savings, it copies the savings of the single most-similar household in the training data.</p>
-<div id="378463c2" class="cell" data-execution_count="7">
+<div id="0e716e4b" class="cell" data-execution_count="7">
 <div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>knn1 <span class="op">=</span> make_knn(<span class="dv">1</span>)</span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>knn1.fit(X_train, y_train)</span>
 <span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -875,7 +879,7 @@ Test households    : 2975</code></pre>
 </div>
 <p>The training MSE is zero, which looks weird. With <span class="math inline">\(k = 1\)</span> the model predicts each training household by looking for its single nearest neighbour, and in the training data every household is its own nearest neighbour, so the model simply hands back the savings figure it already saw. It has memorised the training set. The test MSE is the number we’re really after, and it’s enormous: on households the model was never fit to, copying the single closest match is very inaccurate.</p>
 <p>The plot below makes the gap visible. It compares the model’s predictions to the actual values, on the training set (left) and on the held-out test set (right).</p>
-<div id="1ed5977c" class="cell" data-execution_count="8">
+<div id="633f5343" class="cell" data-execution_count="8">
 <div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>train_pred <span class="op">=</span> knn1.predict(X_train)</span>
 <span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>test_pred <span class="op">=</span> knn1.predict(X_test)</span>
 <span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -912,7 +916,12 @@ Self-test
 </div>
 <div class="callout-body-container callout-body">
 <p>Why can we not just report MSE on the data we fit the model to and call it a day?</p>
-<p>Because a flexible enough model can drive the training MSE to zero by memorising the data, without learning anything that transfers to new cases. Training MSE measures <em>memorisation</em>; test MSE measures <em>generalization</em>. Only the second is what we want.</p>
+<details>
+<summary>
+Show / hide answer
+</summary>
+Because a flexible enough model can drive the training MSE to zero by memorising the data, without learning anything that transfers to new cases. Training MSE measures <em>memorisation</em>; test MSE measures <em>generalization</em>. Only the second is what we want.
+</details>
 </div>
 </div>
 </section>
@@ -932,9 +941,9 @@ Self-test
 <section id="choosing-k-and-hyperparameters" class="level2">
 <h2 class="anchored" data-anchor-id="choosing-k-and-hyperparameters">4. Choosing K and hyperparameters</h2>
 <p>To predict a household’s savings with <strong>k-nearest-neighbours regression</strong>, we do about the simplest thing we can. We measure how similar that household is to every household in the training data, using all of the features, find the <span class="math inline">\(k\)</span> closest matches, and report the average of their savings. There’s no equation to estimate and no coefficients to read off, we just look up the most similar households and average their outcomes.</p>
-<p>The number <span class="math inline">\(k\)</span>, how many neighbours to average, is something we choose. A value we set ourselves rather than estimate from the data is called a <strong>hyperparameter</strong>. Pick <span class="math inline">\(k\)</span> too small and the model leans on one or two unique neighbours; pick <span class="math inline">\(k\)</span> too large and it averages over households that are not really comparable. The rest of this notebook is about how to choose <span class="math inline">\(k\)</span>. This is also why we scaled the features back in section 2: KNN decides who counts as a neighbour by measuring distance, so a feature measured in big numbers would otherwise dominate that distance.</p>
+<p>The number <span class="math inline">\(k\)</span>, how many neighbours to average, is something we choose. A value we set ourselves rather than estimate from the data is called a <strong>hyperparameter</strong>. Pick <span class="math inline">\(k\)</span> too small and the model leans on one or two unique neighbours; pick <span class="math inline">\(k\)</span> too large and it averages over households that are not really comparable. The rest of this notebook is about how to choose <span class="math inline">\(k\)</span>. This is also why we scaled the features back in section 1.2: KNN decides who counts as a neighbour by measuring distance, so a feature measured in big numbers would otherwise dominate that distance.</p>
 <p>To <em>see</em> what <span class="math inline">\(k\)</span> does, let us strip the problem down to a single feature, <code>inc</code>, and watch the predicted savings curve change as we dial <span class="math inline">\(k\)</span> up.</p>
-<div id="dfa28762" class="cell" data-execution_count="9">
+<div id="a1bcca76" class="cell" data-execution_count="9">
 <div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>inc_train <span class="op">=</span> X_train[[<span class="st">"inc"</span>]]</span>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>inc_grid <span class="op">=</span> pd.DataFrame({<span class="st">"inc"</span>: np.linspace(</span>
 <span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>    inc_train[<span class="st">"inc"</span>].<span class="bu">min</span>(), inc_train[<span class="st">"inc"</span>].<span class="bu">max</span>(), <span class="dv">300</span>)})</span>
@@ -969,7 +978,7 @@ Self-test
 <li>Somewhere in between is a sensible middle ground.</li>
 </ul>
 <p>If you are running this notebook in a live session (Jupyter/Colab or locally), the slider below lets you feel the tradeoff directly: drag <span class="math inline">\(k\)</span> and watch the curve go from jagged to smooth.</p>
-<div id="91943f73" class="cell" data-execution_count="10">
+<div id="e1b65eec" class="cell" data-execution_count="10">
 <div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> ipywidgets <span class="im">import</span> interact, IntSlider</span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> show_knn(k):</span>
@@ -986,7 +995,7 @@ Self-test
 <span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>interact(show_knn, k<span class="op">=</span>IntSlider(value<span class="op">=</span><span class="dv">50</span>, <span class="bu">min</span><span class="op">=</span><span class="dv">1</span>, <span class="bu">max</span><span class="op">=</span><span class="dv">5000</span>, step<span class="op">=</span><span class="dv">1</span>))<span class="op">;</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>KNN works in as many variables as we give it. With two we can still see what it does, by colouring the whole plane with the value KNN would predict at each point. The map below uses income and age and a middling <span class="math inline">\(k\)</span>, so each region is shaded by the average savings of the nearby training households.</p>
-<div id="a828762e" class="cell" data-execution_count="11">
+<div id="5d2b1c76" class="cell" data-execution_count="11">
 <div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>k_map <span class="op">=</span> <span class="dv">50</span></span>
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>two <span class="op">=</span> [<span class="st">"inc"</span>, <span class="st">"age"</span>]</span>
 <span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>m2 <span class="op">=</span> make_knn(k_map).fit(X_train[two], y_train)</span>
@@ -1025,7 +1034,7 @@ Self-test
 <li><strong>Irreducible noise</strong> is the part no model can ever explain. Even with a perfect model and infinite data, two households with the same income, age, and family size can still have very different savings, through an event of some kind, an illness, or something we never measured. That leftover variation is the irreducible part, and no amount of statistical knowledge will drive it to zero.</li>
 </ul>
 <p>On real data we can never separate these pieces, because we do not know the true <span class="math inline">\(f\)</span>. But in a <em>simulation</em> we get to choose the truth, so we can watch bias and variance trade off directly. Below we invent a world where savings follow a known smooth curve of income plus noise. We draw three hundred fresh training samples, fit KNN at several values of <span class="math inline">\(k\)</span> on each, and record how the predictions behave: how far their <em>average</em> sits from the truth (that is bias) and how much they <em>jump around</em> from sample to sample (that is variance).</p>
-<div id="9a23edd6" class="cell" data-execution_count="12">
+<div id="d5f20bb9" class="cell" data-execution_count="12">
 <div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> truth(x):</span>
 <span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> np.sin(x) <span class="op">+</span> <span class="fl">0.3</span> <span class="op">*</span> x  <span class="co"># the "real" savings curve, known only because we made it</span></span>
 <span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -1069,7 +1078,7 @@ Self-test
 <section id="savings-data-again" class="level3">
 <h3 class="anchored" data-anchor-id="savings-data-again">4.2 Savings Data Again</h3>
 <p>Back on the real savings data, we cannot plot bias and variance separately, but we can still find the bottom of the U by sweeping <span class="math inline">\(k\)</span> and recording <strong>both</strong> training and test MSE at every value.</p>
-<div id="228f5cc2" class="cell" data-execution_count="13">
+<div id="6bbce6b1" class="cell" data-execution_count="13">
 <div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>neighbour_grid <span class="op">=</span> <span class="bu">range</span>(<span class="dv">1</span>, <span class="dv">101</span>)</span>
 <span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>train_errors <span class="op">=</span> []</span>
@@ -1111,7 +1120,7 @@ Self-test
 <h3 class="anchored" data-anchor-id="cross-validation">4.3 Cross-validation</h3>
 <p>The fix is to leave the test set in a sealed envelope and choose <span class="math inline">\(k\)</span> using <strong>only the training data</strong>. The trick is <strong>k-fold cross-validation</strong> (<em>k</em> here refers to fold and is not the same <em>k</em> as in k-nearest neighbours).</p>
 <p>We split the training data into 5 equal <strong>folds</strong>. Use 4 of them to fit and the 5th to score, then rotate which fold is held out, five times. Average the five scores. Every household gets used for scoring exactly once, and we never touched the real test set.</p>
-<div id="4f3d7f02" class="cell" data-execution_count="14">
+<div id="51fcb345" class="cell" data-execution_count="14">
 <div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>n_splits <span class="op">=</span> <span class="dv">5</span></span>
 <span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">9</span>, <span class="dv">3</span>))</span>
 <span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> round_idx <span class="kw">in</span> <span class="bu">range</span>(n_splits):</span>
@@ -1135,7 +1144,7 @@ Self-test
 </div>
 </div>
 <p>Now we run it for real. For each candidate <span class="math inline">\(k\)</span> (neighbours), <code>cross_val_score</code> returns the 5 fold scores; we average them. Because the scaler lives inside the pipeline, each fold standardizes using only its own four training folds, and the held-out fold is scaled with those same numbers without ever contributing to them. The test set, sealed away earlier, is untouched throughout.</p>
-<div id="eadd5766" class="cell" data-execution_count="15">
+<div id="d3bf39d2" class="cell" data-execution_count="15">
 <div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>kfold <span class="op">=</span> KFold(n_splits<span class="op">=</span><span class="dv">5</span>, shuffle<span class="op">=</span><span class="va">True</span>, random_state<span class="op">=</span>RANDOM_STATE)</span>
 <span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>candidate_k <span class="op">=</span> <span class="bu">range</span>(<span class="dv">1</span>, <span class="dv">101</span>)</span>
@@ -1172,7 +1181,7 @@ Self-test
 </div>
 </div>
 <p>With cross-validation we have found the optimal <span class="math inline">\(k\)</span> to be 15. Only <strong>now</strong>, with <span class="math inline">\(k\)</span> chosen, do we break the seal on the test set, in order to get an honest estimate of how this model performs on new data.</p>
-<div id="7da32188" class="cell" data-execution_count="16">
+<div id="7c390d1f" class="cell" data-execution_count="16">
 <div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>final_model <span class="op">=</span> make_knn(best_k).fit(X_train, y_train)</span>
 <span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>final_test_mse <span class="op">=</span> mean_squared_error(y_test, final_model.predict(X_test))</span>
 <span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>baseline_mse <span class="op">=</span> mean_squared_error(y_test, np.full_like(y_test, y_train.mean()))</span>
@@ -1962,7 +1971,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
     </div>
   </div>
 </footer>
-<script>var lightboxQuarto = GLightbox({"closeEffect":"zoom","selector":".lightbox","loop":false,"descPosition":"bottom","openEffect":"zoom"});
+<script>var lightboxQuarto = GLightbox({"descPosition":"bottom","loop":false,"openEffect":"zoom","selector":".lightbox","closeEffect":"zoom"});
 window.onload = () => {
   lightboxQuarto.on('slide_before_load', (data) => {
     const { slideIndex, slideNode, slideConfig, player, trigger } = data;

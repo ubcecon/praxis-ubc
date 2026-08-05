@@ -308,6 +308,10 @@ window.Quarto = {
     <a class="dropdown-item" href="../../pages/index/index_Causal_ML.html">
  <span class="dropdown-text">Causal Machine Learning</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_Game_Theory.html">
+ <span class="dropdown-text">Game Theory</span></a>
+  </li>  
         <li><hr class="dropdown-divider"></li>
         <li>
     <a class="dropdown-item" href="../../pages/index/all.html">
@@ -425,7 +429,8 @@ window.Quarto = {
   <li><a href="#our-two-routes-and-their-different-models" id="toc-our-two-routes-and-their-different-models" class="nav-link" data-scroll-target="#our-two-routes-and-their-different-models">3. Our two routes and their different models</a></li>
   <li><a href="#the-doubly-robust-estimator" id="toc-the-doubly-robust-estimator" class="nav-link" data-scroll-target="#the-doubly-robust-estimator">4. The doubly-robust estimator</a>
   <ul class="collapse">
-  <li><a href="#the-doubly-robust-estimate-on-the-401k-data" id="toc-the-doubly-robust-estimate-on-the-401k-data" class="nav-link" data-scroll-target="#the-doubly-robust-estimate-on-the-401k-data">4.1 The doubly-robust estimate on the 401(k) data</a></li>
+  <li><a href="#the-conditions-that-make-these-estimates-causal" id="toc-the-conditions-that-make-these-estimates-causal" class="nav-link" data-scroll-target="#the-conditions-that-make-these-estimates-causal">4.1 The conditions that make these estimates causal</a></li>
+  <li><a href="#the-doubly-robust-estimate-on-the-401k-data" id="toc-the-doubly-robust-estimate-on-the-401k-data" class="nav-link" data-scroll-target="#the-doubly-robust-estimate-on-the-401k-data">4.2 The doubly-robust estimate on the 401(k) data</a></li>
   </ul></li>
   <li><a href="#connections" id="toc-connections" class="nav-link" data-scroll-target="#connections">5. Connections</a>
   <ul class="collapse">
@@ -500,7 +505,7 @@ window.Quarto = {
 <li>Explain why the outcome route and the treatment route each fail when their model is wrong.</li>
 <li>Compute the <strong>doubly-robust (AIPW)</strong> estimator and explain what “doubly robust” means.</li>
 </ol>
-<div id="04de12d5" class="cell" data-execution_count="1">
+<div id="b94c1771" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
@@ -522,7 +527,7 @@ window.Quarto = {
 <section id="the-propensity-score" class="level2">
 <h2 class="anchored" data-anchor-id="the-propensity-score">2. The Propensity Score</h2>
 <p>The <strong>propensity score</strong> is the probability of being treated given the covariates, <span class="math inline">\(e(X) = P(D = 1 \mid X)\)</span>. For our data it is the chance that a household with a given age, income, education, etc, is eligible for a 401(k). We don’t know this for certain as we can’t directly see it in our real data, so we will estimate it, this is a yes/no question so we will use a logistic regression.</p>
-<div id="ee3ab2df" class="cell" data-execution_count="2">
+<div id="e0c4a1d1" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>savings <span class="op">=</span> pd.read_csv(<span class="st">"datasets/Pension401k.csv"</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>confounders <span class="op">=</span> [<span class="st">"age"</span>, <span class="st">"inc"</span>, <span class="st">"educ"</span>, <span class="st">"fsize"</span>, <span class="st">"marr"</span>, <span class="st">"twoearn"</span>, <span class="st">"db"</span>, <span class="st">"pira"</span>, <span class="st">"hown"</span>]</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>D <span class="op">=</span> savings[<span class="st">"e401"</span>].to_numpy()        <span class="co"># treatment: eligible for a 401(k)</span></span>
@@ -540,7 +545,7 @@ Share of households eligible: 0.37</code></pre>
 </div>
 <p>For a comparison to be possible everywhere, both eligible and ineligible households have to appear at every propensity value. This is the <strong>overlap</strong> or <strong>positivity</strong> condition from Notebook 4.</p>
 <p>The visualization below shows the overlap condition, both ineligible and eligible households appear across the whole range, so a comparison is possible.</p>
-<div id="6392bb35" class="cell" data-execution_count="3">
+<div id="bff8f423" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>plt.figure(figsize<span class="op">=</span>(<span class="dv">9</span>, <span class="dv">5</span>))</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>plt.hist(propensity[D <span class="op">==</span> <span class="dv">0</span>], bins<span class="op">=</span><span class="dv">30</span>, alpha<span class="op">=</span><span class="fl">0.6</span>, density<span class="op">=</span><span class="va">True</span>, label<span class="op">=</span><span class="st">"ineligible"</span>)</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>plt.hist(propensity[D <span class="op">==</span> <span class="dv">1</span>], bins<span class="op">=</span><span class="dv">30</span>, alpha<span class="op">=</span><span class="fl">0.6</span>, density<span class="op">=</span><span class="va">True</span>, label<span class="op">=</span><span class="st">"eligible"</span>)</span>
@@ -562,7 +567,7 @@ Share of households eligible: 0.37</code></pre>
 <h3 class="anchored" data-anchor-id="inverse-probability-weighting">2.1 Inverse probability weighting</h3>
 <p>For inverse probability weighting we take an eligible household that, given its characteristics, was unlikely to be eligible, meaning it has a low propensity score. It is rare among the eligible, and it stands in for many similar households that ended up ineligible. So we let it count for more, giving it a weight of one over its propensity, <span class="math inline">\(1/e(X)\)</span>. We do the mirror image on the other side, weighting each ineligible household by one over its chance of being ineligible, <span class="math inline">\(1/(1 - e(X))\)</span>. After this reweighting the two groups carry the same spread of characteristics, as though eligibility had been handed out at random.</p>
 <p>We can watch the reweighting work. For each covariate, measure how far apart the eligible and ineligible groups are, before weighting and after.</p>
-<div id="205d8178" class="cell" data-execution_count="4">
+<div id="3b3e72b1" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>e <span class="op">=</span> np.clip(propensity, <span class="fl">0.01</span>, <span class="fl">0.99</span>)   <span class="co"># clip extremes so we never divide by a near-zero number</span></span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>w <span class="op">=</span> np.where(D <span class="op">==</span> <span class="dv">1</span>, <span class="dv">1</span> <span class="op">/</span> e, <span class="dv">1</span> <span class="op">/</span> (<span class="dv">1</span> <span class="op">-</span> e))</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -593,7 +598,7 @@ Share of households eligible: 0.37</code></pre>
 </div>
 </div>
 <p>Before weighting, the red dots sit well away from zero: the eligible and ineligible groups differ on most characteristics, with income having the largest gap. After weighting, the green dots collapse toward zero. The groups now look alike. With them balanced, the <strong>inverse probability weighting (IPW)</strong> estimate of the effect is the difference between the weighted average savings of the two groups.</p>
-<div id="0a1a82df" class="cell" data-execution_count="5">
+<div id="c56d10cb" class="cell" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> ipw_ate(D, Y, e):</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>    treated <span class="op">=</span> np.<span class="bu">sum</span>((D <span class="op">/</span> e) <span class="op">*</span> Y) <span class="op">/</span> np.<span class="bu">sum</span>(D <span class="op">/</span> e)</span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    control <span class="op">=</span> np.<span class="bu">sum</span>(((<span class="dv">1</span> <span class="op">-</span> D) <span class="op">/</span> (<span class="dv">1</span> <span class="op">-</span> e)) <span class="op">*</span> Y) <span class="op">/</span> np.<span class="bu">sum</span>((<span class="dv">1</span> <span class="op">-</span> D) <span class="op">/</span> (<span class="dv">1</span> <span class="op">-</span> e))</span>
@@ -611,7 +616,7 @@ Share of households eligible: 0.37</code></pre>
 <h2 class="anchored" data-anchor-id="our-two-routes-and-their-different-models">3. Our two routes and their different models</h2>
 <p>The outcome route is only as good as the savings model. If our prediction of savings given <span class="math inline">\(X\)</span> is wrong, the estimate is biased. The treatment route, IPW, is only as good as the propensity model, so if our prediction of eligibility given <span class="math inline">\(X\)</span> is wrong, the weights are wrong and so is the estimate. On real data we cannot see which model is off, because we never know the true effect, so as we did in the past, we will build a world where we do.</p>
 <p>In this world the true effect is 2, we set it ourselves. Both the chance of treatment and the level of savings depend on a covariate through a squared term, so a model that includes that term is correct and a model that leaves it out is wrong. We can then hand each estimator a correct or a wrong model on purpose and see what happens.</p>
-<div id="e7430eb0" class="cell" data-execution_count="6">
+<div id="e63a55c3" class="cell" data-execution_count="6">
 <div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> simulate(n, seed):</span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>    rng <span class="op">=</span> np.random.default_rng(seed)</span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    Xs <span class="op">=</span> rng.normal(<span class="dv">0</span>, <span class="dv">1</span>, (n, <span class="dv">4</span>))</span>
@@ -687,7 +692,7 @@ What “doubly robust” means
 </div>
 </div>
 <p>We run all three estimators in our made-up example and plot them.</p>
-<div id="592ffc5c" class="cell" data-execution_count="7">
+<div id="08736b31" class="cell" data-execution_count="7">
 <div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> aipw_score(D, Y, e, mu1, mu0):</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> mu1 <span class="op">-</span> mu0 <span class="op">+</span> D <span class="op">*</span> (Y <span class="op">-</span> mu1) <span class="op">/</span> e <span class="op">-</span> (<span class="dv">1</span> <span class="op">-</span> D) <span class="op">*</span> (Y <span class="op">-</span> mu0) <span class="op">/</span> (<span class="dv">1</span> <span class="op">-</span> e)</span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -719,10 +724,32 @@ What “doubly robust” means
 </div>
 </div>
 <p>Regression (blue) is off when the outcome model is wrong; IPW (orange) is off when the propensity model is wrong; AIPW (green) sits on the true effect in all three worlds. It needed only one of its two models to be right.</p>
+<section id="the-conditions-that-make-these-estimates-causal" class="level3">
+<h3 class="anchored" data-anchor-id="the-conditions-that-make-these-estimates-causal">4.1 The conditions that make these estimates causal</h3>
+<p>Before we take AIPW to the real data, we should collect all of the statistical conditions under which the numbers in this notebook, the IPW estimate and the AIPW estimate, identify a causal effect. The first two are the identification conditions from Notebook 4, the third is the sampling condition behind the standard errors, and the fourth is where the estimators in this notebook differ from one another.</p>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Identification conditions for IPW and the doubly-robust estimator
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ol type="1">
+<li><strong>Unconfoundedness (selection on observables).</strong> The nine covariates must contain every systematic reason a household ends up eligible that also matters for its savings: <span class="math inline">\((Y(0), Y(1)) \perp D \mid X\)</span>. Both routes, modelling the outcome and modelling the treatment, adjust for the same <span class="math inline">\(X\)</span>, so both fail together if a confounder is missing from it. This assumption cannot be tested from the data.</li>
+<li><strong>Overlap (positivity), and strictly so.</strong> Every kind of household must have a real chance of being both eligible and ineligible: <span class="math inline">\(0 &lt; e(X) &lt; 1\)</span>. For weighting this matters, because the weights are <span class="math inline">\(1/e(X)\)</span> and <span class="math inline">\(1/(1-e(X))\)</span>, so a propensity near zero or one makes a single household dominate the estimate and the variance grow rapidly. That is why we clipped the scores; clipping stabilizes the weights, but frequent clipping is a warning that overlap is thin and the estimate rests on few comparable households.</li>
+<li><strong>A random, independent sample and one version of treatment.</strong> The households are treated as i.i.d. draws from the population of interest, each household’s eligibility does not affect another household’s savings, and “eligible” means the same thing for everyone (together, the SUTVA and consistency conditions). The simple standard error we compute for AIPW leans on this independence.</li>
+<li><strong>At least one correctly specified model.</strong> IPW additionally requires the propensity model to be right; the outcome route requires the savings model to be right. AIPW is the safety net between them: it identifies the effect if <em>either</em> the propensity model or the outcome model is correct. That is a weaker modelling requirement than either route alone, but it is not a guarantee; if both models are wrong, or if condition 1 fails, the doubly-robust estimate is biased too.</li>
+</ol>
+</div>
+</div>
+</section>
 <section id="the-doubly-robust-estimate-on-the-401k-data" class="level3">
-<h3 class="anchored" data-anchor-id="the-doubly-robust-estimate-on-the-401k-data">4.1 The doubly-robust estimate on the 401(k) data</h3>
+<h3 class="anchored" data-anchor-id="the-doubly-robust-estimate-on-the-401k-data">4.2 The doubly-robust estimate on the 401(k) data</h3>
 <p>We will apply the model to our real savings data, combining the logistic propensity from section 2 with simple linear models of savings.</p>
-<div id="15fa7d42" class="cell" data-execution_count="8">
+<div id="199e1bd0" class="cell" data-execution_count="8">
 <div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>mu1 <span class="op">=</span> LinearRegression().fit(X_std[D <span class="op">==</span> <span class="dv">1</span>], Y[D <span class="op">==</span> <span class="dv">1</span>]).predict(X_std)</span>
 <span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>mu0 <span class="op">=</span> LinearRegression().fit(X_std[D <span class="op">==</span> <span class="dv">0</span>], Y[D <span class="op">==</span> <span class="dv">0</span>]).predict(X_std)</span>
 <span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -1473,7 +1500,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
     </div>
   </div>
 </footer>
-<script>var lightboxQuarto = GLightbox({"descPosition":"bottom","selector":".lightbox","loop":false,"openEffect":"zoom","closeEffect":"zoom"});
+<script>var lightboxQuarto = GLightbox({"loop":false,"closeEffect":"zoom","descPosition":"bottom","openEffect":"zoom","selector":".lightbox"});
 window.onload = () => {
   lightboxQuarto.on('slide_before_load', (data) => {
     const { slideIndex, slideNode, slideConfig, player, trigger } = data;

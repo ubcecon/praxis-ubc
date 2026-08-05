@@ -308,6 +308,10 @@ window.Quarto = {
     <a class="dropdown-item" href="../../pages/index/index_Causal_ML.html">
  <span class="dropdown-text">Causal Machine Learning</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_Game_Theory.html">
+ <span class="dropdown-text">Game Theory</span></a>
+  </li>  
         <li><hr class="dropdown-divider"></li>
         <li>
     <a class="dropdown-item" href="../../pages/index/all.html">
@@ -509,7 +513,7 @@ window.Quarto = {
 <li>Describe in one sentence how <strong>boosting</strong> differs from bagging.</li>
 <li>Explain why a random forest’s predictions and importances are <strong>not</strong> causal effects.</li>
 </ol>
-<div id="98dbef4a" class="cell" data-execution_count="1">
+<div id="23fd2dd8" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
@@ -534,7 +538,7 @@ window.Quarto = {
 <section id="the-data-back-to-the-401k-households" class="level3">
 <h3 class="anchored" data-anchor-id="the-data-back-to-the-401k-households">1.1 The data: back to the 401(k) households</h3>
 <p>We return to the <strong>401(k)</strong> data from Notebook 1: one row per U.S. household, the net financial assets <code>net_tfa</code> (in thousands of dollars) as the target, and ten features of the household, including <code>e401</code>, whether the household is eligible for a 401(k). We re-use this data as we have a test MSE of about 2654 which we will try and beat, and we can ask the question that matters when choosing between methods: which one predicts new households best.</p>
-<div id="9edf4e89" class="cell" data-execution_count="2">
+<div id="f4b52a3b" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>savings <span class="op">=</span> pd.read_csv(<span class="st">"datasets/Pension401k.csv"</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>features <span class="op">=</span> [<span class="st">"age"</span>, <span class="st">"inc"</span>, <span class="st">"educ"</span>, <span class="st">"fsize"</span>, <span class="st">"marr"</span>,</span>
@@ -555,7 +559,7 @@ Test households    : 2975</code></pre>
 </div>
 </div>
 <p>One thing we do <strong>not</strong> have to do this time is scale the features. A tree split is a question like “is income above 65?”, and the answer does not change if we measure income in dollars or in thousands of dollars: the ordering of the households is all that matters, not the units. This is different from Notebook 1, where KNN measured distance and so needed every feature on a common scale, and from Notebook 2, where the penalty acted on coefficient sizes. Trees are blind to scale, so there is no <code>StandardScaler</code> here except inside the KNN model we carry over for comparison.</p>
-<div id="323b6aa5" class="cell" data-execution_count="3">
+<div id="2edfbd40" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>baseline_mse <span class="op">=</span> mean_squared_error(y_test, np.full_like(y_test, y_train.mean()))</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>knn <span class="op">=</span> make_pipeline(StandardScaler(), KNeighborsRegressor(n_neighbors<span class="op">=</span><span class="dv">15</span>))</span>
@@ -576,7 +580,7 @@ KNN (k=15, from Notebook 1) test MSE: 2654.4</code></pre>
 <h2 class="anchored" data-anchor-id="a-single-decision-tree">2. A single decision tree</h2>
 <p>A regression tree is built greedily, one split at a time. It looks across every feature and every possible cut point, and chooses the single split that most reduces the mean squared error of the two groups it creates. Then it repeats the search inside each group, and again inside those, and so on. The result is a set of boxes, called <strong>leaves</strong>, and the prediction for any household is just the average training value in whatever leaf the household falls into.</p>
 <p>The clearest way to see this is to grow a shallow tree, shallow enough to draw, and read it.</p>
-<div id="a4536916" class="cell" data-execution_count="4">
+<div id="ebe7ff09" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>tree3 <span class="op">=</span> DecisionTreeRegressor(max_depth<span class="op">=</span><span class="dv">3</span>, random_state<span class="op">=</span>RANDOM_STATE)</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>tree3.fit(X_train, y_train)</span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -594,7 +598,7 @@ KNN (k=15, from Notebook 1) test MSE: 2654.4</code></pre>
 </div>
 </div>
 <p>Read the tree from the top. The very first question it asks is whether the household owns an IRA (<code>pira</code>): owning one separates committed savers from everyone else with a single yes/no, which is why the tree chose it first. From there the splits are mostly about income, with age deciding some of the deeper ones. Follow any path down to a leaf and you reach a predicted value, and those values climb steeply: from a few thousand dollars in the leaves of low-income non-savers up into the hundreds of thousands for older, high-income IRA owners. The tree has rediscovered, with no equation, what a regression would also find: savings track income, age, and whether a household already holds retirement accounts.</p>
-<div id="a9674b42" class="cell" data-execution_count="5">
+<div id="971922d0" class="cell" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Depth-3 tree test MSE: </span><span class="sc">{</span>mean_squared_error(y_test, tree3.predict(X_test))<span class="sc">:.1f}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Depth-3 tree test MSE: 3034.7</code></pre>
@@ -604,7 +608,7 @@ KNN (k=15, from Notebook 1) test MSE: 2654.4</code></pre>
 <section id="when-trees-overfit" class="level3">
 <h3 class="anchored" data-anchor-id="when-trees-overfit">2.1 When Trees overfit</h3>
 <p>If we remove the depth limit, the tree keeps splitting until it can’t anymore, in the limit isolating nearly one training household per leaf.</p>
-<div id="45deca2c" class="cell" data-execution_count="6">
+<div id="095962b2" class="cell" data-execution_count="6">
 <div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>deep_tree <span class="op">=</span> DecisionTreeRegressor(random_state<span class="op">=</span>RANDOM_STATE)  <span class="co"># no depth limit</span></span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>deep_tree.fit(X_train, y_train)</span>
 <span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -623,7 +627,7 @@ Deep tree test MSE     : 4739.5</code></pre>
 <section id="choosing-the-depth" class="level3">
 <h3 class="anchored" data-anchor-id="choosing-the-depth">2.2 Choosing the depth</h3>
 <p>We find that depth the same way we found <span class="math inline">\(k\)</span> in Notebook 1: plot it and watch both errors.</p>
-<div id="678e12c9" class="cell" data-execution_count="7">
+<div id="2dc91aea" class="cell" data-execution_count="7">
 <div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>depths <span class="op">=</span> <span class="bu">range</span>(<span class="dv">1</span>, <span class="dv">21</span>)</span>
 <span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>train_errors, test_errors <span class="op">=</span> [], []</span>
 <span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> d <span class="kw">in</span> depths:</span>
@@ -653,7 +657,7 @@ Deep tree test MSE     : 4739.5</code></pre>
 </div>
 <p>It is the same picture as Notebook 1, drawn against depth instead of <span class="math inline">\(k\)</span>, as that is the corresponding hyperparameter for trees. Training MSE falls steadily toward zero as the tree grows, because a deeper tree can always cut the training data more finely. Test MSE traces the bias-variance U-shape: shallow trees (depth 1 to 3) are too rigid and sit a little high, it bottoms out across a flat, noisy stretch from roughly depth 4 to 7, and beyond depth 8 it climbs steadily as the tree fits noise. The dashed line marks the lowest test MSE here, at depth 4, but several neighbouring depths are similar. That flat, wiggly bottom is why we don’t pick the depth by eye, and turn to cross-validation instead.</p>
 <p>We choose it with cross-validation, never touching the test set, like in notebook 1.</p>
-<div id="4d84ef5b" class="cell" data-execution_count="8">
+<div id="87562389" class="cell" data-execution_count="8">
 <div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>kfold <span class="op">=</span> KFold(n_splits<span class="op">=</span><span class="dv">5</span>, shuffle<span class="op">=</span><span class="va">True</span>, random_state<span class="op">=</span>RANDOM_STATE)</span>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>cv_errors <span class="op">=</span> []</span>
@@ -676,7 +680,7 @@ Tuned single-tree test MSE: 2784.9</code></pre>
 </div>
 <p>Cross-validation decides on a shallow depth of 4, and the tuned tree scores just behind KNN, close enough that a single well-chosen tree is already a competitive predictor. We have now run the same four steps as in Notebook 1: split off a test set, cross-validate on the training data to choose the parameter, pick the best value, and evaluate once on the sealed test set.</p>
 <p>The issue is that even the best single tree is a high-variance object. Shift a few training households and the greedy search can pick a different first split, and the whole tree below it rearranges. We can see that instability directly. Below we pick five test households spanning low to high savings, and ask forty trees, each fit to a different bootstrap resample of the training data, to predict each one. <strong>Bootstrapping</strong>: drawing, with replacement, many resamples of the training data the same size as the original (you may have seen this concept in ECON 226 and 326). Every grey dot is one tree’s guess; the red mark is the forest’s single answer.</p>
-<div id="73c607a9" class="cell" data-execution_count="9">
+<div id="14c80ea1" class="cell" data-execution_count="9">
 <div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>forest_demo <span class="op">=</span> RandomForestRegressor(n_estimators<span class="op">=</span><span class="dv">300</span>, random_state<span class="op">=</span>RANDOM_STATE, n_jobs<span class="op">=-</span><span class="dv">1</span>)</span>
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>forest_demo.fit(X_train, y_train)</span>
 <span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -721,7 +725,7 @@ Tuned single-tree test MSE: 2784.9</code></pre>
 <p>A single deep tree has low bias and high variance: it captures fine structure, but its predictions can swing a lot when the training data changes, just as the grey dots above showed. We fix this by taking the average. If we had many trees, each fit to a slightly different sample, their individual errors would partly cancel when we averaged their predictions, while the structure they agree on would survive.</p>
 <p>We do not have many samples, but we can manufacture them by <strong>bootstrapping</strong>. We fit a deep tree to each resample and average their predictions. This is called <strong>bagging</strong>, short for bootstrap aggregating, and it keeps the low bias of deep trees while cutting their variance.</p>
 <p>A <strong>random forest</strong> adds one more idea. At each split, each tree is allowed to consider only a random handful of the features, not all ten. This stops every tree from opening with the same IRA split and makes the trees less alike, so their errors cancel more thoroughly when averaged. It leads to a bit more bias per tree, but we get a significant drop in variance instead.</p>
-<div id="7ef459d1" class="cell" data-execution_count="10">
+<div id="659e0e69" class="cell" data-execution_count="10">
 <div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>forest <span class="op">=</span> RandomForestRegressor(n_estimators<span class="op">=</span><span class="dv">300</span>, random_state<span class="op">=</span>RANDOM_STATE, n_jobs<span class="op">=-</span><span class="dv">1</span>)</span>
 <span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>forest.fit(X_train, y_train)</span>
 <span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -737,7 +741,7 @@ Random forest test MSE    : 2837.7</code></pre>
 <section id="feature-importance" class="level3">
 <h3 class="anchored" data-anchor-id="feature-importance">3.1 Feature Importance</h3>
 <p>A forest cannot be drawn as one readable diagram, but it can tell us how much each feature contributed to reducing MSE across all the splits in all the trees. This is called <strong>feature importance</strong>.</p>
-<div id="33b71261" class="cell" data-execution_count="11">
+<div id="89eeefd5" class="cell" data-execution_count="11">
 <div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>importances <span class="op">=</span> pd.Series(forest.feature_importances_, index<span class="op">=</span>features).sort_values()</span>
 <span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>plt.figure(figsize<span class="op">=</span>(<span class="dv">9</span>, <span class="dv">6</span>))</span>
@@ -759,8 +763,8 @@ Random forest test MSE    : 2837.7</code></pre>
 <section id="boosting" class="level2">
 <h2 class="anchored" data-anchor-id="boosting">4. Boosting</h2>
 <p>Bagging and forests build many trees in parallel and average them. <strong>Boosting</strong> builds trees in sequence. The first tree makes its predictions, and the next tree is fit not to the outcome but to the errors the first one left behind, so it spends its effort on the cases the aggregate is getting wrong. Add a third tree fit to what the first two still miss, repeated over many rounds. The trees are kept deliberately shallow, because each one only has to nudge the running prediction a little.</p>
-<p>We can watch the running prediction build up. Below we boost on income alone so we can draw it, and plot the ensemble’s fit after 1 round, after 5, and after 50.</p>
-<div id="2ea1d9ea" class="cell" data-execution_count="12">
+<p>We can watch the running prediction build up. Below we boost on income alone so we can draw it, and plot the ensemble’s fit after 1 round, after 10, and after 100.</p>
+<div id="868b2f8b" class="cell" data-execution_count="12">
 <div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>inc1 <span class="op">=</span> X_train[[<span class="st">"inc"</span>]]</span>
 <span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>inc_grid <span class="op">=</span> pd.DataFrame({<span class="st">"inc"</span>: np.linspace(inc1[<span class="st">"inc"</span>].<span class="bu">min</span>(), inc1[<span class="st">"inc"</span>].<span class="bu">max</span>(), <span class="dv">200</span>)})</span>
 <span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -787,7 +791,7 @@ Random forest test MSE    : 2837.7</code></pre>
 </div>
 </div>
 <p>After one round the fit is a simple step function. After ten it has bent toward the data. After one hundred it traces the income-savings relationship even closer, having spent each new tree on whatever the running total still got wrong. Now we fit the full boosted model on all ten features.</p>
-<div id="2c6ff831" class="cell" data-execution_count="13">
+<div id="907a4aa2" class="cell" data-execution_count="13">
 <div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>boosted <span class="op">=</span> GradientBoostingRegressor(random_state<span class="op">=</span>RANDOM_STATE)</span>
 <span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>boosted.fit(X_train, y_train)</span>
 <span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>boosted_mse <span class="op">=</span> mean_squared_error(y_test, boosted.predict(X_test))</span>
@@ -803,7 +807,7 @@ Random forest test MSE    : 2837.7</code></pre>
 <section id="so-have-we-found-the-effect-of-401k-eligibility" class="level2">
 <h2 class="anchored" data-anchor-id="so-have-we-found-the-effect-of-401k-eligibility">5. So have we found the effect of 401(k) eligibility?</h2>
 <p>Let us line up every model we have fit on this same split.</p>
-<div id="35859e38" class="cell" data-execution_count="14">
+<div id="5e5950a8" class="cell" data-execution_count="14">
 <div class="sourceCode cell-code" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>results <span class="op">=</span> pd.DataFrame({</span>
 <span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">"model"</span>: [<span class="st">"Predict the mean"</span>, <span class="st">"KNN (k=15)"</span>, <span class="st">"Single tree (tuned)"</span>,</span>
 <span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>              <span class="st">"Random forest"</span>, <span class="st">"Gradient boosting"</span>],</span>
@@ -823,7 +827,7 @@ Single tree (tuned)    2784.9
 <blockquote class="blockquote">
 <p>Do any of these models tell us the <strong>effect</strong> of 401(k) eligibility on a household’s savings?</p>
 </blockquote>
-<p><strong>No!</strong> Look back at the model comparison: the flexible methods cluster together, and they got there by chasing whatever predicts savings. The tree opened on owning an IRA because that variable splits savers from everyone else with the most predictive power, not because we ever showed that owning an IRA causes savings, and the forest utilizes income and age for the same reason. Meanwhile <code>e401</code>, the eligibility variable this whole stream is building toward, sat near the bottom of the importance plot, almost useless for prediction because eligible and ineligible households already look so different. But that low importance says nothing about its effect: in Notebook 1 we built a world where eligibility had a real, positive effect that a naive comparison still got wrong, and the public-economics literature finds a real effect too. And no forest (or other predictive technique), ever imagines <em>this</em> household made eligible with everything else held fixed, which is the counterfactual a causal answer requires. A model can be a fine predictor and still be useless for the effect we came here to measure. Notebook 4 makes the turn and explains what identifying a treatment effect actually requires.</p>
+<p><strong>No!</strong> Look back at the model comparison: the flexible methods cluster together, and they got there by chasing whatever predicts savings. The tree opened on owning an IRA because that variable splits savers from everyone else with the most predictive power, not because we ever showed that owning an IRA causes savings, and the forest utilizes income and age for the same reason. Meanwhile <code>e401</code>, the eligibility variable this whole stream is building toward, sat near the bottom of the importance plot, almost useless for prediction because eligible and ineligible households already look so different. But that low importance says nothing about its effect: Notebook 4 builds a world where eligibility has a real, positive effect that a naive comparison still gets wrong, and the public-economics literature finds a real effect too. And no forest (or other predictive technique), ever imagines <em>this</em> household made eligible with everything else held fixed, which is the counterfactual a causal answer requires. A model can be a fine predictor and still be useless for the effect we came here to measure. Notebook 4 makes the turn and explains what identifying a treatment effect actually requires.</p>
 <div class="callout callout-style-default callout-note callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
@@ -1554,7 +1558,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
     </div>
   </div>
 </footer>
-<script>var lightboxQuarto = GLightbox({"selector":".lightbox","openEffect":"zoom","descPosition":"bottom","loop":false,"closeEffect":"zoom"});
+<script>var lightboxQuarto = GLightbox({"closeEffect":"zoom","selector":".lightbox","openEffect":"zoom","loop":false,"descPosition":"bottom"});
 window.onload = () => {
   lightboxQuarto.on('slide_before_load', (data) => {
     const { slideIndex, slideNode, slideConfig, player, trigger } = data;

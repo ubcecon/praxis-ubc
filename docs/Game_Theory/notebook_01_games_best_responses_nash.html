@@ -1,0 +1,1716 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-GB" xml:lang="en-GB"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.4.557">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Alex Ronczewski">
+<meta name="dcterms.date" content="2026-07-16">
+<meta name="description" content="The first notebook in the Game Theory stream. We meet games in normal form and some of their components: payoff matrices, dominance, best responses, and pure Nash equilibrium, and we build a first best-response simulator.">
+
+<title>Praxis - Games, Best Responses, and Nash Equilibrium</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<link href="../../media/praxis-badge.png" rel="icon" type="image/png">
+<script src="../../site_libs/quarto-html/quarto.js"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark.css" rel="prefetch" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark.min.css" rel="prefetch" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<script src="../../site_libs/quarto-contrib/glightbox/glightbox.min.js"></script>
+<link href="../../site_libs/quarto-contrib/glightbox/glightbox.min.css" rel="stylesheet">
+<link href="../../site_libs/quarto-contrib/glightbox/lightbox.css" rel="stylesheet">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<meta name="keywords" content="economics, econometrics, R, data, machine learning, UBC, COMET, geog 374, econ 325, econ 326, learning, teaching, learn r, r help, help, tutorial, r tutorial for beginners,learning statistics with r, learn r programming, learn statistics, linear regression, r machine learning, learn machine learning, university of british columbia, british columbia, r programming for beginners, r language tutorial, r tutorial for beginners, economic data, econometrics tutoring, economics help for students, economics homework help, oer resources for teachers, open educational resources for teachers, educational resource, oer project, oer materials, oer resources, learn economics online, learn econometrics, teach yourself economics, teach yourself econometrics, econometrics basics for beginners">
+
+<!-- Google Search Console -->
+<meta name="google-site-verification" content="wUHlRBWRzzUYwBbnKdvYg0lBpw5b0F7hnEq-QekkpQw">
+<!-- End Google Search Console -->
+
+<script>
+(function() {
+    function updateThemeImages() {
+        var isDark = document.body.classList.contains('quarto-dark');
+        var images = document.querySelectorAll('img[data-light-src][data-dark-src]');
+
+        images.forEach(function(img) {
+            var lightSrc = img.getAttribute('data-light-src');
+            var darkSrc = img.getAttribute('data-dark-src');
+            var newSrc = isDark ? darkSrc : lightSrc;
+
+            // Only update if src is different to avoid reload flicker
+            if (img.getAttribute('src') !== newSrc) {
+                img.setAttribute('src', newSrc);
+            }
+        });
+    }
+
+    // Run when DOM is ready
+    document.addEventListener('DOMContentLoaded', function() {
+        updateThemeImages();
+
+        // Watch for theme changes on body
+        var observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.attributeName === 'class') {
+                    updateThemeImages();
+                }
+            });
+        });
+
+        observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    });
+
+    // Also run after full page load
+    window.addEventListener('load', updateThemeImages);
+})();
+</script>
+
+<!-- Cloudflare Web Analytics -->
+<script defer="" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon="{&quot;token&quot;: &quot;911859291fee44e6ba0acc25f4f08be4&quot;}"></script>
+<!-- End Cloudflare Web Analytics -->
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN") {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../../styles.css">
+</head>
+
+<body class="nav-fixed">
+<!-- praxis-launch-notebook: per-notebook launch button (injected into output HTML at build time) -->
+<script>
+(function () {
+  // Notebooks that get a launch button (path from "docs/", no extension)
+  var NOTEBOOKS = [
+    "docs/AMNE-376/amne_376_image_embedding",
+    "docs/CTree_CEA/political_economy",
+    "docs/ECON-227/llm_distributions",
+    "docs/OCR/ocr_notebook",
+    "docs/SOCI-280/soci_280_bert",
+    "docs/SOCI-415/cbdb_dataset",
+    "docs/SOCI-415/kinmatrix",
+    "docs/SOCI-415/soci_415_network_analysis",
+    "docs/hist_workshop/text_embeddings_workshop",
+    "docs/image_analysis/image_analysis",
+    "docs/intro_to_cnns/intro_to_cnn",
+    "docs/intro_to_convolutions/intro_to_convolution",
+    "docs/intro_to_deep_learning/intro_to_fundamental_ML",
+    "docs/intro_to_transformers/intro_to_transformers"
+  ];
+
+  function init() {
+    var i = window.location.pathname.indexOf("/docs/");
+    if (i === -1) return;
+    var rel = window.location.pathname.slice(i + 1).replace(/\.html$/, "");
+    if (NOTEBOOKS.indexOf(rel) === -1) return;
+
+    var nb = rel + ".ipynb";
+    var repo = "https%3A%2F%2Fgithub.com%2Fubcecon%2Fpraxis-ubc";
+    var urlpath = encodeURIComponent("lab/tree/praxis-ubc/" + nb);
+    var jupyter = "https://open.jupyter.ubc.ca/jupyter/hub/user-redirect/git-pull?repo=" +
+      repo + "&urlpath=" + urlpath + "&branch=praxis-notebooks";
+    var colab = "https://colab.research.google.com/github/ubcecon/praxis-ubc/blob/praxis-notebooks/" + nb;
+
+    var wrap = document.createElement("div");
+    wrap.className = "btn-group";
+    wrap.style.margin = "0.5rem 0 1rem";
+    wrap.innerHTML =
+      '<button class="btn btn-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">' +
+        '<i class="bi bi-play-fill"></i> Launch this notebook</button>' +
+      '<ul class="dropdown-menu">' +
+        '<li><a class="dropdown-item" target="_blank" rel="noopener" href="' + jupyter + '"><i class="bi bi-cloud-check"></i> JupyterOpen</a></li>' +
+        '<li><a class="dropdown-item" target="_blank" rel="noopener" href="' + colab + '"><i class="bi bi-google"></i> Colab</a></li>' +
+      '</ul>';
+
+    var header = document.getElementById("title-block-header");
+    if (header) {
+      header.appendChild(wrap);
+    } else {
+      var main = document.querySelector("main.content") || document.querySelector("main");
+      if (main) main.insertBefore(wrap, main.firstChild);
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
+</script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="../../index.html" class="navbar-brand navbar-brand-logo">
+    <img src="../../media/praxis-badge-white.png" alt="" class="navbar-logo">
+    </a>
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">Praxis</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-get-started" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Get Started</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-get-started">    
+        <li>
+    <a class="dropdown-item" href="../../pages/quickstart.html">
+ <span class="dropdown-text">Quickstart Guide</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-courses" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Courses</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-courses">    
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_AMNE-376.html">
+ <span class="dropdown-text">AMNE-376</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_SOCI415.html">
+ <span class="dropdown-text">SOCI-415</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_SOCI280.html">
+ <span class="dropdown-text">SOCI-280</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_ECON227.html">
+ <span class="dropdown-text">ECON-227</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_Causal_ML.html">
+ <span class="dropdown-text">Causal Machine Learning</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_Game_Theory.html">
+ <span class="dropdown-text">Game Theory</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="../../pages/index/all.html">
+ <span class="dropdown-text">Browse All</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="../../pages/index/all.html"> 
+<span class="menu-text">All Topics</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-teach-with-praxis" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Teach with Praxis</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-teach-with-praxis">    
+        <li>
+    <a class="dropdown-item" href="../../pages/teaching_with_praxis.html">
+ <span class="dropdown-text">Learn how to teach with Praxis</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-launch-praxis" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+      <i class="bi bi-play" role="img">
+</i> 
+ <span class="menu-text">Launch Praxis</span>
+    </a>
+    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="nav-menu-launch-praxis">    
+        <li>
+    <a class="dropdown-item" href="https://open.jupyter.ubc.ca/jupyter/hub/user-redirect/git-pull?repo=https%3A%2F%2Fgithub.com%2Fubcecon%2Fpraxis-ubc&amp;urlpath=lab%2Ftree%2Fpraxis-ubc%2F&amp;branch=praxis-notebooks"><i class="bi bi-cloud-check" role="img">
+</i> 
+ <span class="dropdown-text">Launch on JupyterOpen (with Data)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://open.jupyter.ubc.ca/jupyter/hub/user-redirect/git-pull?repo=https%3A%2F%2Fgithub.com%2Fubcecon%2Fpraxis-ubc&amp;urlpath=lab%2Ftree%2Fpraxis-ubc%2F&amp;branch=praxis-notebooks"><i class="bi bi-cloud-check" role="img">
+</i> 
+ <span class="dropdown-text">Launch on JupyterOpen (lite)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ubc.syzygy.ca/jupyter/hub/user-redirect/git-pull?repo=https%3A%2F%2Fgithub.com%2Fubcecon%2Fpraxis-ubc&amp;urlpath=lab%2Ftree%2Fpraxis-ubc%2F&amp;branch=praxis-notebooks"><i class="bi bi-gear" role="img">
+</i> 
+ <span class="dropdown-text">Launch on Syzygy</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://colab.research.google.com/github/ubcecon/praxis-ubc/blob/praxis-notebooks/"><i class="bi bi-google" role="img">
+</i> 
+ <span class="dropdown-text">Launch on Colab</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://github.com/ubcecon/praxis-ubc/archive/refs/heads/praxis-notebooks.zip"><i class="bi bi-cloud-download" role="img">
+</i> 
+ <span class="dropdown-text">Launch Locally</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="https://github.com/ubcecon/praxis-ubc">
+ <span class="dropdown-text">Github Repository</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="../../#"> 
+<span class="menu-text">|</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/ubcecon/praxis-ubc" target="_blank"> <i class="bi bi-github" role="img" aria-label="GitHub">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-about" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">About</span>
+    </a>
+    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="nav-menu-about">    
+        <li>
+    <a class="dropdown-item" href="../../pages/team.html">
+ <span class="dropdown-text">Praxis Team</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/copyright.html">
+ <span class="dropdown-text">Copyright Information</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+          </div> <!-- /navcollapse -->
+          <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-full page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#outline" id="toc-outline" class="nav-link active" data-scroll-target="#outline">Outline</a>
+  <ul class="collapse">
+  <li><a href="#prerequisites" id="toc-prerequisites" class="nav-link" data-scroll-target="#prerequisites">Prerequisites</a></li>
+  <li><a href="#learning-outcomes" id="toc-learning-outcomes" class="nav-link" data-scroll-target="#learning-outcomes">Learning Outcomes</a></li>
+  </ul></li>
+  <li><a href="#when-the-players-are-algorithms" id="toc-when-the-players-are-algorithms" class="nav-link" data-scroll-target="#when-the-players-are-algorithms">1. When the players are algorithms</a>
+  <ul class="collapse">
+  <li><a href="#a-game-in-normal-form" id="toc-a-game-in-normal-form" class="nav-link" data-scroll-target="#a-game-in-normal-form">1.1 A game in normal form</a></li>
+  </ul></li>
+  <li><a href="#dominance" id="toc-dominance" class="nav-link" data-scroll-target="#dominance">2. Dominance</a>
+  <ul class="collapse">
+  <li><a href="#three-prices-and-iterated-elimination" id="toc-three-prices-and-iterated-elimination" class="nav-link" data-scroll-target="#three-prices-and-iterated-elimination">2.1 Three prices and iterated elimination</a></li>
+  </ul></li>
+  <li><a href="#best-responses" id="toc-best-responses" class="nav-link" data-scroll-target="#best-responses">3. Best responses</a>
+  <ul class="collapse">
+  <li><a href="#marking-best-responses" id="toc-marking-best-responses" class="nav-link" data-scroll-target="#marking-best-responses">3.1 Marking best responses</a></li>
+  </ul></li>
+  <li><a href="#nash-equilibrium" id="toc-nash-equilibrium" class="nav-link" data-scroll-target="#nash-equilibrium">4. Nash equilibrium</a>
+  <ul class="collapse">
+  <li><a href="#a-game-with-no-pure-equilibrium" id="toc-a-game-with-no-pure-equilibrium" class="nav-link" data-scroll-target="#a-game-with-no-pure-equilibrium">4.1 A game with no pure equilibrium</a></li>
+  </ul></li>
+  <li><a href="#letting-the-algorithms-play" id="toc-letting-the-algorithms-play" class="nav-link" data-scroll-target="#letting-the-algorithms-play">5. Letting the algorithms play</a></li>
+  <li><a href="#conclusion" id="toc-conclusion" class="nav-link" data-scroll-target="#conclusion">6. Conclusion</a>
+  <ul class="collapse">
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
+  </ul></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/ubcecon/praxis-ubc/issues/new" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div><div class="quarto-alternate-formats"><h2>Other Formats</h2><ul><li><a href="notebook_01_games_best_responses_nash.ipynb" download="notebook_01_games_best_responses_nash.ipynb"><i class="bi bi-journal-code"></i>Jupyter</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content column-page-left" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Games, Best Responses, and Nash Equilibrium</h1>
+  <div class="quarto-categories">
+    <div class="quarto-category">Python</div>
+    <div class="quarto-category">game theory</div>
+    <div class="quarto-category">Nash equilibrium</div>
+    <div class="quarto-category">best response</div>
+    <div class="quarto-category">dominance</div>
+  </div>
+  </div>
+
+<div>
+  <div class="description">
+    The first notebook in the Game Theory stream. We meet games in normal form and some of their components: payoff matrices, dominance, best responses, and pure Nash equilibrium, and we build a first best-response simulator.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta column-page-left">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Alex Ronczewski </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">16 July 2026</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="outline" class="level2">
+<h2 class="anchored" data-anchor-id="outline">Outline</h2>
+<section id="prerequisites" class="level3">
+<h3 class="anchored" data-anchor-id="prerequisites">Prerequisites</h3>
+<ul>
+<li>ECON 221, or any first course that introduced games, dominance, and Nash equilibrium. Every concept is re-taught here, so it’s not strictly necessary, but nice to have.</li>
+<li>Basic Python and <code>numpy</code> at the COMET-intermediate level.</li>
+<li>You do <strong>not</strong> need any machine-learning background. The “learning” our players do is built from scratch.</li>
+</ul>
+</section>
+<section id="learning-outcomes" class="level3">
+<h3 class="anchored" data-anchor-id="learning-outcomes">Learning Outcomes</h3>
+<p>By the end of this notebook you will be able to:</p>
+<ol type="1">
+<li>Describe a simultaneous-move game in <strong>normal form</strong>: players, actions, and payoffs.</li>
+<li>Encode a two-player game as a pair of payoff matrices and load it into <code>nashpy</code>.</li>
+<li>Identify <strong>strictly dominant</strong> and <strong>strictly dominated</strong> strategies, and solve a game by <strong>iterated elimination</strong> of dominated strategies.</li>
+<li>Compute a player’s <strong>best response</strong> to any action of the opponent.</li>
+<li>Define a <strong>pure-strategy Nash equilibrium</strong> as a profile of mutual best responses, and find every pure equilibrium of a game in code.</li>
+<li>Simulate <strong>best-response dynamics</strong>, where algorithms repeatedly react to each other’s last move, and explain why the process settles in some games and cycles forever in others.</li>
+</ol>
+<div id="16b97086" class="cell" data-execution_count="1">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co">#Load our libraries</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> matplotlib.colors <span class="im">import</span> ListedColormap</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> matplotlib.patches <span class="im">import</span> Patch</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> nashpy <span class="im">as</span> nash</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+</section>
+<section id="when-the-players-are-algorithms" class="level2">
+<h2 class="anchored" data-anchor-id="when-the-players-are-algorithms">1. When the players are algorithms</h2>
+<p>The game theory you learn about in ECON 221 is about people (usually called agents). Two rational players study a payoff table, do some math and arrive at an equilibrium. We keep this logic, but adapt it towards algorithms and machines. When you buy something online, the price was probably set by a repricing algorithm watching its competitors’ prices. The ads you see were sold in auctions where the bidders are algorithms. Recommender systems, trading systems, and more recently LLM agents all play games against each other, at a speed and scale no human player could match.</p>
+<p>Moving away from human agents into machines changes a lot of things. Rational people can be assumed to reason out the equilibrium before playing. An algorithm follows whatever rule it was given in its code: it observes, it reacts, it updates. So alongside the classical question in Game Theory of, <em>what is the equilibrium of this game?</em>, this stream asks a second one: <em>what do interacting algorithms converge to?</em> Sometimes the two answers agree, and when they do, the equilibrium prediction is unchanged. Sometimes they disagree, and the disagreements turn out to be where the interesting findings are.</p>
+<p>This notebook stays at the ECON 221 level and sets up both sides. First the human side: encoding a game, dominance, best responses, and pure Nash equilibrium. Then the algorithmic side, with the simplest player we can possibly write: one that only reacts to its opponent’s last move. We can then look at where that player converges to, and where it never converges and keeps looping.</p>
+<section id="a-game-in-normal-form" class="level3">
+<h3 class="anchored" data-anchor-id="a-game-in-normal-form">1.1 A game in normal form</h3>
+<p>This is the game we will return to often in this stream. Two online retailers sell the same product, and each has handed its pricing to an algorithm. Every morning both algorithms post a price, <strong>High</strong> or <strong>Low</strong>, at the same time and without seeing each other’s choice. If both post High, the firms split the market at a comfortable margin. If one undercuts, the discounter takes most of the market and the expensive firm keeps only a loyal remnant. If both post Low, they split the market again, at a price-war margin.</p>
+<p>A simultaneous-move game in <strong>normal form</strong> consists of three ingredients:</p>
+<ul>
+<li><strong>Players.</strong> Who is playing: here the two firms, (more accurately their algorithms), <span class="math inline">\(i = 1, 2\)</span>.</li>
+<li><strong>Actions.</strong> What each player can do: here <span class="math inline">\(A_1 = A_2 = \{\text{High}, \text{Low}\}\)</span>.</li>
+<li><strong>Payoffs.</strong> What each player gets for every combination of actions: <span class="math inline">\(u_i(a_1, a_2)\)</span>, here daily profit.</li>
+</ul>
+<p>This is the associated payoff table for this game:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th></th>
+<th>Firm 2: High</th>
+<th>Firm 2: Low</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Firm 1: High</strong></td>
+<td>10, 10</td>
+<td>2, 12</td>
+</tr>
+<tr class="even">
+<td><strong>Firm 1: Low</strong></td>
+<td>12, 2</td>
+<td>4, 4</td>
+</tr>
+</tbody>
+</table>
+<p>The first number in each cell is firm 1’s payoff, the second is firm 2’s. Firm 1 picks the row, firm 2 picks the column.</p>
+<p>To work with this in code we use <code>nashpy</code>, a Python library for two-player games. It wants one payoff matrix per player: firm 1’s matrix <code>A</code> holds the first number of every cell, and firm 2’s matrix <code>B</code> holds the second. Because the game is symmetric, <code>B</code> is the transpose of <code>A</code>.</p>
+<div id="5429ca43" class="cell" data-execution_count="2">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>A <span class="op">=</span> np.array([[<span class="dv">10</span>, <span class="dv">2</span>],</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>              [<span class="dv">12</span>, <span class="dv">4</span>]])   <span class="co"># firm 1's payoffs: rows are its price (High, Low)</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>B <span class="op">=</span> A.T                   <span class="co"># firm 2's payoffs: same game for the other player</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>prices <span class="op">=</span> [<span class="st">"High"</span>, <span class="st">"Low"</span>]</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>pricing_game <span class="op">=</span> nash.Game(A, B)</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(pricing_game)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Bi matrix game with payoff matrices:
+
+Row player:
+[[10  2]
+ [12  4]]
+
+Column player:
+[[10 12]
+ [ 2  4]]</code></pre>
+</div>
+</div>
+<p>The printout shows the two matrices we typed: the row player’s payoffs and the column player’s payoffs. From here on, every game in this stream enters the computer in exactly this form, one payoff array per player.</p>
+</section>
+</section>
+<section id="dominance" class="level2">
+<h2 class="anchored" data-anchor-id="dominance">2. Dominance</h2>
+<p>Now the important question, what should firm 1’s algorithm post? Let’s look at the rival’s two possible prices one at a time. If firm 2 posts High, firm 1 earns 12 from Low against 10 from High. If firm 2 posts Low, firm 1 earns 4 from Low against 2 from High. Low wins in both cases, so firm 1 does not need to know, guess, or predict anything about its rival in order to act.</p>
+<p>That situation has a name. An action <span class="math inline">\(a_i\)</span> <strong>strictly dominates</strong> an action <span class="math inline">\(a_i'\)</span> if it pays strictly more against every possible action of the opponent:</p>
+<p><span class="math display">\[
+u_i(a_i, a_{-i}) &gt; u_i(a_i', a_{-i}) \quad \text{for every } a_{-i}.
+\]</span></p>
+<p>The subscript <span class="math inline">\(-i\)</span> is game theory shorthand for “the other player”. An action that is strictly dominated can be ignored outright: no belief about the opponent could ever make it the right choice. Checking dominance in code is one comparison of rows (for firm 1) or columns (for firm 2):</p>
+<div id="ce5451b9" class="cell" data-execution_count="3">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Firm 1: Low beats High against every rival price:"</span>, <span class="bu">bool</span>((A[<span class="dv">1</span>] <span class="op">&gt;</span> A[<span class="dv">0</span>]).<span class="bu">all</span>()))</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Firm 2: Low beats High against every rival price:"</span>, <span class="bu">bool</span>((B[:, <span class="dv">1</span>] <span class="op">&gt;</span> B[:, <span class="dv">0</span>]).<span class="bu">all</span>()))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Firm 1: Low beats High against every rival price: True
+Firm 2: Low beats High against every rival price: True</code></pre>
+</div>
+</div>
+<p>Both firms have Low as a strictly dominant action, so the game has a clean prediction: <strong>(Low, Low)</strong>, each firm earning 4, every day. Now look at (High, High), where each firm would earn 10. Both firms would prefer this outcome, but it is impossible, because against a High-pricing rival the best move is to undercut (Low). You most likely have learned this game: it is the <strong>prisoner’s dilemma</strong>.</p>
+<section id="three-prices-and-iterated-elimination" class="level3">
+<h3 class="anchored" data-anchor-id="three-prices-and-iterated-elimination">2.1 Three prices and iterated elimination</h3>
+<p>Real repricers choose from more than two price points, so let us add a third. The firms can now post <strong>High</strong>, <strong>Medium</strong>, or <strong>Low</strong>, where Low is an extreme discount with almost no margin left for the firm. As before, the cheaper firm takes most of the market, equal prices split it, and an overpriced firm keeps a small base of loyal customers. Our payoff matrix is now:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th></th>
+<th>Firm 2: High</th>
+<th>Firm 2: Medium</th>
+<th>Firm 2: Low</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Firm 1: High</strong></td>
+<td>50, 50</td>
+<td>20, 60</td>
+<td>20, 20</td>
+</tr>
+<tr class="even">
+<td><strong>Firm 1: Medium</strong></td>
+<td>60, 20</td>
+<td>30, 30</td>
+<td>12, 20</td>
+</tr>
+<tr class="odd">
+<td><strong>Firm 1: Low</strong></td>
+<td>20, 20</td>
+<td>20, 12</td>
+<td>10, 10</td>
+</tr>
+</tbody>
+</table>
+<p>Is any strategy dominant now? We check every pair of actions. The game is symmetric, so whatever holds for firm 1 holds for firm 2 as well.</p>
+<div id="f37ebd9b" class="cell" data-execution_count="4">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>three_prices <span class="op">=</span> [<span class="st">"High"</span>, <span class="st">"Medium"</span>, <span class="st">"Low"</span>]</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>A3 <span class="op">=</span> np.array([[<span class="dv">50</span>, <span class="dv">20</span>, <span class="dv">20</span>],</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>               [<span class="dv">60</span>, <span class="dv">30</span>, <span class="dv">12</span>],</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>               [<span class="dv">20</span>, <span class="dv">20</span>, <span class="dv">10</span>]])</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">3</span>):</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> j <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">3</span>):</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> i <span class="op">!=</span> j <span class="kw">and</span> (A3[i] <span class="op">&gt;</span> A3[j]).<span class="bu">all</span>():</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>            <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>three_prices[i]<span class="sc">}</span><span class="ss"> strictly dominates </span><span class="sc">{</span>three_prices[j]<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Medium strictly dominates Low</code></pre>
+</div>
+</div>
+<p>Only one relation survives: Medium strictly dominates Low. The aggressive discount buys the whole market and destroys the margin doing it, so it loses to Medium no matter what the rival posts. But no action is dominant anymore: Medium is the best reply to High and to Medium, yet against a Low rival, High earns 20 while Medium earns only 12.</p>
+<p>So we cannot name firm 1’s best action just yet. Something is still true, though: <em>no rational firm will ever post Low</em>. And firm 1 knows firm 2 is rational, so firm 1 can plan as if Low were simply missing from the rival’s set of possible actions. Delete the Low row and the Low column, and inspect the game that remains.</p>
+<div id="9012b715" class="cell" data-execution_count="5">
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>A3_reduced <span class="op">=</span> A3[:<span class="dv">2</span>, :<span class="dv">2</span>]   <span class="co"># drop the Low row and the Low column</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">2</span>):</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> j <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">2</span>):</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> i <span class="op">!=</span> j <span class="kw">and</span> (A3_reduced[i] <span class="op">&gt;</span> A3_reduced[j]).<span class="bu">all</span>():</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>            <span class="bu">print</span>(<span class="ss">f"after eliminating Low: </span><span class="sc">{</span>three_prices[i]<span class="sc">}</span><span class="ss"> strictly dominates </span><span class="sc">{</span>three_prices[j]<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>after eliminating Low: Medium strictly dominates High</code></pre>
+</div>
+</div>
+<p>In the reduced game Medium strictly dominates High, so both firms play Medium and the game is solved. This two-step argument is <strong>iterated elimination of strictly dominated strategies</strong>. Notice how each deletion leans on one more layer of knowledge: round one only required each firm to be rational, while round two required each firm to <em>know that the other is rational</em>. A third round would require “I know that you know that I know”, and so on down the chain. Notice also what did and did not change from the 2x2 version: the race to the bottom stopped one step early, at (Medium, Medium) and payoffs of 30, yet both firms would still prefer (High, High) at 50. The prisoner’s dilemma lesson survives.</p>
+</section>
+</section>
+<section id="best-responses" class="level2">
+<h2 class="anchored" data-anchor-id="best-responses">3. Best responses</h2>
+<p>Two platforms are deciding whether to move their recommendation systems onto a shared industry <strong>data standard</strong>. If both adopt it, their systems interoperate and both gain a lot. Adopting alone is expensive and useless: you rebuilt your data pipeline and there is nobody for it to connect with. Keeping the <strong>legacy</strong> setup is safe either way.</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th></th>
+<th>Firm 2: Adopt</th>
+<th>Firm 2: Legacy</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Firm 1: Adopt</strong></td>
+<td>4, 4</td>
+<td>0, 3</td>
+</tr>
+<tr class="even">
+<td><strong>Firm 1: Legacy</strong></td>
+<td>3, 0</td>
+<td>3, 3</td>
+</tr>
+</tbody>
+</table>
+<p>Run the dominance check in your head. If the rival adopts, Adopt pays 4 against Legacy’s 3. If the rival stays on Legacy, Adopt pays 0 against Legacy’s 3. Each action is best against something, so nothing is dominated and elimination gets nowhere. (You may recognize this payoff pattern from ECON 221: it is <strong>stag hunt</strong>.)</p>
+<p>What we can still say is conditional: <em>given</em> the rival’s choice, one action is best. That object is the <strong>best response</strong>:</p>
+<p><span class="math display">\[
+BR_i(a_{-i}) = \arg\max_{a_i \in A_i} u_i(a_i, a_{-i}),
+\]</span></p>
+<p>the action that maximizes player <span class="math inline">\(i\)</span>’s payoff against a fixed action of the opponent. In code a best response is one <code>argmax</code> over a row or column of the payoff matrix, and it is the single most reused idea in this stream: the simulator later in this notebook, the belief learner of Notebook 2, and the Q-learners of Notebook 4 are all elaborations of this <code>argmax</code>.</p>
+<div id="aa5175d5" class="cell" data-execution_count="6">
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>S <span class="op">=</span> np.array([[<span class="dv">4</span>, <span class="dv">0</span>],</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>              [<span class="dv">3</span>, <span class="dv">3</span>]])</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>standards <span class="op">=</span> [<span class="st">"Adopt"</span>, <span class="st">"Legacy"</span>]</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> br_row(A, col):</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="bu">int</span>(np.argmax(A[:, col]))</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> br_col(B, row):</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="bu">int</span>(np.argmax(B[row, :]))</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> j, rival <span class="kw">in</span> <span class="bu">enumerate</span>(standards):</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"rival plays </span><span class="sc">{</span>rival<span class="sc">:6}</span><span class="ss"> -&gt; firm 1's best response: </span><span class="sc">{</span>standards[br_row(S, j)]<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>rival plays Adopt  -&gt; firm 1's best response: Adopt
+rival plays Legacy -&gt; firm 1's best response: Legacy</code></pre>
+</div>
+</div>
+<p>The table reads: match your rival. Against Adopt, adopt; against Legacy, stay on Legacy. This is what a <strong>coordination</strong> problem looks like, and it leaves the central question of our stream open, because “match the rival” does not say which action the pair will end up matched on. Before answering that, it helps to <em>see</em> the structure of both games we have met so far.</p>
+<section id="marking-best-responses" class="level3">
+<h3 class="anchored" data-anchor-id="marking-best-responses">3.1 Marking best responses</h3>
+<p>The diagram below marks best responses directly on each payoff table, the way you did it in ECON 221. In each column, we underline firm 1’s best-response payoff, the biggest first number in that column. In each row, we underline firm 2’s best-response payoff, the biggest second number in that row. A cell where <em>both</em> payoffs end up underlined is shaded green: both players are best responding there, so nobody wants to move.</p>
+<div id="0a438fd9" class="cell" data-execution_count="7">
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> draw_best_responses(A, B, actions, title, ax):</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">2</span>):</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> j <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">2</span>):</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>            br1 <span class="op">=</span> A[i, j] <span class="op">==</span> A[:, j].<span class="bu">max</span>()   <span class="co"># firm 1's best payoff in this column</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>            br2 <span class="op">=</span> B[i, j] <span class="op">==</span> B[i, :].<span class="bu">max</span>()   <span class="co"># firm 2's best payoff in this row</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>            y <span class="op">=</span> <span class="dv">1</span> <span class="op">-</span> i</span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> payoff, x, is_br <span class="kw">in</span> [(A[i, j], j <span class="op">-</span> <span class="fl">0.16</span>, br1),</span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>                                     (B[i, j], j <span class="op">+</span> <span class="fl">0.16</span>, br2)]:</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>                s <span class="op">=</span> <span class="bu">str</span>(payoff)</span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>                ax.text(x, y, s, ha<span class="op">=</span><span class="st">"center"</span>, va<span class="op">=</span><span class="st">"center"</span>, fontsize<span class="op">=</span><span class="dv">13</span>,</span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>                        fontweight<span class="op">=</span><span class="st">"bold"</span> <span class="cf">if</span> is_br <span class="cf">else</span> <span class="st">"normal"</span>)</span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>                <span class="cf">if</span> is_br:</span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>                    half <span class="op">=</span> <span class="fl">0.04</span> <span class="op">+</span> <span class="fl">0.035</span> <span class="op">*</span> <span class="bu">len</span>(s)</span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>                    ax.plot([x <span class="op">-</span> half, x <span class="op">+</span> half], [y <span class="op">-</span> <span class="fl">0.11</span>, y <span class="op">-</span> <span class="fl">0.11</span>],</span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>                            color<span class="op">=</span><span class="st">"black"</span>, linewidth<span class="op">=</span><span class="fl">1.2</span>)</span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>            ax.text(j, y, <span class="st">","</span>, ha<span class="op">=</span><span class="st">"center"</span>, va<span class="op">=</span><span class="st">"center"</span>, fontsize<span class="op">=</span><span class="dv">13</span>)</span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> br1 <span class="kw">and</span> br2:</span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a>                ax.add_patch(plt.Rectangle((j <span class="op">-</span> <span class="fl">0.5</span>, <span class="fl">0.5</span> <span class="op">-</span> i), <span class="dv">1</span>, <span class="dv">1</span>,</span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a>                                           color<span class="op">=</span><span class="st">"tab:green"</span>, alpha<span class="op">=</span><span class="fl">0.15</span>))</span>
+<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> edge <span class="kw">in</span> [<span class="op">-</span><span class="fl">0.5</span>, <span class="fl">0.5</span>, <span class="fl">1.5</span>]:</span>
+<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a>        ax.plot([edge, edge], [<span class="op">-</span><span class="fl">0.5</span>, <span class="fl">1.5</span>], color<span class="op">=</span><span class="st">"grey"</span>, linewidth<span class="op">=</span><span class="dv">1</span>)</span>
+<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a>        ax.plot([<span class="op">-</span><span class="fl">0.5</span>, <span class="fl">1.5</span>], [edge, edge], color<span class="op">=</span><span class="st">"grey"</span>, linewidth<span class="op">=</span><span class="dv">1</span>)</span>
+<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a>    ax.set_xticks([<span class="dv">0</span>, <span class="dv">1</span>], actions)</span>
+<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a>    ax.set_yticks([<span class="dv">1</span>, <span class="dv">0</span>], actions)</span>
+<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a>    ax.set_xlim(<span class="op">-</span><span class="fl">0.6</span>, <span class="fl">1.6</span>)</span>
+<span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a>    ax.set_ylim(<span class="op">-</span><span class="fl">0.6</span>, <span class="fl">1.6</span>)</span>
+<span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a>    ax.set_aspect(<span class="st">"equal"</span>)</span>
+<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a>    ax.set_frame_on(<span class="va">False</span>)</span>
+<span id="cb12-29"><a href="#cb12-29" aria-hidden="true" tabindex="-1"></a>    ax.tick_params(length<span class="op">=</span><span class="dv">0</span>)</span>
+<span id="cb12-30"><a href="#cb12-30" aria-hidden="true" tabindex="-1"></a>    ax.set_title(title)</span>
+<span id="cb12-31"><a href="#cb12-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-32"><a href="#cb12-32" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">11</span>, <span class="dv">5</span>))</span>
+<span id="cb12-33"><a href="#cb12-33" aria-hidden="true" tabindex="-1"></a>draw_best_responses(A, B, prices, <span class="st">"Pricing game: the underlines meet only at (Low, Low)"</span>, axes[<span class="dv">0</span>])</span>
+<span id="cb12-34"><a href="#cb12-34" aria-hidden="true" tabindex="-1"></a>draw_best_responses(S, S.T, standards, <span class="st">"Data pipeline game: two cells with both payoffs underlined"</span>, axes[<span class="dv">1</span>])</span>
+<span id="cb12-35"><a href="#cb12-35" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><a href="notebook_01_games_best_responses_nash_files/figure-html/cell-8-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-1"><img src="notebook_01_games_best_responses_nash_files/figure-html/cell-8-output-1.png" width="922" height="426" class="figure-img"></a></p>
+</figure>
+</div>
+</div>
+</div>
+<p>On the left matrix, dominance is visible: firm 1’s underline sits in the Low row of both columns and firm 2’s sits in the Low column of both rows, so the only cell with two underlines is (Low, Low). On the right, two cells collect both underlines, (Adopt, Adopt) and (Legacy, Legacy). In each of them both players are best responding at the same time. Cells like that are the subject of the most important definition in game theory.</p>
+</section>
+</section>
+<section id="nash-equilibrium" class="level2">
+<h2 class="anchored" data-anchor-id="nash-equilibrium">4. Nash equilibrium</h2>
+<p>A <strong>Nash equilibrium</strong> is a profile of actions, one per player, in which every player’s action is a best response to what the others are doing. No player can raise their own payoff by changing their action alone. For two players, <span class="math inline">\((a_1^*, a_2^*)\)</span> is a Nash equilibrium if</p>
+<p><span class="math display">\[
+u_1(a_1^*, a_2^*) \ge u_1(a_1, a_2^*) \quad \text{and} \quad u_2(a_1^*, a_2^*) \ge u_2(a_1^*, a_2) \quad \text{for all } a_1, a_2.
+\]</span></p>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Nash equilibrium is mutual best response
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>The definition has two readings.</p>
+<p>As a <em>solution concept</em>: every player is best responding to every other, so the profile is internally consistent, and nobody regrets their choice once the choices are revealed.</p>
+<p>As a <em>rest point</em>: if play somehow arrives at a Nash equilibrium, then no player who can only change their own action has a reason to move, so play stays there. Equilibria are the places where adjustment stops. This reading turns equilibrium into something a simulation can search for, and it is how algorithms, which never “solve” anything, can end up at one anyway. This is the definition this stream leans on more.</p>
+</div>
+</div>
+<p>Finding the pure equilibria in code is a direct translation of the underline diagram: visit every cell, and keep the ones where both players are best responding at the same time.</p>
+<div id="6507af0d" class="cell" data-execution_count="8">
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> pure_equilibria(A, B, actions):</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>    found <span class="op">=</span> []</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(A.shape[<span class="dv">0</span>]):</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> j <span class="kw">in</span> <span class="bu">range</span>(A.shape[<span class="dv">1</span>]):</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> A[i, j] <span class="op">==</span> A[:, j].<span class="bu">max</span>() <span class="kw">and</span> B[i, j] <span class="op">==</span> B[i, :].<span class="bu">max</span>():</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>                found.append((actions[i], actions[j]))</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> found</span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Pricing game:  "</span>, pure_equilibria(A, B, prices))</span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Data pipeline game:"</span>, pure_equilibria(S, S.T, standards))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Pricing game:   [('Low', 'Low')]
+Data pipeline game: [('Adopt', 'Adopt'), ('Legacy', 'Legacy')]</code></pre>
+</div>
+</div>
+<p>The pricing game has exactly one equilibrium, (Low, Low), the doubly underlined cell from the diagram. The data pipeline game has two, the shaded cells: both firms on Adopt, or both firms on Legacy. Note that (Legacy, Legacy) qualifies even though (Adopt, Adopt) pays more for everyone. Equilibrium certifies the absence of profitable <em>individual</em> deviations and says nothing about overall joint-quality. This is important to keep in mind: an equilibrium does not necessarily imply that this is a “good” or best outcome.</p>
+<p>A game with two equilibria left us unable to say which one will happen. The next game is worse: it has none at all.</p>
+<section id="a-game-with-no-pure-equilibrium" class="level3">
+<h3 class="anchored" data-anchor-id="a-game-with-no-pure-equilibrium">4.1 A game with no pure equilibrium</h3>
+<p>A platform’s <strong>fraud detector</strong> is playing against a <strong>scalper bot</strong>. Each round the bot attacks one of two sales channels, A or B, and the detector concentrates its screening on one of the two. If the detector picks the channel the bot attacked, the bot is caught: the detector stops it and the bot loses. If it picks the wrong channel, the bot slips through and scores.</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th></th>
+<th>Bot: Channel A</th>
+<th>Bot: Channel B</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Detector: Channel A</strong></td>
+<td>1, -1</td>
+<td>-1, 1</td>
+</tr>
+<tr class="even">
+<td><strong>Detector: Channel B</strong></td>
+<td>-1, 1</td>
+<td>1, -1</td>
+</tr>
+</tbody>
+</table>
+<p>You may have seen this structure under the name <strong>matching pennies</strong> or <strong>Penatly Kicks</strong>. It is a game of pure conflict: whatever one side wins, the other loses, so the two payoffs in every cell sum to zero.</p>
+<div id="deb4d206" class="cell" data-execution_count="9">
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>M <span class="op">=</span> np.array([[ <span class="dv">1</span>, <span class="op">-</span><span class="dv">1</span>],</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>              [<span class="op">-</span><span class="dv">1</span>,  <span class="dv">1</span>]])</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>channels <span class="op">=</span> [<span class="st">"Channel A"</span>, <span class="st">"Channel B"</span>]</span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>detection_game <span class="op">=</span> nash.Game(M, <span class="op">-</span>M)</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(detection_game)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Zero sum game with payoff matrices:
+
+Row player:
+[[ 1 -1]
+ [-1  1]]
+
+Column player:
+[[-1  1]
+ [ 1 -1]]</code></pre>
+</div>
+</div>
+<p>Now we mark the best responses.</p>
+<div id="47641e5b" class="cell" data-execution_count="10">
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="fl">5.5</span>, <span class="dv">5</span>))</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>draw_best_responses(M, <span class="op">-</span>M, channels, <span class="st">"Detection game: no cell has both payoffs underlined"</span>, ax)</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><a href="notebook_01_games_best_responses_nash_files/figure-html/cell-11-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-2"><img src="notebook_01_games_best_responses_nash_files/figure-html/cell-11-output-1.png" width="487" height="426" class="figure-img"></a></p>
+</figure>
+</div>
+</div>
+</div>
+<p>No cell is shaded, and you can see why. The detector wants to land on the same channel as the bot, the bot wants the opposite, so in every cell exactly one player is best responding and the other regrets its choice. Follow the underlines around the table and they chase each other in a circle: whichever cell you stand in, one player wants to move to the next. Our finder confirms it:</p>
+<div id="ba51c53b" class="cell" data-execution_count="11">
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Detection game:"</span>, pure_equilibria(M, <span class="op">-</span>M, channels))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Detection game: []</code></pre>
+</div>
+</div>
+<p>An empty list: <strong>the detection game has no pure Nash equilibrium</strong>. No profile of actions is stable, because in every cell somebody’s best move is elsewhere. That is also how you would actually want to run a fraud detector, since screening the same channel every day is an open invitation to attack the other one.</p>
+</section>
+</section>
+<section id="letting-the-algorithms-play" class="level2">
+<h2 class="anchored" data-anchor-id="letting-the-algorithms-play">5. Letting the algorithms play</h2>
+<p>Everything so far has been the analyst’s (human agents) view. We stood outside each game, looked at the whole payoff table at once, and computed. Real pricing algorithms don’t work like that: they observe what the rival did and react to it. So let us hand each player the most basic algorithm we can write.</p>
+<blockquote class="blockquote">
+<p>Each period, one player revises its action, switching to its best response against the opponent’s most recent move. The two players take turns revising.</p>
+</blockquote>
+<p>That is the whole algorithm. It has a memory exactly one move deep, no model of its opponent, and no plan beyond the next move. This process is called <strong>best-response dynamics</strong>, and our question is: does play driven by this rule find the equilibria we computed from the outside?</p>
+<div id="3e2e43cf" class="cell" data-execution_count="12">
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> br_dynamics(A, B, start, revisions):</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>    a, b <span class="op">=</span> start</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>    path <span class="op">=</span> [(a, b)]</span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> t <span class="kw">in</span> <span class="bu">range</span>(revisions):</span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> t <span class="op">%</span> <span class="dv">2</span> <span class="op">==</span> <span class="dv">0</span>:</span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>            a <span class="op">=</span> br_row(A, b)   <span class="co"># row player revises</span></span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>        <span class="cf">else</span>:</span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>            b <span class="op">=</span> br_col(B, a)   <span class="co"># column player revises</span></span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>        path.append((a, b))</span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> path</span>
+<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> show_path(path, actions):</span>
+<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="st">" -&gt; "</span>.join(<span class="ss">f"(</span><span class="sc">{</span>actions[a]<span class="sc">}</span><span class="ss">, </span><span class="sc">{</span>actions[b]<span class="sc">}</span><span class="ss">)"</span> <span class="cf">for</span> a, b <span class="kw">in</span> path)</span>
+<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a>path <span class="op">=</span> br_dynamics(A, B, start<span class="op">=</span>(<span class="dv">0</span>, <span class="dv">0</span>), revisions<span class="op">=</span><span class="dv">6</span>)</span>
+<span id="cb20-16"><a href="#cb20-16" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(show_path(path, prices))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>(High, High) -&gt; (Low, High) -&gt; (Low, Low) -&gt; (Low, Low) -&gt; (Low, Low) -&gt; (Low, Low) -&gt; (Low, Low)</code></pre>
+</div>
+</div>
+<p>We started the pricing game from the best collective outcome, (High, High). Firm 1 revises first and immediately undercuts. Firm 2 revises next and follows. From then on nothing ever changes: at a Nash equilibrium a revising player finds nothing to improve, which is the rest-point reading of the callout above. Two revisions were enough to fall from the cooperative outcome to the equilibrium.</p>
+<p>Now the data pipeline game, which has two equilibria. We run the same dynamics from two different starting positions and chart each run as a timeline: one row per player, one column per revision, and the colour of each cell is the action being played.</p>
+<div id="248da9b9" class="cell" data-execution_count="13">
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>action_colors <span class="op">=</span> [<span class="st">"tab:blue"</span>, <span class="st">"tab:orange"</span>]</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> plot_path(path, labels, title, ax):</span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>    moves <span class="op">=</span> np.array(path).T   <span class="co"># one row per player, one column per revision</span></span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>    ax.pcolormesh(moves, cmap<span class="op">=</span>ListedColormap(action_colors), vmin<span class="op">=</span><span class="dv">0</span>, vmax<span class="op">=</span><span class="dv">1</span>,</span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a>                  edgecolors<span class="op">=</span><span class="st">"white"</span>, linewidth<span class="op">=</span><span class="dv">2</span>)</span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a>    ax.set_xticks(np.arange(<span class="bu">len</span>(path)) <span class="op">+</span> <span class="fl">0.5</span>, <span class="bu">range</span>(<span class="bu">len</span>(path)))</span>
+<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a>    ax.set_yticks([<span class="fl">0.5</span>, <span class="fl">1.5</span>], labels)</span>
+<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a>    ax.set_ylim(<span class="dv">2</span>, <span class="dv">0</span>)   <span class="co"># first player's row on top</span></span>
+<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a>    ax.set_xlabel(<span class="st">"revision"</span>)</span>
+<span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a>    ax.set_title(title)</span>
+<span id="cb22-12"><a href="#cb22-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-13"><a href="#cb22-13" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">11</span>, <span class="fl">2.8</span>), sharey<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb22-14"><a href="#cb22-14" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> ax, start <span class="kw">in</span> <span class="bu">zip</span>(axes, [(<span class="dv">0</span>, <span class="dv">1</span>), (<span class="dv">1</span>, <span class="dv">0</span>)]):</span>
+<span id="cb22-15"><a href="#cb22-15" aria-hidden="true" tabindex="-1"></a>    path <span class="op">=</span> br_dynamics(S, S.T, start<span class="op">=</span>start, revisions<span class="op">=</span><span class="dv">3</span>)</span>
+<span id="cb22-16"><a href="#cb22-16" aria-hidden="true" tabindex="-1"></a>    plot_path(path, [<span class="st">"firm 1"</span>, <span class="st">"firm 2"</span>],</span>
+<span id="cb22-17"><a href="#cb22-17" aria-hidden="true" tabindex="-1"></a>              <span class="ss">f"start: firm 1 </span><span class="sc">{</span>standards[start[<span class="dv">0</span>]]<span class="sc">}</span><span class="ss">, firm 2 </span><span class="sc">{</span>standards[start[<span class="dv">1</span>]]<span class="sc">}</span><span class="ss">"</span>, ax)</span>
+<span id="cb22-18"><a href="#cb22-18" aria-hidden="true" tabindex="-1"></a>fig.legend(handles<span class="op">=</span>[Patch(color<span class="op">=</span>c, label<span class="op">=</span>a) <span class="cf">for</span> c, a <span class="kw">in</span> <span class="bu">zip</span>(action_colors, standards)],</span>
+<span id="cb22-19"><a href="#cb22-19" aria-hidden="true" tabindex="-1"></a>           ncols<span class="op">=</span><span class="dv">2</span>, loc<span class="op">=</span><span class="st">"lower center"</span>)</span>
+<span id="cb22-20"><a href="#cb22-20" aria-hidden="true" tabindex="-1"></a>fig.subplots_adjust(bottom<span class="op">=</span><span class="fl">0.4</span>)</span>
+<span id="cb22-21"><a href="#cb22-21" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><a href="notebook_01_games_best_responses_nash_files/figure-html/cell-14-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-3"><img src="notebook_01_games_best_responses_nash_files/figure-html/cell-14-output-1.png" width="886" height="269" class="figure-img"></a></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Starting from (Adopt, Legacy), the pair locks into (Legacy, Legacy). Starting from the mirror image, (Legacy, Adopt), it locks into (Adopt, Adopt). Mechanically, the player that revises first abandons its own position to match the rival’s last move, and after that neither has a reason to move again. Which equilibrium a market ends up in is decided by starting positions and the order of moves.</p>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Self-test
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>In the left panel the algorithms locked into (Legacy, Legacy), where each firm earns 3 instead of the 4 available at (Adopt, Adopt). Did one of them malfunction?</p>
+<details>
+<summary>
+Show / hide answer
+</summary>
+No.&nbsp;Check the definition: at (Legacy, Legacy), a firm that switched to Adopt alone would earn 0 instead of 3, so each firm is best responding and the profile is a Nash equilibrium. The pair is stuck in the worse of two equilibria, and escaping would require both firms to move at the same time, which the one-revision-at-a-time rule can never produce. The problem is coordination.
+</details>
+</div>
+</div>
+<p>One game left: the one with no pure equilibrium to rest at.</p>
+<div id="d4dc26c4" class="cell" data-execution_count="14">
+<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">9</span>, <span class="fl">2.8</span>))</span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>path <span class="op">=</span> br_dynamics(M, <span class="op">-</span>M, start<span class="op">=</span>(<span class="dv">0</span>, <span class="dv">0</span>), revisions<span class="op">=</span><span class="dv">16</span>)</span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>plot_path(path, [<span class="st">"detector"</span>, <span class="st">"scalper bot"</span>],</span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>          <span class="st">"Detection game: best-response dynamics never settle"</span>, ax)</span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a>fig.legend(handles<span class="op">=</span>[Patch(color<span class="op">=</span>c, label<span class="op">=</span>a) <span class="cf">for</span> c, a <span class="kw">in</span> <span class="bu">zip</span>(action_colors, channels)],</span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a>           ncols<span class="op">=</span><span class="dv">2</span>, loc<span class="op">=</span><span class="st">"lower center"</span>)</span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a>fig.subplots_adjust(bottom<span class="op">=</span><span class="fl">0.4</span>)</span>
+<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><a href="notebook_01_games_best_responses_nash_files/figure-html/cell-15-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-4"><img src="notebook_01_games_best_responses_nash_files/figure-html/cell-15-output-1.png" width="772" height="269" class="figure-img"></a></p>
+</figure>
+</div>
+</div>
+</div>
+<p>In this game the chase never ends. The detector matches the bot, the bot escapes to the other channel, the detector follows, the bot flees back, and the pattern repeats every four revisions, forever. This is the rotating pattern from section 4.1’s matrix traced out in real time.</p>
+<p>Best-response dynamics stand still only at a profile where the revising player has nothing to improve, whichever player that is, and a profile where <em>both</em> players have nothing to improve is precisely a pure Nash equilibrium. So:</p>
+<ul>
+<li>If best-response dynamics settle, what they have settled on is a pure Nash equilibrium.</li>
+<li>If a game has no pure Nash equilibrium, the dynamics have nowhere to settle, so it cycles.</li>
+</ul>
+<p>Having a pure equilibrium makes convergence possible, and in the well-behaved games of this notebook it happens, but larger games can contain both an equilibrium and a cycle that never finds it. <a href="../../docs/Game_Theory/notebook_02_mixed_strategies_fictitious_play.html">Notebook 2</a> shows us a famous example.</p>
+</section>
+<section id="conclusion" class="level2">
+<h2 class="anchored" data-anchor-id="conclusion">6. Conclusion</h2>
+<p>In one notebook we went from encoding a game to watching algorithms play it. The classical concepts from ECON 221 were a basis for our analysis: dominance solved both pricing games, and best responses solved the ones dominance could not. The simulation then added something the pencil-and-paper toolkit cannot: a way to watch where play settles. A pure Nash equilibrium is where best-response dynamics can rest. When a game has several, history picks one. When it has none, the simplest dynamics continue forever.</p>
+<section id="references" class="level3">
+<h3 class="anchored" data-anchor-id="references">References</h3>
+<ul>
+<li>Calvano, E., Calzolari, G., Denicolo, V., &amp; Pastorello, S. (2020). <em>Artificial intelligence, algorithmic pricing, and collusion.</em> American Economic Review, 110(10), 3267-3297. The evidence behind this stream’s framing; Notebook 4 builds a small version of it.</li>
+<li>Knight, V., &amp; Campbell, J. (2018). <em>Nashpy: A Python library for the computation of Nash equilibria.</em> Journal of Open Source Software, 3(30), 904. https://nashpy.readthedocs.io</li>
+<li>Li, H. <em>ECON 221 and ECON 421 course outlines.</em> University of British Columbia. https://lihao.microeconomics.ca/li_content/econ221/outline.html</li>
+<li>Osborne, M. J. (2004). <em>An Introduction to Game Theory.</em> Oxford University Press. (Chapters 2 and 3 cover everything in this notebook.)</li>
+<li>Roughgarden, T. (2016). <em>Twenty Lectures on Algorithmic Game Theory.</em> Cambridge University Press. https://timroughgarden.org/notes.html</li>
+<li>Shoham, Y., &amp; Leyton-Brown, K. (2008). <em>Multiagent Systems: Algorithmic, Game-Theoretic, and Logical Foundations.</em> Cambridge University Press. https://www.masfoundations.org/mas.pdf</li>
+</ul>
+
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<button id="scroll-to-top" aria-label="Back to top">
+  <svg width="18" height="18" viewbox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M12 19V5M12 5L5 12M12 5L19 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path>
+  </svg>
+</button>
+
+<style>
+#scroll-to-top {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  z-index: 999;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+
+  /* Follows the active Comet theme (light/dark) automatically,
+     since these are the same Bootstrap vars compiled from
+     comet_theme.scss / comet_theme_dark.scss */
+  background-color: var(--bs-primary, #041746);
+  color: #FFFFFF;
+
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(10px);
+  transition: opacity 0.2s ease, transform 0.2s ease, background-color 0.2s ease;
+}
+
+#scroll-to-top.is-visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+#scroll-to-top:hover,
+#scroll-to-top:focus-visible {
+  background-color: var(--bs-secondary, #CC7A00);
+  outline: none;
+}
+
+#scroll-to-top svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Tooltip shown on hover/focus, to the left so it stays in the viewport */
+#scroll-to-top::after {
+  content: "Back to top";
+  position: absolute;
+  right: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background-color: rgba(0, 0, 0, 0.8);
+  color: #FFFFFF;
+  font-size: 0.8rem;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+#scroll-to-top:hover::after,
+#scroll-to-top:focus-visible::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+@media (max-width: 768px) {
+  #scroll-to-top {
+    bottom: 20px;
+    right: 16px;
+    width: 40px;
+    height: 40px;
+  }
+}
+</style>
+
+<script>
+(function () {
+  var btn = document.getElementById("scroll-to-top");
+  if (!btn) return;
+
+  var toggleVisibility = function () {
+    if (window.scrollY > 300) {
+      btn.classList.add("is-visible");
+    } else {
+      btn.classList.remove("is-visible");
+    }
+  };
+
+  window.addEventListener("scroll", toggleVisibility, { passive: true });
+  toggleVisibility();
+
+  btn.addEventListener("click", function () {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+})();
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const disableStylesheet = (stylesheets) => {
+    for (let i=0; i < stylesheets.length; i++) {
+      const stylesheet = stylesheets[i];
+      stylesheet.rel = 'prefetch';
+    }
+  }
+  const enableStylesheet = (stylesheets) => {
+    for (let i=0; i < stylesheets.length; i++) {
+      const stylesheet = stylesheets[i];
+      stylesheet.rel = 'stylesheet';
+    }
+  }
+  const manageTransitions = (selector, allowTransitions) => {
+    const els = window.document.querySelectorAll(selector);
+    for (let i=0; i < els.length; i++) {
+      const el = els[i];
+      if (allowTransitions) {
+        el.classList.remove('notransition');
+      } else {
+        el.classList.add('notransition');
+      }
+    }
+  }
+  const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+    const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+    const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+    let newTheme = '';
+    if(darkModeDefault) {
+      newTheme = isAlternate ? baseTheme : alternateTheme;
+    } else {
+      newTheme = isAlternate ? alternateTheme : baseTheme;
+    }
+    const changeGiscusTheme = () => {
+      // From: https://github.com/giscus/giscus/issues/336
+      const sendMessage = (message) => {
+        const iframe = document.querySelector('iframe.giscus-frame');
+        if (!iframe) return;
+        iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+      }
+      sendMessage({
+        setConfig: {
+          theme: newTheme
+        }
+      });
+    }
+    const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+    if (isGiscussLoaded) {
+      changeGiscusTheme();
+    }
+  }
+  const toggleColorMode = (alternate) => {
+    // Switch the stylesheets
+    const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+    manageTransitions('#quarto-margin-sidebar .nav-link', false);
+    if (alternate) {
+      enableStylesheet(alternateStylesheets);
+      for (const sheetNode of alternateStylesheets) {
+        if (sheetNode.id === "quarto-bootstrap") {
+          toggleBodyColorMode(sheetNode);
+        }
+      }
+    } else {
+      disableStylesheet(alternateStylesheets);
+      toggleBodyColorPrimary();
+    }
+    manageTransitions('#quarto-margin-sidebar .nav-link', true);
+    // Switch the toggles
+    const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+    for (let i=0; i < toggles.length; i++) {
+      const toggle = toggles[i];
+      if (toggle) {
+        if (alternate) {
+          toggle.classList.add("alternate");     
+        } else {
+          toggle.classList.remove("alternate");
+        }
+      }
+    }
+    // Hack to workaround the fact that safari doesn't
+    // properly recolor the scrollbar when toggling (#1455)
+    if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+      manageTransitions("body", false);
+      window.scrollTo(0, 1);
+      setTimeout(() => {
+        window.scrollTo(0, 0);
+        manageTransitions("body", true);
+      }, 40);  
+    }
+  }
+  const isFileUrl = () => { 
+    return window.location.protocol === 'file:';
+  }
+  const hasAlternateSentinel = () => {  
+    let styleSentinel = getColorSchemeSentinel();
+    if (styleSentinel !== null) {
+      return styleSentinel === "alternate";
+    } else {
+      return false;
+    }
+  }
+  const setStyleSentinel = (alternate) => {
+    const value = alternate ? "alternate" : "default";
+    if (!isFileUrl()) {
+      window.localStorage.setItem("quarto-color-scheme", value);
+    } else {
+      localAlternateSentinel = value;
+    }
+  }
+  const getColorSchemeSentinel = () => {
+    if (!isFileUrl()) {
+      const storageValue = window.localStorage.getItem("quarto-color-scheme");
+      return storageValue != null ? storageValue : localAlternateSentinel;
+    } else {
+      return localAlternateSentinel;
+    }
+  }
+  const darkModeDefault = false;
+  let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+  // Dark / light mode switch
+  window.quartoToggleColorScheme = () => {
+    // Read the current dark / light value 
+    let toAlternate = !hasAlternateSentinel();
+    toggleColorMode(toAlternate);
+    setStyleSentinel(toAlternate);
+    toggleGiscusIfUsed(toAlternate, darkModeDefault);
+  };
+  // Ensure there is a toggle, if there isn't float one in the top right
+  if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+    const a = window.document.createElement('a');
+    a.classList.add('top-right');
+    a.classList.add('quarto-color-scheme-toggle');
+    a.href = "";
+    a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+    const i = window.document.createElement("i");
+    i.classList.add('bi');
+    a.appendChild(i);
+    window.document.body.appendChild(a);
+  }
+  // Switch to dark mode if need be
+  if (hasAlternateSentinel()) {
+    toggleColorMode(true);
+  } else {
+    toggleColorMode(false);
+  }
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+          // target, if specified
+          link.setAttribute("target", "_blank");
+          if (link.getAttribute("rel") === null) {
+            link.setAttribute("rel", "noopener");
+          }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      // TODO in 1.5, we should make sure this works without a callout special case
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+ <a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc-sa/4.0/80x15.png"></a>.  <a rel="license" href="https://ubcecon.github.io/comet-open/pages/copyright.html">See details.</a>
+  </li>  
+</ul>
+    </div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/ubcecon/praxis-ubc/issues/new" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></div>
+    <div class="nav-footer-right">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+ The Praxis Project and UBC are located on the traditional, ancestral and unceded territory of the xʷməθkʷəy̓əm (Musqueam) and Sḵwx̱wú7mesh (Squamish) peoples.
+  </li>  
+</ul>
+    </div>
+  </div>
+</footer>
+<script>var lightboxQuarto = GLightbox({"descPosition":"bottom","loop":false,"openEffect":"zoom","selector":".lightbox","closeEffect":"zoom"});
+window.onload = () => {
+  lightboxQuarto.on('slide_before_load', (data) => {
+    const { slideIndex, slideNode, slideConfig, player, trigger } = data;
+    const href = trigger.getAttribute('href');
+    if (href !== null) {
+      const imgEl = window.document.querySelector(`a[href="${href}"] img`);
+      if (imgEl !== null) {
+        const srcAttr = imgEl.getAttribute("src");
+        if (srcAttr && srcAttr.startsWith("data:")) {
+          slideConfig.href = srcAttr;
+        }
+      }
+    } 
+  });
+
+  lightboxQuarto.on('slide_after_load', (data) => {
+    const { slideIndex, slideNode, slideConfig, player, trigger } = data;
+    if (window.Quarto?.typesetMath) {
+      window.Quarto.typesetMath(slideNode);
+    }
+  });
+
+};
+          </script>
+
+
+
+
+</body></html>

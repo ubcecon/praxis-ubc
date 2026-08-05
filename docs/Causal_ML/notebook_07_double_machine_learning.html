@@ -308,6 +308,10 @@ window.Quarto = {
     <a class="dropdown-item" href="../../pages/index/index_Causal_ML.html">
  <span class="dropdown-text">Causal Machine Learning</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_Game_Theory.html">
+ <span class="dropdown-text">Game Theory</span></a>
+  </li>  
         <li><hr class="dropdown-divider"></li>
         <li>
     <a class="dropdown-item" href="../../pages/index/all.html">
@@ -427,6 +431,7 @@ window.Quarto = {
   <ul class="collapse">
   <li><a href="#any-learner-in-dml" id="toc-any-learner-in-dml" class="nav-link" data-scroll-target="#any-learner-in-dml">3.1 Any learner in DML</a></li>
   <li><a href="#review-of-the-dml-recipe" id="toc-review-of-the-dml-recipe" class="nav-link" data-scroll-target="#review-of-the-dml-recipe">3.2 Review of the DML recipe</a></li>
+  <li><a href="#the-conditions-that-make-the-estimate-causal" id="toc-the-conditions-that-make-the-estimate-causal" class="nav-link" data-scroll-target="#the-conditions-that-make-the-estimate-causal">3.3 The conditions that make the estimate causal</a></li>
   </ul></li>
   <li><a href="#connections" id="toc-connections" class="nav-link" data-scroll-target="#connections">4. Connections</a>
   <ul class="collapse">
@@ -502,7 +507,7 @@ window.Quarto = {
 <li>Run a full <strong>double machine learning</strong> estimate with a standard error.</li>
 <li>Swap in any learner and see the estimate hold.</li>
 </ol>
-<div id="78104fd9" class="cell" data-execution_count="1">
+<div id="c0c3206e" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
@@ -564,8 +569,8 @@ Read these for the meaning
 <section id="the-issue-with-fitting-and-estimating-on-the-same-data" class="level3">
 <h3 class="anchored" data-anchor-id="the-issue-with-fitting-and-estimating-on-the-same-data">2.2 The issue with fitting and estimating on the same data</h3>
 <p>Suppose we fit the two learners and compute the effect all on the same households. The danger is overfitting, a core theme of Notebooks 1, 2, and 3. A flexible learner can fit the training data too well, memorizing the noise and not being able to generalize to new data. If we feed these overfitting estimators into the residual-on-residual regression the effect comes out wrong.</p>
-<p>We will make this happen on purpose to demonstrate it. We build a world where the true effect is 1, and we hand the residualizing to a learner that memorises its training data and dramatically overfits: an extremely-randomised forest grown until every household sits in its own leaf (check notebook 3). On the training data it predicts perfectly, so the leftovers collapse to nothing.</p>
-<div id="f19f50a9" class="cell" data-execution_count="2">
+<p>We will make this happen on purpose to demonstrate it. We build a world where the true effect is 1, and we hand the residualizing to a learner that memorises its training data and dramatically overfits: an extremely-randomised forest grown until every household sits in its own leaf. On the training data it predicts perfectly, so the leftovers collapse to nothing.</p>
+<div id="971de0d5" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> make_world(n, seed):</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    rng <span class="op">=</span> np.random.default_rng(seed)</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    X <span class="op">=</span> rng.normal(<span class="dv">0</span>, <span class="dv">1</span>, (n, <span class="dv">8</span>))</span>
@@ -595,7 +600,7 @@ Effect estimated on the same data: -0.10  (true effect is 1.0)</code></pre>
 </div>
 <p>The leftovers are approaching zero, because the learner reads the training outcomes back to us, memorizing the noise not true predictive signal. With nothing left to regress, the estimate collapses to -0.10, nowhere near the true 1.</p>
 <p>The fix is <strong>cross-fitting</strong>, and it is the train/test split of Notebook 1 applied to the nuisance models. Split the data into folds. To get a household’s leftover, use a learner that was fit on the <em>other</em> folds, never on that household. A learner can’t memorise a household it was not shown, so the leftovers keep their real spread.</p>
-<div id="dcaad9db" class="cell" data-execution_count="3">
+<div id="5303039c" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> crossfit_leftovers(X, target, make_model, n_splits<span class="op">=</span><span class="dv">5</span>):</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    leftover <span class="op">=</span> np.zeros(<span class="bu">len</span>(target))</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    folds <span class="op">=</span> KFold(n_splits, shuffle<span class="op">=</span><span class="va">True</span>, random_state<span class="op">=</span>RANDOM_STATE)</span>
@@ -613,7 +618,7 @@ Effect estimated on the same data: -0.10  (true effect is 1.0)</code></pre>
 </div>
 </div>
 <p>With cross-fitting the estimate is 0.93, close to the true value of 1. The plot lines the two up against the truth.</p>
-<div id="7c4da8fc" class="cell" data-execution_count="4">
+<div id="dd2a4980" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>plt.figure(figsize<span class="op">=</span>(<span class="dv">7</span>, <span class="dv">5</span>))</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>plt.bar([<span class="st">"same data</span><span class="ch">\n</span><span class="st">(no cross-fitting)"</span>, <span class="st">"cross-fitting"</span>],</span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>        [theta_same_data, theta_crossfit],</span>
@@ -649,7 +654,7 @@ The cross-fitting rule
 <section id="double-machine-learning" class="level2">
 <h2 class="anchored" data-anchor-id="double-machine-learning">3. Double Machine Learning</h2>
 <p>We now have every piece. The recipe: cross-fit the leftovers of the outcome and the treatment with whatever learner we choose, then regress one on the other for the effect. A standard error comes from the spread of the per-household terms, the same influence-function concept from the doubly-robust score in Notebook 6.</p>
-<div id="6d47d49f" class="cell" data-execution_count="5">
+<div id="5986a9f6" class="cell" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> dml_effect(X, D, Y, make_outcome, make_treatment, n_splits<span class="op">=</span><span class="dv">5</span>):</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>    folds <span class="op">=</span> KFold(n_splits, shuffle<span class="op">=</span><span class="va">True</span>, random_state<span class="op">=</span>RANDOM_STATE)</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    y_left <span class="op">=</span> np.zeros(<span class="bu">len</span>(Y))</span>
@@ -667,7 +672,7 @@ The cross-fitting rule
 <span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> theta, se</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>Now we load our real 401(k) data and run it, using a random forest to model both savings and eligibility.</p>
-<div id="27d67a03" class="cell" data-execution_count="6">
+<div id="e15d8a06" class="cell" data-execution_count="6">
 <div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>savings <span class="op">=</span> pd.read_csv(<span class="st">"datasets/Pension401k.csv"</span>)</span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>confounders <span class="op">=</span> [<span class="st">"age"</span>, <span class="st">"inc"</span>, <span class="st">"educ"</span>, <span class="st">"fsize"</span>, <span class="st">"marr"</span>, <span class="st">"twoearn"</span>, <span class="st">"db"</span>, <span class="st">"pira"</span>, <span class="st">"hown"</span>]</span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>D <span class="op">=</span> savings[<span class="st">"e401"</span>].to_numpy().astype(<span class="bu">float</span>)</span>
@@ -693,7 +698,7 @@ t-statistic: 6.5
 </div>
 <p>The effect is 8.80 thousand dollars, with a standard error of 1.35 and a t-statistic of 6.5. The 95% interval runs from 6.15 to 11.45, well clear of zero. Eligibility for a 401(k) raised net financial assets by 8,800 dollars. This is the number Notebook 6 could not reach: its interval reached up toward nine but could not rule out zero, and DML, with flexible models and cross-fitting, finds the positive effect. Most of the raw 19.6 gap from Notebook 4 was selection, but a real and substantial effect of 8,800 dollars remains underneath.</p>
 <p>The picture behind the number is the residual-on-residual scatter, the same one from Notebook 4, now with the forest doing the residualizing. We compute the two leftovers out-of-fold and plot one against the other; the slope of the line is the effect.</p>
-<div id="74d64fe6" class="cell" data-execution_count="7">
+<div id="374e31fb" class="cell" data-execution_count="7">
 <div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>folds <span class="op">=</span> KFold(<span class="dv">5</span>, shuffle<span class="op">=</span><span class="va">True</span>, random_state<span class="op">=</span>RANDOM_STATE)</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>y_left <span class="op">=</span> np.zeros(<span class="bu">len</span>(Y))</span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>d_left <span class="op">=</span> np.zeros(<span class="bu">len</span>(D))</span>
@@ -723,7 +728,7 @@ t-statistic: 6.5
 <section id="any-learner-in-dml" class="level3">
 <h3 class="anchored" data-anchor-id="any-learner-in-dml">3.1 Any learner in DML</h3>
 <p>The causal machinery, residualize, cross-fit and regress, never mentioned which learner we used. So we can drop in any learner and the estimate holds. We run the same DML with three very different learners, a lasso, a random forest, and gradient boosting (the sequential tree method from Notebook 3, which builds many small models that each correct the errors left by the ones before).</p>
-<div id="ef26e8e6" class="cell" data-execution_count="8">
+<div id="31140347" class="cell" data-execution_count="8">
 <div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>learners <span class="op">=</span> {</span>
 <span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">"lasso"</span>: (<span class="kw">lambda</span>: LassoCV(cv<span class="op">=</span><span class="dv">5</span>, random_state<span class="op">=</span>RANDOM_STATE, max_iter<span class="op">=</span><span class="dv">50000</span>),</span>
 <span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>              <span class="kw">lambda</span>: LogisticRegression(max_iter<span class="op">=</span><span class="dv">2000</span>)),</span>
@@ -741,7 +746,7 @@ random forest : 8.80  (se 1.35, t 6.5)
 boosting      : 9.62  (se 1.34, t 7.2)</code></pre>
 </div>
 </div>
-<div id="00b08082" class="cell" data-execution_count="9">
+<div id="2b8c4065" class="cell" data-execution_count="9">
 <div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>names <span class="op">=</span> <span class="bu">list</span>(results)</span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>thetas <span class="op">=</span> [results[n][<span class="dv">0</span>] <span class="cf">for</span> n <span class="kw">in</span> names]</span>
 <span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>errs <span class="op">=</span> [<span class="fl">1.96</span> <span class="op">*</span> results[n][<span class="dv">1</span>] <span class="cf">for</span> n <span class="kw">in</span> names]</span>
@@ -803,6 +808,30 @@ The double machine learning recipe
 </ol>
 </div>
 </div>
+</section>
+<section id="the-conditions-that-make-the-estimate-causal" class="level3">
+<h3 class="anchored" data-anchor-id="the-conditions-that-make-the-estimate-causal">3.3 The conditions that make the estimate causal</h3>
+<p>The recipe tells you how to compute the estimate, but by itself it does not make the estimate causal. The estimate of 8,800 dollars, and the confidence interval around it, identify the effect of eligibility only under the following statistical conditions. The first three are about the world and the data and are shared with Notebooks 4 to 6; the last two are the requirements DML places on its own machinery.</p>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Identification conditions for double machine learning
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ol type="1">
+<li><strong>Unconfoundedness (selection on observables).</strong> The nine covariates must capture every systematic reason a household is eligible that also matters for savings. In the partially linear model this is carried by the error terms: <span class="math inline">\(\varepsilon\)</span> and <span class="math inline">\(v\)</span> must average to zero given the covariates, so that once <span class="math inline">\(g(X)\)</span> and <span class="math inline">\(m(X)\)</span> are removed, the leftover eligibility <span class="math inline">\(\tilde{D}\)</span> is as good as random. Flexible learners make the <em>adjustment</em> for <span class="math inline">\(X\)</span> better; they do nothing about a confounder that is not in <span class="math inline">\(X\)</span>, and this condition remains untestable.</li>
+<li><strong>Overlap.</strong> The treatment must truly vary within every kind of household, so the leftover <span class="math inline">\(\tilde{D} = D - m(X)\)</span> has spread everywhere. If the covariates predicted eligibility perfectly for some households, their <span class="math inline">\(\tilde{D}\)</span> would collapse to zero and there would be nothing to regress on.</li>
+<li><strong>A random, independent sample.</strong> The method for standard errors and cross-fitting treats households as i.i.d. draws, with no household’s eligibility affecting another household’s savings and a single version of the treatment (SUTVA and consistency).</li>
+<li><strong>The partially linear model, with a constant effect.</strong> We wrote <span class="math inline">\(Y = \theta D + g(X) + \varepsilon\)</span>, so <span class="math inline">\(\theta\)</span> is one number for everyone. Nonlinearity is allowed anywhere in <span class="math inline">\(g(X)\)</span> and <span class="math inline">\(m(X)\)</span>, but not in how <span class="math inline">\(D\)</span> enters. If the effect actually varies across households, the DML slope estimates a particular variance-weighted average of those effects rather than the plain ATE, and Notebook 8 looks at that heterogeneity directly.</li>
+<li><strong>Nuisance learners that are good enough, plus orthogonalization and cross-fitting.</strong> The learners for <span class="math inline">\(g\)</span> and <span class="math inline">\(m\)</span> do not have to be perfect, but they must converge to the truth relatively well: the rule of thumb from the theory is that each should have an error shrinking at roughly the rate <span class="math inline">\(n^{-1/4}\)</span>, so the <em>product</em> of the two errors shrinks faster than <span class="math inline">\(1/\sqrt{n}\)</span>. Given that, the residual-on-residual (Neyman-orthogonal) construction makes the estimate insensitive to the small errors that remain, and cross-fitting removes the contamination from overfitting we demonstrated in Section 2.2. Skip the cross-fitting, or use a learner too weak to learn the nuisances at that rate, and the guarantee behind the standard error breaks.</li>
+</ol>
+</div>
+</div>
+<p>Conditions 1 to 3 can’t be fixed with a stronger learner; conditions 4 and 5 are necessary for using flexible machine learning inside a causal estimate. When you report a DML effect, these five are the statement of what the causal claim rests on.</p>
 </section>
 </section>
 <section id="connections" class="level2">
@@ -1518,7 +1547,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
     </div>
   </div>
 </footer>
-<script>var lightboxQuarto = GLightbox({"loop":false,"descPosition":"bottom","closeEffect":"zoom","openEffect":"zoom","selector":".lightbox"});
+<script>var lightboxQuarto = GLightbox({"closeEffect":"zoom","descPosition":"bottom","openEffect":"zoom","loop":false,"selector":".lightbox"});
 window.onload = () => {
   lightboxQuarto.on('slide_before_load', (data) => {
     const { slideIndex, slideNode, slideConfig, player, trigger } = data;
