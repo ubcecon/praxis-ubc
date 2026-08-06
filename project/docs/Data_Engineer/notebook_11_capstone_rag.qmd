@@ -1,0 +1,593 @@
+---
+title: "Capstone: Building a RAG System"
+author: Alex Ronczewski
+date: 2026-08-05
+image: /pages/index/placeholder_images/placeholder.png
+description: "The final notebook in the Data Engineering stream. We combine everything we have built into one complete system: a pipeline extracts, cleans, chunks, embeds, validates, and loads a corpus of real consumer complaints, a language model answers questions from retrieved excerpts with citations, and every answer can be traced back to its source rows."
+categories:
+  - Python
+  - SQL
+  - data engineering
+execute:
+  eval: true
+  echo: true
+  output: true
+format:
+  html: default
+  ipynb:
+    jupyter:
+      kernelspec:
+        display_name: Python
+        language: python3
+        name: python3
+---
+
+## Outline
+
+### Prerequisites
+
+- Notebook 10 of this stream: embeddings, vector search, and the CFPB complaint data.
+
+### Learning Outcomes
+
+By the end of this notebook you will be able to:
+
+1. Explain what **retrieval-augmented generation (RAG)** is.
+2. Build an **ingestion pipeline** that extracts, cleans, chunks, embeds, validates, and loads a document corpus, using the same executor as Notebooks 8 and 9.
+3. Assemble retrieved excerpts into a **prompt with citations**, send it to a language model.
+4. Measure retrieval quality with **golden questions**, and make that measurement a task inside the pipeline.
+5. Trace any answer back to its source document and to the pipeline tasks that produced it.
+
+## 1. Where we are in the stream
+
+```{mermaid}
+flowchart TB
+    subgraph ARC1["Querying data"]
+        direction LR
+        NB1["1. Why databases<br/>exist"] --> NB2["2. Basic<br/>SQL"] --> NB3["3. Advanced<br/>SQL"] --> NB4["4. Cleaning<br/>real data"]
+    end
+    subgraph ARC2["Designing and storing data"]
+        direction LR
+        NB5["5. Modeling<br/>and schemas"] --> NB6["6. Storage, speed,<br/>transactions"] --> NB7["7. OLTP, OLAP,<br/>warehouses"]
+    end
+    subgraph ARC3["Keeping data flowing"]
+        direction LR
+        NB8["8. Pipelines I:<br/>scripts to graphs"] --> NB9["9. Pipelines II:<br/>quality, lineage, time"]
+    end
+    subgraph ARC4["Data for AI"]
+        direction LR
+        NB10["10. Embeddings and<br/>vector search"] --> NB11["11. Capstone: RAG"]
+    end
+    ARC1 --> ARC2 --> ARC3 --> ARC4
+    style NB11 fill:#c8e6c9,stroke:#2e7d32,stroke-width:3px
+```
+
+The last notebook in our data engineering stream, I am very excited, we have been leading up to this task. Ten notebooks ago you loaded a single CSV into SQLite and ran your first `SELECT`. This notebook asks for everything you have learned since, all at once. As always here is our request:
+
+> **The commission, Thursday 4:10 p.m.** "The harassment search convinced the whole team. We want the full assistant now: we ask a question in plain language, it answers from the complaints, and every claim comes with a citation so we can see where it came from. New complaints arrive every month, so it has to refresh itself and prove it still works after each refresh. And build it so a stranger can rebuild the whole thing from the raw files."
+
+What the team is asking for has a name:
+
+::: {.callout-important}
+## Retrieval-augmented generation (RAG)
+
+**RAG** is a question answered in three steps: embed the question, retrieve the most similar pieces of text from a database, and hand those pieces to a language model as part of its prompt, so the model answers from *your* data instead of from its training memory. The model never trains on your documents; it just reads what retrieval puts in front of it, and cites exactly where it got the information from.
+:::
+
+This notebook's thesis is that RAG is not an AI technique. It is database architecture with a language model attached, and throughout this stream we have already built every part of it:
+
+| Piece of a RAG system | Where you built it |
+|---|---|
+| Ingesting documents on a schedule | ETL and pipelines (Notebooks 7 and 8) |
+| Cleaning the corpus, immutable raw data | Notebook 4 |
+| Keys, chunk table's schema, and grain | Notebooks 2, 5, and 10 |
+| Validating every batch before it loads | Notebook 9 |
+| Retrieval itself | `ORDER BY distance LIMIT k` (Notebooks 10) |
+| The language model | The only new part, and it is just one function call |
+
+The plan for this notebook: we define the tables, write the data ingestion, connect them together in a DAG, put a language model on top, measure whether retrieval actually works, and then let a new batch of complaints demonstrate the whole machine refreshing itself. As always we load our libraries
+
+```{python}
+import os
+os.environ["USE_TF"] = "0"                             #transformers: use torch only, skip TensorFlow
+os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"    #disable a Windows-only cache warning
+import json
+from datetime import datetime
+import anthropic
+import duckdb
+import networkx as nx
+import pandas as pd
+import torch
+from transformers import AutoTokenizer, AutoModel
+import matplotlib.pyplot as plt
+
+pd.set_option("display.max_colwidth", 100)
+```
+
+## 2. The corpus gets a home
+
+Notebook 10 left the 390 CFPB complaint text corpus inside of a `complaint` table, which is outside of our pipeline ecosystem and will never be updated. This architecture was completely fine for that notebook; but it is not fine for this system where new complaints will be arriving continously. A system needs a schema, so we start with what Notebook 5 taught us: choose the tables, the keys, and the grain before any data arrives.
+
+We create two tables. `document` holds one row per complaint, as cleaning left it. This is the source our LLM citations will point back to. `chunk` holds one row per paragraph of a document, with the embedding stored next to the text in a `FLOAT[384]` column. The grain decision comes from the end of Notebook 10. We choose one rule, where we split on blank lines, so a short complaint stays a single chunk of text while a long one are split into paragraphs.
+
+The DDL below is Notebook 5's lesson just for DuckDB: primary keys, `NOT NULL`, and a foreign key from `chunk` to `document`, so no chunk can ever exist without its source. The primary key of `chunk` is the *pair* of columns `(complaint_id, chunk_number)`, which is a composite key: neither column alone identifies a paragraph, but together they do.
+
+```{python}
+warehouse = duckdb.connect("datasets/wage_warehouse.duckdb")
+
+warehouse.execute("DROP TABLE IF EXISTS chunk")
+warehouse.execute("DROP TABLE IF EXISTS document")
+warehouse.execute("""CREATE TABLE document (
+    complaint_id BIGINT PRIMARY KEY,
+    issue        VARCHAR NOT NULL,
+    state        VARCHAR,
+    narrative    VARCHAR NOT NULL)""")
+warehouse.execute("""CREATE TABLE chunk (
+    complaint_id BIGINT NOT NULL REFERENCES document(complaint_id),
+    chunk_number INTEGER NOT NULL,
+    text         VARCHAR NOT NULL,
+    embedding    FLOAT[384] NOT NULL,
+    PRIMARY KEY (complaint_id, chunk_number))""")
+
+warehouse.execute("SHOW TABLES").df()                  #SHOW TABLES lists every table in the database
+```
+
+The wage survey's star schema and the two new tables, side by side in the same warehouse file. This does not cause us any problems for our survey data, this is a key advantage of everything living in one database. New data in various shapes can be added without conflict. 
+
+## 3. The ingestion tasks
+
+Now the pipeline that fills those tables. We apply Notebook 8's rules: every task is a small named function, idempotent, handing data to the next task through storage. The only changes we make is to the tasks themselves, as the data is now text instead of survey responses. 
+
+The first two tasks handle data arrival. `extract_documents` reads the current file waiting in the inbox; `inbox` is a one-item list holding the current file's path, the same device as Notebook 9's `run_month`, so a later batch only has to change the path. It keeps the four columns every complaint batch shares, since the CFPB files do not all carry the same extras, and stages the batch untouched as `staging_raw`.
+
+`clean` reads that and writes its repaired copy to a separate table, `staging_documents`, so the raw data survives for the lake. We make three changes to the data itself: strip Windows `\r` characters and stray whitespace, drop exact duplicate narratives with `.drop_duplicates`, and drop anonymization boilerplate, rows where the `XXXX` scrubbing marks make up half the text or more.
+
+```{python}
+def log(message):
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] {message}")
+
+inbox = ["datasets/cfpb_complaints.csv"]               #the file the next run will ingest
+
+def extract_documents():
+    pulled = pd.read_csv(inbox[0])[["complaint_id", "issue", "state", "narrative"]]
+    warehouse.execute("CREATE OR REPLACE TABLE staging_raw AS SELECT * FROM pulled")
+    log(f"extract_documents: {len(pulled)} documents from {inbox[0]}")
+
+def clean():
+    docs = warehouse.execute("SELECT * FROM staging_raw").df()
+    docs["narrative"] = docs["narrative"].str.replace("\r", "").str.strip()
+    before = len(docs)
+    docs = docs.drop_duplicates(subset="narrative")
+    share = docs["narrative"].str.count("XXXX") * 4 / docs["narrative"].str.len()
+    docs = docs[share < 0.5]
+    warehouse.execute("CREATE OR REPLACE TABLE staging_documents AS SELECT * FROM docs")
+    log(f"clean: dropped {before - len(docs)} junk rows, {len(docs)} documents kept")
+```
+
+The next two nodes turn documents into searchable coordinates, we load the embedding model and Notebook 10's `embed` function (which we copy from that notebook line-by-line, if you need a refresher look at Notebook 10). `chunk` applies the grain rule from section 2, keeping `complaint_id` and a running `chunk_number` on every piece, which is the provenance that later an answer from our LLM point back to its source. `embed_documents` runs `embed` over the staged chunks in batches. Critically, it never touches the `chunk` table, only this batch's staging table, so a refresh only ever embeds the new arrivals, this saves a lot of compute if we had more data.
+
+```{python}
+tokenizer = AutoTokenizer.from_pretrained("sentence-transformers/all-MiniLM-L6-v2")
+model = AutoModel.from_pretrained("sentence-transformers/all-MiniLM-L6-v2").eval()
+
+def embed(texts):
+    encoded = tokenizer(texts, padding=True, truncation=True, return_tensors="pt")
+    with torch.no_grad():
+        output = model(**encoded)
+    mask = encoded["attention_mask"].unsqueeze(-1)
+    vectors = (output.last_hidden_state * mask).sum(1) / mask.sum(1)
+    vectors = vectors / vectors.norm(dim=1, keepdim=True)
+    return vectors.numpy()
+
+def chunk():
+    docs = warehouse.execute("SELECT * FROM staging_documents").df()
+    pieces = []
+    for cid, text in zip(docs["complaint_id"], docs["narrative"]):
+        for number, para in enumerate(text.split("\n\n"), 1):
+            if para.strip():
+                pieces.append({"complaint_id": cid, "chunk_number": number, "text": para.strip()})
+    piece_df = pd.DataFrame(pieces)
+    warehouse.execute("CREATE OR REPLACE TABLE staging_chunks AS SELECT * FROM piece_df")
+    log(f"chunk: {len(docs)} documents split into {len(pieces)} chunks")
+
+def embed_documents():
+    staged = warehouse.execute("SELECT * FROM staging_chunks").df()
+    vectors = []
+    for start in range(0, len(staged), 64):
+        vectors.extend(embed(staged["text"].tolist()[start:start + 64]))
+    staged["embedding"] = [v.tolist() for v in vectors]
+    warehouse.execute("CREATE OR REPLACE TABLE staging_chunks AS SELECT * FROM staged")
+    log(f"embed_documents: {len(staged)} chunks embedded")
+```
+
+Now three data validation checks from notebook 9 aimed at the staged batch: every document produced at least one chunk, no chunk is empty text, and every embedding exists and has exactly 384 numbers. `validate` runs them and raises an error on any failure, which the executor turns into skipped downstream tasks, just like before with no new machinery required. We could also add more possible checks (and in the real world people do), but three is sufficient for this exercise. 
+
+```{python}
+def check_coverage():
+    n = warehouse.execute("""SELECT COUNT(*) FROM staging_documents
+        WHERE complaint_id NOT IN (SELECT complaint_id FROM staging_chunks)""").df().iloc[0, 0]
+    return n == 0, f"{n} documents produced no chunks"
+
+def check_text():
+    n = warehouse.execute("SELECT COUNT(*) FROM staging_chunks WHERE TRIM(text) = ''").df().iloc[0, 0]
+    return n == 0, f"{n} empty chunks staged"
+
+def check_embeddings():
+    n = warehouse.execute("""SELECT COUNT(*) FROM staging_chunks
+        WHERE embedding IS NULL OR len(embedding) != 384""").df().iloc[0, 0]
+    return n == 0, f"{n} embeddings missing or the wrong size"
+
+def validate():
+    problems = []
+    for check in [check_coverage, check_text, check_embeddings]:
+        passed, detail = check()
+        log(f"{'PASS' if passed else 'FAIL'} {check.__name__}: {detail}")
+        if not passed:
+            problems.append(check.__name__)
+    if problems:
+        raise RuntimeError(f"validation failed: {', '.join(problems)}")
+    log("validate: batch is clean")
+```
+
+Now the last part the load itself, delete-then-insert scoped to the batch which maintains Notebook 8's idempotency construction.
+
+```{python}
+def load():
+    warehouse.execute("""DELETE FROM chunk WHERE complaint_id IN
+                         (SELECT complaint_id FROM staging_documents)""")
+    warehouse.execute("""DELETE FROM document WHERE complaint_id IN
+                         (SELECT complaint_id FROM staging_documents)""")
+    warehouse.execute("INSERT INTO document SELECT * FROM staging_documents")
+    warehouse.execute("""INSERT INTO chunk SELECT complaint_id, chunk_number, text,
+                         CAST(embedding AS FLOAT[384]) FROM staging_chunks""")
+    log("load: document and chunk tables up to date")
+
+def archive_raw():
+    batch = warehouse.execute("SELECT * FROM staging_raw").df()
+    name = os.path.basename(inbox[0]).replace(".csv", "")
+    batch.to_parquet(f"datasets/archive_{name}.parquet")
+    log(f"archive_raw: {len(batch)} documents to the lake ({name})")
+```
+
+Seven tasks, that was a lot. Time to draw the arrows on our DAG.
+
+## 4. You author the DAG
+
+In Notebook 8 I handed you the graph. This is the capstone, so this time the arrows are your job. 
+
+**Your turn.** Build `pipeline` as an `nx.DiGraph` from these dependencies: `clean` needs `extract_documents`, and so does `archive_raw` (it archives what arrived, so nothing else may touch the data first); `chunk` needs `clean`; `embed_documents` needs `chunk`; `validate` needs `embed_documents`; `load` needs `validate`. Write the `add_edges_from` call before opening the answer. If you need help you can revisit notebook 8. 
+
+```{python}
+# your DAG here
+
+#Type your graph above and uncomment the print statements below when ready
+
+#print("acyclic:", nx.is_directed_acyclic_graph(pipeline))
+#print("one possible valid order:", list(nx.topological_sort(pipeline)))
+```
+
+<details><summary>Show / hide answer</summary>
+
+```{python}
+pipeline = nx.DiGraph()
+pipeline.add_edges_from([
+    ("extract_documents", "clean"),
+    ("extract_documents", "archive_raw"),
+    ("clean", "chunk"),
+    ("chunk", "embed_documents"),
+    ("embed_documents", "validate"),
+    ("validate", "load"),
+])
+
+print("acyclic:", nx.is_directed_acyclic_graph(pipeline))
+print("one possible valid order:", list(nx.topological_sort(pipeline)))
+```
+
+</details>
+
+Perfect, it's acyclic and has a valid order. Just like in Notebook 8, we will draw it with `nx.draw` to clearly show the structure. 
+
+```{python}
+positions = {"extract_documents": (0, 0.5), "archive_raw": (1.1, 1.4), "clean": (1.1, 0.5),
+             "chunk": (2.2, 0.5), "embed_documents": (3.3, 0.5), "validate": (4.4, 0.5), "load": (5.5, 0.5)}
+
+plt.figure(figsize=(12, 4))
+nx.draw(pipeline, positions, with_labels=True, node_color="#c8e6c9", edgecolors="#2e7d32",
+        node_size=6000, font_size=8, edge_color="#666666", arrowsize=20, width=1.6)
+plt.margins(x=0.09, y=0.18)
+plt.show()
+```
+
+The executor we use is `run_pipeline` from Notebook 8, which we copy exactly. This is because an executor does not care whether the data running through it is survey responses or paragraphs of text.
+
+```{python}
+def run_pipeline(graph, tasks):
+    if not nx.is_directed_acyclic_graph(graph):
+        raise ValueError("this graph has a cycle: no run order exists")
+    finished, failed, skipped = [], [], []
+    for name in nx.topological_sort(graph):
+        blocked = [task for task in graph.predecessors(name) if task in failed or task in skipped]
+        if blocked:
+            skipped.append(name)
+            log(f"SKIP {name} (upstream trouble: {blocked[0]})")
+            continue
+        try:
+            tasks[name]()
+            finished.append(name)
+        except Exception as error:
+            failed.append(name)
+            log(f"FAIL {name}: {error}")
+    return finished, failed, skipped
+
+tasks = {"extract_documents": extract_documents, "clean": clean, "chunk": chunk,
+         "embed_documents": embed_documents, "validate": validate, "load": load,
+         "archive_raw": archive_raw}
+```
+
+Finally we have all of our steps and we can run the executor, it is just one line. 
+```{python}
+run_pipeline(pipeline, tasks)
+
+warehouse.execute("""SELECT (SELECT COUNT(*) FROM document) AS documents,
+                            (SELECT COUNT(*) FROM chunk)    AS chunks""").df()
+```
+
+Every task ran, every check passed, and the index exists: 390 documents which become 577 chunks. The difference comes from the grain rule where we split the longer text entries. Next we run `MAX` and `HAVING` to check how many entries were split:
+
+```{python}
+warehouse.execute("""SELECT COUNT(*) AS single_chunk_documents,
+                            (SELECT MAX(n) FROM (SELECT COUNT(*) AS n FROM chunk GROUP BY complaint_id)) AS most_chunks
+                     FROM (SELECT complaint_id FROM chunk GROUP BY complaint_id HAVING COUNT(*) = 1)""").df()
+```
+
+286 of the 390 complaints stayed a single chunk, and the longest split into 7 paragraphs.
+
+## 5. Asking questions
+
+Retrieval against the new tables is Notebook 10's search with one upgrade: a `JOIN` back to `document`, so every hit arrives already carrying its source's id and label. The citations become built into the query. We will search for *What do debt collectors actually do when they harass people?*. 
+
+```{python}
+def retrieve(question, k=5):
+    qv = embed([question])[0].tolist()
+    return warehouse.execute("""
+        SELECT d.complaint_id, c.chunk_number, d.issue, d.state,
+               round(array_cosine_distance(c.embedding, CAST(? AS FLOAT[384])), 3) AS distance,
+               substr(c.text, 1, 80) AS start_of_chunk
+        FROM chunk AS c
+        JOIN document AS d ON c.complaint_id = d.complaint_id
+        ORDER BY distance LIMIT ?""", [qv, k]).df()
+
+retrieve("What do debt collectors actually do when they harass people?")
+```
+
+The form of our prompt has changed; it is now a question. It reflects what the team will actually type it (or something you would ask an LLM). Retrieval handles it perfectly: four of the five hits carry the Communication tactics label, at distances 0.326 to 0.419. The one stray entry is familiar: complaint 6674790 describes "pure and simple harassment" in its own words, so the model ranks it high even though the CFPB filed it under a card-statement category. This is the exact same situations as the Notebook 10 Navient complaint. Labels and meaning disagree, and our model is searching for the meaning component. 
+
+The last step before the language model is bundling the output into a prompt to put into the LLM. `build_prompt` retrieves the top `k` chunks, labels each one with its `complaint_id` in square brackets, and wraps them in instructions: answer only from the excerpts, cite the id after every claim, and say so if the excerpts do not contain the answer. The final clause is the most important one as it stops the model from hallucinating and grounds our answer. 
+
+```{python}
+def build_prompt(question, k=3):
+    hits = warehouse.execute("""
+        SELECT d.complaint_id, c.text
+        FROM chunk AS c
+        JOIN document AS d ON c.complaint_id = d.complaint_id
+        ORDER BY array_cosine_distance(c.embedding, CAST(? AS FLOAT[384])) LIMIT ?""",
+        [embed([question])[0].tolist(), k]).df()
+    excerpts = "\n\n".join(f"[{cid}] {text}" for cid, text in zip(hits["complaint_id"], hits["text"]))
+    return (f"Answer the question using only the excerpts below, and cite the id in square "
+            f"brackets after every claim. If the excerpts do not contain the answer, say so.\n\n"
+            f"Excerpts:\n\n{excerpts}\n\nQuestion: {question}")
+
+prompt = build_prompt("What do debt collectors actually do when they harass people?")
+print(prompt)
+```
+
+We have done it! The prinout above *is* RAG. We have created a database attached to our model. We get a prompt with three excerpts our SQL selected, each tagged with the row it came from, followed by the question. This is what we will hand our model.
+
+## 6. The language model reads the prompt
+
+The prompt could go into any language model (and you can paste it into any web one right now: ChatGPT, Claude, Gemini etc). To make it part of the system we call one through an API, and we do it with the discipline we have learned throughout the whole stream: safely and idempotently. The replies below were generated once with the `claude-opus-5` model and shipped with the repository and come from local cache so notebook re-runs do not cost extra money; delete an entry from `datasets/llm_answers.json` if you ever want a fresh one.
+
+On a cache miss the function calls the API. `anthropic.Anthropic()` finds your key in the `ANTHROPIC_API_KEY` environment variable, `max_tokens` caps the reply's length.
+
+```{python}
+def ask_llm(slug, prompt):
+    answers = {}
+    if os.path.exists("datasets/llm_answers.json"):
+        answers = json.load(open("datasets/llm_answers.json"))
+    if slug not in answers:
+        client = anthropic.Anthropic()
+        reply = client.messages.create(model="claude-opus-5", max_tokens=1000,
+                                       messages=[{"role": "user", "content": prompt}])
+        answers[slug] = "".join(block.text for block in reply.content if block.type == "text")
+        json.dump(answers, open("datasets/llm_answers.json", "w"), indent=2)
+    return answers[slug]
+
+print(ask_llm("harassment_rag", prompt))
+```
+
+An answer created entirely from the three excerpts we fed it, with a citation after each claim. Now the control experiment: the same question with no excerpts included at all, which is what asking a standard chatbot looks like.
+
+```{python}
+print(ask_llm("harassment_no_rag", "What do debt collectors actually do when they harass people? Answer in a short paragraph."))
+```
+
+Both answers are written properly and seem correct, but the second one lacks direct examples. The standard answer is a competent summary of the world in general. It is most likely true on average, grounded in nothing and can't be checked, you just have to trust it blindly. The RAG answer makes claims about *our* 390 complaints and includes a citation for each one. We can follow through with these citations, because every single one is a key into our own tables; take the answer's first one, 6661495:
+
+```{python}
+warehouse.execute("""SELECT complaint_id, issue, state, substr(narrative, 1, 200) AS narrative_start
+                     FROM document WHERE complaint_id = 6661495""").df()
+```
+
+There is the source row, label, state, and full narrative from our warehouse. We can also check the passages hustory using Notebook 9's techniques. `nx.ancestors` names every task that touched this passage before the model ever saw it, printed in pipeline order with a small helper function. We can use this to see what edits, cleaning or validation checks it has gone through. 
+
+```{python}
+def in_dag_order(task_set):
+    return [task for task in nx.topological_sort(pipeline) if task in task_set]
+
+print("this passage passed through:", in_dag_order(nx.ancestors(pipeline, "load")))
+```
+
+Extraction, cleaning, chunking, embedding, validation, then lastly the load. An answer, its source row, and the full audit trail of how that row got there: that is what "traceable" means, and we never made any new machinery for it, we just re-used the ones from Notebook 1 through 10. 
+
+## 7. What the assistant cannot answer
+
+Notebook 10 ended with us looking at three long identity-theft complaints and searching for one specific anecdote: fraud that cost a consumer refinancing, and student loans for their daughter. Those three long notebooks never went through the data pipeline or the RAG so they are just sitting in a dataframe somewhere. They are also not in the index. So when the team repeats Notebook 10's exact search sentence, retrieval does its best with what it has:
+
+```{python}
+daughter_question = "the fraud made me unable to get student loans for my daughter"
+
+retrieve(daughter_question)
+```
+
+Five student-loan stories, with none of them coming closer than 0.394, and not one of them about fraud blocking a daughter's education. Retrieval has to rank, it is forced to have an output and it tries it's best. The model, though, was told what to do when the excerpts come up empty:
+
+```{python}
+print(ask_llm("daughter_missing", build_prompt(daughter_question)))
+```
+
+It says the excerpts do not contain the answer. Because of our RAG system a language model declining to hallucinate or improvise. A normal chatbot can't do that (unless you ask how to make a bomb!). In a RAG system the model can only read what the pipeline delivered, which means a wrong answer is usually a *data* problem, and data problems are exactly what the rest of this stream taught us to find and fix.
+
+## 8. Measuring retrieval quality
+
+Let's now turn to the hardest question the email also asked for: after each refresh, *prove the system still functions*. The checks we used in Notebook 9's can certify rows: counts, nulls, types. None of them can certify that searching this index still finds the right things; this is a claim about behaviour. Our efforts are not wasted though, the deeper lesson from notebook 9 still applies: "loaded" and "retrieves well" are different claims, and we can use written-down expectations to prove retrieval quality.
+
+For retrieval, the written-down expectation is a set of **golden questions**: questions the office actually asks often, each with a known right answer we can grade against. The CFPB's issue labels are the free answer key which we will re-use. We ask five questions, one per category we can phrase cleanly, graded on how many of the top 5 hits are from the expected label:
+
+```{python}
+golden = {
+    "debt collectors harassing me with constant phone calls": "Communication tactics",
+    "my mortgage payment was misapplied and my escrow account is wrong": "Trouble during payment process",
+    "wrong accounts are showing up on my credit report": "Incorrect information on your report",
+    "my bank closed my checking account without warning and froze my money": "Managing an account",
+    "problems getting my student loan servicer to fix my account": "Dealing with your lender or servicer",
+}
+
+for question, label in golden.items():
+    hits = retrieve(question)
+    print(f"{(hits['issue'] == label).sum()}/5  {label}")
+```
+
+23 of 25 of our outputs are from the expected label, with no section below 4/5. These are good scores! We have a healthy index, so we will freeze them into an expectation, 3 of 5 or better on every question, and make the grading a task in our pipeline. This is Notebook 9 coming back again: first we ran checks by hand, then we put them into the pipeline so they had to be ran, and we could never forget. We repeat the same surgery, one `add_edge` for the task `eval_retrieval`:
+
+```{python}
+def eval_retrieval():
+    problems = []
+    for question, label in golden.items():
+        score = (retrieve(question)["issue"] == label).sum()
+        log(f"{'PASS' if score >= 3 else 'FAIL'} {score}/5 golden: {question}")
+        if score < 3:
+            problems.append(question)
+    if problems:
+        raise RuntimeError(f"retrieval eval failed on {len(problems)} questions")
+    log("eval_retrieval: the index still answers like it should")
+
+pipeline.add_edge("load", "eval_retrieval")
+tasks["eval_retrieval"] = eval_retrieval
+
+print("one possible valid order:", list(nx.topological_sort(pipeline)))
+```
+
+We add it after the load, because it queries the live index. If the eval came before it would not see the new entries as the load has not fired yet. `validate` acts as a gate that stops bad rows before they land; `eval_retrieval` is an alarm that fires after they land, the pipeline's own way of checking if the refresh made search quality drastically worse (even if each individual entry is valid). We can now vouch for the index's quality and behaviour. 
+
+## 9. New documents arrive
+
+Time to fix section 7. The three long complaints from above arrive as this month's batch. To make our task a bit more difficult the batch also picked up two bad rows on its way through the office: an exact duplicate of one complaint under a fresh id, and a row whose narrative is nothing except `XXXX` anonymization boilerplate. We run the arrival manually, and drop the file in the inbox:
+
+```{python}
+longs = pd.read_csv("datasets/cfpb_long_complaints.csv")
+batch2 = longs[["complaint_id", "issue", "state", "narrative"]].copy()
+
+copied = batch2.iloc[[1]].copy()                      
+copied["complaint_id"] = 6632902
+junk = pd.DataFrame([{"complaint_id": 6640000, "issue": "Other", "state": "XX",
+                      "narrative": " ".join(["XXXX"] * 50)}])  
+
+batch2 = pd.concat([batch2, copied, junk], ignore_index=True)
+batch2.to_csv("datasets/complaints_batch2.csv", index=False)
+inbox[0] = "datasets/complaints_batch2.csv"
+
+print(f"{len(batch2)} documents in the inbox")
+```
+
+> **Predict first.** Five documents go in. Walk the graph: how many come out the other end of `clean`, and does anything downstream of it fail?
+
+```{python}
+run_pipeline(pipeline, tasks)
+```
+
+Read the log output in full, because it is a consise summary of this whole stream. The extract pulled 5, `clean` dropped the duplicate and the excess anonimization (the document with just `XXXX`) and kept 3, the archive kept all 5 exactly as they arrived as the lake needs them in their original state. he 3 long complaints split into 16 paragraph chunks, every embedding checked out, the load landed them idempotently, and the golden questions still pass on the refreshed index. Nobody edited a script; a new file and one call was the entire refresh.
+
+```{python}
+warehouse.execute("""SELECT (SELECT COUNT(*) FROM document) AS documents,
+                            (SELECT COUNT(*) FROM chunk)    AS chunks""").df()
+```
+
+393 documents, 593 chunks. let's reinvestigate the question that failed in section 7, first retrieve the closest passages. 
+
+```{python}
+retrieve(daughter_question)
+```
+
+The top hit is complaint 6627407, paragraph 3, at distance 0.386, which is the paragraph Notebook 10's chunking demo found (this is correct this is the paragraph with the story we are looking for). The margin over the second best is quite small, 0.386 against 0.394. This slight gap is sufficient as retrieval's job is only to carry the right passage into the prompt; interpreting and reading is the job of the model.
+
+```{python}
+print(ask_llm("daughter_rag", build_prompt(daughter_question)))
+```
+
+We now have an answer, and it is cited, coming from a document that was not in the system a few sections ago, ingested through a pipeline that cleaned it, validated it, archived its raw form, and re-graded its own retrieval on the way. We have done it, this is the deliverable for this notebook! Answers with receipts, a system that refreshes itself and can prove it still works, and every step reproducible from the raw files, because this notebook, run top to bottom, is the self-contained rebuild.
+
+### 9.1 Make it yours
+
+The system you just built does not care that its documents are consumer complaints. Every stage is a valid swap point, and the sky is the limit with what you can do with it, feel free to customize it and make it yours, I would love nothing more! Aim it at course notes, interview transcripts, a club's meeting minutes, StatCan release notes, video game patch notes, news articles, anything at all! The table below contains the recipe.
+
+| Stage | Here | With your corpus |
+|---|---|---|
+| `extract_documents` | a CSV in the inbox | your files, an API, a folder of PDFs turned to text |
+| `clean` | `XXXX` boilerplate, duplicates | whatever junk your source produces that needs cleaning|
+| `chunk` | split on blank lines | your documents' natural unit: sections, pages, speaker turns |
+| `embed_documents` | MiniLM, 384 dimensions | the same model, or use a larger one if quality demands it |
+| `validate` | coverage, empty text, dimensions | identical |
+| `load` + keys | `document` and `chunk` tables | identical |
+| `eval_retrieval` | golden questions graded by CFPB labels | questions *you* can grade, even by hand-labelling twenty documents |
+| `ask_llm` | cached Claude Opus 5 replies | identical, plus your own questions |
+
+The stages that require change are the ones that touch your data's shape, but you are now well equipped and knowledgeable to make these changes yourself! The architecture, the graph, the executor, the validation gate, the RAG quality check, the citations, all of it transfers untouched. That is what it means for RAG to be database architecture: the hard parts are the parts you now know. This is not a magic AI technique, it is a data engineering technique!
+
+## 10. The end of the stream
+
+This is the last notebook, so let's look back at the whole stream. Notebook 1 showed us that data lives in databases and loaded one CSV to prove queries beat files. Notebook 2 and Notebook 3 taught querying language SQL: joins, aggregates, windows, and the fixing incorrect queries. Notebook 4 took a horrible hand-maintained file and made cleaning a reproducible script instead of a multiple hand edits. Notebook 5 drew the schema and taught the database to outright refuse bad data; Notebook 6 looked at performance with transactions, indexes, and columnar storage; Notebook 7 split the world into intake systems and warehouses and bridged them with ETL. Notebook 8 turned scripts into a DAG with an executor that survives failure, and Notebook 9 taught the pipeline to check it's own data, trace poisoned-data, and re-run its past. Notebook 10 put meaning itself into a column with text and embedding search. And today all of it comes together beautifully, schema, cleaning, ETL, validation, lineage, retrieval, ran as one system with a language model on top.
+
+```{mermaid}
+flowchart LR
+    A["A messy file<br/>(NB 1, 4)"] --> B["Queries<br/>(NB 2, 3)"] --> C["A schema that<br/>refuses bad data (NB 5)"] --> D["A fast, safe<br/>warehouse (NB 6, 7)"] --> E["A pipeline that<br/>checks itself (NB 8, 9)"] --> F["A database a<br/>model can read (NB 10, 11)"]
+```
+
+Notebook 1 opened with the Sculley figure: the tiny black box of ML code surrounded by the huge grey boxes of data infrastructure. We then spent ten notebooks living inside the grey boxes, and when the model finally showed up today, it was one function. The proportions in that figure are the true proportions of this stream. Thank you for reading this stream, and congratulations on finishing it! I am so happy and I hope you learned, the skills and concepts taught here are valuable, and they are yours now! Thank you!
+
+### 10.1 Where to go next
+
+- **The models this plumbing feeds.** The prAxIs Causal ML stream is the natural next step: it lives entirely downstream of a data warehouse, and swapping this capstone's answer stage for a model-retraining task would make an excellent project for your resume.
+- **The industry tools.** You built the concepts dbt and Airflow sell; you are ready to directly learn them. The free [DataTalksClub data engineering zoomcamp](https://github.com/DataTalksClub/data-engineering-zoomcamp) is a full open curriculum that takes this stream's ideas and scales them to the cloud and real production.
+- **The theory.** If the design questions hooked you, UBC's CPSC 368 and 304 go deeper on database internals, and Kleppmann (below) is the book behind half this stream's "why".
+
+### 10.2 Recommended reading
+
+If you would like to learn more these are also excellent resources:
+
+- Kleppmann, *Designing Data-Intensive Applications* (O'Reilly). The why behind storage, replication, and batch processing, one layer below everything we did.
+- Reis and Housley, *Fundamentals of Data Engineering* (O'Reilly). The industry-wide map of the job this stream introduced.
+- Lewis et al. (2020), *Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks.* The paper that named the pattern you built in this notebook.
+- The [DataLemur](https://datalemur.com/), [StrataScratch](https://www.stratascratch.com/), and [LeetCode SQL](https://leetcode.com/studyplan/top-sql-50/) grinders from Notebook 2, because the interviews that lead to this work still start with SQL.
+
+## Connections
+
+- **Back to Notebook 10:** it taught search over one table of text; this notebook wrapped that search in schema, pipeline, validation, and a model, and the long complaints it analyzed on the side finally entered the warehouse properly.
+
+### References
+
+- Consumer Financial Protection Bureau. *Consumer Complaint Database.* https://www.consumerfinance.gov/data-research/consumer-complaints/ The corpus: public domain, published with consumer consent, scrubbed of identifying details.
+- Lewis, P., et al. (2020). *Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks.* NeurIPS 2020. The original RAG paper; its retriever-plus-generator design is this notebook's DAG in miniature.
+- Anthropic. *Claude API documentation.* https://platform.claude.com/docs/ The `anthropic` client, the Messages API, and the model this notebook's cached replies came from.
+- Sculley, D., et al. (2015). *Hidden technical debt in machine learning systems.* Advances in Neural Information Processing Systems, 28. The figure that opened Notebook 1 and, ten notebooks later, described everything in between.
+
+---
