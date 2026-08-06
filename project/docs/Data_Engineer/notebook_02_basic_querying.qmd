@@ -37,7 +37,7 @@ By the end of this notebook you will be able to:
 2. Summarize data with **aggregates** and `GROUP BY`, and state the **logical order** in which SQL evaluates a query, including where `HAVING` fits.
 3. Explain **NULL** and three-valued logic: why `= NULL` finds nothing, and how NULLs silently shape counts and averages.
 4. Build categories inside a query with `CASE`.
-5. Spot and fix plausible-looking wrong queries, and translate between SQL and `pandas`.
+5. Spot and fix plausible-looking wrong queries.
 
 ## 1. Where we are in the stream
 
@@ -63,7 +63,7 @@ flowchart TB
     style NB2 fill:#c8e6c9,stroke:#2e7d32,stroke-width:3px
 ```
 
-Notebook 1 ended with us looking at one table and one condition at a time. This notebook is the core of SQL: everything an analyst does most days, and everything a screening interview asks about, built from a single `SELECT`. SQL is the language the world of data speaks, and it is far easier to learn than Python, R, C++ or any other programming language. It is truly intuitive, and with a little effort you will understand all of it. But we can make this effort fun (hopefully at least a little).
+Notebook 1 ended with us looking at one table at a time. This notebook is the core of SQL: everything an analyst does most days, and everything a screening interview asks about, built from a single `SELECT`. SQL is the language the world of data speaks, and it is far easier to learn than Python, R, C++ or any other programming language. It is truly intuitive, and with a little effort you will understand all of it. But we can make this effort fun (hopefully at least a little).
 
 So instead of learning it like a manual, we will learn it on the job. You have just joined the survey's research team as its data analyst (congratulations!!!), and the team is writing a short report on Canadian wages. One deliverable is yours: **a single table, wages by region, full-time workers only, with worker counts and union shares.**
 
@@ -105,7 +105,7 @@ provinces.to_sql("provinces", conn, index=False, if_exists="replace")
 certifications.to_sql("certifications", conn, index=False, if_exists="replace")
 ```
 
-The 684 the cell reports is the row count of the last table written, `certifications`.
+The 684 that the cell reports is the row count of the last table written, `certifications`.
 
 ```{python}
 %load_ext sql
@@ -123,9 +123,9 @@ print()
 print(certifications.head(6).to_string(index=False))
 ```
 
-The first table, `provinces`, is a **lookup table** (also called a reference table): one row per province. It has only five rows (provinces), and values associated with each province: nothing about any individual respondent. Unlike the survey from NB1, this data is real. The minimum wages are the true legal rates in April 2025, from the Government of Canada's minimum wage database, and the populations are Statistics Canada's estimates for April 1, 2025; the region grouping is ours. It fits our survey through the `province` column: every respondent's province should have a row here. It also matters for the job: the briefing wants **regions**, and the survey does not have a region column. This little table is where regions live.
+The first table, `provinces`, is a **lookup table** (also called a reference table): one row per province. It has only five rows, one per province, and holds values associated with each province — nothing about any individual respondent. Unlike the survey from NB1, this data is real. The minimum wages are the true legal rates in April 2025, from the Government of Canada's minimum wage database, and the populations are Statistics Canada's estimates for April 1, 2025; the region grouping is ours. It fits our survey through the `province` column: every respondent's province should have a row here. It also matters for the job: the briefing wants **regions**, and the survey does not have a region column. This little table is where regions live.
 
-The second table, `certifications`, is a new module of our simulated survey: respondents listed the job certifications they hold, one row per certification held. What one row stands for is different again, a person-certificate pair rather than a person, which is why respondents 8 and 10 each appear twice in the first six rows (respondent 8 with Cloud Practitioner and Security Fundamentals). It fits our survey through `respondent_id`, very important to note not all respondents had certifications: 548 of our 1,000 respondents listed no certifications and so have no rows here at all, while others have two or three.
+The second table, `certifications`, is a new module of our simulated survey: respondents listed the job certifications they hold, one row per certification held. What one row stands for is different again, a person-certificate pair rather than a person, which is why respondents 8 and 10 each appear twice in the first six rows (respondent 8 with Cloud Practitioner and Security Fundamentals). It fits our survey through `respondent_id`, it is important to note, not all respondents had certifications: 548 of our 1,000 respondents listed none and so have no rows here at all, while others have two or three.
 
 This three-table setup is a miniature of every production database you will ever work with: a big table of people or events, lookup tables describing the categories they belong to, and detail tables holding the facts that come in variable numbers. The rest of the notebook is about asking questions across all three.
 
@@ -339,7 +339,7 @@ LEFT JOIN provinces AS p ON s.province = p.province
 GROUP BY p.region
 ```
 
-The `None` row is Saskatchewan, and it has the **highest** average wage in the table. Our three-region draft omitted 46 individuals which were the highest paid group in the survey and skewed every comparison in the process. Nothing crashed, no error warned us, and the wrong table even looked cleaner than the right one.
+The `None` row is Saskatchewan, and it has the **highest** average wage in the table. Our three-region draft omitted 46 individuals who were the highest paid group in the survey and skewed every comparison in the process. Nothing crashed, no error warned us, and the wrong table even looked cleaner than the right one.
 
 NULL causes chaos outside databases too. In 2016 a security researcher registered the custom license plate `NULL`, and whenever officers left the plate field blank on a citation, the system matched it to him:
 
@@ -382,7 +382,7 @@ Read it in evaluation order, the same list from section 5: the join builds perso
 
 > **Think Deeper.** `AVG(union_member)` works because the mean of a dummy variable is a proportion. You have used this fact all through your econometrics education: it is why a regression of a 0/1 outcome on a constant returns the sample share. The trick carries over to any yes/no column you encounter.
 
-One thing to consider: Saskatchewan's full-timers, 36 of them, formed a NULL-region group, and the 50-worker floor in `HAVING` dropped it. That is the same group that we lost in section 6, but with one difference: this time we know, we chose the threshold, and we state this clearly in the meeting and final report. Dropping data can be ok (or is something the correct choice outright). Dropping data without knowing is how wrong numbers get published and is always bad. 
+One thing to consider: Saskatchewan's full-timers, 36 of them, formed a NULL-region group, and the 50-worker floor in `HAVING` dropped it. That is the same group that we lost in section 6, but with one difference: this time we know, we chose the threshold, and we state this clearly in the meeting and final report. Dropping data can be okay, and sometimes it's the correct choice outright. Dropping data without knowing is how wrong numbers get published and is always bad. 
 
 ## 9. The question we cannot answer yet
 
@@ -433,34 +433,11 @@ JOIN certifications AS c ON s.respondent_id = c.respondent_id
 
 That is exactly where Notebook 3 begins.
 
-## 10. SQL and pandas, side by side
-
-Everything in this notebook has a `pandas` counterpart you already know, here is a comparison table:
-
-| SQL | pandas |
-|---|---|
-| `SELECT col1, col2 FROM survey` | `survey[["col1", "col2"]]` |
-| `WHERE hourly_wage >= 40` | `survey[survey["hourly_wage"] >= 40]` |
-| `WHERE province IN (...)` | `survey[survey["province"].isin([...])]` |
-| `SELECT DISTINCT province` | `survey["province"].drop_duplicates()` |
-| `ORDER BY hourly_wage DESC` | `survey.sort_values("hourly_wage", ascending=False)` |
-| `LIMIT 5` | `survey.head(5)` |
-| `JOIN ... ON` | `survey.merge(other, on="key", how="inner")` |
-| `LEFT JOIN ... ON` | `survey.merge(other, on="key", how="left")` |
-| `COUNT(*)`, `AVG(x)` | `len(survey)`, `survey["x"].mean()` |
-| `COUNT(DISTINCT x)` | `survey["x"].nunique()` |
-| `GROUP BY g` with aggregates | `survey.groupby("g")["x"].mean()` |
-| `HAVING COUNT(*) >= 50` | `survey.groupby("g").filter(lambda d: len(d) >= 50)` |
-| `IS NULL` | `survey["x"].isna()` |
-| `CASE WHEN ... END` | `np.where(condition, a, b)` or `pd.cut` |
-
-Notebook 3 adds part two (subqueries, window functions, the writing commands) and bundles both parts into one downloadable .pdf cheatsheet.
-
-## 11. Conclusion
+## 10. Conclusion
 
 The briefing shipped, and it was correct! Getting one table right took joins, aggregates, group filters, a manufactured column, and three close calls: a hunt for missing rows that came back empty because `= NULL` is never true, an inner join that deleted the best-paid group in the data, and a count taken at the wrong grain. They were queries that ran without throwing an error.
 
-Thanks for sticking with me, SQL is the language of modern data and databases. It is a useful skill and the language itself is very human readable with limited obfuscations and weird issues (most of which we discussed above). The coming notebooks will be more fun with more interesting real life examples. This notebook was much more computer science and code syntax, but it is worth it! With a little more practice you can write SQL as a skill on your resume and a whole bunch of jobs after graduation open up for you.
+Thanks for sticking with me; SQL is the language of modern data and databases. It is a useful skill and the language itself is very human-readable with limited obfuscations and weird issues (most of which we discussed above). The coming notebooks will be more fun with more interesting real life examples. This notebook was much more computer science and code syntax, but it is worth it! With a little more practice you can write SQL as a skill on your resume and a whole bunch of jobs after graduation open up for you.
 
 ::: {.callout-note}
 ## You can now answer these interview questions
@@ -485,7 +462,7 @@ Thanks for sticking with me, SQL is the language of modern data and databases. I
 Everything in this notebook is interview material, and the way to make it permanent is repetitions on someone else's data and questions. Three free sites are the standard tools:
 
 - [DataLemur](https://datalemur.com): SQL questions taken from real company interviews, with a generous free tier.
-- [StrataScratch](https://www.stratascratch.com): interview questions you can solve in SQL or Python `pandas`, a natural fit for section 10's table.
+- [StrataScratch](https://www.stratascratch.com): interview questions you can solve in SQL or Python `pandas`.
 - [LeetCode SQL 50](https://leetcode.com/studyplan/top-sql-50/): the classic curated list; its easy tier maps almost exactly onto this notebook.
 
 You are ready for the easy tier of all three right now: it is `SELECT`, `WHERE`, joins, and `GROUP BY`, which is what we just learned.
@@ -501,7 +478,7 @@ You are ready for the easy tier of all three right now: it is `SELECT`, `WHERE`,
 
 - Government of Canada. *Current and forthcoming general minimum wage rates in Canada.* https://minwage-salairemin.service.canada.ca/en/general.html The source of the minimum wages in `provinces.csv` (rates in force April 2025).
 - Malan, D. (2024). *CS50's Introduction to Databases with SQL.* Harvard University. https://cs50.harvard.edu/sql/ (Lecture 1, Relating, covers joins.)
-- Mode. *SQL tutorial.* https://mode.com/sql-tutorial/ A free reference that extends everything here.
+- ThoughtSpot (formerly Mode). *SQL tutorial.* https://www.thoughtspot.com/sql-tutorial A free reference that extends everything here.
 - SQLite. *The SELECT statement.* https://www.sqlite.org/lang_select.html
 - SQLite. *NULL handling in SQLite.* https://www.sqlite.org/nulls.html Three-valued logic, from the engine's own documentation.
 - Statistics Canada. *Average weekly earnings, average hourly wage rate and average usual weekly hours by union status, annual.* Table 14-10-0134-01. https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1410013401 The real-world version of this notebook's deliverable, shown in section 1.

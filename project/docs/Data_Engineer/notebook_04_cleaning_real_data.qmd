@@ -34,7 +34,7 @@ format:
 By the end of this notebook you will be able to:
 
 1. Profile a raw file and find the issues which do not cause SQL errors.
-2. Write a whole cleaning process as a **SQL view** over raw data you never modify, and state it's advantages versus fixing things manually.
+2. Write a whole cleaning process as a **SQL view** over raw data you never modify, and state its advantages versus fixing things manually.
 3. Resolve people recorded under several names with a **normalized key** and **fuzzy matching**.
 4. Run the same analysis under several defensible cleaning rules, and understand that cleaning rules actually change the answer.
 
@@ -62,7 +62,7 @@ flowchart TB
     style NB4 fill:#c8e6c9,stroke:#2e7d32,stroke-width:3px
 ```
 
-Three notebooks in, and every query we have written has (mostly) just worked. That was not luck. The survey came out of software that refused incorrect entries and standardized spellings and varaibles, and somebody set that software up.
+Three notebooks in, and every query we have written has (mostly) just worked. That was not luck. The survey came out of software that refused incorrect entries and standardized spellings and variables, and somebody set that software up.
 
 Real data does not always arrive like that; like today. Before the main survey existed the team ran a **pilot**: 46 interviews over six months, kept in one spreadsheet that three people took turns editing. It has resurfaced, and the research lead wants one number out of it, the average hourly wage. That is your job today.
 
@@ -79,7 +79,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 ```
 
-Our cleanign starts before we even load the data, left alone, `read_csv` guesses a type for each column and quietly turns anything it dislikes into a missing value, so `n/a` and `refused` would vanish before we would have the chance to work with them. We want the true file, not a guess of what could be in it: `dtype=str` reads everything as text and `keep_default_na=False` leaves the blanks alone.
+Our cleaning starts before we even load the data. Left alone, `read_csv` guesses a type for each column and treats a fixed list of tokens (blank, `NA`, `n/a`, `null`, and friends) as missing, so `n/a` would silently become NaN before we had the chance to work with it. `refused` is not on that list, so it survives, but it forces the whole column to be read as text instead of numbers, which is its own kind of quiet damage. We want the true file, not a guess of what could be in it: `dtype=str` reads everything as text and `keep_default_na=False` leaves the blanks alone.
 
 ```{python}
 raw = pd.read_csv("datasets/wage_survey_pilot.csv", dtype=str, keep_default_na=False)
@@ -161,7 +161,7 @@ SELECT 'records, and distinct names among them',
 
 There is our damage report. A few notes on what these mean:
 
-`9999999` and `-1` are **sentinel values**: numbers chosen to mean "no value here" in a column which normally has no way to say so. Here `9999999` means the respondent refused and `-1` means they did not know. This convention is older than SQL and it is still used everywhere in survey data. A sentinel passes every type check you can throw at it poisons your average, which is most of where that 236,336.79 came from.
+`9999999` and `-1` are **sentinel values**: numbers chosen to mean "no value here" in a column which normally has no way to say so. Here `9999999` means the respondent refused and `-1` means they did not know. This convention is older than SQL and it is still used everywhere in survey data. A sentinel passes every type check you can throw at it, and poisons your average, which is most of where that 236,336.79 came from.
 
 The punctuation is worse, because `CAST` does not fail. Handed text it cannot read it just returns 0 and moves on:
 
@@ -174,7 +174,7 @@ WHERE hourly_wage LIKE '%$%' OR hourly_wage LIKE '%,%'
 
 A real wage of `$26.75` turns into 0, and a 44,000 dollar salary turns into **44.0**, because `CAST` stopped reading at the comma. Forty-four dollars an hour is a completely believable number, and that is what makes it dangerous. It survives every sanity check you would think to run.
 
-SQLite understands exactly one written form of dates, the ISO 8601 form `2025-01-14` (YYYY-MM-DD) and returns NULL for everything else. THis is not SQLite being fussy: ISO dates sort correctly as plain text, so `survey_date < '2025-04-01'` just works immediately. The alternatives are ambiguous, since `04/02/2025` could be February or April, and the only reason we can tell this file is day-first is that another row reads `15/01/2025` and there is no fifteenth month.
+SQLite understands exactly one written form of dates, the ISO 8601 form `2025-01-14` (YYYY-MM-DD) and returns NULL for everything else. This is not SQLite being fussy: ISO dates sort correctly as plain text, so `survey_date < '2025-04-01'` just works immediately. The alternatives are ambiguous, since `04/02/2025` could be February or April, and the only reason we can tell this file is day-first is that another row reads `15/01/2025` and there is no fifteenth month.
 
 ![xkcd 1179. A fun comic about data formats!](media/NB4/iso_8601_2x.png)
 
@@ -281,7 +281,7 @@ The old form asked for an annual salary, the new one asks for an hourly wage, an
 
 The fix is arithmetic: an annual salary divided by the weeks and hours worked becomes a hourly wage, so `salary / (weekly_hours * 52)` for everything collected before April.
 
-That is a big assumption to make on the strength of a note in a spreadsheet, so let's test it. Several people were interviewed more than once and some of those repeats exist across the form change, which gives us a free check: if the rule is right, a person's converted salary should land near the hourly wage they reported later (with a small posibility of a raise or a job change).
+That is a big assumption to make on the strength of a note in a spreadsheet, so let's test it. Several people were interviewed more than once and some of those repeats exist across the form change, which gives us a free check: if the rule is right, a person's converted salary should land near the hourly wage they reported later (with a small possibility of a raise or a job change).
 
 ```{python}
 %%sql
@@ -312,7 +312,7 @@ FROM survey_raw
 
 Forty-one name strings across 46 records, and whether that is 41 people is a question the file cannot answer. A spreadsheet has no notion of identity, so `Tremblay, Luc` and `Luc Tremblay` are unrelated pieces of text to it. Working out which records are the same person is called **entity resolution**, and it is one of the standard problems in survey and administrative data, where the same person shows up as `Smith, J.`, `John Smith` and `J. Smith `.
 
-The first logical move is a **normalized key**, which rewrite the name so the differences you do not care about disappear. `TRIM` and `LOWER` kill spacing and capitalization, `REPLACE(x, '.', '')` kills the periods, and since the comma tells us whether a name is written last-first or first-last, `instr` and `substr` can put both into the same order.
+The first logical move is a **normalized key**, which rewrites the name so the differences you do not care about disappear. `TRIM` and `LOWER` kill spacing and capitalization, `REPLACE(x, '.', '')` kills the periods, and since the comma tells us whether a name is written last-first or first-last, `instr` and `substr` can put both into the same order.
 
 ```{python}
 %%sql
@@ -411,7 +411,7 @@ SELECT COUNT(*) AS people,
 FROM pilot_clean
 ```
 
-Thirty-nine people, 33 usable wages, with an average of $25.40 an hour. That is the number the research lead asked for, and unlike the 236,336.79 we can defend every step between the file and it. Additionally re-running the whole thing is one `SELECT`. Done!
+Thirty-nine people, 33 usable wages, with an average of $25.40 an hour. That is the number the research lead asked for, and unlike the 236,336.79 we can defend every step between the file and it. Additionally, re-running the whole thing is one `SELECT`. Done!
 
 ## 7. The same script, eight ways
 
@@ -470,7 +470,7 @@ Read the bottom panel. The four pipelines on the left all converted the old-form
 ::: {.callout-important}
 ## This is a real method
 
-Running your analysis under every defensible version of your choices, instead of picking one and hoping, is called a **multiverse analysis** (Steegen et al., 2016), and the plot above is a **specification curve** (Simonsohn et al., 2020). When 29 research teams were handed the same dataset and the same question, they produced 29 different answers, and about a third disagreed on the direction of the effect (Silberzahn et al., 2018).
+Running your analysis under every defensible version of your choices, instead of picking one and hoping, is called a **multiverse analysis** (Steegen et al., 2016), and the plot above is a **specification curve** (Simonsohn et al., 2020). When 29 research teams were handed the same dataset and the same question, they produced 29 different answers: about two thirds found a significant effect and about a third found no significant effect at all (Silberzahn et al., 2018).
 
 You cannot do any of this if your cleaning lives in a spreadsheet you edited by hand. It costs one function only because the cleaning was code.
 :::
@@ -527,7 +527,7 @@ SELECT (SELECT COUNT(hourly_wage) FROM pilot_clean) AS n_observed,
        ROUND((SELECT AVG(wage * wage) - AVG(wage) * AVG(wage) FROM filled), 2) AS variance_filled
 ```
 
-The mean cannot move, because filling holes with the mean by definitions keeps it in the same spot, and that is exactly why the trick feels safe. The variance falls from 73.33 to 62.05, about 15%. Every standard error and confidence interval you compute afterwards inherits this reduction, so your results look more precise than your survey ever was. This is not the approach we should take, instead leave the empty spots, and print the count next to the mean. This is far more honest than artifically reducing our survey variance. 
+The mean cannot move, because filling holes with the mean by definition keeps it in the same spot, and that is exactly why the trick feels safe. The variance falls from 73.33 to 62.05, about 15%. Every standard error and confidence interval you compute afterwards inherits this reduction, so your results look more precise than your survey ever was. This is not the approach we should take, instead leave the empty spots, and print the count next to the mean. This is far more honest than artificially reducing our survey variance. 
 
 ## 9. Conclusion
 
@@ -535,7 +535,7 @@ The pilot's average hourly wage is 25.40, on 33 usable wages from 39 people, and
 
 Notebook 1 listed five ways a shared file goes wrong. This one (on purpose) had all five, and you have now handled each: a person under four spellings, a correction appended instead of applied, a column that changed meaning halfway through, four spellings of one province, and no rules anywhere to stop any of it. The habit underneath them is what makes all the difference at work. Raw data is immutable, cleaning is code, and the reason is not tidiness. It is that a cleaning script can be re-run, argued with, improved, and run eight ways in an afternoon, and a spreadsheet you edited by hand can do none of those things.
 
-That script is also, a pipeline! It has inputs it never modifies, a fixed sequence of steps, and a reproducible output. Give it a schedule and a way to fail loudly and you have the result of Notebook 8. First though, Notebook 5 asks the obvious question: what if the database had simply refused to accept `Britsh Columbia` and `refused` in the first place? And how can we make it do just that?
+That script is also a pipeline! It has inputs it never modifies, a fixed sequence of steps, and a reproducible output. Give it a schedule and a way to fail loudly and you have the result of Notebook 8. First though, Notebook 5 asks the obvious question: what if the database had simply refused to accept `Britsh Columbia` and `refused` in the first place? And how can we make it do just that?
 
 ::: {.callout-note}
 ## You can now answer these interview questions

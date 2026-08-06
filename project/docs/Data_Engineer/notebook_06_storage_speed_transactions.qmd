@@ -105,7 +105,7 @@ big = pd.DataFrame({
 big.head()
 ```
 
-Note, Saskatchewan made the province list this time as we are past those issues. So we won't run into a new NULL related problems. 
+Note: Saskatchewan made the province list this time, since we are past those issues, so we won't run into any new NULL-related problems.
 
 Into SQLite it goes, through the same `to_sql` as always, in a fresh database file. One adjustment first so this all works: SQLite keeps dates as ISO text (Notebook 4's `2025-01-14` format), so we convert the dates to text with `.dt.strftime`, which is the `pandas` equivalent of the SQL `strftime` from Notebook 4. And to be clear about what we are building: this is a staging-style scratch table with no keys and no constraints, because today we are measuring the engine, not working with the data. Notebook 5 would be really upset with us right now, but luckily it's not here to see. If this was a real database, we would also add all of Notebook 5's content.
 
@@ -118,7 +118,7 @@ for_sqlite["interview_date"] = for_sqlite["interview_date"].dt.strftime("%Y-%m-%
 for_sqlite.to_sql("responses", conn, index=False, if_exists="replace")
 ```
 
-A 250 thousand rows written. One small new tool: `os.path.getsize` asks the operating system how big a file is, in bytes, so we can watch the database grow throughout the notebook. 
+250 thousand rows written. One small new tool: `os.path.getsize` asks the operating system how big a file is, in bytes, so we can watch the database grow throughout the notebook. 
 
 ```{python}
 conn.execute("VACUUM")
@@ -196,7 +196,7 @@ crash.close()
 pd.read_sql("SELECT COUNT(*) AS after_the_crash FROM responses", conn)
 ```
 
-250,000. The uncommitted batch vanishes, as if it never started, and that is exactly what we want: not 251,000, and not some value in between. Closing the connection with the transaction open plays the part of the crash; a real power cut leaves a half-written journal file behind, and SQLite uses it to roll the file back to the last committed state the next time anything connects. Either way the rule holds, and it is the same rule that refused our 1,000-row load in Notebook 5: a transaction finishes entirely or leaves no trace.
+250,000. The uncommitted batch vanishes, as if it never started, and that is exactly what we want: not 251,000, and not some value in between. Closing the connection with the transaction open plays the part of the crash; a real power cut can leave the database file itself half-written, but SQLite writes the journal to disk in full before touching the database, so the journal survives intact, and SQLite uses it to roll the database back to the last committed state the next time anything connects. Either way the rule holds, and it is the same rule that refused our 1,000-row load in Notebook 5: a transaction finishes entirely or leaves no trace.
 
 For completeness, here is the run where the laptop survives long enough to commit:
 
@@ -369,9 +369,9 @@ print(f"DuckDB: {1000 * (time.perf_counter() - start):.0f} ms")
 duck_answer
 ```
 
-Identical command on an identical table, and on this machine tens of times faster, down to single-digit milliseconds. Notebook 1 said SQL is declarative: you state what you want and the engine decides how, this is proof of that. We gave the same command to two different engines, and they chose differently because their storage shapes differ, one reading every block of every row, the other reading two column strips.
+Identical command on an identical table, and on this machine tens of times faster, down to single-digit milliseconds. Notebook 1 said SQL is declarative: you state what you want and the engine decides how. This is proof of that. We gave the same command to two different engines, and they chose differently because their storage shapes differ, one reading every block of every row, the other reading two column strips.
 
-Neither engine is the better one. SQLite wins the intake workload of many small precious writes, DuckDB wins the analytical workload of few enormous reads, and the same organization usually needs both at once. This core tension, and the industry solution is the whole of Notebook 7.
+Neither engine is the better one. SQLite wins the intake workload of many small precious writes, DuckDB wins the analytical workload of few enormous reads, and the same organization usually needs both at once. This core tension, and the industry's solution to it, is the whole of Notebook 7.
 
 ## 8. What format to keep it in
 

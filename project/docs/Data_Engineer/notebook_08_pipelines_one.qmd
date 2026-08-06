@@ -70,7 +70,7 @@ This notebook is about answering this email. We will reproduce the whole inciden
 
 ## 2. Re-Running
 
-We rebuild everything from Notebook 7 first, condensed into two long cells: the simulated wave 2 data with its built-in wage values, and the two systems: the SQLite intake database and the DuckDB warehouse (if you need more context revisit Notebook 7). The new piece is that the data generator is now a function, `simulate_month`, because the data loading in this notebook is not a one-time event, rather it is month by month. In the real world new data keeps arriving constantly and we mirror that here. 
+We rebuild everything from Notebook 7 first, condensed into two long cells: the simulated wave 2 data with its built-in wage values, and the two systems: the SQLite intake database and the DuckDB warehouse (if you need more context revisit Notebook 7). The new piece is that the data generator is now a function, `simulate_month`, because the data loading in this notebook is not a one-time event, but rather happens month by month. In the real world new data keeps arriving constantly and we mirror that here. 
 
 ```{python}
 #Import our libraries
@@ -334,7 +334,7 @@ Two failures absorbed by the wrapper, with a success on the third try, and the l
 
 ## 6. The arrows are the program
 
-Step back and look at what our script has now become: an extraction of new responses, an extraction of respondents, a transform that needs both, a load that needs the transform, a report that needs the load, and an archive step that needs only the raw extract. We have been writing it top to bottom like Python and a Jupyter Notebook implies, but the truth is that the top-to-bottom order was an accident. Nothing about *extract respondents* requires it to run after *extract responses*; they touch different tables and could run in either order, or at the same time on different machines. The real program is the arrows which exist beneath it:
+Step back and look at what our script has now become: an extraction of new responses, an extraction of respondents, a transform that needs both, a load that needs the transform, a report that needs the load, and an archive step that needs only the raw extract. We have been writing it top to bottom like Python and a Jupyter Notebook imply, but the truth is that the top-to-bottom order was an accident. Nothing about *extract respondents* requires it to run after *extract responses*; they touch different tables and could run in either order, or at the same time on different machines. The real program is the arrows which exist beneath it:
 
 ```{mermaid}
 flowchart LR
@@ -345,7 +345,7 @@ flowchart LR
     L --> R["report"]
 ```
 
-Let's make our whole system bullet-proof. First, the tasks themselves, each one becomes a small named function. We make sure every task is idempotent: the extracts and transform rebuild staging tables with `CREATE OR REPLACE`, the load is delete-then-insert, the report is a full rebuild, and the archive writes one file per month, so re-archiving a month rewrites its file and an empty night writes nothing. Second, tasks hand data to each other through *storage*, staging tables and files, never through Python variables, which is what lets tomorrow's run, or another machine, pick up exactly where any task left off.
+Let's make our whole system bullet-proof. First, the tasks themselves: each one becomes a small named function. We make sure every task is idempotent: the extracts and transform rebuild staging tables with `CREATE OR REPLACE`, the load is delete-then-insert, the report is a full rebuild, and the archive writes one file per month, so re-archiving a month rewrites its file and an empty night writes nothing. Second, tasks hand data to each other through *storage*, staging tables and files, never through Python variables, which is what lets tomorrow's run, or another machine, pick up exactly where any task left off.
 
 ```{python}
 def extract_responses():
@@ -410,7 +410,7 @@ print("acyclic:", nx.is_directed_acyclic_graph(pipeline))
 print("one possible valid order:", list(nx.topological_sort(pipeline)))
 ```
 
-Our pipeline is a DAG just like the flowchart above showed us! Compare that order to the script we have been writing all notebook: our top-to-bottom sequence was one topological sort of this graph, and the printed one is another, both equally valid. Drawing the graph makes the shape easier to talk about.
+Our pipeline is a DAG just like the flowchart above showed us! Compare that order to the script we have been writing throughout this notebook: our top-to-bottom sequence was a topological sort of this graph all along. Here the printed order happens to come out identical to ours, but any order that respects the arrows would be equally valid. Drawing the graph makes the shape easier to talk about.
 
 ```{python}
 positions = {"extract_responses": (0, 1), "extract_respondents": (0, 0), "archive_raw": (1.1, 1.6),
@@ -529,7 +529,7 @@ That executor is also your first step into a job in the proper data industry. En
 
 ## Connections
 
-- **Back to Notebook 7:** the ETL that ran because we babysat it is now a pipeline that runs alone. Learn more about the ETL.
+- **Back to Notebook 7:** the ETL that ran because we babysat it is now a pipeline that runs alone.
 - **Forward to Notebook 9:** everything here protects against jobs that *fail*. Next we fight a harder invisible enemy: a job that succeeds on broken data. Validation checks that halt the pipeline, lineage that traces what a bad file poisoned, and time, schedules, and backfills.
 
 ### References

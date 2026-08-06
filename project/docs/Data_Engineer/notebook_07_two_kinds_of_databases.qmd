@@ -66,7 +66,7 @@ Wave 2 of our survey launched in September. The office has been extra busy since
 
 > **The freeze report, from the survey office.** "Since the research team got access, the intake app freezes for seconds at a time, always in the afternoon. Interviewers are sitting there watching a spinner while a respondent waits on the line. We think it's your colleagues' queries. Can they please stop?"
 
-> **The plea, from the research lead.** "The office wants us off the live system, which is rich from them, because querying it is miserable anyway: every question takes three joins and over a second, and that is today, at a quarter million rows. We need somewhere to actually work. Can we have our own database?"
+> **The plea, from the research lead.** "The office wants us off the live system, which is rich coming from them, because querying it is miserable anyway: every question takes three joins and over a second, and that is today, at a quarter million rows. We need somewhere to actually work. Can we have our own database?"
 
 Both emails are right, and they are describing the same core issue, just from different perspectives. This notebook is about why the conflicting points are built directly into the architecture, and about the standard industry answer: give the analysts their own database, made specifically for reading, and copy the data across on a schedule.
 
@@ -74,7 +74,7 @@ Both emails are right, and they are describing the same core issue, just from di
 
 The survey intake app asks tiny questions constantly: save this response, show me this respondent's history. Each one reads only a handful of rows, needs every column of them, and must finish instantly without ever losing data. The research side asks enormous questions but far less frequently: average wage by region and month over two years. Each one touches every row in the database, needs two or three columns of them, and nobody minds if it takes a bit to run, as long as it does not take the intake down with it.
 
-The industry names for these two workloads are **OLTP**, online transaction processing, and **OLAP**, online analytical processing. The same split appears everywhere data lives. For example a university's registration system is OLTP: thousands of students each writing one enrolment row that must never be lost or have an error. The dean's enrolment-trends report is OLAP: something like GPA averages for Economics over the least 20 years. A bank's card terminal is OLTP; its fraud-pattern analysis is OLAP.
+The industry names for these two workloads are **OLTP**, online transaction processing, and **OLAP**, online analytical processing. The same split appears everywhere data lives. For example a university's registration system is OLTP: thousands of students each writing one enrolment row that must never be lost or have an error. The dean's enrolment-trends report is OLAP: something like GPA averages for Economics over the last 20 years. A bank's card terminal is OLTP; its fraud-pattern analysis is OLAP.
 
 |  | Transactional (OLTP) | Analytical (OLAP) |
 |---|---|---|
@@ -84,7 +84,7 @@ The industry names for these two workloads are **OLTP**, online transaction proc
 | Columns touched | all of them | two or three |
 | What good means | instant, and never loses a row | scans fast |
 
-Notebook 5 taught that writers need normalization: one fact in one place, so an update cannot half-happen. Notebook 6 taught that readers want columns: scan only what the question names. Both lessons are correct, and in those lessons we showed different database with different engines. One database cannot be both shapes at once.
+Notebook 5 taught that writers need normalization: one fact in one place, so an update cannot half-happen. Notebook 6 taught that readers want columns: scan only what the question names. Both lessons are correct, and in those lessons we showed different databases with different engines. One database cannot be both shapes at once.
 
 ## 3. Survey Wave 2
 
@@ -109,7 +109,7 @@ provinces_df.loc[len(provinces_df)] = ["Saskatchewan", "Prairies", 15.00, 125356
 provinces_df
 ```
 
-Now 60,000 respondents, generated with the method as Notebook 6:
+Now 60,000 respondents, generated with the same method as Notebook 6:
 
 ```{python}
 rng = np.random.default_rng(42)
@@ -130,7 +130,7 @@ respondents = pd.DataFrame({
 respondents.head()
 ```
 
-And 250,000 interview responses over two years, where we add a wage formula. The constants at the top are the sample truths of this ficticious world: finishing college adds 10 log points to your wage, a bachelor's 25, a graduate degree 40, union membership 12, every year of age 0.4, and the whole labour market drifts up 3 percent a year. The dates are a fixed launch day plus `pd.to_timedelta` random days. Keep these numbers in mind; they come back at the end.
+And 250,000 interview responses over two years, where we add a wage formula. The constants at the top are the sample truths of this fictitious world: finishing college adds 10 log points to your wage, a bachelor's 25, a graduate degree 40, union membership 12, every year of age 0.4, and the whole labour market drifts up 3 percent a year. The dates are a fixed launch day plus `pd.to_timedelta` random days. Keep these numbers in mind; they come back at the end.
 
 ```{python}
 # Below are the constants of our simulated world
@@ -233,7 +233,7 @@ Milliseconds to read, milliseconds to write. As an OLTP system, this database is
 
 ## 4. Analysts
 
-Here is the research team's most common question, the regional briefing from Notebook 2 has expanded a bit since we worked on it (as most projects do): wages, response counts and union shares, by region and month, pulled from everything. On the operational schema this question costs three tables and two joins, because the facts it needs are normalized apart, this is expected but lets see how long it takes:
+Here is the research team's most common question, the regional briefing from Notebook 2 has expanded a bit since we worked on it (as most projects do): wages, response counts and union shares, by region and month, pulled from everything. On the operational schema this question costs three tables and two joins, because the facts it needs are normalized apart, this is expected but let's see how long it takes:
 
 ```{python}
 briefing = """SELECT p.region, strftime('%Y-%m', x.interview_date) AS month,
@@ -252,7 +252,7 @@ print(f"{time.perf_counter() - start:.1f} s for {len(briefing_table)} rows")
 briefing_table.head(3)
 ```
 
-Over a second, for one question, and the research lead runs dozens a day on a table that doubles every two years (many proper databases are far larger so imagine if this took a few minuites to run). Annoying for the analyst; now watch what it does to everyone else. We play both sides at once. The analyst starts the big read and gets partway through it: `.execute` on a connection hands back a **cursor**, an object that walks the results one row at a time, and `.fetchone()` takes a single row and then stops, mid-scan, like an analyst whose laptop is chewing through results:
+Over a second, for one question, and the research lead runs dozens a day on a table that doubles every two years (many proper databases are far larger so imagine if this took a few minutes to run). Annoying for the analyst; now watch what it does to everyone else. We play both sides at once. The analyst starts the big read and gets partway through it: `.execute` on a connection hands back a **cursor**, an object that walks the results one row at a time, and `.fetchone()` takes a single row and then stops, mid-scan, like an analyst whose laptop is chewing through results:
 
 ```{python}
 analyst = sqlite3.connect("datasets/wage_wave2.db")
@@ -278,7 +278,7 @@ print(f"saved in {1000 * (time.perf_counter() - start):.1f} ms once the analyst 
 intake.execute("DELETE FROM response WHERE response_id = 300001")
 ```
 
-We reproduced the office's afternoon freezes and the issue behind them. Before anyone emails "just use a bigger database": which on paper seems like a fair responce, just throw more compute at it and hopefully it goes away. SQLite has a mode that lets readers and writers coexist, and client-server systems like PostgreSQL handle concurrency far more gracefully. But no setting removes the deeper conflicts. The analyst's scan still competes for the same disk, memory and cache the intake needs. The analyst still pays two joins for every question, because the data is shaped for writers. And every analyst with production access is one `UPDATE` without a `WHERE` away from being a common error from notebook 2-4 (and a very awkward email). The workloads want different shapes, different engines. So we give them exactly that.
+We reproduced the office's afternoon freezes and the issue behind them. Before anyone emails "just use a bigger database": which on paper seems like a fair response. We could just throw more compute at it and hopefully it goes away. SQLite has a mode that lets readers and writers coexist, and client-server systems like PostgreSQL handle concurrency far more gracefully. But no setting removes the deeper conflicts. The analyst's scan still competes for the same disk, memory and cache the intake needs. The analyst still pays two joins for every question, because the data is shaped for writers. And every analyst with production access is one `UPDATE` without a `WHERE` away from being a common error from Notebook 3 (and a very awkward email). The workloads want different shapes, different engines. So we give them exactly that.
 
 ## 5. The warehouse and the star
 
@@ -332,7 +332,7 @@ Two of these tables you can recognize: `dim_respondent` is the respondent table 
 The first sentence of any warehouse design is the fact table's grain: here, **one row per interview response**. Every measure in the table must be true at that grain, and every question answered from it inherits that grain. In notebook 2 we once averaged wages at the wrong grain, and Notebook 3 showed the gap this led to (45 cents), all without an error message; a star schema in a warehouse makes that mistake difficult to make, because the grain is not a convention someone remembers, it is the published shape of the central table.
 :::
 
-The fact table also showes off denormalization: it carries `province` even though the operational schema stores province on the respondent, so that a by-region question does not have to route through `dim_respondent`. And it carries `full_time`, a variable representing Notebook 2's 30-hour StatCan line, precomputed once instead of re-derived inside every analyst's `CASE` expression forever.
+The fact table also shows off denormalization: it carries `province` even though the operational schema stores province on the respondent, so that a by-region question does not have to route through `dim_respondent`. And it carries `full_time`, a variable representing Notebook 2's 30-hour StatCan line, precomputed once instead of re-derived inside every analyst's `CASE` expression forever.
 
 ## 6. ETL: The Connection
 
@@ -428,7 +428,7 @@ model_data["log_wage"] = np.log(model_data["hourly_wage"])
 model_data.head(3)
 ```
 
-A quarter million rows, model-ready. `statsmodels` is Python's standard econometrics library, the one behind most regression output you have seen in COMET, and its formula interface reads like R: outcome on the left of the `~`, regressors on the right. We will run a regression on log_wage with regressors of if the person has a college education, has a bachelor or graduate dregree, if they are a union member and their age. 
+A quarter million rows, model-ready. `statsmodels` is Python's standard econometrics library, the one behind most regression output you have seen in COMET, and its formula interface reads like R: outcome on the left of the `~`, regressors on the right. We will run a regression on log_wage with regressors for whether the person has a college, bachelor's, or graduate degree, whether they are a union member, and their age. 
 
 ```{python}
 fit = smf.ols("log_wage ~ college + bachelor + graduate + union_member + age", data=model_data).fit()
@@ -471,7 +471,7 @@ Machine learning eats from both sides of this diagram. The features behind a pro
 
 Two emails solved by one architecture and we are done for the day. The intake system keeps its normalized rows, its transactions and its index, and never sees an analyst again. The analysts get a warehouse: a star schema in a columnar engine, rebuilt nightly by thirty lines of ETL.
 
-The unresolved thread is the word "nightly". Our ETL ran because we ran it, top to bottom, and it worked because nothing went wrong. Real pipelines run unattended, at 3 a.m., on data that arrives broken, on machines that die may mid-way through. Making that safely function is the entire third arc of this stream, and it starts with Notebook 8 doing to our ETL what Notebook 6 did to the database: killing it halfway through, on purpose, and seeing that happenes. 
+The unresolved thread is the word "nightly". Our ETL ran because we ran it, top to bottom, and it worked because nothing went wrong. Real pipelines run unattended, at 3 a.m., on data that arrives broken, on machines that may die mid-way through. Making that safely function is the entire third arc of this stream, and it starts with Notebook 8 doing to our ETL what Notebook 6 did to the database: killing it halfway through, on purpose, and seeing what happens. 
 
 ::: {.callout-note}
 ## You can now answer these interview questions
@@ -486,7 +486,7 @@ The unresolved thread is the word "nightly". Our ETL ran because we ran it, top 
 - OLTP is many tiny reads and writes that must be instant and never lose data; OLAP is few enormous read-only scans. They want different table shapes (normalized rows versus denormalized columns), different engines, and isolation from each other, so organizations run an operational database for the first and a warehouse for the second, connected by ETL.
 - A denormalized design for analytics: a central fact table holding measures at one declared grain, joined to dimension tables holding the descriptive attributes you filter and group by.
 - Extract copies data out of source systems, transform reshapes it (joins, derived columns, cleaning, conforming types), load writes it into the warehouse. The transform step owns every derivation that analysts would otherwise each redo: flags, calendar attributes, standardized categories.
-- A warehouse holds curated, schema-shaped tables built to answer known questions fast. A lake holds raw files, cheap and oftgen without a schema, kept because storage is usally cheap; structure gets imposed at read time, when a new question arrives.
+- A warehouse holds curated, schema-shaped tables built to answer known questions fast. A lake holds raw files, cheap and often without a schema, kept because storage is usually cheap; structure gets imposed at read time, when a new question arrives.
 
 </details>
 :::
@@ -504,9 +504,9 @@ Everything in this stream runs on two in-process engines, chosen so that nothing
 | DuckDB | in-process OLAP, one file | laptops-as-warehouses, this stream |
 | ClickHouse | client-server OLAP, open source | self-hosted analytics at scale |
 | BigQuery, Redshift, Snowflake | cloud warehouses | the rented version of Notebook 7 |
-| Databricks | cloud lakehouse | warehouse tooling on top of  a Parquet lake |
+| Databricks | cloud lakehouse | warehouse tooling on top of a Parquet lake |
 
-Two notes for the day a job hands you credentials to one of these. First, you connect with a connection string, and its password belongs in an environment variable, never typed into code, the same separation-of-code-and-data instinct as Notebook 3's `?` placeholders. Second, cloud warehouses bill by bytes scanned, which converts Notebook 6's lesson into money: `SELECT *` over a petabyte-scale table is a real invoice, and naming your columns is no longer just clean code, it saves money.
+Two notes for the day a job hands you credentials to one of these. First, you connect with a connection string, and its password belongs in an environment variable, never typed into code, the same separation-of-code-and-data instinct as Notebook 3's `?` placeholders. Second, BigQuery's on-demand pricing bills by bytes scanned, which converts Notebook 6's lesson into money: `SELECT *` over a petabyte-scale table is a real invoice. Snowflake and provisioned Redshift bill by compute time instead, but scanning fewer columns still means less I/O and a shorter, cheaper run, so naming your columns is no longer just clean code, it saves money everywhere.
 
 ## Connections
 

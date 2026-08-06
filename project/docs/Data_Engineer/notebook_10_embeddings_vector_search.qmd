@@ -34,7 +34,7 @@ By the end of this notebook you will be able to:
 
 1. Explain why keyword search fails on meaning (synonyms, phrasing, negation), and name situations where it succeeds.
 2. Turn text into **embeddings**, and interpret cosine similarity.
-3. Run **vector search** and **hybrid search** in SQL against the warehouse.
+3. Run **vector search** and **filtered vector search** in SQL against the warehouse.
 4. Justify a **chunking** grain with retrieval evidence when documents are long.
 
 ## 1. Where we are in the stream
@@ -87,7 +87,7 @@ pd.set_option("display.max_colwidth", 100)             #show more of each text c
 
 For the first time in this stream nothing is simulated. The [Consumer Financial Protection Bureau](https://www.consumerfinance.gov/data-research/consumer-complaints/) publishes complaints that American consumers file against financial companies. The CFPB also publishes their story in their own words, scrubbed of any personal information; every `XXXX` you see is that anonymization, blocking names, dates, and amounts. The database is in the public domain.
 
-We pulled 390 of these stories from March 2023, drawn evenly from six complaint categories. Our target category is labelled **Communication tactics**: the debt-collection label that covers harassing calls. The CFPB assigns these labels itself, which gives us a free answer key for this notebook. We will check how many of our results from different approaches land in the **Communication tactics** category. 
+We pulled 390 of these stories from March 2023, drawn evenly from six complaint categories. Our target category is labelled **Communication tactics**: the debt-collection label that covers harassing calls. Consumers pick these labels themselves from a fixed menu when they file, which gives us a free answer key for this notebook. We will check how many of our results from different approaches land in the **Communication tactics** category. 
 
 ```{python}
 complaints = pd.read_csv("datasets/cfpb_complaints.csv")
@@ -335,7 +335,7 @@ top_hit = warehouse.execute("""SELECT narrative FROM complaint
 print(top_hit.iloc[0]["narrative"][:400] + "...")
 ```
 
-It is a *student-loan* complaint, filed under "Dealing with your lender or servicer", about Navient contacting the writer's employer. The CFPB's filing system sorted it under servicing; the model read the content, and saw it as a harassment story. The label and the model disagree, but in my opinion the model might be right; this could be classified as harassment. Regardless of your stance on this, a one-word query is a vague point in meaning space. Let's do something else and phrase the query as "debt collectors harassing me with constant phone calls" which is far more detailed and carries greater meaning for the model than just "harassment". 
+It is a *student-loan* complaint, filed under "Dealing with your lender or servicer", about Navient contacting the writer's employer. The consumer filed it under servicing; the model read the content, and saw it as a harassment story. The label and the model disagree, but in my opinion the model might be right; this could be classified as harassment. Regardless of your stance on this, a one-word query is a vague point in meaning space. Let's do something else and phrase the query as "debt collectors harassing me with constant phone calls" which is far more detailed and carries greater meaning for the model than just "harassment". 
 
 ```{python}
 search("debt collectors harassing me with constant phone calls", 10)
@@ -381,7 +381,7 @@ pd.read_sql("""SELECT issue,
                FROM complaint WHERE narrative LIKE '%1692%'""", lite)
 ```
 
-Exactly two complaints cite statute 1692, chapter and verse, and SQL's normal `LIKE` returns just those two flawlessly. When we are looking for an exact name or value, keyword search is the correct tool. Real systems utilize a best of both worlds and run a **hybrid search**: hard SQL filters for what must be exact (like our legal statute above), vector ranking for parts where meaning is valuable. In SQL they combine naturally. Let's look at harassment complaints, but only from Texas:
+Exactly two complaints cite statute 1692, chapter and verse, and SQL's normal `LIKE` returns just those two flawlessly. When we are looking for an exact name or value, keyword search is the correct tool. Real systems utilize a best of both worlds and run a **filtered vector search**: hard SQL filters for what must be exact (like our legal statute above), vector ranking for parts where meaning is valuable. In SQL they combine naturally. (Vector databases also sell a cousin of this idea under the name *hybrid search*, which fuses a keyword relevance score with the vector similarity score instead of filtering first.) Let's look at harassment complaints, but only from Texas:
 
 ```{python}
 warehouse.execute("""SELECT state, round(array_cosine_distance(embedding, CAST(? AS FLOAT[384])), 3) AS distance,
@@ -439,7 +439,7 @@ The correct case wins at $0.614$. Second place, at $0.540$, is a neighbouring pa
 
 ## 8. Conclusion
 
-The request said this should take an hour. It took the whole notebook, but we finished! The single keyword matched 163 of 390 complaints and told us almost nothing. The four-pattern chain caught 20 of the 65 harassment stories and dragged in 6 unrelated entries. The embedding search got 18 of its top 20 right from one plain sentence, and even surfaced harassment stories that were filed under other labels. But it's not perfect: it cannot read "never", and it can't find statute numbers that `LIKE` finds perfectly. So instead of choosing one we use a hybrid system: `LIKE` for details and embeddings for meaning. 
+The request said this should take an hour. It took the whole notebook, but we finished! The single keyword matched 163 of 390 complaints and told us almost nothing. The four-pattern chain caught 20 of the 65 harassment stories and dragged in 6 unrelated entries. The embedding search got 18 of its top 20 right from one plain sentence, and even surfaced harassment stories that were filed under other labels. But it's not perfect: it cannot read "never", and it can't find statute numbers that `LIKE` finds perfectly. So instead of choosing one we combine them: `LIKE` for details and embeddings for meaning. 
 
 The big idea to take away is that **meaning itself can now live in a database.** Once text becomes coordinates in space, searching by meaning is just `ORDER BY distance LIMIT 5`, and it works alongside every SQL tool from this stream. Still, nothing we built actually *reads* these complaints; ranking them is not the same as understanding them. Reading is a job for a language model, and plugging one into everything we have built, the schema, the pipeline, the validation, and now this search, is Notebook 11. One notebook left, and it puts the whole stream together! We will build a Retrieval-Augmented Generation (RAG) system, a framework that improves LLM accuracy significantly by grounding its responses.
 
@@ -460,14 +460,14 @@ For vectors specifically the boundary is dissolving: PostgreSQL can use vectors 
 ## Connections
 
 - **Back to Notebook 9:** the pipeline happily loads and validates batches of text like this one, checking counts, nulls, and schema. No check we wrote could ever judge what the text *means*. We use embeddings to fix that gap.
-- **Forward to Notebook 11:** the capstone. A language model finally joins us and reads what this notebook's search retrieves, and everything underneath, schema, ETL, validation, lineage, becomes one complete system you build and then deliberately break.
+- **Forward to Notebook 11:** the capstone. A language model finally joins us and reads what this notebook's search retrieves, and everything underneath, schema, ETL, validation, lineage, becomes one complete system you build.
 
 ### References
 
 - Consumer Financial Protection Bureau. *Consumer Complaint Database.* https://www.consumerfinance.gov/data-research/consumer-complaints/ The source of every narrative in this notebook: public domain, published with consumer consent, scrubbed of identifying details ([how the CFPB shares complaint data](https://www.consumerfinance.gov/complaint/data-use/)). Our 390-row sample comes from March 2023 across six issue categories.
 - Reimers, N., & Gurevych, I. (2019). *Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks.* EMNLP 2019. The paper behind the sentence-transformers family our model comes from.
 - Hugging Face model card. *sentence-transformers/all-MiniLM-L6-v2.* https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2 The exact model, its training recipe, and the mean-pooling code section 4 adapts.
-- DuckDB documentation. *Array functions and the vss extension.* https://duckdb.org/docs/stable/sql/functions/array `array_cosine_distance` and friends, plus the HNSW index for when corpora outgrow full scans.
+- DuckDB documentation. *Array functions and the vss extension.* https://duckdb.org/docs/stable/sql/functions/array and https://duckdb.org/docs/stable/core_extensions/vss `array_cosine_distance` and friends, plus the HNSW index for when corpora outgrow full scans.
 - Garcia, A. *sqlite-vec.* https://github.com/asg017/sqlite-vec Vector search inside SQLite, proof that even the smallest database in this stream can hold the newest shape.
 
 ---

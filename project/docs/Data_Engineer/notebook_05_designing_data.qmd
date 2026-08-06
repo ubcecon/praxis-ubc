@@ -102,7 +102,7 @@ Back in Notebook 1 we asked the database to describe a table with `PRAGMA table_
 pd.read_sql("PRAGMA table_info(survey_staging)", conn)
 ```
 
-Read the two columns on the right. `notnull` is 0 the whole way down, this means that every field is optional, and a row of nothing but blanks would be accepted. We can submit nothing into the table and it will be valid. `pk` is 0 the whole way down too, and that column is where a table records which field identifies a row, so this table has no idea which respondent is which. Nothing anywhere says that `province` should match the province table. Names and types is everything `to_sql` gave us.
+Read the two columns on the right. `notnull` is 0 the whole way down, this means that every field is optional, and a row of nothing but blanks would be accepted. We can submit nothing into the table and it will be valid. `pk` is 0 the whole way down too, and that column is where a table records which field identifies a row, so this table has no idea which respondent is which. Nothing anywhere says that `province` should match the province table. Names and types are everything `to_sql` gave us.
 
 And even the types are weaker than they look. `weekly_hours` is declared `REAL`, so let's hand it a word and see. `typeof` asks SQLite what a stored value actually is:
 
@@ -114,7 +114,7 @@ FROM survey_staging
 WHERE respondent_id = 9999
 ```
 
-The word `forty` went into a `REAL` column and was stored as text, no error raised, in a row that is otherwise entirely blank. Notebook 1 promised that in a database a wage column holds numbers, so `refused` or `forty` cannot live in it. That is true of a database somebody designed: our schema was inferred automatically from a dataframe, and writing one ourselves was a job for later. The job has arrived. First, take the fake row back out:
+The word `forty` went into a `REAL` column and was stored as text, no error raised, in a row that is otherwise entirely blank. Notebook 1 promised that in a database a wage column holds numbers, so `refused` or `none` cannot live in it. That is true of a database somebody designed: our schema was inferred automatically from a dataframe, and writing one ourselves was a job for later. The job has arrived. First, take the fake row back out:
 
 ```{python}
 %%sql
@@ -275,7 +275,7 @@ This runs without a single error, which in this case is really bad. A bad query 
 
 <details><summary>Show / hide answer</summary>
 
-None of them. There is no `PRIMARY KEY`, so the same person can be entered any number of times and the table has no idea, which is the pilot's four-named Luc Tremblay all over again. There is no `REFERENCES`, so `Britsh Columbia` is accepted. Nothing is `NOT NULL`, so a row of pure blanks is a valid record. `hourly_wage` is typed `TEXT`, which accepts `refused`, over actual numeric values. And without `STRICT`, even the types that are declared are only suggestions (so numbers can go into `hourly_wage` anyway). This is the same as our .csv, nothing meaningful changed. 
+None of them. There is no `PRIMARY KEY`, so the same person can be entered any number of times and the table has no idea, which is the pilot's four-named Luc Tremblay all over again. There is no `REFERENCES`, so `Britsh Columbia` is accepted. Nothing is `NOT NULL`, so a row of pure blanks is a valid record. `hourly_wage` is typed `TEXT`, which accepts `refused` just as readily as actual numeric values. And without `STRICT`, even the types that are declared are only suggestions (so numbers can go into `hourly_wage` anyway). This is the same as our .csv, nothing meaningful changed. 
 
 </details>
 :::
@@ -355,7 +355,7 @@ FROM survey_staging
 SELECT COUNT(*) AS rows_in_respondent FROM respondent
 ```
 
-The answer to the prediction is zero. Not 954 either (which was the number Notebook 2's inner join would have kept): a single `INSERT` finishes completely or not at all, so there is no partially-loaded table to clean up. We will revisit that all-or-nothing guarantee in notebook 6. Somewhere in those 1,000 rows is a respondent pointing at a province our lookup table does not have, and rather than load around them, the database threw the whole statement back at us.
+The answer to the prediction is zero. Not 954 either (which was the number Notebook 2's inner join would have kept): a single `INSERT` finishes completely or not at all, so there is no partially-loaded table to clean up. We will revisit that all-or-nothing guarantee in Notebook 6. Somewhere in those 1,000 rows is a respondent pointing at a province our lookup table does not have, and rather than load around them, the database threw the whole statement back at us.
 
 Finding the value is a job we already know how to do, the left join from Notebook 2:
 
