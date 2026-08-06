@@ -41,27 +41,7 @@ By the end of this notebook you will be able to:
 
 ## 1. Where we are in the stream
 
-```{mermaid}
-flowchart TB
-    subgraph ARC1["Querying data"]
-        direction LR
-        NB1["1. Why databases<br/>exist"] --> NB2["2. Basic<br/>SQL"] --> NB3["3. Advanced<br/>SQL"] --> NB4["4. Cleaning<br/>real data"]
-    end
-    subgraph ARC2["Designing and storing data"]
-        direction LR
-        NB5["5. Modeling<br/>and schemas"] --> NB6["6. Storage, speed,<br/>transactions"] --> NB7["7. OLTP, OLAP,<br/>warehouses"]
-    end
-    subgraph ARC3["Keeping data flowing"]
-        direction LR
-        NB8["8. Pipelines I:<br/>scripts to graphs"] --> NB9["9. Pipelines II:<br/>quality, lineage, time"]
-    end
-    subgraph ARC4["Data for AI"]
-        direction LR
-        NB10["10. Embeddings and<br/>vector search"] --> NB11["11. Capstone: RAG"]
-    end
-    ARC1 --> ARC2 --> ARC3 --> ARC4
-    style NB5 fill:#c8e6c9,stroke:#2e7d32,stroke-width:3px
-```
+![](media/NB5/stream_map.png){fig-alt="Stream roadmap: four arcs, Querying data (NB1-4), Designing and storing data (NB5-7), Keeping data flowing (NB8-9), and Data for AI (NB10-11), with the current notebook highlighted." width=85%}
 
 Notebook 4 ended with the pilot report delivered: an average wage of 25.40, rescued from a spreadsheet where one man had four names and one column quietly changed meaning in April (along with other errors). The report went over well. This morning there is a new message waiting.
 
@@ -133,11 +113,7 @@ An **entity** is a kind of thing you keep records about: a respondent, a provinc
 
 Here are our three entities and two relationships, drawn in the standard notation:
 
-```{mermaid}
-erDiagram
-    PROVINCE ||--o{ RESPONDENT : "is home to"
-    RESPONDENT ||--o{ CERTIFICATION : "holds"
-```
+![](media/NB5/er_simple.png){fig-alt="Three entities: PROVINCE is home to many RESPONDENTs, and a RESPONDENT holds many CERTIFICATIONs." width=80%}
 
 The crow's foot symbol (the three-pronged end of each line) marks the "many" side. Read the top line as one province, many respondents. Both of our relationships are one-to-many on the diagram. The many-to-many between respondents and certificates has been split into two one-to-many links through the `CERTIFICATION` table, which holds one row per pair. A table with that purpose is called a **bridge table**, and it is how every M-N relationship is actually stored.
 
@@ -155,32 +131,7 @@ The bridge table's key is more special. Respondent 8 appears on more than one ro
 
 Here is the diagram again with the keys marked, which makes it the finished data model:
 
-```{mermaid}
-erDiagram
-    PROVINCE ||--o{ RESPONDENT : "is home to"
-    RESPONDENT ||--o{ CERTIFICATION : "holds"
-    PROVINCE {
-        text province PK
-        text region
-        real minimum_wage
-        int population
-    }
-    RESPONDENT {
-        int respondent_id PK
-        int age
-        text gender
-        text education
-        text province FK
-        text industry
-        int union_member
-        real weekly_hours
-        real hourly_wage
-    }
-    CERTIFICATION {
-        int respondent_id PK, FK
-        text certification PK
-    }
-```
+![](media/NB5/er_full.png){fig-alt="Entity relationship diagram of PROVINCE, RESPONDENT, and CERTIFICATION with every column, type, and key labelled." width=95%}
 
 In the province table the `province` column itself is the primary key: the name is already unique, so it needs no artificial id, and it is the value the respondent table's foreign key points at.
 

@@ -40,27 +40,7 @@ By the end of this notebook you will be able to:
 
 ## 1. Where we are in the stream
 
-```{mermaid}
-flowchart TB
-    subgraph ARC1["Querying data"]
-        direction LR
-        NB1["1. Why databases<br/>exist"] --> NB2["2. Basic<br/>SQL"] --> NB3["3. Advanced<br/>SQL"] --> NB4["4. Cleaning<br/>real data"]
-    end
-    subgraph ARC2["Designing and storing data"]
-        direction LR
-        NB5["5. Modeling<br/>and schemas"] --> NB6["6. Storage, speed,<br/>transactions"] --> NB7["7. OLTP, OLAP,<br/>warehouses"]
-    end
-    subgraph ARC3["Keeping data flowing"]
-        direction LR
-        NB8["8. Pipelines I:<br/>scripts to graphs"] --> NB9["9. Pipelines II:<br/>quality, lineage, time"]
-    end
-    subgraph ARC4["Data for AI"]
-        direction LR
-        NB10["10. Embeddings and<br/>vector search"] --> NB11["11. Capstone: RAG"]
-    end
-    ARC1 --> ARC2 --> ARC3 --> ARC4
-    style NB7 fill:#c8e6c9,stroke:#2e7d32,stroke-width:3px
-```
+![](media/NB7/stream_map.png){fig-alt="Stream roadmap: four arcs, Querying data (NB1-4), Designing and storing data (NB5-7), Keeping data flowing (NB8-9), and Data for AI (NB10-11), with the current notebook highlighted." width=85%}
 
 Wave 2 of our survey launched in September. The office has been extra busy since. The intake software has been writing interviews into Notebook 5's schema for months, the crash test and the index from Notebook 6 succeeded and saved us a couple of times, and everyone was happy for a while. Then two emails arrived on the same morning.
 
@@ -286,43 +266,7 @@ The analysts' own database has a name: a **data warehouse**, a second database t
 
 A star schema sorts every column possible into one of two piles. The **fact table** sits in the middle and holds measurements, the numbers you aggregate: wages, hours, one row per event. **Dimension tables** sit around it and hold descriptions, the words you group by: who, where, when (people, countries, time, postal codes). Every analytical question in this stream has had the same skeleton, a number summarized by some words (wage by province), and the star is that skeleton: words become just one join away.
 
-```{mermaid}
-erDiagram
-    DIM_RESPONDENT ||--o{ FACT_RESPONSE : "who"
-    DIM_PROVINCE   ||--o{ FACT_RESPONSE : "where"
-    DIM_DATE       ||--o{ FACT_RESPONSE : "when"
-    FACT_RESPONSE {
-        int  response_id PK
-        int  respondent_id FK
-        text province FK
-        text date FK
-        int  full_time
-        real weekly_hours
-        real hourly_wage
-    }
-    DIM_RESPONDENT {
-        int  respondent_id PK
-        int  age
-        text gender
-        text education
-        int  union_member
-        text industry
-        text province
-    }
-    DIM_PROVINCE {
-        text province PK
-        text region
-        real minimum_wage
-        int  population
-    }
-    DIM_DATE {
-        text date PK
-        int  year
-        int  month
-        text year_month
-        int  quarter
-    }
-```
+![](media/NB5/er_full.png){fig-alt="Entity relationship diagram of PROVINCE, RESPONDENT, and CERTIFICATION with every column, type, and key labelled." width=95%}
 
 Two of these tables you can recognize: `dim_respondent` is the respondent table from before, and `dim_province` is the lookup table that we have been using since Notebook 2. `dim_date` is the new warehouse idea: the calendar is data too. Storing every date's year, month and quarter once, in a table, means no query ever computes `strftime` again; time becomes something you join to, and "by month" or "by quarter" becomes a `GROUP BY` on a ready-made column.
 
@@ -446,16 +390,7 @@ We wrote a 0.10 college premium into the world; the regression, seeing only the 
 
 If we take a step back from our two small files and made up example of a survey company, you will see that we are looking at the standard architecture of nearly every proper data-serious organization:
 
-```{mermaid}
-flowchart LR
-    APP["intake app"] --> OLTP[("operational DB<br/>SQLite, rows")]
-    OLTP -->|"nightly ETL"| WH[("warehouse<br/>DuckDB, star schema")]
-    OLTP -.->|"raw archive"| LAKE["data lake<br/>Parquet files in cheap storage"]
-    LAKE -.-> WH
-    WH --> A["briefings + dashboards"]
-    WH --> B["models: OLS, ML features"]
-    LAKE --> C["ML training data, documents"]
-```
+![](media/NB7/architecture.png){fig-alt="The intake app writes to the operational SQLite database; a nightly ETL loads the DuckDB warehouse, a raw archive feeds the Parquet data lake, and the warehouse and lake feed briefings, models, and ML training data."}
 
 The one box we have not built is the **lake**, and Notebook 6 already gave us its entire technology: Parquet files in cheap storage, queryable where they lie. A warehouse is curated, star-shaped, and answers known questions fast. A lake is the opposite: keep everything raw and cheap, including data nobody has a schema for yet, logs, documents, images, and impose structure later, when a question finally arrives. Archiving tonight's raw response extract to the lake, before any of our transforms touched it, is one line:
 

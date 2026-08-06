@@ -40,27 +40,7 @@ By the end of this notebook you will be able to:
 
 ## 1. Where we are in the stream
 
-```{mermaid}
-flowchart TB
-    subgraph ARC1["Querying data"]
-        direction LR
-        NB1["1. Why databases<br/>exist"] --> NB2["2. Basic<br/>SQL"] --> NB3["3. Advanced<br/>SQL"] --> NB4["4. Cleaning<br/>real data"]
-    end
-    subgraph ARC2["Designing and storing data"]
-        direction LR
-        NB5["5. Modeling<br/>and schemas"] --> NB6["6. Storage, speed,<br/>transactions"] --> NB7["7. OLTP, OLAP,<br/>warehouses"]
-    end
-    subgraph ARC3["Keeping data flowing"]
-        direction LR
-        NB8["8. Pipelines I:<br/>scripts to graphs"] --> NB9["9. Pipelines II:<br/>quality, lineage, time"]
-    end
-    subgraph ARC4["Data for AI"]
-        direction LR
-        NB10["10. Embeddings and<br/>vector search"] --> NB11["11. Capstone: RAG"]
-    end
-    ARC1 --> ARC2 --> ARC3 --> ARC4
-    style NB8 fill:#c8e6c9,stroke:#2e7d32,stroke-width:3px
-```
+![](media/NB8/stream_map.png){fig-alt="Stream roadmap: four arcs, Querying data (NB1-4), Designing and storing data (NB5-7), Keeping data flowing (NB8-9), and Data for AI (NB10-11), with the current notebook highlighted." width=85%}
 
 This notebook is the beginning of a big shift. The first seven notebooks built things that are static: queries, schemas, a warehouse. This section is about keeping data *moving*, with nobody watching over it directly. Because after Notebook 7 shipped, the office did the natural next thing: they put our ETL on a schedule. It ran every night, it usually printed `success`, and everyone stopped thinking about it.
 
@@ -336,14 +316,7 @@ Two failures absorbed by the wrapper, with a success on the third try, and the l
 
 Step back and look at what our script has now become: an extraction of new responses, an extraction of respondents, a transform that needs both, a load that needs the transform, a report that needs the load, and an archive step that needs only the raw extract. We have been writing it top to bottom like Python and a Jupyter Notebook imply, but the truth is that the top-to-bottom order was an accident. Nothing about *extract respondents* requires it to run after *extract responses*; they touch different tables and could run in either order, or at the same time on different machines. The real program is the arrows which exist beneath it:
 
-```{mermaid}
-flowchart LR
-    ER["extract_responses"] --> T["transform"]
-    EP["extract_respondents"] --> T
-    ER --> A["archive_raw"]
-    T --> L["load"]
-    L --> R["report"]
-```
+![](media/NB8/pipeline_dag.png){fig-alt="Pipeline DAG: extract_responses and extract_respondents feed transform, extract_responses also feeds archive_raw, and transform flows through load to report." width=90%}
 
 Let's make our whole system bullet-proof. First, the tasks themselves: each one becomes a small named function. We make sure every task is idempotent: the extracts and transform rebuild staging tables with `CREATE OR REPLACE`, the load is delete-then-insert, the report is a full rebuild, and the archive writes one file per month, so re-archiving a month rewrites its file and an empty night writes nothing. Second, tasks hand data to each other through *storage*, staging tables and files, never through Python variables, which is what lets tomorrow's run, or another machine, pick up exactly where any task left off.
 
