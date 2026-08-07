@@ -3,7 +3,7 @@ title: "Why Databases Exist"
 author: Alex Ronczewski
 date: 2026-07-19
 image: /media/stream_icons/data-eng-1.png
-description: "The first notebook in the Data Engineering stream. Where data actually lives before it becomes a CSV. We define the database, the DBMS, and SQL, see why shared flat files break down, and build and query our first SQLite database from a notebook."
+description: "The first notebook in the Data Engineering stream. We define the database, the DBMS, and SQL, see why shared flat files break down, and build and query our first SQLite database from a notebook."
 categories:
   - Python
   - SQL
@@ -27,7 +27,7 @@ format:
 
 ### Prerequisites
 
-- Comfort with `pandas` and basic Python at the COMET-intermediate level
+- Comfort with `pandas` and basic Python knowledge is recommended
 - You do **not** need any database or SQL background.
 
 ### Learning Outcomes
@@ -42,7 +42,6 @@ By the end of this notebook you will be able to:
 
 ```{python}
 import sqlite3
-
 import pandas as pd
 import matplotlib.pyplot as plt
 ```
@@ -95,7 +94,7 @@ A **database management system (DBMS)** is the software that stores the data and
 
 A DBMS has value because it takes over exactly the jobs a shared spreadsheet leaves to luck:
 
-1. **Structure.** Every table declares its columns and their types up front, and most database engines use those types to refuse values that do not fit, so a wage column can reject the text `refused` outright. The table we build later in this notebook simply inherits its types from the dataframe; in Notebook 5 we write the schema ourselves and turn that refusal on. Either way, a change in what a column means has to become an explicit change in the structure of the database.
+1. **Structure.** Every table declares its columns and their types up front, and most database engines use those types to refuse values that do not fit, so a wage column which is meant to contain numerical entries can reject the text string `refused` outright. A change in what a column means has to become an explicit change in the structure of the database.
 2. **Integrity rules.** The database can enforce that every respondent has exactly one row, that a region must come from a fixed list (for example, US states), or that a wage must fall in a plausible range.
 3. **One copy, many users.** Everyone reads and writes the same single database, at the same time, and the DBMS handles the access so that edits are never lost.
 4. **Durability.** If the machine crashes mid-write, the database recovers to a consistent state instead of a half-saved file.
@@ -105,19 +104,21 @@ The kind of database we use in this stream is a **relational** database, where d
 
 ### 3.1 SQLite
 
-The DBMS we will use for most of this stream is **SQLite**. It is a complete relational DBMS in a small library: it has no server or account requirements, and the entire database lives in a single file. It is also one of the most widely deployed databases in existence, running inside phones, browsers, and applications on billions of devices, and it is in Python's standard library.
+The DBMS we will use for most of this stream is **SQLite**. It is a complete relational DBMS in a small library: it has no server or account requirements, and the entire database lives in a single file. It is also one of the most widely deployed databases in existence, running inside phones, browsers, and applications on billions of devices.
 
 The names you hear in industry, PostgreSQL, MySQL, SQL Server, and the cloud warehouses, are DBMSs too. Most of them run as a **server** that many users connect to over a network, which is how "one copy, many users" scales to a whole company. They all function in SQL, so nearly everything you learn on SQLite transfers directly.
 
 ## 4. A first database
 
-Time to build one. The dataset for this stream is a wage survey: 1,000 respondents, one row each, with their age, education, province, industry, hours, and hourly wage. (It is simulated for the stream, modelled on labour force surveys, and every later notebook builds on it.)
+Time to build one. The dataset for this stream is a wage survey: 1,000 respondents, one row each, with their age, education, province, industry, hours, and hourly wage. It is simulated for the stream, modelled on labour force surveys, and every later notebook builds on it.
 
 ::: {.callout-note}
 ## Why simulated data?
 
 The simulation is a deliberate choice we make in this stream, and later notebooks take ever greater advantage of it. A teaching dataset needs a truth we know and failures we control: Notebook 4 cleans a file whose every flaw was planted in advance, and Notebook 7 recovers wage premiums we wrote into the world ourselves. Real public wage microdata can do neither, because it is anonymized before release, and what anonymization strips out is exactly what this stream teaches. Where real data fits, we use it: Notebook 2's province table carries the true legal minimum wages and populations, and the final two notebooks run entirely on real consumer complaints.
 :::
+
+We load our simulated survey dataset into the notebook from a .csv:
 
 ```{python}
 survey = pd.read_csv("datasets/wage_survey.csv")
@@ -260,11 +261,11 @@ You are here, at **Notebook 1**. Each later notebook takes the wage survey one s
 - **Notebook 4, Cleaning real data.** We get handed a hand-maintained survey file with every failure from section 2 in it, and clean it properly: entity resolution for respondents recorded under several spellings, string and date repair, outlier flags, imputation choices, and every fix as a reproducible script against immutable raw data.
 - **Notebook 5, Designing data.** Entity-relationship modelling, primary and foreign keys, constraints that make the database refuse bad rows, and normalization, connected to the tidy data idea you know from COMET or DSCI 100.
 - **Notebook 6, Storage, speed, and transactions.** ACID and deliberately crashing a database mid-write, indexes and reading query plans, row versus column storage with DuckDB benchmarks, and why Parquet beats CSV.
-- **Notebook 7, Two kinds of databases.** Transactional versus analytical workloads, star schemas, the ETL step between them, warehouses and lakes, and how all of this feeds ML systems.
+- **Notebook 7, Two kinds of databases.** Transactional versus analytical workloads, star schemas, the ETL step between them, warehouses and lakes.
 - **Notebook 8, Pipelines I: scripts to graphs.** An update script dies halfway, and re-running it double-counts everything; idempotency, incremental loads, logging and retries, and pipelines as directed acyclic graphs you build, sabotage, and fix.
 - **Notebook 9, Pipelines II: quality, lineage, and time.** A new month of data arrives subtly broken and the pipeline runs green anyway; validation checks that halt bad loads, tracing what a bad file poisoned, a small scheduler, and backfills, which are the concepts industry tools like dbt and Airflow sell.
-- **Notebook 10, Databases for AI.** Embeddings as coordinates of meaning, similarity search as an `ORDER BY distance`, where semantic search beats exact matching and where it loses, and RAG demystified as a database pattern.
-- **Notebook 11, Capstone.** Build a full retrieval-augmented generation (RAG) system on a corpus of real consumer complaints: an ingestion pipeline that extracts, cleans, chunks, embeds, validates, and loads the data, a language model that answers questions with citations, and every answer traceable back to its source rows.
+- **Notebook 10, Databases for AI.** Embeddings as coordinates of meaning, similarity search as an `ORDER BY distance`, where semantic search beats exact matching and where it loses.
+- **Notebook 11, Capstone RAG.** Build a full retrieval-augmented generation (RAG) system on a corpus of real consumer complaints: an ingestion pipeline that extracts, cleans, chunks, embeds, validates, and loads the data, a language model that answers questions with citations, and every answer traceable back to its source rows.
 
 ## 6. Conclusion
 
@@ -291,7 +292,7 @@ Behind every COMET and prAxIs dataframe is a pipeline, behind every pipeline is 
 ## Connections
 
 - **Back:** the COMET intermediate `pandas` and Python material. This stream stands alone; nothing from the other prAxIs streams is required.
-- **Forward to Notebook 2:** everything today was one table queried with single conditions. Next we join tables together, group and aggregate, meet `NULL` and `CASE`, and start reading and fixing broken queries.
+- **Forward to [Notebook 2](notebook_02_basic_querying.qmd):** everything today was one table queried with single conditions. Next we join tables together, group and aggregate, meet `NULL` and `CASE`, and start reading and fixing broken queries.
 
 ### References
 
