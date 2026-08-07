@@ -234,7 +234,20 @@ plt.show()
 
 Regression (blue) is off when the outcome model is wrong; IPW (orange) is off when the propensity model is wrong; AIPW (green) sits on the true effect in all three worlds. It needed only one of its two models to be right.
 
-### 4.1 The doubly-robust estimate on the 401(k) data
+### 4.1 The conditions that make these estimates causal
+
+Before we take AIPW to the real data, we should collect all of the statistical conditions under which the numbers in this notebook, the IPW estimate and the AIPW estimate, identify a causal effect. The first two are the identification conditions from Notebook 4, the third is the sampling condition behind the standard errors, and the fourth is where the estimators in this notebook differ from one another.
+
+::: {.callout-important}
+## Identification conditions for IPW and the doubly-robust estimator
+
+1. **Unconfoundedness (selection on observables).** The nine covariates must contain every systematic reason a household ends up eligible that also matters for its savings: $(Y(0), Y(1)) \perp D \mid X$. Both routes, modelling the outcome and modelling the treatment, adjust for the same $X$, so both fail together if a confounder is missing from it. This assumption cannot be tested from the data.
+2. **Overlap (positivity), and strictly so.** Every kind of household must have a real chance of being both eligible and ineligible: $0 < e(X) < 1$. For weighting this matters, because the weights are $1/e(X)$ and $1/(1-e(X))$, so a propensity near zero or one makes a single household dominate the estimate and the variance grow rapidly. That is why we clipped the scores; clipping stabilizes the weights, but frequent clipping is a warning that overlap is thin and the estimate rests on few comparable households.
+3. **A random, independent sample and one version of treatment.** The households are treated as i.i.d. draws from the population of interest, each household's eligibility does not affect another household's savings, and "eligible" means the same thing for everyone (together, the SUTVA and consistency conditions). The simple standard error we compute for AIPW leans on this independence.
+4. **At least one correctly specified model.** IPW additionally requires the propensity model to be right; the outcome route requires the savings model to be right. AIPW is the safety net between them: it identifies the effect if *either* the propensity model or the outcome model is correct. That is a weaker modelling requirement than either route alone, but it is not a guarantee; if both models are wrong, or if condition 1 fails, the doubly-robust estimate is biased too.
+:::
+
+### 4.2 The doubly-robust estimate on the 401(k) data
 
 We will apply the model to our real savings data, combining the logistic propensity from section 2 with simple linear models of savings.
 
