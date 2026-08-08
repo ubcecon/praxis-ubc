@@ -361,7 +361,7 @@ pd.read_sql("""SELECT issue,
                FROM complaint WHERE narrative LIKE '%1692%'""", lite)
 ```
 
-Exactly two complaints cite statute 1692, chapter and verse, and SQL's normal `LIKE` returns just those two flawlessly. When we are looking for an exact name or value, keyword search is the correct tool. Real systems utilize a best of both worlds and run a **filtered vector search**: hard SQL filters for what must be exact (like our legal statute above), vector ranking for parts where meaning is valuable. In SQL they combine naturally. (Vector databases also sell a cousin of this idea under the name *hybrid search*, which fuses a keyword relevance score with the vector similarity score instead of filtering first.) Let's look at harassment complaints, but only from Texas:
+Exactly two complaints cite statute 1692, chapter and verse, and SQL's normal `LIKE` returns just those two flawlessly. When we are looking for an exact name or value, keyword search is the correct tool. Real systems utilize a best of both worlds and run a **filtered vector search**: hard SQL filters for what must be exact (like our legal statute above), vector ranking for parts where meaning is valuable. In SQL they combine naturally. (Vector databases also offer a similar version of this idea under the name *hybrid search*, which fuses a keyword relevance score with the vector similarity score instead of filtering first.) Let's look at harassment complaints, but only from Texas:
 
 ```{python}
 warehouse.execute("""SELECT state, round(array_cosine_distance(embedding, CAST(? AS FLOAT[384])), 3) AS distance,
@@ -377,7 +377,7 @@ warehouse.execute("""SELECT state, round(array_cosine_distance(embedding, CAST(?
 
 One design decision remains before this search is ready: what is one *row*? Notebook 2 named it the grain of a table. In retrieval the same question is called **chunking**: when documents are long, what unit do you embed, the whole document or its pieces? The grain determines what your retrieval system can find.
 
-Our 390 narratives were short enough to embed whole. But the CFPB also receives long, multi-page complaints, and we downloaded three real ones alongside the sample. Each is several paragraphs long. We will search for one specific detail in one of the stories: the fraud cost the author refinancing, and student loans for their daughter's education. We print the three complaints below along with id, and state. Our target is **6627407** which is the complaint for California. 
+Our 390 narratives were short enough to embed whole. But the CFPB also receives long, multi-page complaints, and we downloaded three real ones alongside the sample. Each is several paragraphs long. We will search for one specific detail in one of the stories: the fraud cost the author refinancing, and student loans for their daughter's education. We print the three complaints below along with id, and state. Our target is **6627407** which is the complaint from California. 
 
 ```{python}
 longs = pd.read_csv("datasets/cfpb_long_complaints.csv")
@@ -386,7 +386,7 @@ print(longs[["complaint_id", "issue", "state"]])
 print("lengths:", longs["narrative"].str.len().tolist())
 ```
 
-We are back in plain numpy here, away from DuckDB's distance column, so we score with cosine similarity itself: `v @ question`, bigger means closer, exactly like section 4. `ascending=False` sorts the table best-first.
+We are back to plain `numpy` here, away from DuckDB's distance column, so we score with cosine similarity itself: `v @ question`, bigger means closer, exactly like section 4. `ascending=False` sorts the table best-first.
 
 > **Predict first.** We embed each complaint as one full text-block and search for the education-loans detail. How well do we do?
 

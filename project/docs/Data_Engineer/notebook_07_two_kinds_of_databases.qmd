@@ -3,7 +3,7 @@ title: "Two Kinds of Databases"
 author: Alex Ronczewski
 date: 2026-07-29
 image: /media/stream_icons/data-eng-7.png
-description: "The seventh notebook in the Data Engineering stream. After the survey went live, the analysts and the data collectors are fighting over one database. So we split them: OLTP and OLAP, a star schema warehouse in DuckDB fed by an ETL script from the SQLite intake system, a regression that recovers the wage premiums we built into the simulation, and the map of warehouses, lakes, and the ML systems they feed."
+description: "The seventh notebook in the Data Engineering stream. After the survey went live, the analysts and the data collectors are fighting over one database. So we split them: OLTP and OLAP, a star schema warehouse in DuckDB fed by an ETL script from the SQLite intake system, a regression that recovers the wage premiums we built into the simulation, and the map of warehouses, and lakes."
 categories:
   - Python
   - SQL
@@ -141,7 +141,7 @@ responses["hourly_wage"] = np.exp(log_wage).clip(17.40, None).round(2)
 print(f"mean wage = {responses['hourly_wage'].mean():.2f}")
 ```
 
-A mean wage of 39.00, similar to every accurate wage this stream has produced. The wage was *produced* by education, union status and age, but the response table does not *store* those columns. They live once, on the respondent. That is Notebook 5's normalization working correctly, and it is also exactly why the analysts will need joins.
+A mean wage of 38.99, similar to every accurate wage this stream has produced. The wage was *produced* by education, union status and age, but the response table does not *store* those columns. They live once, on the respondent. That is Notebook 5's normalization working correctly, and it is also exactly why the analysts will need joins.
 
 The office built the intake database on Notebook 5's design, so we recreate it faithfully: keys, constraints, `STRICT`, Notebook 5's foreign-key pragma for the connection, and Notebook 6's index on the column the app searches all day. In the next cell we re-create the schema. 
 
@@ -209,7 +209,7 @@ print(f"one response saved in {1000 * (time.perf_counter() - start):.1f} ms")
 intake.execute("DELETE FROM response WHERE response_id = 300000")
 ```
 
-Milliseconds to read, milliseconds to write. As an OLTP system, this database is excellent. We have half of our solution fixed (at least so it seems), the survey workers are happy for now. Now we add the analysts.
+Milliseconds to read, milliseconds to write. As an OLTP system, this database is excellent. We have half of our solution fixed, the survey workers are happy for now. Now we add the analysts.
 
 ## 4. Analysts
 
@@ -353,11 +353,11 @@ print(f"{1000 * (time.perf_counter() - start):.0f} ms for {len(star_table)} rows
 star_table.head(3)
 ```
 
-Tens of milliseconds, tens of times faster here, the same 72 rows with the same numbers. And notice the two less flashy improvements. The query joins to purpose-built tables where month and region are ready-made columns rather than expressions, and it runs on a machine the intake app has never heard of. The analysts can work on this warehouse as much as they want and nobody from the survey department is affected.
+Tens of milliseconds, tens of times faster here, the same 72 rows with the same numbers. And notice the two less flashy improvements. The query joins to purpose-built tables where month and region are ready-made columns rather than expressions, and it runs on a different machine than the intake app. The analysts can work on this warehouse as much as they want and nobody from the survey department is affected.
 
 ## 8. The warehouse feeds the model
 
-The last stop for most warehouse data is not a chart; it is a model. Every regression you have run in an econometrics course started from a table that looked suspiciously clean, one row per observation, outcome and regressors side by side. That table is a warehouse product, and now we can manufacture it ourselves: one star query, with Notebook 2's `CASE` building the dummy variables on the way out.
+The last stop for most warehouse data is not a chart; it is a model. Every regression you have run in an econometrics course started from a table that looked suspiciously clean, one row per observation, outcome and regressors side by side. That table is a warehouse product, and now we can manufacture it ourselves: one star query, with Notebook 2's `CASE` building the dummy variables.
 
 ```{python}
 model_data = warehouse.execute("""
@@ -392,7 +392,7 @@ If we take a step back from our two small files and made up example of a survey 
 
 ![](media/NB7/architecture.png){fig-alt="The intake app writes to the operational SQLite database; a nightly ETL loads the DuckDB warehouse, a raw archive feeds the Parquet data lake, and the warehouse and lake feed briefings, models, and ML training data."}
 
-The one box we have not built is the **lake**, and Notebook 6 already gave us its entire technology: Parquet files in cheap storage, queryable where they lie. A warehouse is curated, star-shaped, and answers known questions fast. A lake is the opposite: keep everything raw and cheap, including data nobody has a schema for yet, logs, documents, images, and impose structure later, when a question finally arrives. Archiving tonight's raw response extract to the lake, before any of our transforms touched it, is one line:
+The one box we have not built is the **lake**, and Notebook 6 already gave us its entire technology: Parquet files in cheap storage, queryable where they lie. A warehouse is curated, star-shaped, and answers known questions fast. A lake is the opposite: keep everything raw and cheap, including data nobody has a schema for yet, logs, documents, images, and you impose structure later, when a question finally arrives. Archiving tonight's raw response extract to the lake, before any of our transforms touched it, is one line:
 
 ```{python}
 raw_responses.to_parquet("datasets/response_archive.parquet")
@@ -420,7 +420,7 @@ The unresolved thread is the word "nightly". Our ETL ran because we ran it, top 
 
 - OLTP is many tiny reads and writes that must be instant and never lose data; OLAP is few enormous read-only scans. They want different table shapes (normalized rows versus denormalized columns), different engines, and isolation from each other, so organizations run an operational database for the first and a warehouse for the second, connected by ETL.
 - A denormalized design for analytics: a central fact table holding measures at one declared grain, joined to dimension tables holding the descriptive attributes you filter and group by.
-- Extract copies data out of source systems, transform reshapes it (joins, derived columns, cleaning, conforming types), load writes it into the warehouse. The transform step owns every derivation that analysts would otherwise each redo: flags, calendar attributes, standardized categories.
+- Extract copies data out of source systems, transform reshapes it (joins, derived columns, cleaning, conforming types), load writes it into the warehouse. The transform step creates every derivation that analysts would otherwise have to re-make everytime: flags, calendar attributes, standardized categories.
 - A warehouse holds curated, schema-shaped tables built to answer known questions fast. A lake holds raw files, cheap and often without a schema, kept because storage is usually cheap; structure gets imposed at read time, when a new question arrives.
 
 </details>
@@ -440,8 +440,6 @@ Everything in this stream runs on two in-process engines, chosen so that nothing
 | ClickHouse | client-server OLAP, open source | self-hosted analytics at scale |
 | BigQuery, Redshift, Snowflake | cloud warehouses | the rented version of Notebook 7 |
 | Databricks | cloud lakehouse | warehouse tooling on top of a Parquet lake |
-
-Two notes for the day a job hands you credentials to one of these. First, you connect with a connection string, and its password belongs in an environment variable, never typed into code, the same separation-of-code-and-data instinct as Notebook 3's `?` placeholders. Second, BigQuery's on-demand pricing bills by bytes scanned, which converts Notebook 6's lesson into money: `SELECT *` over a petabyte-scale table is a real invoice. Snowflake and provisioned Redshift bill by compute time instead, but scanning fewer columns still means less I/O and a shorter, cheaper run, so naming your columns is no longer just clean code, it saves money everywhere.
 
 ## Connections
 

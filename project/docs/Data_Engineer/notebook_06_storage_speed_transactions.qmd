@@ -85,9 +85,9 @@ big = pd.DataFrame({
 big.head()
 ```
 
-Note: Saskatchewan made the province list this time, since we are past those issues, so we won't run into any new NULL-related problems.
+Note: Saskatchewan made the province list this time, we are past dealing with those kinds of issues, we won't run into any new NULL-related problems.
 
-Into SQLite it goes, through the same `to_sql` as always, in a fresh database file. One adjustment first so this all works: SQLite keeps dates as ISO text (Notebook 4's `2025-01-14` format), so we convert the dates to text with `.dt.strftime`, which is the `pandas` equivalent of the SQL `strftime` from Notebook 4. And to be clear about what we are building: this is a staging-style scratch table with no keys and no constraints, because today we are measuring the engine, not working with the data. Notebook 5 would be really upset with us right now, but luckily it's not here to see. If this was a real database, we would also add all of Notebook 5's content.
+Into SQLite it goes, through the same `to_sql` as always, in a fresh database file. One adjustment first so this all works: SQLite keeps dates as ISO text (Notebook 4's `2025-01-14` format), so we convert the dates to text with `.dt.strftime`, which is the `pandas` equivalent of the SQL `strftime` from Notebook 4. And to be clear about what we are building: this is a staging-style scratch table with no schema, keys and constraints, because today we are measuring the engine, not working with the data. Notebook 5 would be really upset with us right now, but luckily it's not here to see. If this was a real production database, we would also add all of Notebook 5's content.
 
 
 ```{python}
@@ -107,7 +107,7 @@ print(f"{os.path.getsize('datasets/wage_responses.db') / 1e6:.0f} MB on disk")
 pd.read_sql("SELECT COUNT(*) AS responses, COUNT(DISTINCT respondent_id) AS respondents FROM responses", conn)
 ```
 
-About 17 MB, holding 250,000 responses from 59,037 distinct respondents. Time to break things.
+It is 17 MB, holding 250,000 responses from 59,037 distinct respondents. Time to break things.
 
 ## 3. The undo button
 
@@ -219,7 +219,7 @@ Durability is not free. Committing means forcing bytes onto the physical disk an
 ::: {.callout-caution}
 ## Wrong-query gallery #5
 
-A colleague wrote the nightly loader for the intake system. It saves each response the moment it is processed, and it is taking forever. We can have a look, timing it with a new tool: `time.perf_counter()` reads a high-precision stopwatch, so reading it before and after a job and subtracting gives the job's duration. This pattern appears in every timing in the rest of the notebook.
+A colleague wrote the nightly loader for the intake system. It saves each response the moment it is processed, and it is taking forever. We can have a look, timing it with a new tool: `time.perf_counter()` reads a high-precision stopwatch, so reading it before and after a job and subtracting gives the job's duration. This pattern appears in every timing exercise for the rest of the notebook.
 
 ```{python}
 start = time.perf_counter()
@@ -258,7 +258,7 @@ Same 500 rows, a few milliseconds: several hundred times faster here, and your e
 
 ## 6. Finding one row in 250,000
 
-Question two from the survey office: respondent lookup has to stay instant. Here is the lookup, which we time like before. Respondent 54001 is the busiest person in our simulation, with 14 interviews across the two years:
+Question two from the survey office: respondent lookup has to stay instant. Here is the lookup, which we time like before. Respondent 54001 is the most interviewed person in our simulation, with 14 interviews across the two years:
 
 ```{python}
 start = time.perf_counter()
@@ -312,7 +312,7 @@ About 20 MB now, up from 17: one index on one integer column grew the database b
 
 ## 7. Why analytics reads columns
 
-Question three starts with a complaint. The research side does not look up individuals; it asks summary questions across everything, like the regional briefing from Notebook 2, but this time all the `SELECT`s will be 250 times the size. Here is that question, timed:
+Question three starts with a complaint. The research side does not look up individuals; it asks summary questions across everything, like the regional briefing from Notebook 2, but this time all the `SELECT`'s will be 250 times the size. Here is that question, timed:
 
 ```{python}
 question = """SELECT province, COUNT(*) AS responses, ROUND(AVG(hourly_wage), 2) AS avg_wage
@@ -326,7 +326,7 @@ print(f"SQLite: {1000 * (time.perf_counter() - start):.0f} ms")
 by_province
 ```
 
-A couple of hundred milliseconds. The number that matters today is the time. Two hundred milliseconds for one question is fine, until it is a dashboard running fifty questions on a table a hundred times bigger.
+Two hundred milliseconds for one question is fine, until it is a dashboard running fifty questions on a table a hundred times bigger.
 
 Notice what the query needed: two columns. And notice what SQLite had to do anyway: read the entire table, because of how it stores rows. SQLite is a **row store**: each row's values sit together on disk, which is perfect for the intake side, since saving one response writes one block, and fetching respondent 54001 reads a few. A **column store** flips the layout: all values of one column sit together, so a query touches only the columns it mentions, and each block compresses beautifully because similar values are neighbours.
 
@@ -349,7 +349,7 @@ print(f"DuckDB: {1000 * (time.perf_counter() - start):.0f} ms")
 duck_answer
 ```
 
-Identical command on an identical table, and on this machine tens of times faster, down to single-digit milliseconds. Notebook 1 said SQL is declarative: you state what you want and the engine decides how. This is proof of that. We gave the same command to two different engines, and they chose differently because their storage shapes differ, one reading every block of every row, the other reading two column strips.
+Identical command on an identical table, and on this machine tens of times faster. Notebook 1 said SQL is declarative: you state what you want and the engine decides how. This is proof of that. We gave the same command to two different engines, and they chose differently because their storage shapes differ, one reading every block of every row, the other reading two column strips.
 
 Neither engine is the better one. SQLite wins the intake workload of many small precious writes, DuckDB wins the analytical workload of few enormous reads, and the same organization usually needs both at once. This core tension, and the industry's solution to it, is the whole of Notebook 7.
 
@@ -373,7 +373,7 @@ print(f"Parquet: written in {time.perf_counter() - start:.1f} s, "
       f"{os.path.getsize('datasets/wage_responses.parquet') / 1e6:.0f} MB")
 ```
 
-3 MB, five times smaller, written faster than the CSV. (`to_parquet` works because the `pyarrow` library is installed; it is the standard engine for Parquet in Python.) Reading shows the same order:
+3 MB, five times smaller, written faster than the CSV. Reading shows the same order:
 
 ```{python}
 start = time.perf_counter()
