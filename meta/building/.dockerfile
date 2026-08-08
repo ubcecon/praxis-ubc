@@ -17,14 +17,13 @@ RUN quarto render --output-dir /app/output
 
 # Strip the compromised polyfill.io shim that Quarto <1.4 injected into MathJax pages.
 # polyfill.io was taken over by a malicious operator (2024 supply-chain attack); the base
-# image is Quarto 1.4.557 so rendered pages no longer reference it, but the strip stays
-# as a version-independent safety net.
+# image is Quarto 1.4.557 so rendered pages no longer reference it, but the strip stays just in case. 
 RUN find /app/output -name '*.html' -exec \
     sed -i 's#<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>##g' {} +
 
-# Metadata index for the path visualization page (one JSON fetch)
+# Metadata index for the path visualization page (one JSON fetch). Also gets images from sources directly. 
 COPY ./meta/scripts/extract_path_viz_meta.py /extract_pvz_meta.py
-RUN python3 /extract_pvz_meta.py /app/output /app/output/pages/pvz_meta.json
+RUN python3 /extract_pvz_meta.py /app/output /app/output/pages/pvz_meta.json /app
 
 # Add the per-notebook launch button (chooses which notebooks get it via launch_notebook.html)
 COPY ./meta/building/launch_notebook.html /launch_notebook.html

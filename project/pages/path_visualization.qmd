@@ -15,6 +15,7 @@ page-layout: full
   --color-fg-muted: #7D7D7D;
   --color-tooltip-border: rgba(0, 0, 0, 0.1);
   --color-node: #00AADD;
+  --color-node-muted: #C2C8D2;
   --color-connector: #7D7D7D;
   --color-connector-hover: #041746;
   --color-accent: #041746;
@@ -32,6 +33,7 @@ body.quarto-dark #pvz-root {
   --color-fg-muted: #b0b0b0;  /* $gray-dark-2 */
   --color-tooltip-border: rgba(255, 255, 255, 0.1);
   --color-node: #33BBEE;
+  --color-node-muted: #47536b;
   --color-connector: #8A93A6;
   --color-connector-hover: #5c9fff; /* $galaxy-blue-light — dark-mode equivalent of the light accent */
   --color-accent: #5c9fff;
@@ -130,7 +132,6 @@ body.quarto-dark #pvz-root {
   line-clamp: 4;
 }
 #pvz-root #item-info .item-meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-#pvz-root #item-info .item-date { font-size: 10.5px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--color-fg-muted) !important; white-space: nowrap; }
 #pvz-root #item-info .item-placeholder-body { padding: 14px 16px; }
 </style>
 
@@ -163,7 +164,7 @@ body.quarto-dark #pvz-root {
   <% if (code) { %>
     <div class="item-thumb-wrap">
       <img class="item-thumb<% if (path) { %> clickable<% } %>" src="<%= image ? image : 'index/placeholder_images/placeholder.png' %>" alt=""<% if (path) { %> title="Open this notebook"<% } %>>
-      <% if (categoryId === "research") { %>
+      <% if (hasLangVersions) { %>
         <div class="lang-toggle" role="group" aria-label="Notebook language">
           <button type="button" class="lang-btn<%= activeLang === "r" ? " active" : "" %>" data-lang="r">R</button>
           <button type="button" class="lang-btn<%= activeLang === "stata" ? " active" : "" %>" data-lang="stata">Stata</button>
@@ -176,7 +177,6 @@ body.quarto-dark #pvz-root {
       <p class="item-desc"><%= description ? description : "No description available yet." %></p>
       <div class="item-meta">
         <span class="muted"><%= category %></span>
-        <% if (date) { %><span class="item-date"><%= date %></span><% } %>
       </div>
       <% if (courses && courses.length) { %><p class="muted" style="margin-top:6px;">Also in: <%= courses.join(", ") %></p><% } %>
     </div>
@@ -437,6 +437,16 @@ const CATEGORIES = [
     ]
   },
   {
+    id: "game-theory", name: "Game Theory",
+    description: "The Game Theory stream: normal-form games, best responses, and Nash equilibrium, then players who learn — fictitious play, repeated games and the Axelrod tournament, and finally Q-learning agents that teach themselves to collude. Notebooks build on each other in order.",
+    items: [
+      { code: "GT01", title: "Games, Best Responses, and Nash Equilibrium", path: "docs/Game_Theory/notebook_01_games_best_responses_nash.html" },
+      { code: "GT02", title: "Mixed Strategies, Beliefs, and Fictitious Play", path: "docs/Game_Theory/notebook_02_mixed_strategies_fictitious_play.html" },
+      { code: "GT03", title: "Repeated Games, Cooperation, and the Axelrod Tournament", path: "docs/Game_Theory/notebook_03_repeated_games_axelrod_tournament.html" },
+      { code: "GT04", title: "Learning Agents and Algorithmic Collusion", path: "docs/Game_Theory/notebook_04_learning_agents_collusion.html" }
+    ]
+  },
+  {
     id: "amne-376", name: "AMNE 376",
     description: "Course-specific content — no prerequisites stated.",
     items: [
@@ -502,7 +512,7 @@ const CATEGORIES = [
 /* 3. LAYOUT: rows */
 
 const ROW_ORDER = [
-  "getting-started", "beginner", "intermediate-econ", "intermediate-geo", "advanced", "causal-ml", "research", "all",
+  "getting-started", "beginner", "intermediate-econ", "intermediate-geo", "advanced", "causal-ml", "game-theory", "research", "all",
   "soci-280", "econ-227", "amne-376", "hist-414", "soci-415"
 ];
 
@@ -600,6 +610,15 @@ const RAW_CONNECTIONS = [
   { from: "CML05", to: "CML06" },
   { from: "CML06", to: "CML07" },
   { from: "CML07", to: "CML08" },
+
+  // Game Theory. Prerequisites as stated in each notebook:
+  // NB1 -> basic Python (ECON 221 is listed as nice to have rather than
+  // required, since every concept is re-taught); NB2-NB4 each need the
+  // previous notebook of the stream.
+  { from: "GS-PY", to: "GT01" },
+  { from: "GT01", to: "GT02" },
+  { from: "GT02", to: "GT03" },
+  { from: "GT03", to: "GT04" },
 
   // SOCI 415
   { from: "SOCI415-B", to: "SOCI415-C" } // CBDB Dataset requires KINMATRIX Dataset
@@ -799,7 +818,7 @@ const CONNECTIONS = RAW_CONNECTIONS.map(c => ({ ...c, source: nodeByCode[c.from]
   }
 
   // Positions independent nodes
-  const SIDELINE_SET = new Set(["all", "amne-376", "econ-227", "hist-414", "soci-280", "soci-415"]);
+  const SIDELINE_SET = new Set(["all", ...BIASED_SIDELINE_IDS]); // same categories, plus the standalone notebooks
   const canvasMiddle = { x: width / 2, y: height / 2 };
   const SIDELINE_MIDDLE_BUFFER = 190; // must stay at least this far from the canvas middle
   const SIDELINE_EDGE_BUFFER = 60;    // ...and at least this far from the canvas edge
@@ -875,22 +894,26 @@ const CONNECTIONS = RAW_CONNECTIONS.map(c => ({ ...c, source: nodeByCode[c.from]
     const v = n => s.getPropertyValue(n).trim();
     return {
       bg: v("--color-bg"), fg: v("--color-fg"), fgMuted: v("--color-fg-muted"),
-      node: v("--color-node"), connector: v("--color-connector"), connectorHover: v("--color-connector-hover"),
+      node: v("--color-node"), nodeMuted: v("--color-node-muted"),
+      connector: v("--color-connector"), connectorHover: v("--color-connector-hover"),
       accent: v("--color-accent"), accentText: v("--color-accent-text")
     };
   }
 
 
   const metaCache = {};
+  // Node paths, thumbnails and pvz_meta.json entries are all stored relative to
+  // the project root, and this page lives in pages/, so one level up gets there.
+  const siteUrl = path => "../" + path;
   function resolveImageUrl(img) {
     if (!img) return null;
     if (/^https?:\/\//.test(img) || img.startsWith("/")) return img;
-    return "../" + img; // same project-root-relative convention as node paths
+    return siteUrl(img);
   }
   function fetchPageMeta(path) {
     if (!path || Object.prototype.hasOwnProperty.call(metaCache, path)) return;
     metaCache[path] = null; // marks "fetch in flight" so a second hover doesn't re-fetch
-    const url = "../" + path;
+    const url = siteUrl(path);
     fetch(url)
       .then(r => (r.ok ? r.text() : Promise.reject(new Error("status " + r.status))))
       .then(text => {
@@ -900,11 +923,6 @@ const CONNECTIONS = RAW_CONNECTIONS.map(c => ({ ...c, source: nodeByCode[c.from]
         const description = descEl ? descEl.getAttribute("content") : null;
         const image = resolveImageUrl(imgEl ? imgEl.getAttribute("content") : null);
         metaCache[path] = { description, image };
-        if (!description && !image) {
-          console.debug("Praxis content map:", url, "loaded fine but has no <meta name=\"description\"> or <meta property=\"og:image\"> — "
-            + "that notebook's front matter likely doesn't set description:/image:, so this one just doesn't have real data yet.");
-        }
-
         if (currentHoveredNode && resolveVersion(currentHoveredNode, currentLang).path === path) {
           renderItemCard(currentHoveredNode, currentLang);
         }
@@ -962,7 +980,7 @@ const CONNECTIONS = RAW_CONNECTIONS.map(c => ({ ...c, source: nodeByCode[c.from]
   let currentLang = "r";
 
   function openNotebook(path) {
-    const url = "../" + path;
+    const url = siteUrl(path);
     try { (window.top || window).location.href = url; }
     catch (e) { window.location.href = url; }
   }
@@ -1013,10 +1031,10 @@ const CONNECTIONS = RAW_CONNECTIONS.map(c => ({ ...c, source: nodeByCode[c.from]
     const v = resolveVersion(d, lang);
     const enriched = enrichedInfoFor(v.path);
     itemInfoDiv.html(itemInfoTemplate({
-      code: d.code, title: v.title, category: d.categoryName, categoryId: d.categoryId, path: v.path,
+      code: d.code, title: v.title, category: d.categoryName, path: v.path,
       description: enriched.description || d.description || null,
       image: enriched.image,
-      date: d.date || null,
+      hasLangVersions: !!d.langVersions,
       courses: categoriesReferencingCode[d.code] || [],
       activeLang: lang
     }));
@@ -1055,6 +1073,25 @@ const CONNECTIONS = RAW_CONNECTIONS.map(c => ({ ...c, source: nodeByCode[c.from]
     });
   });
 
+  // "All" is the reset chip, so nothing greys out under it. Every other chip
+  // leaves its own nodes blue and drops the rest back to grey.
+  function isHighlighted(d) {
+    if (currentCategory.id === "all") return true;
+    return d.categoryId === currentCategory.id ||
+      (currentCategory.highlightCodes && currentCategory.highlightCodes.includes(d.code));
+  }
+  // A connector only stays lit when both ends survived the filter.
+  function linkLit(conn) { return isHighlighted(conn.source) && isHighlighted(conn.target); }
+
+  // Shared by render() and node mouseout, so leaving a node puts the lines back
+  // the way the current filter wants them instead of lighting all of them up.
+  function styleLinks(sel, c) {
+    return sel
+      .attr("stroke", conn => (linkLit(conn) ? c.connector : c.nodeMuted))
+      .attr("stroke-width", 1.5)
+      .attr("opacity", conn => (linkLit(conn) ? 0.5 : 0.12));
+  }
+
   function showItemInfo(event, d) {
 
     const lang = (currentHoveredNode === d) ? currentLang : "r";
@@ -1070,27 +1107,17 @@ const CONNECTIONS = RAW_CONNECTIONS.map(c => ({ ...c, source: nodeByCode[c.from]
   function render(duration) {
     const c = colors();
 
-    function isHighlighted(d) {
-      if (currentCategory.id === "all") return false;
-      return d.categoryId === currentCategory.id ||
-        (currentCategory.highlightCodes && currentCategory.highlightCodes.includes(d.code));
-    }
-
     linkLayer.selectAll("line")
       .data(CONNECTIONS, d => d.from + "->" + d.to)
       .join(
-        enter => enter.append("line")
+        enter => styleLinks(enter.append("line")
           .attr("x1", d => d.source.x).attr("y1", d => d.source.y)
           .attr("x2", d => d.target.x).attr("y2", d => d.target.y)
-          .attr("stroke", c.connector)
           .attr("opacity", 0)
-          .transition().duration(duration)
-          .attr("opacity", 0.5),
-        update => update.transition().duration(duration)
+          .transition().duration(duration), c),
+        update => styleLinks(update.transition().duration(duration)
           .attr("x1", d => d.source.x).attr("y1", d => d.source.y)
-          .attr("x2", d => d.target.x).attr("y2", d => d.target.y)
-          .attr("stroke", c.connector)
-          .attr("opacity", 0.5)
+          .attr("x2", d => d.target.x).attr("y2", d => d.target.y), c)
       );
 
     nodeLayer.selectAll("circle")
@@ -1099,14 +1126,15 @@ const CONNECTIONS = RAW_CONNECTIONS.map(c => ({ ...c, source: nodeByCode[c.from]
         enter => enter.append("circle")
           .attr("r", 10)
           .attr("cx", d => d.x).attr("cy", d => d.y)
-          .attr("fill", d => (isHighlighted(d) ? c.accent : c.node))
-          .attr("stroke", d => (isHighlighted(d) ? c.accent : c.node))
+          .attr("fill", d => (isHighlighted(d) ? c.node : c.nodeMuted))
+          .attr("stroke", d => (isHighlighted(d) ? c.node : c.nodeMuted))
           .attr("stroke-width", 1.5)
           .attr("opacity", 0)
-          .transition().duration(duration).attr("opacity", 1),
+          .transition().duration(duration).attr("opacity", d => (isHighlighted(d) ? 1 : 0.5)),
         update => update.transition().duration(duration)
-          .attr("fill", d => (isHighlighted(d) ? c.accent : c.node))
-          .attr("stroke", d => (isHighlighted(d) ? c.accent : c.node))
+          .attr("fill", d => (isHighlighted(d) ? c.node : c.nodeMuted))
+          .attr("stroke", d => (isHighlighted(d) ? c.node : c.nodeMuted))
+          .attr("opacity", d => (isHighlighted(d) ? 1 : 0.5))
       );
 
     hitLayer.selectAll("circle")
@@ -1132,12 +1160,7 @@ const CONNECTIONS = RAW_CONNECTIONS.map(c => ({ ...c, source: nodeByCode[c.from]
           nodeLayer.selectAll("circle").filter(n => n.code === d.code)
             .transition().duration(150).attr("r", 10).attr("stroke-width", 1.5);
           
-          const col = colors();
-          linkLayer.selectAll("line")
-            .transition().duration(150)
-            .attr("stroke", col.connector)
-            .attr("stroke-width", 1.5)
-            .attr("opacity", 0.5);
+          styleLinks(linkLayer.selectAll("line").transition().duration(150), colors());
         })
         .on("click", (event, d) => {
           const lang = (currentHoveredNode && currentHoveredNode.code === d.code) ? currentLang : "r";
@@ -1166,28 +1189,17 @@ const CONNECTIONS = RAW_CONNECTIONS.map(c => ({ ...c, source: nodeByCode[c.from]
   // Quarto 1.4 toggles quarto-dark/quarto-light classes on the body element;
   // newer Quarto sets data-bs-theme on the html root. Watch both.
   const themeObserver = new MutationObserver(() => {
-    const theme = document.body.classList.contains("quarto-dark") ? "dark"
-      : (document.documentElement.getAttribute("data-bs-theme") || "light");
-    console.info("Praxis content map: detected theme change ->", theme, "— re-rendering graph colors.");
     render(0);
     if (currentHoveredNode) updateLangMenu(currentHoveredNode);
   });
   themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-bs-theme"] });
   themeObserver.observe(document.body, { attributes: true, attributeFilter: ["class"] });
 
-  window.pvzDebug = function () {
-    console.log("body classList:", document.body.className || "(none)");
-    console.log("data-bs-theme on html root:", document.documentElement.getAttribute("data-bs-theme") || "(no data-bs-theme attribute set)");
-    console.log("colors() currently resolves to:", colors());
-    render(0);
-    console.log("Re-rendered. If the graph still looks wrong now, the issue is upstream of this script (stale build, or the toggle isn't actually setting quarto-dark on the body element — check the Elements panel while toggling).");
-  };
-
   categoryInfoDiv.html(categoryInfoTemplate({
     name: currentCategory.name,
     total: categoryNodeCount(currentCategory)
   }));
-  itemInfoDiv.html(itemInfoTemplate({ code: null, title: null, category: null, categoryId: null, path: null, description: null, image: null, date: null, courses: [], activeLang: null }));
+  itemInfoDiv.html(itemInfoTemplate({ code: null, title: null, category: null, path: null, description: null, image: null, hasLangVersions: false, courses: [], activeLang: null }));
   d3.select("#category-nav div:nth-child(1)").classed("highlight", true);
 })();
 </script>
