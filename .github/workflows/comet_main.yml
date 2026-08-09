@@ -49,6 +49,10 @@ jobs:
         with:
           path: source-notebooks
 
+        # Important: Never make it a blanket LFS:true as that would pull huge data like 1.7gb latest.db from SOCI-415 .jp2 is the only LFS-tracked type the notebooks actually load. So only that (or add more in the future). 
+      - name: Fetch LFS content for the scans OCR loads
+        run: git -C source-notebooks lfs pull --include="*.jp2"
+
       - name: Remove rendered files
         run: |
           find source-notebooks/project/docs -type f \( -name "*.html" -o -name "*.md" \) -delete
@@ -74,6 +78,7 @@ jobs:
             --include '*.PNG' \
             --include '*.pdf' \
             --include '*.jpg' \
+            --include '*.jp2' \
             --include '*.gif' \
             --include '*.svg' \
             --include '*.csv' \
@@ -81,6 +86,8 @@ jobs:
             --include '*.npy' \
             --include '*.py' \
             --include '*.pth' \
+            --include '*.pt' \
+            --include '*.pkl' \
             --include '*.webp' \
             --exclude '*' \
             source-notebooks/project/docs/ final-notebooks/docs/
