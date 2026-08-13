@@ -1,0 +1,1973 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-GB" xml:lang="en-GB"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.4.557">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Alex Ronczewski">
+<meta name="dcterms.date" content="2026-07-19">
+<meta name="description" content="The first notebook in the Data Engineering stream. We define the database, the DBMS, and SQL, see why shared flat files break down, and build and query our first SQLite database from a notebook.">
+
+<title>Praxis - Why Databases Exist</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script><script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<link href="../../media/praxis-badge.png" rel="icon" type="image/png">
+<script src="../../site_libs/quarto-html/quarto.js"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark.css" rel="prefetch" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark.min.css" rel="prefetch" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<script src="../../site_libs/quarto-contrib/glightbox/glightbox.min.js"></script>
+<link href="../../site_libs/quarto-contrib/glightbox/glightbox.min.css" rel="stylesheet">
+<link href="../../site_libs/quarto-contrib/glightbox/lightbox.css" rel="stylesheet">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<meta name="keywords" content="economics, econometrics, R, data, machine learning, UBC, COMET, geog 374, econ 325, econ 326, learning, teaching, learn r, r help, help, tutorial, r tutorial for beginners,learning statistics with r, learn r programming, learn statistics, linear regression, r machine learning, learn machine learning, university of british columbia, british columbia, r programming for beginners, r language tutorial, r tutorial for beginners, economic data, econometrics tutoring, economics help for students, economics homework help, oer resources for teachers, open educational resources for teachers, educational resource, oer project, oer materials, oer resources, learn economics online, learn econometrics, teach yourself economics, teach yourself econometrics, econometrics basics for beginners">
+
+<!-- Google Search Console -->
+<meta name="google-site-verification" content="wUHlRBWRzzUYwBbnKdvYg0lBpw5b0F7hnEq-QekkpQw">
+<!-- End Google Search Console -->
+
+<script>
+(function() {
+    function updateThemeImages() {
+        var isDark = document.body.classList.contains('quarto-dark');
+        var images = document.querySelectorAll('img[data-light-src][data-dark-src]');
+
+        images.forEach(function(img) {
+            var lightSrc = img.getAttribute('data-light-src');
+            var darkSrc = img.getAttribute('data-dark-src');
+            var newSrc = isDark ? darkSrc : lightSrc;
+
+            // Only update if src is different to avoid reload flicker
+            if (img.getAttribute('src') !== newSrc) {
+                img.setAttribute('src', newSrc);
+            }
+        });
+    }
+
+    // Run when DOM is ready
+    document.addEventListener('DOMContentLoaded', function() {
+        updateThemeImages();
+
+        // Watch for theme changes on body
+        var observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.attributeName === 'class') {
+                    updateThemeImages();
+                }
+            });
+        });
+
+        observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    });
+
+    // Also run after full page load
+    window.addEventListener('load', updateThemeImages);
+})();
+</script>
+
+<!-- Cloudflare Web Analytics -->
+<script defer="" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon="{&quot;token&quot;: &quot;911859291fee44e6ba0acc25f4f08be4&quot;}"></script>
+<!-- End Cloudflare Web Analytics -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" integrity="sha512-c3Nl8+7g4LMSTdrm621y7kf9v3SDPnhxLNhcjFJbKECVnmZHTdo+IRO05sNLTH/D3vA6u1X32ehoLC7WFVdheg==" crossorigin="anonymous"></script>
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+
+
+<link rel="stylesheet" href="../../styles.css">
+</head>
+
+<body class="nav-fixed">
+<!-- praxis-launch-notebook: per-notebook launch button (injected into output HTML at build time) -->
+<script>
+(function () {
+  // Notebooks that get a launch button (path from "docs/", no extension)
+  var NOTEBOOKS = [
+    "docs/AMNE-376/amne_376_image_embedding",
+    "docs/CTree_CEA/political_economy",
+    "docs/Causal_ML/notebook_01_prediction_inference_causality",
+    "docs/Causal_ML/notebook_02_regularization_ridge_lasso",
+    "docs/Causal_ML/notebook_03_trees_forests_boosting",
+    "docs/Causal_ML/notebook_04_prediction_to_treatment_effects",
+    "docs/Causal_ML/notebook_05_post_double_selection",
+    "docs/Causal_ML/notebook_06_propensity_ipw",
+    "docs/Causal_ML/notebook_07_double_machine_learning",
+    "docs/Causal_ML/notebook_08_heterogeneous_effects_causal_forests",
+    "docs/Data_Engineer/notebook_01_why_databases_exist",
+    "docs/Data_Engineer/notebook_02_basic_querying",
+    "docs/Data_Engineer/notebook_03_advanced_sql",
+    "docs/Data_Engineer/notebook_04_cleaning_real_data",
+    "docs/Data_Engineer/notebook_05_designing_data",
+    "docs/Data_Engineer/notebook_06_storage_speed_transactions",
+    "docs/Data_Engineer/notebook_07_two_kinds_of_databases",
+    "docs/Data_Engineer/notebook_08_pipelines_one",
+    "docs/Data_Engineer/notebook_09_pipelines_two",
+    "docs/Data_Engineer/notebook_10_embeddings_vector_search",
+    "docs/Data_Engineer/notebook_11_capstone_rag",
+    "docs/ECON-227/llm_distributions",
+    "docs/Game_Theory/notebook_01_games_best_responses_nash",
+    "docs/Game_Theory/notebook_02_mixed_strategies_fictitious_play",
+    "docs/Game_Theory/notebook_03_repeated_games_axelrod_tournament",
+    "docs/Game_Theory/notebook_04_learning_agents_collusion",
+    "docs/OCR/ocr_notebook",
+    "docs/SOCI-280/soci_280_bert",
+    "docs/SOCI-415/cbdb_dataset",
+    "docs/SOCI-415/kinmatrix",
+    "docs/SOCI-415/soci_415_network_analysis",
+    "docs/hist_workshop/text_embeddings_workshop",
+    "docs/image_analysis/image_analysis",
+    "docs/intro_to_cnns/intro_to_cnn",
+    "docs/intro_to_convolutions/intro_to_convolution",
+    "docs/intro_to_deep_learning/intro_to_fundamental_ML",
+    "docs/intro_to_transformers/intro_to_transformers",
+    "docs/text_analysis/text_analysis"
+  ];
+
+  function init() {
+    var i = window.location.pathname.indexOf("/docs/");
+    if (i === -1) return;
+    var rel = window.location.pathname.slice(i + 1).replace(/\.html$/, "");
+    if (NOTEBOOKS.indexOf(rel) === -1) return;
+
+    var nb = rel + ".ipynb";
+    var repo = "https%3A%2F%2Fgithub.com%2Fubcecon%2Fpraxis-ubc";
+    var urlpath = encodeURIComponent("lab/tree/praxis-ubc/" + nb);
+    var jupyter = "https://open.jupyter.ubc.ca/jupyter/hub/user-redirect/git-pull?repo=" +
+      repo + "&urlpath=" + urlpath + "&branch=praxis-notebooks";
+    var colab = "https://colab.research.google.com/github/ubcecon/praxis-ubc/blob/praxis-notebooks/" + nb;
+
+    var wrap = document.createElement("div");
+    wrap.className = "btn-group";
+    wrap.style.margin = "0.5rem 0 1rem";
+    wrap.innerHTML =
+      '<button class="btn btn-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">' +
+        '<i class="bi bi-play-fill"></i> Launch this notebook</button>' +
+      '<ul class="dropdown-menu">' +
+        '<li><a class="dropdown-item" target="_blank" rel="noopener" href="' + jupyter + '"><i class="bi bi-cloud-check"></i> JupyterOpen</a></li>' +
+        '<li><a class="dropdown-item" target="_blank" rel="noopener" href="' + colab + '"><i class="bi bi-google"></i> Colab</a></li>' +
+      '</ul>';
+
+    var header = document.getElementById("title-block-header");
+    if (header) {
+      header.appendChild(wrap);
+    } else {
+      var main = document.querySelector("main.content") || document.querySelector("main");
+      if (main) main.insertBefore(wrap, main.firstChild);
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
+</script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="../../index.html" class="navbar-brand navbar-brand-logo">
+    <img src="../../media/praxis-badge-white.png" alt="" class="navbar-logo">
+    </a>
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">Praxis</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-get-started" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Get Started</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-get-started">    
+        <li>
+    <a class="dropdown-item" href="../../pages/quickstart.html">
+ <span class="dropdown-text">Quickstart Guide</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-courses" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Courses</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-courses">    
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_AMNE-376.html">
+ <span class="dropdown-text">AMNE-376</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_SOCI415.html">
+ <span class="dropdown-text">SOCI-415</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_SOCI280.html">
+ <span class="dropdown-text">SOCI-280</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_ECON227.html">
+ <span class="dropdown-text">ECON-227</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_Causal_ML.html">
+ <span class="dropdown-text">Causal Machine Learning</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_Game_Theory.html">
+ <span class="dropdown-text">Game Theory</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_Data_Engineer.html">
+ <span class="dropdown-text">Data Engineering</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="../../pages/index/all.html">
+ <span class="dropdown-text">Browse All</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="../../pages/index/all.html"> 
+<span class="menu-text">All Topics</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-teach-with-praxis" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Teach with Praxis</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-teach-with-praxis">    
+        <li>
+    <a class="dropdown-item" href="../../pages/teaching_with_praxis.html">
+ <span class="dropdown-text">Learn how to teach with Praxis</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-launch-praxis" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+      <i class="bi bi-play" role="img">
+</i> 
+ <span class="menu-text">Launch Praxis</span>
+    </a>
+    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="nav-menu-launch-praxis">    
+        <li>
+    <a class="dropdown-item" href="https://open.jupyter.ubc.ca/jupyter/hub/user-redirect/git-pull?repo=https%3A%2F%2Fgithub.com%2Fubcecon%2Fpraxis-ubc&amp;urlpath=lab%2Ftree%2Fpraxis-ubc%2F&amp;branch=praxis-notebooks"><i class="bi bi-cloud-check" role="img">
+</i> 
+ <span class="dropdown-text">Launch on JupyterOpen (with Data)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://open.jupyter.ubc.ca/jupyter/hub/user-redirect/git-pull?repo=https%3A%2F%2Fgithub.com%2Fubcecon%2Fpraxis-ubc&amp;urlpath=lab%2Ftree%2Fpraxis-ubc%2F&amp;branch=praxis-notebooks"><i class="bi bi-cloud-check" role="img">
+</i> 
+ <span class="dropdown-text">Launch on JupyterOpen (lite)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ubc.syzygy.ca/jupyter/hub/user-redirect/git-pull?repo=https%3A%2F%2Fgithub.com%2Fubcecon%2Fpraxis-ubc&amp;urlpath=lab%2Ftree%2Fpraxis-ubc%2F&amp;branch=praxis-notebooks"><i class="bi bi-gear" role="img">
+</i> 
+ <span class="dropdown-text">Launch on Syzygy</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://colab.research.google.com/github/ubcecon/praxis-ubc/blob/praxis-notebooks/"><i class="bi bi-google" role="img">
+</i> 
+ <span class="dropdown-text">Launch on Colab</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://github.com/ubcecon/praxis-ubc/archive/refs/heads/praxis-notebooks.zip"><i class="bi bi-cloud-download" role="img">
+</i> 
+ <span class="dropdown-text">Launch Locally</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="https://github.com/ubcecon/praxis-ubc">
+ <span class="dropdown-text">Github Repository</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="../../#"> 
+<span class="menu-text">|</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/ubcecon/praxis-ubc" target="_blank"> <i class="bi bi-github" role="img" aria-label="GitHub">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-about" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">About</span>
+    </a>
+    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="nav-menu-about">    
+        <li>
+    <a class="dropdown-item" href="../../pages/team.html">
+ <span class="dropdown-text">Praxis Team</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/copyright.html">
+ <span class="dropdown-text">Copyright Information</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+          </div> <!-- /navcollapse -->
+          <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-full page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#outline" id="toc-outline" class="nav-link active" data-scroll-target="#outline">Outline</a>
+  <ul class="collapse">
+  <li><a href="#prerequisites" id="toc-prerequisites" class="nav-link" data-scroll-target="#prerequisites">Prerequisites</a></li>
+  <li><a href="#learning-outcomes" id="toc-learning-outcomes" class="nav-link" data-scroll-target="#learning-outcomes">Learning Outcomes</a></li>
+  </ul></li>
+  <li><a href="#before-the-csv" id="toc-before-the-csv" class="nav-link" data-scroll-target="#before-the-csv">1. Before the CSV</a></li>
+  <li><a href="#why-a-file-is-not-enough" id="toc-why-a-file-is-not-enough" class="nav-link" data-scroll-target="#why-a-file-is-not-enough">2. Why a file is not enough</a></li>
+  <li><a href="#the-database-and-the-dbms" id="toc-the-database-and-the-dbms" class="nav-link" data-scroll-target="#the-database-and-the-dbms">3. The database and the DBMS</a>
+  <ul class="collapse">
+  <li><a href="#sqlite" id="toc-sqlite" class="nav-link" data-scroll-target="#sqlite">3.1 SQLite</a></li>
+  </ul></li>
+  <li><a href="#a-first-database" id="toc-a-first-database" class="nav-link" data-scroll-target="#a-first-database">4. A first database</a>
+  <ul class="collapse">
+  <li><a href="#select" id="toc-select" class="nav-link" data-scroll-target="#select">4.1 SELECT</a></li>
+  <li><a href="#where" id="toc-where" class="nav-link" data-scroll-target="#where">4.2 WHERE</a></li>
+  <li><a href="#order-by" id="toc-order-by" class="nav-link" data-scroll-target="#order-by">4.3 ORDER BY</a></li>
+  </ul></li>
+  <li><a href="#the-road-ahead" id="toc-the-road-ahead" class="nav-link" data-scroll-target="#the-road-ahead">5. The road ahead</a></li>
+  <li><a href="#conclusion" id="toc-conclusion" class="nav-link" data-scroll-target="#conclusion">6. Conclusion</a></li>
+  <li><a href="#connections" id="toc-connections" class="nav-link" data-scroll-target="#connections">Connections</a>
+  <ul class="collapse">
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
+  </ul></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/ubcecon/praxis-ubc/issues/new" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div><div class="quarto-alternate-formats"><h2>Other Formats</h2><ul><li><a href="notebook_01_why_databases_exist.ipynb" download="notebook_01_why_databases_exist.ipynb"><i class="bi bi-journal-code"></i>Jupyter</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content column-page-left" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Why Databases Exist</h1>
+  <div class="quarto-categories">
+    <div class="quarto-category">Python</div>
+    <div class="quarto-category">SQL</div>
+    <div class="quarto-category">databases</div>
+    <div class="quarto-category">data engineering</div>
+  </div>
+  </div>
+
+<div>
+  <div class="description">
+    The first notebook in the Data Engineering stream. We define the database, the DBMS, and SQL, see why shared flat files break down, and build and query our first SQLite database from a notebook.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta column-page-left">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Alex Ronczewski </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">19 July 2026</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="outline" class="level2">
+<h2 class="anchored" data-anchor-id="outline">Outline</h2>
+<section id="prerequisites" class="level3">
+<h3 class="anchored" data-anchor-id="prerequisites">Prerequisites</h3>
+<ul>
+<li>Comfort with <code>pandas</code> and basic Python knowledge is recommended</li>
+<li>You do <strong>not</strong> need any database or SQL background.</li>
+</ul>
+</section>
+<section id="learning-outcomes" class="level3">
+<h3 class="anchored" data-anchor-id="learning-outcomes">Learning Outcomes</h3>
+<p>By the end of this notebook you will be able to:</p>
+<ol type="1">
+<li>Describe where the datasets used in econometrics and machine learning actually come from, and why the world’s data lives in databases.</li>
+<li>Explain why shared files break down as a way to keep data: redundancy, update anomalies, and concurrent editing.</li>
+<li>Define <strong>database</strong>, <strong>database management system (DBMS)</strong>, and <strong>SQL</strong>, and state the advantages of a DBMS over regular files.</li>
+<li>Load a table into <strong>SQLite</strong> from a notebook and query it with <code>SELECT</code>, <code>WHERE</code>, and <code>ORDER BY</code>.</li>
+<li>Explain what it means that SQL is <strong>declarative</strong>.</li>
+</ol>
+<div id="0bd2d70e" class="cell" data-execution_count="1">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> sqlite3</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+</section>
+<section id="before-the-csv" class="level2">
+<h2 class="anchored" data-anchor-id="before-the-csv">1. Before the CSV</h2>
+<p>Every notebook you have worked through in COMET or prAxIs starts the same way: <code>pd.read_csv</code>, and a clean dataframe appears, but it was not created out of nowhere. It was the final product of a pipeline somebody built: data born in one place, stored under rules, extracted, shaped, and finally handed to you. This stream is about everything that happens before the CSV, because that is where most real data work happens.</p>
+<p>Data is born in <strong>operational systems</strong>: the checkout that records a sale, the payroll system that records your hours, the interview software running a survey. Those systems write into databases, because they need guarantees a file cannot give: never lose a row, never let two edits collide, never accept an impossible value. Statistical agencies work the same way; a release like Statistics Canada’s Labour Force Survey starts as interview records in databases and passes through cleaning, coding, and weighting steps before anything public appears. The tidy CSV at the end is the visible tip of that process, and someone designed every step behind it. That someone is doing <strong>data engineering</strong>!</p>
+<p><a href="media/NB1/stream_map.png" class="lightbox" data-gallery="quarto-lightbox-gallery-1"><img src="media/NB1/stream_map.png" class="img-fluid" style="width:85.0%" alt="Stream roadmap: four arcs, Querying data (NB1-4), Designing and storing data (NB5-7), Keeping data flowing (NB8-9), and Data for AI (NB10-11), with the current notebook highlighted."></a></p>
+<p>Machine learning uses the same foundation. The training corpus of a large language model is the output of a pipeline that crawls the web, filters and deduplicates it, and stores it in formats built for scale (they appear in Notebook 6). A production recommender or fraud model is retrained on features extracted, by queries, from operational databases. A retrieval-augmented (RAG) chatbot is (in its simplest form) a database attached to a model: the model’s answers are only as good as what the data contains. This is an old observation in the field: the figure below, from a well-known Google paper, shows how little of a real ML system is the model itself, and how much is the data infrastructure around it.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="media/NB1/ml_small_fraction.png" class="lightbox" data-glightbox="description: .lightbox-desc-2" data-gallery="quarto-lightbox-gallery-2" title="Figure 1 of Sculley et al.&nbsp;(2015), “Hidden Technical Debt in Machine Learning Systems”. The small black box is the ML code; everything around it is the subject of this stream."><img src="media/NB1/ml_small_fraction.png" class="img-fluid figure-img" style="width:90.0%" alt="Figure 1 of Sculley et al.&nbsp;(2015), “Hidden Technical Debt in Machine Learning Systems”. The small black box is the ML code; everything around it is the subject of this stream."></a></p>
+<figcaption>Figure 1 of Sculley et al.&nbsp;(2015), “Hidden Technical Debt in Machine Learning Systems”. The small black box is the ML code; everything around it is the subject of this stream.</figcaption>
+</figure>
+</div>
+<p>There is also a more practical reason to learn this: employers ask for it. SQL has sat for years near the top of the most-requested skills in data analyst and data scientist job postings, often ahead of Python and R. The gap between how often jobs ask for SQL and how few students outside CS or statistics ever write any is the gap this stream will fill. This material is endlessly applicable.</p>
+<p>An aside (as you most likely have already thought of this): modern LLMs write SQL quite well, but this does not invalidate the skill. Someone still has to design what the tables mean, judge whether the generated query answers the question actually asked, and catch the query that runs error-free and returns the wrong thing. You cannot verify what you do not understand, so these skills are becoming more valuable as query-writing gets cheaper, the same way calculators made mathematical judgment matter more, and arithmetic itself matter less.</p>
+</section>
+<section id="why-a-file-is-not-enough" class="level2">
+<h2 class="anchored" data-anchor-id="why-a-file-is-not-enough">2. Why a file is not enough</h2>
+<p>If databases did not exist, the natural way to keep a dataset would be a file: a spreadsheet or a CSV. For a small dataset that one person analyzes and throws away, that works fine, and it is how plenty of real data is still kept. The trouble starts when data is shared, edited over time, and expected to stay correct, because a file enforces nothing: it is a sequence of characters, it accepts anything, and it stores every mistake the same as the real information we are after. The failures that follow are so common they have names:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>A typical failure</th>
+<th>What it is called</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>The same person stored several times, under several spellings</td>
+<td><strong>Redundancy</strong>, with no notion of identity to tie the copies together</td>
+</tr>
+<tr class="even">
+<td>A fix appended as an extra row, with the wrong row left in place</td>
+<td>An <strong>update anomaly</strong>: changing a fact creates a second version of it</td>
+</tr>
+<tr class="odd">
+<td>A wage column that quietly switches from annual salary to hourly wages</td>
+<td><strong>No enforced types or meaning</strong>: a column is whatever anyone types into it</td>
+</tr>
+<tr class="even">
+<td><code>BC</code>, <code>B.C.</code>, <code>bc</code>, <code>Britsh Columbia</code> in one region column</td>
+<td><strong>No controlled categories</strong>: free text where a fixed set of values was intended</td>
+</tr>
+<tr class="odd">
+<td>Several people editing emailed copies of one spreadsheet</td>
+<td>A <strong>concurrency</strong> problem: simultaneous edits with no referee</td>
+</tr>
+</tbody>
+</table>
+<p>None of these ever produces an error message. A file loads correctly with three spellings of one person just as it does with one, and the damage surfaces only later, in analysis results, where it is expensive to trace back, or, even worse, it never surfaces at all. Notebook 4 hands you a survey file with every one of these problems in it and teaches you to repair it.</p>
+<p>These failures reach the news regularly. In October 2020, nearly 16,000 positive COVID test results dropped out of England’s contact-tracing system because the reporting pipeline moved through an aging Excel file format whose row limit silently cut off every file that grew too long (BBC News, 2020). The tests existed and the files loaded; the rows past the limit simply were not in them, and thousands of exposed contacts went untraced.</p>
+<blockquote class="blockquote">
+<p><strong>Think Deeper.</strong> Your bank balance is a row in a database. Imagine it were a row in a spreadsheet emailed between branches: two deposits processed on two copies of the file, merged at the end of the day, and one of them simply vanishes. The reason that never happens is the piece of software this notebook is about.</p>
+</blockquote>
+</section>
+<section id="the-database-and-the-dbms" class="level2">
+<h2 class="anchored" data-anchor-id="the-database-and-the-dbms">3. The database and the DBMS</h2>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Three definitions
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>A <strong>database</strong> is a collection of data organized under explicit rules: what tables exist, what each column means and contains, and what counts as a valid entry.</p>
+<p>A <strong>database management system (DBMS)</strong> is the software that stores the data and enforces those rules, so that the mistakes from section 2 never happen.</p>
+<p><strong>SQL</strong> (Structured Query Language) is the standard language for asking a DBMS questions and giving it instructions.</p>
+</div>
+</div>
+<p>A DBMS has value because it takes over exactly the jobs a shared spreadsheet leaves to luck:</p>
+<ol type="1">
+<li><strong>Structure.</strong> Every table declares its columns and their types up front, and most database engines use those types to refuse values that do not fit, so a wage column which is meant to contain numerical entries can reject the text string <code>refused</code> outright. A change in what a column means has to become an explicit change in the structure of the database.</li>
+<li><strong>Integrity rules.</strong> The database can enforce that every respondent has exactly one row, that a region must come from a fixed list (for example, US states), or that a wage must fall in a plausible range.</li>
+<li><strong>One copy, many users.</strong> Everyone reads and writes the same single database, at the same time, and the DBMS handles the access so that edits are never lost.</li>
+<li><strong>Durability.</strong> If the machine crashes mid-write, the database recovers to a consistent state instead of a half-saved file.</li>
+<li><strong>A query language.</strong> Instead of every analyst writing their own cleaning-and-averaging script, everyone asks questions in the same language: SQL.</li>
+</ol>
+<p>The kind of database we use in this stream is a <strong>relational</strong> database, where data lives in tables: each row is one individual’s record, each column is one property of the individual (wage, age, location, etc.), and every row has the same columns.</p>
+<section id="sqlite" class="level3">
+<h3 class="anchored" data-anchor-id="sqlite">3.1 SQLite</h3>
+<p>The DBMS we will use for most of this stream is <strong>SQLite</strong>. It is a complete relational DBMS in a small library: it has no server or account requirements, and the entire database lives in a single file. It is also one of the most widely deployed databases in existence, running inside phones, browsers, and applications on billions of devices.</p>
+<p>The names you hear in industry, PostgreSQL, MySQL, SQL Server, and the cloud warehouses, are DBMSs too. Most of them run as a <strong>server</strong> that many users connect to over a network, which is how “one copy, many users” scales to a whole company. They all function in SQL, so nearly everything you learn on SQLite transfers directly.</p>
+</section>
+</section>
+<section id="a-first-database" class="level2">
+<h2 class="anchored" data-anchor-id="a-first-database">4. A first database</h2>
+<p>Time to build one. The dataset for this stream is a wage survey: 1,000 respondents, one row each, with their age, education, province, industry, hours, and hourly wage. It is simulated for the stream, modelled on labour force surveys, and every later notebook builds on it.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Why simulated data?
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>The simulation is a deliberate choice we make in this stream, and later notebooks take ever greater advantage of it. A teaching dataset needs a truth we know and failures we control: Notebook 4 cleans a file whose every flaw was planted in advance, and Notebook 7 recovers wage premiums we wrote into the world ourselves. Real public wage microdata can do neither, because it is anonymized before release, and what anonymization strips out is exactly what this stream teaches. Where real data fits, we use it: Notebook 2’s province table carries the true legal minimum wages and populations, and the final two notebooks run entirely on real consumer complaints.</p>
+</div>
+</div>
+<p>We load our simulated survey dataset into the notebook from a .csv:</p>
+<div id="10db6b23" class="cell" data-execution_count="2">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>survey <span class="op">=</span> pd.read_csv(<span class="st">"datasets/wage_survey.csv"</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>survey.head()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="2">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">respondent_id</th>
+<th data-quarto-table-cell-role="th">age</th>
+<th data-quarto-table-cell-role="th">gender</th>
+<th data-quarto-table-cell-role="th">education</th>
+<th data-quarto-table-cell-role="th">province</th>
+<th data-quarto-table-cell-role="th">industry</th>
+<th data-quarto-table-cell-role="th">union_member</th>
+<th data-quarto-table-cell-role="th">weekly_hours</th>
+<th data-quarto-table-cell-role="th">hourly_wage</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>1</td>
+<td>23</td>
+<td>Man</td>
+<td>Bachelor's degree</td>
+<td>British Columbia</td>
+<td>Manufacturing</td>
+<td>0</td>
+<td>40.0</td>
+<td>31.61</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>2</td>
+<td>55</td>
+<td>Man</td>
+<td>Graduate degree</td>
+<td>Ontario</td>
+<td>Health care</td>
+<td>0</td>
+<td>37.5</td>
+<td>49.16</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>3</td>
+<td>49</td>
+<td>Man</td>
+<td>College diploma</td>
+<td>Quebec</td>
+<td>Retail</td>
+<td>0</td>
+<td>40.0</td>
+<td>24.70</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>4</td>
+<td>39</td>
+<td>Man</td>
+<td>College diploma</td>
+<td>Ontario</td>
+<td>Education</td>
+<td>0</td>
+<td>40.0</td>
+<td>26.09</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">4</td>
+<td>5</td>
+<td>39</td>
+<td>Man</td>
+<td>Bachelor's degree</td>
+<td>British Columbia</td>
+<td>Technology</td>
+<td>0</td>
+<td>35.0</td>
+<td>53.48</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>Loading it into SQLite takes two lines: connect, then write the dataframe in as a table. The connection creates <code>wage_survey.db</code> in the datasets folder, and that single file is the entire database. The number the cell returns is the count of rows written.</p>
+<div id="13391994" class="cell" data-execution_count="3">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>conn <span class="op">=</span> sqlite3.<span class="ex">connect</span>(<span class="st">"datasets/wage_survey.db"</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>survey.to_sql(<span class="st">"survey"</span>, conn, index<span class="op">=</span><span class="va">False</span>, if_exists<span class="op">=</span><span class="st">"replace"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="3">
+<pre><code>1000</code></pre>
+</div>
+</div>
+<p>The table now has declared structure, which we can ask the database to show us:</p>
+<div id="7d3dde4e" class="cell" data-execution_count="4">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>pd.read_sql(<span class="st">"PRAGMA table_info(survey)"</span>, conn)[[<span class="st">"name"</span>, <span class="st">"type"</span>]]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="4">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">name</th>
+<th data-quarto-table-cell-role="th">type</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>respondent_id</td>
+<td>INTEGER</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>age</td>
+<td>INTEGER</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>gender</td>
+<td>TEXT</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>education</td>
+<td>TEXT</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">4</td>
+<td>province</td>
+<td>TEXT</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">5</td>
+<td>industry</td>
+<td>TEXT</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">6</td>
+<td>union_member</td>
+<td>INTEGER</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">7</td>
+<td>weekly_hours</td>
+<td>REAL</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">8</td>
+<td>hourly_wage</td>
+<td>REAL</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>Every column has a type: <code>INTEGER</code> for counts and codes, <code>REAL</code> for wages and hours, <code>TEXT</code> for categories. This is the schema, the table’s contract about what each column holds. In this notebook we inherit it automatically from the dataframe; in Notebook 5 we will write schemas ourselves and add the integrity rules that make the database refuse bad data outright.</p>
+<section id="select" class="level3">
+<h3 class="anchored" data-anchor-id="select">4.1 SELECT</h3>
+<p>Every question we ask a database in this stream is some elaboration of a <code>SELECT</code> statement. The basic shape is <code>SELECT</code> <em>which columns</em> <code>FROM</code> <em>which table</em>, and we run it with <code>pd.read_sql</code>, which sends the query to SQLite and hands the result back as a dataframe:</p>
+<div id="ddb6bd34" class="cell" data-execution_count="5">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>pd.read_sql(<span class="st">"SELECT respondent_id, age, education, province, hourly_wage FROM survey LIMIT 5"</span>, conn)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="5">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">respondent_id</th>
+<th data-quarto-table-cell-role="th">age</th>
+<th data-quarto-table-cell-role="th">education</th>
+<th data-quarto-table-cell-role="th">province</th>
+<th data-quarto-table-cell-role="th">hourly_wage</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>1</td>
+<td>23</td>
+<td>Bachelor's degree</td>
+<td>British Columbia</td>
+<td>31.61</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>2</td>
+<td>55</td>
+<td>Graduate degree</td>
+<td>Ontario</td>
+<td>49.16</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>3</td>
+<td>49</td>
+<td>College diploma</td>
+<td>Quebec</td>
+<td>24.70</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>4</td>
+<td>39</td>
+<td>College diploma</td>
+<td>Ontario</td>
+<td>26.09</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">4</td>
+<td>5</td>
+<td>39</td>
+<td>Bachelor's degree</td>
+<td>British Columbia</td>
+<td>53.48</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p><code>LIMIT 5</code> caps the output, playing the role <code>.head()</code> plays in <code>pandas</code>. Note what happened here: <code>pandas</code> did no work beyond displaying the result. The database found the columns and rows and returned only them.</p>
+<p>For the remainder of the stream we will not run queries through <code>pd.read_sql</code>; Jupyter notebooks have a better way: the <code>jupysql</code> extension adds a <code>%%sql</code> marker that turns an entire cell into SQL. We set it up once, pointing it at our database file and asking for results as dataframes:</p>
+<div id="2389af9d" class="cell" data-execution_count="6">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="op">%</span>load_ext sql</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="op">%</span>config SqlMagic.autopandas <span class="op">=</span> <span class="va">True</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="op">%</span>config SqlMagic.displaycon <span class="op">=</span> <span class="va">False</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="op">%</span>config SqlMagic.feedback <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="op">%</span>sql sqlite:<span class="op">///</span>datasets<span class="op">/</span>wage_survey.db</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>From here on, every query cell in this stream is written this way: pure SQL, one clause per line, the standard format you will find in documentation, on practice sites, and in interviews. Here is the same <code>SELECT</code> again in its new form:</p>
+<div id="4ac25f28" class="cell" data-execution_count="7">
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>SELECT respondent_id, age, education, province, hourly_wage</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>FROM survey</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>LIMIT <span class="dv">5</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="7">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">respondent_id</th>
+<th data-quarto-table-cell-role="th">age</th>
+<th data-quarto-table-cell-role="th">education</th>
+<th data-quarto-table-cell-role="th">province</th>
+<th data-quarto-table-cell-role="th">hourly_wage</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>1</td>
+<td>23</td>
+<td>Bachelor's degree</td>
+<td>British Columbia</td>
+<td>31.61</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>2</td>
+<td>55</td>
+<td>Graduate degree</td>
+<td>Ontario</td>
+<td>49.16</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>3</td>
+<td>49</td>
+<td>College diploma</td>
+<td>Quebec</td>
+<td>24.70</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>4</td>
+<td>39</td>
+<td>College diploma</td>
+<td>Ontario</td>
+<td>26.09</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">4</td>
+<td>5</td>
+<td>39</td>
+<td>Bachelor's degree</td>
+<td>British Columbia</td>
+<td>53.48</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</section>
+<section id="where" class="level3">
+<h3 class="anchored" data-anchor-id="where">4.2 WHERE</h3>
+<p><code>WHERE</code> keeps the rows that satisfy a condition. Conditions can be combined with <code>AND</code> and <code>OR</code>, and text values are compared against strings in single quotes. Here is every respondent in British Columbia earning 40 dollars an hour or more:</p>
+<div id="c96aab46" class="cell" data-execution_count="8">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>SELECT respondent_id, industry, hourly_wage</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>FROM survey</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>WHERE province <span class="op">=</span> <span class="st">'British Columbia'</span> AND hourly_wage <span class="op">&gt;=</span> <span class="dv">40</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="8">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">respondent_id</th>
+<th data-quarto-table-cell-role="th">industry</th>
+<th data-quarto-table-cell-role="th">hourly_wage</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>5</td>
+<td>Technology</td>
+<td>53.48</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>13</td>
+<td>Public administration</td>
+<td>48.52</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>15</td>
+<td>Public administration</td>
+<td>78.71</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>21</td>
+<td>Health care</td>
+<td>49.04</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">4</td>
+<td>26</td>
+<td>Health care</td>
+<td>42.45</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">...</td>
+<td>...</td>
+<td>...</td>
+<td>...</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">133</td>
+<td>953</td>
+<td>Education</td>
+<td>47.95</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">134</td>
+<td>969</td>
+<td>Public administration</td>
+<td>44.82</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">135</td>
+<td>989</td>
+<td>Construction</td>
+<td>41.24</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">136</td>
+<td>992</td>
+<td>Finance</td>
+<td>43.81</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">137</td>
+<td>995</td>
+<td>Construction</td>
+<td>73.90</td>
+</tr>
+</tbody>
+</table>
+
+<p>138 rows × 3 columns</p>
+</div>
+</div>
+</div>
+<p>The footer of the result counts 138 rows, and the condition we wanted, <code>province = 'British Columbia'</code>, works with no guessing about spellings, because the rules the data was collected under guarantee the table contains exactly one spelling.</p>
+<blockquote class="blockquote">
+<p><strong>Your turn.</strong> Write a query that returns the <code>respondent_id</code>, <code>industry</code>, and <code>weekly_hours</code> of every respondent in Alberta who works fewer than 30 hours a week. Start the cell with <code>%%sql</code>. If it is right, it returns 26 rows.</p>
+</blockquote>
+<div id="d4e363ee" class="cell" data-execution_count="9">
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># your query here</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<details>
+<summary>
+Show / hide answer
+</summary>
+<div class="sourceCode" id="cb11"><pre class="sourceCode sql code-with-copy"><code class="sourceCode sql"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>%%sql</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> respondent_id, industry, weekly_hours</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span> survey</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span> province <span class="op">=</span> <span class="st">'Alberta'</span> <span class="kw">AND</span> weekly_hours <span class="op">&lt;</span> <span class="dv">30</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</section>
+<section id="order-by" class="level3">
+<h3 class="anchored" data-anchor-id="order-by">4.3 ORDER BY</h3>
+<p><code>ORDER BY</code> sorts the result by a column, with <code>DESC</code> for descending. The five highest earners in the survey:</p>
+<div id="cc5b8a83" class="cell" data-execution_count="10">
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>SELECT respondent_id, province, industry, education, hourly_wage</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>FROM survey</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>ORDER BY hourly_wage DESC</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>LIMIT <span class="dv">5</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="10">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">respondent_id</th>
+<th data-quarto-table-cell-role="th">province</th>
+<th data-quarto-table-cell-role="th">industry</th>
+<th data-quarto-table-cell-role="th">education</th>
+<th data-quarto-table-cell-role="th">hourly_wage</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>702</td>
+<td>Quebec</td>
+<td>Technology</td>
+<td>Graduate degree</td>
+<td>113.04</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>223</td>
+<td>Alberta</td>
+<td>Finance</td>
+<td>Bachelor's degree</td>
+<td>102.77</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>774</td>
+<td>Ontario</td>
+<td>Finance</td>
+<td>Bachelor's degree</td>
+<td>92.07</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>755</td>
+<td>British Columbia</td>
+<td>Finance</td>
+<td>Graduate degree</td>
+<td>91.26</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">4</td>
+<td>176</td>
+<td>Saskatchewan</td>
+<td>Finance</td>
+<td>Graduate degree</td>
+<td>87.55</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>Technology and finance at the top, with university degrees, which is what we would expect. The main point is how effortless and human-readable the syntax is.</p>
+<p>Anything the database returns is a dataframe, so it plugs straight into the tools you already know. <code>jupysql</code>’s <code>&lt;&lt;</code> arrow stores a query’s result in a Python variable, so the survey’s whole wage distribution is one <code>SELECT</code> away:</p>
+<div id="64a7c4ed" class="cell" data-execution_count="11">
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql all_wages <span class="op">&lt;&lt;</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>SELECT hourly_wage</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>FROM survey</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>And we can use Python visualization libraries like Matplotlib to graph it.</p>
+<div id="c292a913" class="cell" data-execution_count="12">
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>plt.figure(figsize<span class="op">=</span>(<span class="dv">9</span>, <span class="dv">5</span>))</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>plt.hist(all_wages[<span class="st">"hourly_wage"</span>], bins<span class="op">=</span><span class="dv">40</span>, color<span class="op">=</span><span class="st">"tab:green"</span>, alpha<span class="op">=</span><span class="fl">0.85</span>)</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>plt.xlabel(<span class="st">"hourly wage (dollars)"</span>)</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>plt.ylabel(<span class="st">"number of respondents"</span>)</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>plt.title(<span class="st">"Hourly wages of the 1,000 survey respondents"</span>)</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><a href="notebook_01_why_databases_exist_files/figure-html/cell-13-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-3"><img src="notebook_01_why_databases_exist_files/figure-html/cell-13-output-1.png" width="742" height="449" class="figure-img"></a></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+SQL is declarative
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>In every query above we described the result we wanted, and never the steps to compute it. We did not write loops, did not decide what columns or rows to scan in which order, and did not manage memory; the DBMS chose how to execute each query, and it is extremely good at choosing. A language where you state <em>what</em> you want is called <strong>declarative</strong>. Most of the programming you know, Python/R included, is <em>imperative</em>: you spell out the steps. This division of labour, you declare, the engine executes, is a big part of why SQL has outlived every language fashion cycle since the 1970s.</p>
+</div>
+</div>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Self-test
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><code>survey.head()</code> at the top of this section and <code>SELECT ... LIMIT 5</code> produced similar five-row previews. What is different about how the two answers were made?</p>
+<details>
+<summary>
+Show / hide answer
+</summary>
+<code>.head()</code> sliced a dataframe that Python was already holding fully in memory; <code>read_csv</code> had loaded all 1,000 rows before we asked for five. The <code>SELECT</code> sent a request to the database, and only the five rows and five columns asked for ever came back. With 1,000 rows the difference is invisible. With a hundred million rows, loading everything into memory stops being possible, and asking the database for only what you need is the way that keeps working. Notebook 6 dives deeper into this.
+</details>
+</div>
+</div>
+</section>
+</section>
+<section id="the-road-ahead" class="level2">
+<h2 class="anchored" data-anchor-id="the-road-ahead">5. The road ahead</h2>
+<p>This stream is eleven notebooks, in four arcs. Here is the map, which reappears in each one so you always know where you are:</p>
+<p><a href="media/NB1/stream_map.png" class="lightbox" data-gallery="quarto-lightbox-gallery-4"><img src="media/NB1/stream_map.png" class="img-fluid" style="width:85.0%" alt="Stream roadmap: four arcs, Querying data (NB1-4), Designing and storing data (NB5-7), Keeping data flowing (NB8-9), and Data for AI (NB10-11), with the current notebook highlighted."></a></p>
+<p>You are here, at <strong>Notebook 1</strong>. Each later notebook takes the wage survey one step further:</p>
+<ul>
+<li><strong>Notebook 2, Basic querying.</strong> The core of SQL in a single <code>SELECT</code>: joins across tables and why they change row counts, <code>GROUP BY</code> and aggregates, <code>NULL</code> and its silent effects on averages, <code>CASE</code> logic, and a bunch of plausible-looking wrong queries for you to fix.</li>
+<li><strong>Notebook 3, Advanced SQL.</strong> Subqueries, CTEs, and views; window functions; inserting and updating data; and how to run SQL from Python safely, including what a SQL injection is.</li>
+<li><strong>Notebook 4, Cleaning real data.</strong> We get handed a hand-maintained survey file with every failure from section 2 in it, and clean it properly: entity resolution for respondents recorded under several spellings, string and date repair, outlier flags, imputation choices, and every fix as a reproducible script against immutable raw data.</li>
+<li><strong>Notebook 5, Designing data.</strong> Entity-relationship modelling, primary and foreign keys, constraints that make the database refuse bad rows, and normalization, connected to the tidy data idea you know from COMET or DSCI 100.</li>
+<li><strong>Notebook 6, Storage, speed, and transactions.</strong> ACID and deliberately crashing a database mid-write, indexes and reading query plans, row versus column storage with DuckDB benchmarks, and why Parquet beats CSV.</li>
+<li><strong>Notebook 7, Two kinds of databases.</strong> Transactional versus analytical workloads, star schemas, the ETL step between them, warehouses and lakes.</li>
+<li><strong>Notebook 8, Pipelines I: scripts to graphs.</strong> An update script dies halfway, and re-running it double-counts everything; idempotency, incremental loads, logging and retries, and pipelines as directed acyclic graphs you build, sabotage, and fix.</li>
+<li><strong>Notebook 9, Pipelines II: quality, lineage, and time.</strong> A new month of data arrives subtly broken and the pipeline runs green anyway; validation checks that halt bad loads, tracing what a bad file poisoned, a small scheduler, and backfills, which are the concepts industry tools like dbt and Airflow sell.</li>
+<li><strong>Notebook 10, Databases for AI.</strong> Embeddings as coordinates of meaning, similarity search as an <code>ORDER BY distance</code>, where semantic search beats exact matching and where it loses.</li>
+<li><strong>Notebook 11, Capstone RAG.</strong> Build a full retrieval-augmented generation (RAG) system on a corpus of real consumer complaints: an ingestion pipeline that extracts, cleans, chunks, embeds, validates, and loads the data, a language model that answers questions with citations, and every answer traceable back to its source rows.</li>
+</ul>
+</section>
+<section id="conclusion" class="level2">
+<h2 class="anchored" data-anchor-id="conclusion">6. Conclusion</h2>
+<p>Behind every COMET and prAxIs dataframe is a pipeline, behind every pipeline is a database, and behind every database is a DBMS enforcing rules that files cannot: declared structure, integrity, one shared copy, durability, and a common query language. We built our first one today and asked it our first questions in SQL, declaring what we wanted and letting the engine work out how. The rest of the stream builds outward from here, and the next step is learning to query properly: several tables at once, grouped, joined, and summarized.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+You can now answer these interview questions
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>Is a CSV file a database?</li>
+<li>What does a DBMS provide that a file system does not?</li>
+<li>What goes wrong when several people maintain the same data file by hand?</li>
+<li>What is SQL, and what does it mean that it is declarative?</li>
+</ul>
+<details>
+<summary>
+Show / hide model answers
+</summary>
+<ul>
+<li>No.&nbsp;A CSV is storage with no enforced structure: no types, no identity, no valid ranges, and no rules at all, so errors are stored as faithfully as facts. A database is data plus enforced rules, managed by software.</li>
+<li>Declared structure and types, integrity rules that reject invalid data, safe concurrent access to a single shared copy, durability after crashes, and a standard query language.</li>
+<li>Redundant conflicting copies, lost updates when merges collide, corrections that pile up instead of replacing what they fix, and columns whose meaning drifts because nothing pins it down.</li>
+<li>SQL is the standard language for querying and modifying relational databases. Declarative means a query states the result wanted, and the DBMS decides how to compute it.</li>
+</ul>
+</details>
+</div>
+</div>
+</section>
+<section id="connections" class="level2">
+<h2 class="anchored" data-anchor-id="connections">Connections</h2>
+<ul>
+<li><strong>Back:</strong> the COMET intermediate <code>pandas</code> and Python material. This stream stands alone; nothing from the other prAxIs streams is required.</li>
+<li><strong>Forward to <a href="../../docs/Data_Engineer/notebook_02_basic_querying.html">Notebook 2</a>:</strong> everything today was one table queried with single conditions. Next we join tables together, group and aggregate, meet <code>NULL</code> and <code>CASE</code>, and start reading and fixing broken queries.</li>
+</ul>
+<section id="references" class="level3">
+<h3 class="anchored" data-anchor-id="references">References</h3>
+<ul>
+<li>BBC News. (2020). <em>Excel: Why using Microsoft’s tool caused Covid-19 results to be lost.</em> https://www.bbc.com/news/technology-54423988</li>
+<li>Codd, E. F. (1970). <em>A relational model of data for large shared data banks.</em> Communications of the ACM, 13(6), 377-387. The paper that proposed the relational model.</li>
+<li>GeeksforGeeks. (2025). <em>Introduction of DBMS (database management system).</em> GeeksforGeeks. https://www.geeksforgeeks.org/dbms/introduction-of-dbms-database-management-system-set-1/</li>
+<li>Kleppmann, M. (2017). <em>Designing Data-Intensive Applications.</em> O’Reilly. (Chapters 1 and 2 for what storage systems promise and why.)</li>
+<li>Malan, D. (2024). <em>CS50’s Introduction to Databases with SQL.</em> Harvard University. https://cs50.harvard.edu/sql/</li>
+<li>Parameswaran, A., et al.&nbsp;<em>DATA 101: Data Engineering.</em> UC Berkeley. https://data101.org/ The university course closest in spirit to this stream.</li>
+<li>Sculley, D., Holt, G., Golovin, D., Davydov, E., Phillips, T., Ebner, D., Chaudhary, V., Young, M., Crespo, J.-F., &amp; Dennison, D. (2015). <em>Hidden technical debt in machine learning systems.</em> Advances in Neural Information Processing Systems, 28. The “ML is a small box inside data infrastructure” paper.</li>
+<li>SQLite Consortium. <em>Most widely deployed and used database engine.</em> https://www.sqlite.org/mostdeployed.html and <em>Appropriate uses for SQLite.</em> https://www.sqlite.org/whentouse.html</li>
+</ul>
+<hr>
+
+
+<div class="hidden" aria-hidden="true">
+<span class="glightbox-desc lightbox-desc-2">Figure 1 of Sculley et al.&nbsp;(2015), “Hidden Technical Debt in Machine Learning Systems”. The small black box is the ML code; everything around it is the subject of this stream.</span>
+</div>
+</section>
+</section>
+
+</main> <!-- /main -->
+<button id="scroll-to-top" aria-label="Back to top">
+  <svg width="18" height="18" viewbox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M12 19V5M12 5L5 12M12 5L19 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path>
+  </svg>
+</button>
+
+<style>
+#scroll-to-top {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  z-index: 999;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+
+  /* Follows the active Comet theme (light/dark) automatically,
+     since these are the same Bootstrap vars compiled from
+     comet_theme.scss / comet_theme_dark.scss */
+  background-color: var(--bs-primary, #041746);
+  color: #FFFFFF;
+
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(10px);
+  transition: opacity 0.2s ease, transform 0.2s ease, background-color 0.2s ease;
+}
+
+#scroll-to-top.is-visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+#scroll-to-top:hover,
+#scroll-to-top:focus-visible {
+  background-color: var(--bs-secondary, #CC7A00);
+  outline: none;
+}
+
+#scroll-to-top svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Tooltip shown on hover/focus, to the left so it stays in the viewport */
+#scroll-to-top::after {
+  content: "Back to top";
+  position: absolute;
+  right: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background-color: rgba(0, 0, 0, 0.8);
+  color: #FFFFFF;
+  font-size: 0.8rem;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+#scroll-to-top:hover::after,
+#scroll-to-top:focus-visible::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+@media (max-width: 768px) {
+  #scroll-to-top {
+    bottom: 20px;
+    right: 16px;
+    width: 40px;
+    height: 40px;
+  }
+}
+</style>
+
+<script>
+(function () {
+  var btn = document.getElementById("scroll-to-top");
+  if (!btn) return;
+
+  var toggleVisibility = function () {
+    if (window.scrollY > 300) {
+      btn.classList.add("is-visible");
+    } else {
+      btn.classList.remove("is-visible");
+    }
+  };
+
+  window.addEventListener("scroll", toggleVisibility, { passive: true });
+  toggleVisibility();
+
+  btn.addEventListener("click", function () {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+})();
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const disableStylesheet = (stylesheets) => {
+    for (let i=0; i < stylesheets.length; i++) {
+      const stylesheet = stylesheets[i];
+      stylesheet.rel = 'prefetch';
+    }
+  }
+  const enableStylesheet = (stylesheets) => {
+    for (let i=0; i < stylesheets.length; i++) {
+      const stylesheet = stylesheets[i];
+      stylesheet.rel = 'stylesheet';
+    }
+  }
+  const manageTransitions = (selector, allowTransitions) => {
+    const els = window.document.querySelectorAll(selector);
+    for (let i=0; i < els.length; i++) {
+      const el = els[i];
+      if (allowTransitions) {
+        el.classList.remove('notransition');
+      } else {
+        el.classList.add('notransition');
+      }
+    }
+  }
+  const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+    const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+    const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+    let newTheme = '';
+    if(darkModeDefault) {
+      newTheme = isAlternate ? baseTheme : alternateTheme;
+    } else {
+      newTheme = isAlternate ? alternateTheme : baseTheme;
+    }
+    const changeGiscusTheme = () => {
+      // From: https://github.com/giscus/giscus/issues/336
+      const sendMessage = (message) => {
+        const iframe = document.querySelector('iframe.giscus-frame');
+        if (!iframe) return;
+        iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+      }
+      sendMessage({
+        setConfig: {
+          theme: newTheme
+        }
+      });
+    }
+    const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+    if (isGiscussLoaded) {
+      changeGiscusTheme();
+    }
+  }
+  const toggleColorMode = (alternate) => {
+    // Switch the stylesheets
+    const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+    manageTransitions('#quarto-margin-sidebar .nav-link', false);
+    if (alternate) {
+      enableStylesheet(alternateStylesheets);
+      for (const sheetNode of alternateStylesheets) {
+        if (sheetNode.id === "quarto-bootstrap") {
+          toggleBodyColorMode(sheetNode);
+        }
+      }
+    } else {
+      disableStylesheet(alternateStylesheets);
+      toggleBodyColorPrimary();
+    }
+    manageTransitions('#quarto-margin-sidebar .nav-link', true);
+    // Switch the toggles
+    const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+    for (let i=0; i < toggles.length; i++) {
+      const toggle = toggles[i];
+      if (toggle) {
+        if (alternate) {
+          toggle.classList.add("alternate");     
+        } else {
+          toggle.classList.remove("alternate");
+        }
+      }
+    }
+    // Hack to workaround the fact that safari doesn't
+    // properly recolor the scrollbar when toggling (#1455)
+    if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+      manageTransitions("body", false);
+      window.scrollTo(0, 1);
+      setTimeout(() => {
+        window.scrollTo(0, 0);
+        manageTransitions("body", true);
+      }, 40);  
+    }
+  }
+  const isFileUrl = () => { 
+    return window.location.protocol === 'file:';
+  }
+  const hasAlternateSentinel = () => {  
+    let styleSentinel = getColorSchemeSentinel();
+    if (styleSentinel !== null) {
+      return styleSentinel === "alternate";
+    } else {
+      return false;
+    }
+  }
+  const setStyleSentinel = (alternate) => {
+    const value = alternate ? "alternate" : "default";
+    if (!isFileUrl()) {
+      window.localStorage.setItem("quarto-color-scheme", value);
+    } else {
+      localAlternateSentinel = value;
+    }
+  }
+  const getColorSchemeSentinel = () => {
+    if (!isFileUrl()) {
+      const storageValue = window.localStorage.getItem("quarto-color-scheme");
+      return storageValue != null ? storageValue : localAlternateSentinel;
+    } else {
+      return localAlternateSentinel;
+    }
+  }
+  const darkModeDefault = false;
+  let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+  // Dark / light mode switch
+  window.quartoToggleColorScheme = () => {
+    // Read the current dark / light value 
+    let toAlternate = !hasAlternateSentinel();
+    toggleColorMode(toAlternate);
+    setStyleSentinel(toAlternate);
+    toggleGiscusIfUsed(toAlternate, darkModeDefault);
+  };
+  // Ensure there is a toggle, if there isn't float one in the top right
+  if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+    const a = window.document.createElement('a');
+    a.classList.add('top-right');
+    a.classList.add('quarto-color-scheme-toggle');
+    a.href = "";
+    a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+    const i = window.document.createElement("i");
+    i.classList.add('bi');
+    a.appendChild(i);
+    window.document.body.appendChild(a);
+  }
+  // Switch to dark mode if need be
+  if (hasAlternateSentinel()) {
+    toggleColorMode(true);
+  } else {
+    toggleColorMode(false);
+  }
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+          // target, if specified
+          link.setAttribute("target", "_blank");
+          if (link.getAttribute("rel") === null) {
+            link.setAttribute("rel", "noopener");
+          }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      // TODO in 1.5, we should make sure this works without a callout special case
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+ <a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc-sa/4.0/80x15.png"></a>.  <a rel="license" href="https://ubcecon.github.io/comet-open/pages/copyright.html">See details.</a>
+  </li>  
+</ul>
+    </div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/ubcecon/praxis-ubc/issues/new" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></div>
+    <div class="nav-footer-right">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+ The Praxis Project and UBC are located on the traditional, ancestral and unceded territory of the xʷməθkʷəy̓əm (Musqueam) and Sḵwx̱wú7mesh (Squamish) peoples.
+  </li>  
+</ul>
+    </div>
+  </div>
+</footer>
+<script>var lightboxQuarto = GLightbox({"selector":".lightbox","descPosition":"bottom","openEffect":"zoom","closeEffect":"zoom","loop":false});
+window.onload = () => {
+  lightboxQuarto.on('slide_before_load', (data) => {
+    const { slideIndex, slideNode, slideConfig, player, trigger } = data;
+    const href = trigger.getAttribute('href');
+    if (href !== null) {
+      const imgEl = window.document.querySelector(`a[href="${href}"] img`);
+      if (imgEl !== null) {
+        const srcAttr = imgEl.getAttribute("src");
+        if (srcAttr && srcAttr.startsWith("data:")) {
+          slideConfig.href = srcAttr;
+        }
+      }
+    } 
+  });
+
+  lightboxQuarto.on('slide_after_load', (data) => {
+    const { slideIndex, slideNode, slideConfig, player, trigger } = data;
+    if (window.Quarto?.typesetMath) {
+      window.Quarto.typesetMath(slideNode);
+    }
+  });
+
+};
+          </script>
+
+
+
+
+</body></html>

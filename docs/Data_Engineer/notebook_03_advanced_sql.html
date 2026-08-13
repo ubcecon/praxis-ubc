@@ -1,0 +1,2408 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-GB" xml:lang="en-GB"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.4.557">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Alex Ronczewski">
+<meta name="dcterms.date" content="2026-07-23">
+<meta name="description" content="The third notebook in the Data Engineering stream. We have a queue of tickets to fix and we need new tools: subqueries, CTEs, and views to build queries out of other queries, window functions to rank and accumulate without collapsing rows, INSERT, UPDATE and DELETE for a database that lives and changes, and parameterized queries to survive contact with user input.">
+
+<title>Praxis - Advanced SQL</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script><script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<link href="../../media/praxis-badge.png" rel="icon" type="image/png">
+<script src="../../site_libs/quarto-html/quarto.js"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark.css" rel="prefetch" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark.min.css" rel="prefetch" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<script src="../../site_libs/quarto-contrib/glightbox/glightbox.min.js"></script>
+<link href="../../site_libs/quarto-contrib/glightbox/glightbox.min.css" rel="stylesheet">
+<link href="../../site_libs/quarto-contrib/glightbox/lightbox.css" rel="stylesheet">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<meta name="keywords" content="economics, econometrics, R, data, machine learning, UBC, COMET, geog 374, econ 325, econ 326, learning, teaching, learn r, r help, help, tutorial, r tutorial for beginners,learning statistics with r, learn r programming, learn statistics, linear regression, r machine learning, learn machine learning, university of british columbia, british columbia, r programming for beginners, r language tutorial, r tutorial for beginners, economic data, econometrics tutoring, economics help for students, economics homework help, oer resources for teachers, open educational resources for teachers, educational resource, oer project, oer materials, oer resources, learn economics online, learn econometrics, teach yourself economics, teach yourself econometrics, econometrics basics for beginners">
+
+<!-- Google Search Console -->
+<meta name="google-site-verification" content="wUHlRBWRzzUYwBbnKdvYg0lBpw5b0F7hnEq-QekkpQw">
+<!-- End Google Search Console -->
+
+<script>
+(function() {
+    function updateThemeImages() {
+        var isDark = document.body.classList.contains('quarto-dark');
+        var images = document.querySelectorAll('img[data-light-src][data-dark-src]');
+
+        images.forEach(function(img) {
+            var lightSrc = img.getAttribute('data-light-src');
+            var darkSrc = img.getAttribute('data-dark-src');
+            var newSrc = isDark ? darkSrc : lightSrc;
+
+            // Only update if src is different to avoid reload flicker
+            if (img.getAttribute('src') !== newSrc) {
+                img.setAttribute('src', newSrc);
+            }
+        });
+    }
+
+    // Run when DOM is ready
+    document.addEventListener('DOMContentLoaded', function() {
+        updateThemeImages();
+
+        // Watch for theme changes on body
+        var observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.attributeName === 'class') {
+                    updateThemeImages();
+                }
+            });
+        });
+
+        observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    });
+
+    // Also run after full page load
+    window.addEventListener('load', updateThemeImages);
+})();
+</script>
+
+<!-- Cloudflare Web Analytics -->
+<script defer="" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon="{&quot;token&quot;: &quot;911859291fee44e6ba0acc25f4f08be4&quot;}"></script>
+<!-- End Cloudflare Web Analytics -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" integrity="sha512-c3Nl8+7g4LMSTdrm621y7kf9v3SDPnhxLNhcjFJbKECVnmZHTdo+IRO05sNLTH/D3vA6u1X32ehoLC7WFVdheg==" crossorigin="anonymous"></script>
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+
+
+<link rel="stylesheet" href="../../styles.css">
+</head>
+
+<body class="nav-fixed">
+<!-- praxis-launch-notebook: per-notebook launch button (injected into output HTML at build time) -->
+<script>
+(function () {
+  // Notebooks that get a launch button (path from "docs/", no extension)
+  var NOTEBOOKS = [
+    "docs/AMNE-376/amne_376_image_embedding",
+    "docs/CTree_CEA/political_economy",
+    "docs/Causal_ML/notebook_01_prediction_inference_causality",
+    "docs/Causal_ML/notebook_02_regularization_ridge_lasso",
+    "docs/Causal_ML/notebook_03_trees_forests_boosting",
+    "docs/Causal_ML/notebook_04_prediction_to_treatment_effects",
+    "docs/Causal_ML/notebook_05_post_double_selection",
+    "docs/Causal_ML/notebook_06_propensity_ipw",
+    "docs/Causal_ML/notebook_07_double_machine_learning",
+    "docs/Causal_ML/notebook_08_heterogeneous_effects_causal_forests",
+    "docs/Data_Engineer/notebook_01_why_databases_exist",
+    "docs/Data_Engineer/notebook_02_basic_querying",
+    "docs/Data_Engineer/notebook_03_advanced_sql",
+    "docs/Data_Engineer/notebook_04_cleaning_real_data",
+    "docs/Data_Engineer/notebook_05_designing_data",
+    "docs/Data_Engineer/notebook_06_storage_speed_transactions",
+    "docs/Data_Engineer/notebook_07_two_kinds_of_databases",
+    "docs/Data_Engineer/notebook_08_pipelines_one",
+    "docs/Data_Engineer/notebook_09_pipelines_two",
+    "docs/Data_Engineer/notebook_10_embeddings_vector_search",
+    "docs/Data_Engineer/notebook_11_capstone_rag",
+    "docs/ECON-227/llm_distributions",
+    "docs/Game_Theory/notebook_01_games_best_responses_nash",
+    "docs/Game_Theory/notebook_02_mixed_strategies_fictitious_play",
+    "docs/Game_Theory/notebook_03_repeated_games_axelrod_tournament",
+    "docs/Game_Theory/notebook_04_learning_agents_collusion",
+    "docs/OCR/ocr_notebook",
+    "docs/SOCI-280/soci_280_bert",
+    "docs/SOCI-415/cbdb_dataset",
+    "docs/SOCI-415/kinmatrix",
+    "docs/SOCI-415/soci_415_network_analysis",
+    "docs/hist_workshop/text_embeddings_workshop",
+    "docs/image_analysis/image_analysis",
+    "docs/intro_to_cnns/intro_to_cnn",
+    "docs/intro_to_convolutions/intro_to_convolution",
+    "docs/intro_to_deep_learning/intro_to_fundamental_ML",
+    "docs/intro_to_transformers/intro_to_transformers",
+    "docs/text_analysis/text_analysis"
+  ];
+
+  function init() {
+    var i = window.location.pathname.indexOf("/docs/");
+    if (i === -1) return;
+    var rel = window.location.pathname.slice(i + 1).replace(/\.html$/, "");
+    if (NOTEBOOKS.indexOf(rel) === -1) return;
+
+    var nb = rel + ".ipynb";
+    var repo = "https%3A%2F%2Fgithub.com%2Fubcecon%2Fpraxis-ubc";
+    var urlpath = encodeURIComponent("lab/tree/praxis-ubc/" + nb);
+    var jupyter = "https://open.jupyter.ubc.ca/jupyter/hub/user-redirect/git-pull?repo=" +
+      repo + "&urlpath=" + urlpath + "&branch=praxis-notebooks";
+    var colab = "https://colab.research.google.com/github/ubcecon/praxis-ubc/blob/praxis-notebooks/" + nb;
+
+    var wrap = document.createElement("div");
+    wrap.className = "btn-group";
+    wrap.style.margin = "0.5rem 0 1rem";
+    wrap.innerHTML =
+      '<button class="btn btn-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">' +
+        '<i class="bi bi-play-fill"></i> Launch this notebook</button>' +
+      '<ul class="dropdown-menu">' +
+        '<li><a class="dropdown-item" target="_blank" rel="noopener" href="' + jupyter + '"><i class="bi bi-cloud-check"></i> JupyterOpen</a></li>' +
+        '<li><a class="dropdown-item" target="_blank" rel="noopener" href="' + colab + '"><i class="bi bi-google"></i> Colab</a></li>' +
+      '</ul>';
+
+    var header = document.getElementById("title-block-header");
+    if (header) {
+      header.appendChild(wrap);
+    } else {
+      var main = document.querySelector("main.content") || document.querySelector("main");
+      if (main) main.insertBefore(wrap, main.firstChild);
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
+</script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="../../index.html" class="navbar-brand navbar-brand-logo">
+    <img src="../../media/praxis-badge-white.png" alt="" class="navbar-logo">
+    </a>
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">Praxis</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-get-started" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Get Started</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-get-started">    
+        <li>
+    <a class="dropdown-item" href="../../pages/quickstart.html">
+ <span class="dropdown-text">Quickstart Guide</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-courses" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Courses</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-courses">    
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_AMNE-376.html">
+ <span class="dropdown-text">AMNE-376</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_SOCI415.html">
+ <span class="dropdown-text">SOCI-415</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_SOCI280.html">
+ <span class="dropdown-text">SOCI-280</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_ECON227.html">
+ <span class="dropdown-text">ECON-227</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_Causal_ML.html">
+ <span class="dropdown-text">Causal Machine Learning</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_Game_Theory.html">
+ <span class="dropdown-text">Game Theory</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_Data_Engineer.html">
+ <span class="dropdown-text">Data Engineering</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="../../pages/index/all.html">
+ <span class="dropdown-text">Browse All</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="../../pages/index/all.html"> 
+<span class="menu-text">All Topics</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-teach-with-praxis" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Teach with Praxis</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-teach-with-praxis">    
+        <li>
+    <a class="dropdown-item" href="../../pages/teaching_with_praxis.html">
+ <span class="dropdown-text">Learn how to teach with Praxis</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-launch-praxis" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+      <i class="bi bi-play" role="img">
+</i> 
+ <span class="menu-text">Launch Praxis</span>
+    </a>
+    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="nav-menu-launch-praxis">    
+        <li>
+    <a class="dropdown-item" href="https://open.jupyter.ubc.ca/jupyter/hub/user-redirect/git-pull?repo=https%3A%2F%2Fgithub.com%2Fubcecon%2Fpraxis-ubc&amp;urlpath=lab%2Ftree%2Fpraxis-ubc%2F&amp;branch=praxis-notebooks"><i class="bi bi-cloud-check" role="img">
+</i> 
+ <span class="dropdown-text">Launch on JupyterOpen (with Data)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://open.jupyter.ubc.ca/jupyter/hub/user-redirect/git-pull?repo=https%3A%2F%2Fgithub.com%2Fubcecon%2Fpraxis-ubc&amp;urlpath=lab%2Ftree%2Fpraxis-ubc%2F&amp;branch=praxis-notebooks"><i class="bi bi-cloud-check" role="img">
+</i> 
+ <span class="dropdown-text">Launch on JupyterOpen (lite)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ubc.syzygy.ca/jupyter/hub/user-redirect/git-pull?repo=https%3A%2F%2Fgithub.com%2Fubcecon%2Fpraxis-ubc&amp;urlpath=lab%2Ftree%2Fpraxis-ubc%2F&amp;branch=praxis-notebooks"><i class="bi bi-gear" role="img">
+</i> 
+ <span class="dropdown-text">Launch on Syzygy</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://colab.research.google.com/github/ubcecon/praxis-ubc/blob/praxis-notebooks/"><i class="bi bi-google" role="img">
+</i> 
+ <span class="dropdown-text">Launch on Colab</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://github.com/ubcecon/praxis-ubc/archive/refs/heads/praxis-notebooks.zip"><i class="bi bi-cloud-download" role="img">
+</i> 
+ <span class="dropdown-text">Launch Locally</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="https://github.com/ubcecon/praxis-ubc">
+ <span class="dropdown-text">Github Repository</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="../../#"> 
+<span class="menu-text">|</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/ubcecon/praxis-ubc" target="_blank"> <i class="bi bi-github" role="img" aria-label="GitHub">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-about" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">About</span>
+    </a>
+    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="nav-menu-about">    
+        <li>
+    <a class="dropdown-item" href="../../pages/team.html">
+ <span class="dropdown-text">Praxis Team</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/copyright.html">
+ <span class="dropdown-text">Copyright Information</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+          </div> <!-- /navcollapse -->
+          <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-full page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#outline" id="toc-outline" class="nav-link active" data-scroll-target="#outline">Outline</a>
+  <ul class="collapse">
+  <li><a href="#prerequisites" id="toc-prerequisites" class="nav-link" data-scroll-target="#prerequisites">Prerequisites</a></li>
+  <li><a href="#learning-outcomes" id="toc-learning-outcomes" class="nav-link" data-scroll-target="#learning-outcomes">Learning Outcomes</a></li>
+  </ul></li>
+  <li><a href="#where-we-are-in-the-stream" id="toc-where-we-are-in-the-stream" class="nav-link" data-scroll-target="#where-we-are-in-the-stream">1. Where we are in the stream</a></li>
+  <li><a href="#setup" id="toc-setup" class="nav-link" data-scroll-target="#setup">2. Setup</a></li>
+  <li><a href="#ticket-one-a-query-inside-a-query" id="toc-ticket-one-a-query-inside-a-query" class="nav-link" data-scroll-target="#ticket-one-a-query-inside-a-query">3. Ticket one: a query inside a query</a></li>
+  <li><a href="#ticket-two-queries-that-persist" id="toc-ticket-two-queries-that-persist" class="nav-link" data-scroll-target="#ticket-two-queries-that-persist">4. Ticket two: queries that persist</a></li>
+  <li><a href="#tickets-three-and-four-window-functions" id="toc-tickets-three-and-four-window-functions" class="nav-link" data-scroll-target="#tickets-three-and-four-window-functions">5. Tickets three and four: window functions</a></li>
+  <li><a href="#ticket-five-insert-update-delete" id="toc-ticket-five-insert-update-delete" class="nav-link" data-scroll-target="#ticket-five-insert-update-delete">6. Ticket five: INSERT, UPDATE, DELETE</a></li>
+  <li><a href="#ticket-six-the-lookup-tool" id="toc-ticket-six-the-lookup-tool" class="nav-link" data-scroll-target="#ticket-six-the-lookup-tool">7. Ticket six: the lookup tool</a></li>
+  <li><a href="#conclusion" id="toc-conclusion" class="nav-link" data-scroll-target="#conclusion">8. Conclusion</a></li>
+  <li><a href="#appendix-the-regression-ready-table" id="toc-appendix-the-regression-ready-table" class="nav-link" data-scroll-target="#appendix-the-regression-ready-table">Appendix: the regression-ready table</a></li>
+  <li><a href="#connections" id="toc-connections" class="nav-link" data-scroll-target="#connections">Connections</a>
+  <ul class="collapse">
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
+  </ul></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/ubcecon/praxis-ubc/issues/new" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div><div class="quarto-alternate-formats"><h2>Other Formats</h2><ul><li><a href="notebook_03_advanced_sql.ipynb" download="notebook_03_advanced_sql.ipynb"><i class="bi bi-journal-code"></i>Jupyter</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content column-page-left" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Advanced SQL</h1>
+  <div class="quarto-categories">
+    <div class="quarto-category">Python</div>
+    <div class="quarto-category">SQL</div>
+    <div class="quarto-category">data engineering</div>
+  </div>
+  </div>
+
+<div>
+  <div class="description">
+    The third notebook in the Data Engineering stream. We have a queue of tickets to fix and we need new tools: subqueries, CTEs, and views to build queries out of other queries, window functions to rank and accumulate without collapsing rows, INSERT, UPDATE and DELETE for a database that lives and changes, and parameterized queries to survive contact with user input.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta column-page-left">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Alex Ronczewski </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">23 July 2026</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="outline" class="level2">
+<h2 class="anchored" data-anchor-id="outline">Outline</h2>
+<section id="prerequisites" class="level3">
+<h3 class="anchored" data-anchor-id="prerequisites">Prerequisites</h3>
+<ul>
+<li>Notebook 2 of this stream: joins, <code>GROUP BY</code>, <code>HAVING</code>, NULL, <code>CASE</code>.</li>
+<li>Comfort with <code>pandas</code> and basic Python at the COMET-intermediate level</li>
+</ul>
+</section>
+<section id="learning-outcomes" class="level3">
+<h3 class="anchored" data-anchor-id="learning-outcomes">Learning Outcomes</h3>
+<p>By the end of this notebook you will be able to:</p>
+<ol type="1">
+<li>Nest a query inside another query as a <strong>derived table</strong>, name query steps with <strong>CTEs</strong> (<code>WITH</code>), save whole queries as <strong>views</strong>, and choose between the three options by how long the query needs to live.</li>
+<li>Use <strong>window functions</strong> (<code>RANK</code>, aggregates with <code>OVER</code>) to rank within groups and build running totals, all without collapsing rows.</li>
+<li>Modify data with <strong>INSERT</strong>, <strong>UPDATE</strong>, and <strong>DELETE</strong>.</li>
+<li>Run SQL from Python with <strong>parameterized queries</strong>, and explain what a SQL injection is.</li>
+</ol>
+</section>
+</section>
+<section id="where-we-are-in-the-stream" class="level2">
+<h2 class="anchored" data-anchor-id="where-we-are-in-the-stream">1. Where we are in the stream</h2>
+<p><a href="media/NB3/stream_map.png" class="lightbox" data-gallery="quarto-lightbox-gallery-1"><img src="media/NB3/stream_map.png" class="img-fluid" style="width:85.0%" alt="Stream roadmap: four arcs, Querying data (NB1-4), Designing and storing data (NB5-7), Keeping data flowing (NB8-9), and Data for AI (NB10-11), with the current notebook highlighted."></a></p>
+<p>The dataframe from Notebook 2 was sent to your co-workers, and word about your skills got around. You are now the research team’s SQL person, and being the main SQL person means having a queue of tickets everyday (but you also get a raise!). This morning it holds six tickets: an old issue from the result of NB2, a scheduling request from the whole team, two analysis asks, three admin items from the survey office, and a teammate’s code waiting for review. Every single one needs a tool we do not have yet, and together those tools are the second half of SQL, the half that separates “knows a bit of SQL” from “uses it daily at work”.</p>
+</section>
+<section id="setup" class="level2">
+<h2 class="anchored" data-anchor-id="setup">2. Setup</h2>
+<p>We import our libraries and rebuild the database from the raw files, so this notebook can be run alone (without needing to run NB1 or NB2):</p>
+<div id="8c7ddacc" class="cell" data-execution_count="1">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> sqlite3</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div id="6ede0a3a" class="cell" data-execution_count="2">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>provinces <span class="op">=</span> pd.read_csv(<span class="st">"datasets/provinces.csv"</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>certifications <span class="op">=</span> pd.read_csv(<span class="st">"datasets/certifications.csv"</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>conn <span class="op">=</span> sqlite3.<span class="ex">connect</span>(<span class="st">"datasets/wage_survey.db"</span>)</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>pd.read_csv(<span class="st">"datasets/wage_survey.csv"</span>).to_sql(<span class="st">"survey"</span>, conn, index<span class="op">=</span><span class="va">False</span>, if_exists<span class="op">=</span><span class="st">"replace"</span>)</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>provinces.to_sql(<span class="st">"provinces"</span>, conn, index<span class="op">=</span><span class="va">False</span>, if_exists<span class="op">=</span><span class="st">"replace"</span>)</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>certifications.to_sql(<span class="st">"certifications"</span>, conn, index<span class="op">=</span><span class="va">False</span>, if_exists<span class="op">=</span><span class="st">"replace"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="2">
+<pre><code>684</code></pre>
+</div>
+</div>
+<div id="0b39ac7a" class="cell" data-execution_count="3">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="op">%</span>load_ext sql</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="op">%</span>config SqlMagic.autopandas <span class="op">=</span> <span class="va">True</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="op">%</span>config SqlMagic.displaycon <span class="op">=</span> <span class="va">False</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="op">%</span>config SqlMagic.feedback <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="op">%</span>sql sqlite:<span class="op">///</span>datasets<span class="op">/</span>wage_survey.db</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="ticket-one-a-query-inside-a-query" class="level2">
+<h2 class="anchored" data-anchor-id="ticket-one-a-query-inside-a-query">3. Ticket one: a query inside a query</h2>
+<blockquote class="blockquote">
+<p><strong>Ticket #1, from the research lead.</strong> “Before anything else: the certified wage. We shipped 39.89 knowing the grain was wrong. I want the real number.”</p>
+</blockquote>
+<p>Joining <code>survey</code> to <code>certifications</code> counts every multi-certificate person once per certificate, so the 39.89 average is computed on the wrong grain. We even described the fix in Notebook 2: first collapse the join to one row per person, then average the result. That is a query running on the output of another query, and SQL lets you do that. A query wrapped in parentheses inside the <code>FROM</code> clause is called a <strong>derived table</strong>: its output rows become the input table for the outer query, as if they had been in the database from the beginning.</p>
+<div id="8f4222fe" class="cell" data-execution_count="4">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>SELECT COUNT(<span class="op">*</span>) AS certified_people, AVG(hourly_wage) AS avg_wage_certified</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>FROM (</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    SELECT DISTINCT s.respondent_id, s.hourly_wage</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    FROM survey AS s</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    JOIN certifications AS c ON s.respondent_id <span class="op">=</span> c.respondent_id</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="4">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">certified_people</th>
+<th data-quarto-table-cell-role="th">avg_wage_certified</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>452</td>
+<td>39.440022</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>The inner query is Notebook 2’s join with <code>DISTINCT</code> collapsing it to one row per certified person; the outer query counts and averages those rows. 452 people, like before, but the true average is <strong>39.44</strong>, not 39.89. The wrong grain was inflating the answer by 45 cents, and against the survey-wide average of 38.59 the real certified premium is about 85 cents an hour. Ticket closed! Good work.</p>
+<p>Before finishing with the ticket, let’s quickly check again to make sure it’s correct. Understanding it means reading inside-out, innermost parentheses first, and if you open it again after a month you will find yourself quite lost. SQL’s fix is the <strong>CTE</strong> (common table expression), written with <code>WITH</code>: it gives a subquery a name at the <strong>top</strong> of the query, and the rest of the query uses that name like a table. Same logic, far better reading order:</p>
+<div id="12c9ad70" class="cell" data-execution_count="5">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>WITH per_person AS (</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    SELECT DISTINCT s.respondent_id, s.hourly_wage</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    FROM survey AS s</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    JOIN certifications AS c ON s.respondent_id <span class="op">=</span> c.respondent_id</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>SELECT COUNT(<span class="op">*</span>) AS certified_people, AVG(hourly_wage) AS avg_wage_certified</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>FROM per_person</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="5">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">certified_people</th>
+<th data-quarto-table-cell-role="th">avg_wage_certified</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>452</td>
+<td>39.440022</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>Read it top to bottom: first build <code>per_person</code>, then summarize it. This is the order you think and speak in, so structuring the query like this helps in readability, and <code>WITH</code> can take several named steps separated by commas when the logic grows. This is the version that goes in the reply to the research lead.</p>
+</section>
+<section id="ticket-two-queries-that-persist" class="level2">
+<h2 class="anchored" data-anchor-id="ticket-two-queries-that-persist">4. Ticket two: queries that persist</h2>
+<blockquote class="blockquote">
+<p><strong>Ticket #2, from the whole team.</strong> “The regional briefing is great. Can we re-run it ourselves on Fridays, without bothering you?”</p>
+</blockquote>
+<p>A CTE’s name lives for one query and vanishes, and this ticket wants something else: a query that outlives the notebook. SQL’s answer is a <strong>view</strong>. <code>CREATE VIEW name AS</code> followed by any <code>SELECT</code> stores the query itself, permanently, inside the database file, and from then on the name can be queried like a normal table. Its companion <code>DROP VIEW IF EXISTS</code> deletes the view if there is one (and does nothing if there is not), which makes the pair safe to re-run any number of times:</p>
+<div id="e0e6158a" class="cell" data-execution_count="6">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>DROP VIEW IF EXISTS regional_briefing</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="6">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+</tr>
+</thead>
+<tbody>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<div id="424499a4" class="cell" data-execution_count="7">
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>CREATE VIEW regional_briefing AS</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>SELECT p.region,</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>       COUNT(<span class="op">*</span>) AS workers,</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>       ROUND(AVG(s.hourly_wage), <span class="dv">2</span>) AS avg_wage,</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>       ROUND(AVG(s.union_member), <span class="dv">2</span>) AS union_share</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>FROM survey AS s</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>LEFT JOIN provinces AS p ON s.province <span class="op">=</span> p.province</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>WHERE s.weekly_hours <span class="op">&gt;=</span> <span class="dv">30</span></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>GROUP BY p.region</span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>HAVING COUNT(<span class="op">*</span>) <span class="op">&gt;=</span> <span class="dv">50</span></span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>ORDER BY avg_wage DESC</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="7">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+</tr>
+</thead>
+<tbody>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>Both cells print nothing, which is what we are expecting. <code>CREATE VIEW</code> stores the query and returns no rows. That stored query is Notebook 2’s entire deliverable, and re-running the briefing is now a one-line command, for every teammate who opens this database file:</p>
+<div id="035d0baa" class="cell" data-execution_count="8">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>SELECT <span class="op">*</span> FROM regional_briefing</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="8">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">region</th>
+<th data-quarto-table-cell-role="th">workers</th>
+<th data-quarto-table-cell-role="th">avg_wage</th>
+<th data-quarto-table-cell-role="th">union_share</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>Prairies</td>
+<td>157</td>
+<td>39.83</td>
+<td>0.25</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>Central Canada</td>
+<td>343</td>
+<td>38.34</td>
+<td>0.30</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>West Coast</td>
+<td>283</td>
+<td>38.16</td>
+<td>0.26</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>One thing to hold on to: a view stores the <strong>query</strong>, but not the results. Every <code>SELECT</code> against it re-runs the briefing on whatever the data looks like at that moment, which is exactly what the team wants on Fridays. If they wanted a static output they could just re-use last week’s result. This is powerful: if we get 10,000 new observations, we can re-run the analysis with one line.</p>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+The naming ladder
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>A <strong>subquery</strong> is anonymous work inside a single query. A <strong>CTE</strong> names a step for the duration of one query, for readability and stacking. A <strong>view</strong> names a whole query forever, inside the database file, for everyone. Choose which to use by how long the query needs to live.</p>
+</div>
+</div>
+</section>
+<section id="tickets-three-and-four-window-functions" class="level2">
+<h2 class="anchored" data-anchor-id="tickets-three-and-four-window-functions">5. Tickets three and four: window functions</h2>
+<blockquote class="blockquote">
+<p><strong>Ticket #3, from the comms team.</strong> “We need the top three earners in each province”</p>
+</blockquote>
+<p>This sounds routine until you try it with Notebook 2’s tools. <code>GROUP BY province</code> collapses each province to one row, so we don’t get the top three. <code>ORDER BY hourly_wage DESC LIMIT 3</code> keeps people but ranks the whole country, three rows total across all provinces; this is also bad. This exact gap is what <strong>window functions</strong> exist to fill: they compute group-level facts, like a rank within a province, while <strong>keeping every row</strong>.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="media/NB3/window_vs_groupby.png" class="lightbox" data-gallery="quarto-lightbox-gallery-2" data-glightbox="description: .lightbox-desc-2" title="The same six rows, summarized two ways. GROUP BY folds them into one row per group. A window function leaves all six in place and writes the group context onto each of them."><img src="media/NB3/window_vs_groupby.png" class="img-fluid figure-img" alt="The same six rows, summarized two ways. GROUP BY folds them into one row per group. A window function leaves all six in place and writes the group context onto each of them."></a></p>
+<figcaption>The same six rows, summarized two ways. GROUP BY folds them into one row per group. A window function leaves all six in place and writes the group context onto each of them.</figcaption>
+</figure>
+</div>
+<p>The syntax reads like a sentence. <code>RANK()</code> assigns positions; <code>OVER (...)</code> declares that it operates over a window of rows rather than collapsing them; <code>PARTITION BY province</code> splits the rows into per-province windows, the same role <code>GROUP BY</code> plays but without the collapsing; <code>ORDER BY hourly_wage DESC</code> says what the rank orders. So the ticket looks one <code>WHERE</code> away, rank inside each province, keep ranks one to three:</p>
+<div id="b5343d81" class="cell" data-execution_count="9">
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>SELECT province, respondent_id, hourly_wage,</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>       RANK() OVER (PARTITION BY province ORDER BY hourly_wage DESC) AS province_rank</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>FROM survey</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>WHERE province_rank <span class="op">&lt;=</span> <span class="dv">3</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>RuntimeError: (sqlite3.OperationalError) misuse of aliased window function province_rank
+[SQL: SELECT province, respondent_id, hourly_wage,
+       RANK() OVER (PARTITION BY province ORDER BY hourly_wage DESC) AS province_rank
+FROM survey
+WHERE province_rank &lt;= 3]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)</code></pre>
+</div>
+</div>
+<p>SQLite refuses: <code>misuse of aliased window function</code>. You have already seen an error just like this before, and it is Notebook 2’s evaluation order: <code>WHERE</code> runs early, before the <code>SELECT</code> clause where the window is computed, so at filtering time <code>province_rank</code> does not exist. To fix this we use section 3’s tool. We compute the window inside a CTE, then filter the CTE’s output, where the rank is a regular column:</p>
+<div id="063bcfc6" class="cell" data-execution_count="10">
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>WITH ladders AS (</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>    SELECT province, respondent_id, hourly_wage,</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>           RANK() OVER (PARTITION BY province ORDER BY hourly_wage DESC) AS province_rank</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>    FROM survey</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>SELECT <span class="op">*</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>FROM ladders</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>WHERE province_rank <span class="op">&lt;=</span> <span class="dv">3</span></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>ORDER BY province, province_rank</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="10">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">province</th>
+<th data-quarto-table-cell-role="th">respondent_id</th>
+<th data-quarto-table-cell-role="th">hourly_wage</th>
+<th data-quarto-table-cell-role="th">province_rank</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>Alberta</td>
+<td>223</td>
+<td>102.77</td>
+<td>1</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>Alberta</td>
+<td>192</td>
+<td>70.48</td>
+<td>2</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>Alberta</td>
+<td>137</td>
+<td>70.38</td>
+<td>3</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>British Columbia</td>
+<td>755</td>
+<td>91.26</td>
+<td>1</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">4</td>
+<td>British Columbia</td>
+<td>366</td>
+<td>82.96</td>
+<td>2</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">5</td>
+<td>British Columbia</td>
+<td>60</td>
+<td>79.17</td>
+<td>3</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">6</td>
+<td>Manitoba</td>
+<td>931</td>
+<td>69.62</td>
+<td>1</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">7</td>
+<td>Manitoba</td>
+<td>980</td>
+<td>67.57</td>
+<td>2</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">8</td>
+<td>Manitoba</td>
+<td>220</td>
+<td>66.46</td>
+<td>3</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">9</td>
+<td>Ontario</td>
+<td>774</td>
+<td>92.07</td>
+<td>1</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">10</td>
+<td>Ontario</td>
+<td>93</td>
+<td>76.82</td>
+<td>2</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">11</td>
+<td>Ontario</td>
+<td>639</td>
+<td>74.52</td>
+<td>3</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">12</td>
+<td>Quebec</td>
+<td>702</td>
+<td>113.04</td>
+<td>1</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">13</td>
+<td>Quebec</td>
+<td>320</td>
+<td>81.24</td>
+<td>2</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">14</td>
+<td>Quebec</td>
+<td>551</td>
+<td>78.47</td>
+<td>3</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">15</td>
+<td>Saskatchewan</td>
+<td>176</td>
+<td>87.55</td>
+<td>1</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">16</td>
+<td>Saskatchewan</td>
+<td>135</td>
+<td>66.54</td>
+<td>2</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">17</td>
+<td>Saskatchewan</td>
+<td>680</td>
+<td>66.48</td>
+<td>3</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>Eighteen rows, three per province, every earner still exists as an individual row. Ticket three ships to the comms team. Done!</p>
+<blockquote class="blockquote">
+<p><strong>Ticket #4, from the research lead.</strong> “One chart for Thursday’s deck: how unequal are wages in our survey?”</p>
+</blockquote>
+<p>One more window trick answers this. When the <code>OVER</code> clause contains an <code>ORDER BY</code>, the window becomes cumulative: each row sees the rows up to and including itself, which is how SQL does <strong>running totals</strong>. Sort everyone by wage, accumulate the wages as you climb, divide by the total, and you have built the cumulative wage distribution (the <code>&lt;&lt;</code> arrow is Notebook 1’s trick, storing the result in a Python variable named <code>lorenz</code> so we can plot it):</p>
+<div id="a290563e" class="cell" data-execution_count="11">
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql lorenz <span class="op">&lt;&lt;</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>WITH ordered AS (</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>    SELECT hourly_wage,</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>           SUM(hourly_wage) OVER (ORDER BY hourly_wage) AS running_total,</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>           RANK() OVER (ORDER BY hourly_wage) AS position</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>    FROM survey</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>SELECT position <span class="op">*</span> <span class="fl">1.0</span> <span class="op">/</span> (SELECT COUNT(<span class="op">*</span>) FROM survey) AS worker_share,</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>       running_total <span class="op">/</span> (SELECT SUM(hourly_wage) FROM survey) AS wage_share</span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>FROM ordered</span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>ORDER BY worker_share</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Two details inside. The <code>* 1.0</code> exists because <code>position</code> and the row count are whole numbers, and SQLite keeps whole-number division whole; multiplying by 1.0 first forces the decimal shares we want. And the two queries in parentheses are subqueries supplying the totals to divide by.</p>
+<div id="93c55301" class="cell" data-execution_count="12">
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>plt.figure(figsize<span class="op">=</span>(<span class="dv">9</span>, <span class="dv">5</span>))</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>plt.plot(lorenz[<span class="st">"worker_share"</span>], lorenz[<span class="st">"wage_share"</span>], color<span class="op">=</span><span class="st">"tab:green"</span>, linewidth<span class="op">=</span><span class="dv">2</span>, label<span class="op">=</span><span class="st">"our survey"</span>)</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>plt.plot([<span class="dv">0</span>, <span class="dv">1</span>], [<span class="dv">0</span>, <span class="dv">1</span>], color<span class="op">=</span><span class="st">"black"</span>, linestyle<span class="op">=</span><span class="st">"--"</span>, linewidth<span class="op">=</span><span class="dv">1</span>, label<span class="op">=</span><span class="st">"perfect equality"</span>)</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>plt.xlabel(<span class="st">"share of workers, poorest first"</span>)</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>plt.ylabel(<span class="st">"share of total wages"</span>)</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>plt.title(<span class="st">"Cumulative wage share, from one window query"</span>)</span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>plt.legend()</span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><a href="notebook_03_advanced_sql_files/figure-html/cell-13-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-3"><img src="notebook_03_advanced_sql_files/figure-html/cell-13-output-1.png" width="738" height="449" class="figure-img"></a></p>
+</figure>
+</div>
+</div>
+</div>
+<p>The bottom half of earners take home about 37% of the wages. If the curve hugged the dashed diagonal, every worker would earn the same; the deeper it sags, the more unequal the distribution. Chart attached as an email reply, ticket four closed!</p>
+</section>
+<section id="ticket-five-insert-update-delete" class="level2">
+<h2 class="anchored" data-anchor-id="ticket-five-insert-update-delete">6. Ticket five: INSERT, UPDATE, DELETE</h2>
+<blockquote class="blockquote">
+<p><strong>Ticket #5, from the survey office.</strong> “Two items: a late response to add, and respondent 731 has withdrawn consent, their data must be removed. Also a colleague of yours mentioned they were ‘fixing hours’ in a practice table and now it looks wrong. Can you see what happened before they try it on the real one?”</p>
+</blockquote>
+<p>Everything so far, across two and a half notebooks, has only ever <strong>read</strong> the database. But late responses arrive, errors get corrected, and people change their minds, so SQL has three writing commands: <code>INSERT</code> (add rows), <code>UPDATE</code> (change values in existing rows), and <code>DELETE</code> (remove rows). All three are irreversible unlike <code>SELECT</code>, so professionals practice a discipline: <strong>try destructive operations on a copy first</strong> and <strong>make backups</strong>. Let us make the same copy and reconstruct what they did:</p>
+<div id="c044499b" class="cell" data-execution_count="13">
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>pd.read_sql(<span class="st">"SELECT * FROM survey"</span>, conn).to_sql(<span class="st">"survey_scratch"</span>, conn, index<span class="op">=</span><span class="va">False</span>, if_exists<span class="op">=</span><span class="st">"replace"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="13">
+<pre><code>1000</code></pre>
+</div>
+</div>
+<p>We name the copy <code>survey_scratch</code>. And it has all 1,000 rows correctly inside of it.</p>
+<div class="callout callout-style-default callout-caution callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Wrong-query gallery #3
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>The colleague needed to correct respondent 404’s weekly hours to 40, wrote the <code>UPDATE</code>, saw “no error”, and only later felt that the numbers looked wrong. <code>UPDATE</code> names a table, <code>SET</code> assigns the new value:</p>
+<div id="5800f7bb" class="cell" data-execution_count="14">
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>UPDATE survey_scratch</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>SET weekly_hours <span class="op">=</span> <span class="dv">40</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="14">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+</tr>
+</thead>
+<tbody>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<div id="bf571d48" class="cell" data-execution_count="15">
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>SELECT ROUND(AVG(weekly_hours), <span class="dv">2</span>) AS avg_hours, COUNT(DISTINCT weekly_hours) AS distinct_values</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>FROM survey_scratch</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="15">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">avg_hours</th>
+<th data-quarto-table-cell-role="th">distinct_values</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>40.0</td>
+<td>1</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>One distinct value in the whole column: every one of a thousand respondents now works exactly 40 hours a week. What happened, and how do we prevent this from happening?</p>
+<details>
+<summary>
+Show / hide answer
+</summary>
+<p>The <code>UPDATE</code> has no <code>WHERE</code>, and an <code>UPDATE</code> without a <code>WHERE</code> applies to <strong>every row</strong>. One thousand values overwritten, no error, and we can’t undo it. The habit: write the <code>WHERE</code> as a <code>SELECT</code> first, check that it returns exactly the rows you intend, then convert it to the <code>UPDATE</code>. The corrected syntax:</p>
+<div id="1d992d0a" class="cell" data-execution_count="16">
+<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>UPDATE survey_scratch</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>SET weekly_hours <span class="op">=</span> <span class="dv">40</span></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>WHERE respondent_id <span class="op">=</span> <span class="dv">404</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="16">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+</tr>
+</thead>
+<tbody>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>One row targeted, one row changed.</p>
+</details>
+</div>
+</div>
+<p>Now the office’s real table. The late response first: <code>INSERT INTO</code> names the table and columns, <code>VALUES</code> supplies one row:</p>
+<div id="7cdc7e27" class="cell" data-execution_count="17">
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>INSERT INTO survey (respondent_id, age, gender, education, province, industry, union_member, weekly_hours, hourly_wage)</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>VALUES (<span class="dv">1001</span>, <span class="dv">27</span>, <span class="st">'Woman'</span>, <span class="st">'College diploma'</span>, <span class="st">'British Columbia'</span>, <span class="st">'Hospitality'</span>, <span class="dv">0</span>, <span class="fl">35.0</span>, <span class="fl">36.10</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="17">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+</tr>
+</thead>
+<tbody>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>The <code>INSERT</code> itself prints nothing, so read the row back to confirm it landed, with a subquery (section 5’s totals trick) reporting the new table size in the same result:</p>
+<div id="22e01670" class="cell" data-execution_count="18">
+<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>SELECT s.<span class="op">*</span>, (SELECT COUNT(<span class="op">*</span>) FROM survey) AS total_respondents</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>FROM survey AS s</span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>WHERE s.respondent_id <span class="op">=</span> <span class="dv">1001</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="18">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">respondent_id</th>
+<th data-quarto-table-cell-role="th">age</th>
+<th data-quarto-table-cell-role="th">gender</th>
+<th data-quarto-table-cell-role="th">education</th>
+<th data-quarto-table-cell-role="th">province</th>
+<th data-quarto-table-cell-role="th">industry</th>
+<th data-quarto-table-cell-role="th">union_member</th>
+<th data-quarto-table-cell-role="th">weekly_hours</th>
+<th data-quarto-table-cell-role="th">hourly_wage</th>
+<th data-quarto-table-cell-role="th">total_respondents</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>1001</td>
+<td>27</td>
+<td>Woman</td>
+<td>College diploma</td>
+<td>British Columbia</td>
+<td>Hospitality</td>
+<td>0</td>
+<td>35.0</td>
+<td>36.1</td>
+<td>1001</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>One row, every value as submitted, and the total beside it reads 1,001. Perfect.</p>
+<p>Now the serious one: respondent 731 has withdrawn consent. We have to address this, participation is voluntary, and the deletion must happen. Look first, as always, then delete, then verify:</p>
+<div id="ac102836" class="cell" data-execution_count="19">
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>SELECT respondent_id, age, province, industry FROM survey</span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>WHERE respondent_id <span class="op">=</span> <span class="dv">731</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="19">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">respondent_id</th>
+<th data-quarto-table-cell-role="th">age</th>
+<th data-quarto-table-cell-role="th">province</th>
+<th data-quarto-table-cell-role="th">industry</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>731</td>
+<td>53</td>
+<td>Alberta</td>
+<td>Public administration</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<div id="6d89b5a9" class="cell" data-execution_count="20">
+<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>DELETE FROM survey</span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>WHERE respondent_id <span class="op">=</span> <span class="dv">731</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="20">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+</tr>
+</thead>
+<tbody>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<div id="345a2ed0" class="cell" data-execution_count="21">
+<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>SELECT COUNT(<span class="op">*</span>) AS respondents FROM survey</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="21">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">respondents</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>1000</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>The row is now correctly removed. The count reads exactly 1,000 again: the insert took the table to 1,001, and the deletion brought it back. Same count as this morning, yet a different thousand, since one person left the study and one late respondent joined it. That is a living database, and it is also why views store queries rather than results: ask for <code>regional_briefing</code> now and it reports on today’s data, not on the data from yesterday.</p>
+</section>
+<section id="ticket-six-the-lookup-tool" class="level2">
+<h2 class="anchored" data-anchor-id="ticket-six-the-lookup-tool">7. Ticket six: the lookup tool</h2>
+<blockquote class="blockquote">
+<p><strong>Ticket #6, from a teammate.</strong> “I wrote a little tool so the survey office can pull wages by province themselves, no SQL needed on their end. Can you check it before it ships?”</p>
+</blockquote>
+<p>Real applications like a web form, dashboard, or chatbot, build queries from <strong>user input</strong>. The teammate’s function, <code>wages_in</code>, takes a province name typed by the survey office, wraps a query around it, and returns the matching rows; the <code>print</code> inside shows the exact SQL it built, which will matter in a moment. Look at how the query is assembled: the input is pasted straight into the SQL string with an f-string, the tempting, terrible and dangerous way. The cell defines the function and test drives it on friendly input, where it works flawlessly:</p>
+<div id="2abcb087" class="cell" data-execution_count="22">
+<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> wages_in(province):</span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>    query <span class="op">=</span> <span class="ss">f"SELECT respondent_id, province, hourly_wage FROM survey WHERE province = '</span><span class="sc">{</span>province<span class="sc">}</span><span class="ss">'"</span></span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(query)</span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> pd.read_sql(query, conn)</span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a>wages_in(<span class="st">"Manitoba"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>SELECT respondent_id, province, hourly_wage FROM survey WHERE province = 'Manitoba'</code></pre>
+</div>
+<div class="cell-output cell-output-display" data-execution_count="22">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">respondent_id</th>
+<th data-quarto-table-cell-role="th">province</th>
+<th data-quarto-table-cell-role="th">hourly_wage</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>9</td>
+<td>Manitoba</td>
+<td>26.31</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>19</td>
+<td>Manitoba</td>
+<td>35.20</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>22</td>
+<td>Manitoba</td>
+<td>45.70</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>36</td>
+<td>Manitoba</td>
+<td>23.82</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">4</td>
+<td>51</td>
+<td>Manitoba</td>
+<td>48.88</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">...</td>
+<td>...</td>
+<td>...</td>
+<td>...</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">57</td>
+<td>973</td>
+<td>Manitoba</td>
+<td>40.95</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">58</td>
+<td>975</td>
+<td>Manitoba</td>
+<td>34.31</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">59</td>
+<td>980</td>
+<td>Manitoba</td>
+<td>67.57</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">60</td>
+<td>984</td>
+<td>Manitoba</td>
+<td>49.32</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">61</td>
+<td>991</td>
+<td>Manitoba</td>
+<td>35.68</td>
+</tr>
+</tbody>
+</table>
+
+<p>62 rows × 3 columns</p>
+</div>
+</div>
+</div>
+<p>62 Manitobans, as expected, and the printed query reads exactly like SQL we would have written by hand.</p>
+<blockquote class="blockquote">
+<p><strong>Predict first.</strong> The next cell calls the same function with the input <code>Nowhere' OR '1'='1</code>. Nowhere is not a province. How many rows come back?</p>
+</blockquote>
+<div id="6c9e81fa" class="cell" data-execution_count="23">
+<div class="sourceCode cell-code" id="cb27"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>wages_in(<span class="st">"Nowhere' OR '1'='1"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>SELECT respondent_id, province, hourly_wage FROM survey WHERE province = 'Nowhere' OR '1'='1'</code></pre>
+</div>
+<div class="cell-output cell-output-display" data-execution_count="23">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">respondent_id</th>
+<th data-quarto-table-cell-role="th">province</th>
+<th data-quarto-table-cell-role="th">hourly_wage</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>1</td>
+<td>British Columbia</td>
+<td>31.61</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>2</td>
+<td>Ontario</td>
+<td>49.16</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>3</td>
+<td>Quebec</td>
+<td>24.70</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>4</td>
+<td>Ontario</td>
+<td>26.09</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">4</td>
+<td>5</td>
+<td>British Columbia</td>
+<td>53.48</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">...</td>
+<td>...</td>
+<td>...</td>
+<td>...</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">995</td>
+<td>997</td>
+<td>Ontario</td>
+<td>26.41</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">996</td>
+<td>998</td>
+<td>Ontario</td>
+<td>26.25</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">997</td>
+<td>999</td>
+<td>Alberta</td>
+<td>59.34</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">998</td>
+<td>1000</td>
+<td>Quebec</td>
+<td>55.50</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">999</td>
+<td>1001</td>
+<td>British Columbia</td>
+<td>36.10</td>
+</tr>
+</tbody>
+</table>
+
+<p>1000 rows × 3 columns</p>
+</div>
+</div>
+</div>
+<p>All 1,000. Read the printed query: the input’s stray quote <strong>ended the province string early</strong>, and everything after it became live SQL, including a condition <code>'1'='1'</code> that is true for every row. Someone typed text into a box, and the text rewrote the query’s logic. This is a <strong>SQL injection</strong>. It has been a top web vulnerability for over two decades, and versions of it have leaked entire customer databases.</p>
+<p>Our attack only read data. An input with a more vicious ending deletes it instead, which is the joke behind one of the most famous comics in programming:</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="media/NB3/exploits_of_a_mom_2x.png" class="lightbox" data-gallery="quarto-lightbox-gallery-4" data-glightbox="description: .lightbox-desc-4" title="xkcd 327, “Exploits of a Mom”. The school’s software pasted the student’s name straight into its SQL, the name’s quote ended the string early, and DROP TABLE Students ran as a live command. Our wages_in has exactly this hole."><img src="media/NB3/exploits_of_a_mom_2x.png" class="img-fluid figure-img" alt="xkcd 327, “Exploits of a Mom”. The school’s software pasted the student’s name straight into its SQL, the name’s quote ended the string early, and DROP TABLE Students ran as a live command. Our wages_in has exactly this hole."></a></p>
+<figcaption>xkcd 327, “Exploits of a Mom”. The school’s software pasted the student’s name straight into its SQL, the name’s quote ended the string early, and <code>DROP TABLE Students</code> ran as a live command. Our <code>wages_in</code> has exactly this hole.</figcaption>
+</figure>
+</div>
+<p>The fix is simple: <strong>SQL and data travel separately.</strong> Every database library accepts the query and the values as two different arguments, with <code>?</code> marking where values go; <code>pd.read_sql</code> takes them through <code>params</code>. The database then treats the input purely as a value, never as SQL:</p>
+<div id="e3117ca5" class="cell" data-execution_count="24">
+<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>pd.read_sql(<span class="st">"SELECT respondent_id, province, hourly_wage FROM survey WHERE province = ?"</span>,</span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>            conn, params<span class="op">=</span>(<span class="st">"Nowhere' OR '1'='1"</span>,))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="24">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">respondent_id</th>
+<th data-quarto-table-cell-role="th">province</th>
+<th data-quarto-table-cell-role="th">hourly_wage</th>
+</tr>
+</thead>
+<tbody>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>Zero rows: the entire attack string was compared, as an inert lump of text, against province names, and matched nothing, while a legitimate <code>params=("Manitoba",)</code> call returns the same 62 rows as before.</p>
+<div id="01ceac08" class="cell" data-execution_count="25">
+<div class="sourceCode cell-code" id="cb30"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>pd.read_sql(<span class="st">"SELECT respondent_id, province, hourly_wage FROM survey WHERE province = ?"</span>,</span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>            conn, params<span class="op">=</span>(<span class="st">"Manitoba"</span>,))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="25">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">respondent_id</th>
+<th data-quarto-table-cell-role="th">province</th>
+<th data-quarto-table-cell-role="th">hourly_wage</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>9</td>
+<td>Manitoba</td>
+<td>26.31</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>19</td>
+<td>Manitoba</td>
+<td>35.20</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>22</td>
+<td>Manitoba</td>
+<td>45.70</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>36</td>
+<td>Manitoba</td>
+<td>23.82</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">4</td>
+<td>51</td>
+<td>Manitoba</td>
+<td>48.88</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">...</td>
+<td>...</td>
+<td>...</td>
+<td>...</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">57</td>
+<td>973</td>
+<td>Manitoba</td>
+<td>40.95</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">58</td>
+<td>975</td>
+<td>Manitoba</td>
+<td>34.31</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">59</td>
+<td>980</td>
+<td>Manitoba</td>
+<td>67.57</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">60</td>
+<td>984</td>
+<td>Manitoba</td>
+<td>49.32</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">61</td>
+<td>991</td>
+<td>Manitoba</td>
+<td>35.68</td>
+</tr>
+</tbody>
+</table>
+
+<p>62 rows × 3 columns</p>
+</div>
+</div>
+</div>
+<p>We send the tool back to your teammate with two changed lines, and we are done with our ticket queue and can take a well-deserved break!</p>
+</section>
+<section id="conclusion" class="level2">
+<h2 class="anchored" data-anchor-id="conclusion">8. Conclusion</h2>
+<p>Let’s look back at what the ticket queue taught you. A subquery fixed Notebook 2’s final issue (the certified average is 39.44, an 85-cent premium), a CTE made it readable, and a view turned the briefing into permanent team infrastructure. Window functions answered the questions <code>GROUP BY</code> cannot, ranks and running totals, and drew a Lorenz curve on the way. INSERT, UPDATE, and DELETE made the database a living object, with one near-catastrophe on the practice copy to show why the <code>WHERE</code> clause is necessary. And one small habit, <code>?</code> plus <code>params</code>, fixed SQL injections.</p>
+<p>You are past the core of SQL now, and into the part that employers specifically search for. The practice sites from Notebook 2 grade this material as their medium tier; on DataLemur, the tags “Window Functions” and “CTEs or Subquery” are yours to practice on.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+You can now answer these interview questions
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>When would you use a subquery, a CTE, or a view?</li>
+<li>What is a window function, and how does it differ from <code>GROUP BY</code>?</li>
+<li>What happens to an <code>UPDATE</code> with no <code>WHERE</code> clause, and what habit prevents it?</li>
+<li>Why are parameterized queries safer than building SQL strings from input?</li>
+</ul>
+<details>
+<summary>
+Show / hide model answers
+</summary>
+<ul>
+<li>They are the same idea at three lifespans: a subquery is anonymous and lives inside one query, a CTE names a step for the duration of one query and makes multi-stage logic readable, and a view stores the query permanently in the database for reuse by anyone.</li>
+<li>A window function computes over a group of related rows (declared with <code>OVER</code>, optionally split by <code>PARTITION BY</code>) but keeps every row, adding the group context as a new column, where <code>GROUP BY</code> collapses each group to a single row.</li>
+<li>It updates every row in the table, silently and irreversibly. Prevention: write the condition as a <code>SELECT</code> first, confirm exactly which rows come back, then convert it to the <code>UPDATE</code>, ideally after rehearsing on a copy.</li>
+<li>Parameters send the query and the values separately, so input is only ever treated as a value. String-built SQL lets crafted input escape its quotes and become executable SQL, which is a SQL injection.</li>
+</ul>
+</details>
+</div>
+</div>
+</section>
+<section id="appendix-the-regression-ready-table" class="level2">
+<h2 class="anchored" data-anchor-id="appendix-the-regression-ready-table">Appendix: the regression-ready table</h2>
+<p>One last build, pulling the whole arc together: the table you would receive in COMET or econometrics class, one row per respondent, with the outcome, the variables of interest, and the controls, assembled from all our tables. A CTE gathers each person’s certification count; one new function, <code>COALESCE</code>, which returns the first of its arguments that is not NULL, turns the uncertified from NULL into an explicit 0. Finally a view makes the result permanent:</p>
+<div id="1ded9cae" class="cell" data-execution_count="26">
+<div class="sourceCode cell-code" id="cb31"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>DROP VIEW IF EXISTS analysis_table</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="26">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+</tr>
+</thead>
+<tbody>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<div id="d6e95bf8" class="cell" data-execution_count="27">
+<div class="sourceCode cell-code" id="cb32"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a>CREATE VIEW analysis_table AS</span>
+<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a>WITH cert_counts AS (</span>
+<span id="cb32-4"><a href="#cb32-4" aria-hidden="true" tabindex="-1"></a>    SELECT respondent_id, COUNT(<span class="op">*</span>) AS certifications_held</span>
+<span id="cb32-5"><a href="#cb32-5" aria-hidden="true" tabindex="-1"></a>    FROM certifications</span>
+<span id="cb32-6"><a href="#cb32-6" aria-hidden="true" tabindex="-1"></a>    GROUP BY respondent_id</span>
+<span id="cb32-7"><a href="#cb32-7" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb32-8"><a href="#cb32-8" aria-hidden="true" tabindex="-1"></a>SELECT s.respondent_id, s.age, s.gender, s.education, s.industry,</span>
+<span id="cb32-9"><a href="#cb32-9" aria-hidden="true" tabindex="-1"></a>       p.region, p.minimum_wage,</span>
+<span id="cb32-10"><a href="#cb32-10" aria-hidden="true" tabindex="-1"></a>       CASE WHEN s.weekly_hours <span class="op">&gt;=</span> <span class="dv">30</span> THEN <span class="dv">1</span> ELSE <span class="dv">0</span> END AS full_time,</span>
+<span id="cb32-11"><a href="#cb32-11" aria-hidden="true" tabindex="-1"></a>       COALESCE(c.certifications_held, <span class="dv">0</span>) AS certifications_held,</span>
+<span id="cb32-12"><a href="#cb32-12" aria-hidden="true" tabindex="-1"></a>       s.union_member, s.weekly_hours, s.hourly_wage</span>
+<span id="cb32-13"><a href="#cb32-13" aria-hidden="true" tabindex="-1"></a>FROM survey AS s</span>
+<span id="cb32-14"><a href="#cb32-14" aria-hidden="true" tabindex="-1"></a>LEFT JOIN provinces AS p ON s.province <span class="op">=</span> p.province</span>
+<span id="cb32-15"><a href="#cb32-15" aria-hidden="true" tabindex="-1"></a>LEFT JOIN cert_counts AS c ON s.respondent_id <span class="op">=</span> c.respondent_id</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="27">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+</tr>
+</thead>
+<tbody>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<div id="bf9154b9" class="cell" data-execution_count="28">
+<div class="sourceCode cell-code" id="cb33"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>SELECT COUNT(<span class="op">*</span>) AS rows,</span>
+<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a>       SUM(full_time) AS full_timers,</span>
+<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a>       SUM(CASE WHEN region IS NULL THEN <span class="dv">1</span> ELSE <span class="dv">0</span> END) AS missing_region,</span>
+<span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a>       ROUND(AVG(certifications_held), <span class="dv">3</span>) AS avg_certifications</span>
+<span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a>FROM analysis_table</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="28">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">rows</th>
+<th data-quarto-table-cell-role="th">full_timers</th>
+<th data-quarto-table-cell-role="th">missing_region</th>
+<th data-quarto-table-cell-role="th">avg_certifications</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>1000</td>
+<td>819</td>
+<td>46</td>
+<td>0.684</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>One thousand rows, one per respondent, with a full-time dummy, a certification count averaging 0.684, and 46 rows where region is NULL (our Saskatchewan respondents). This is the query you would email to a co-author with the sentence “the analysis table is the view called analysis_table”.</p>
+</section>
+<section id="connections" class="level2">
+<h2 class="anchored" data-anchor-id="connections">Connections</h2>
+<ul>
+<li><strong>Back to <a href="../../docs/Data_Engineer/notebook_02_basic_querying.html">Notebook 2</a>:</strong> the certified-wage question that a single <code>SELECT</code> could not answer took one derived table, and the briefing you built there is now a view that outlives the notebook.</li>
+<li><strong>Forward to <a href="../../docs/Data_Engineer/notebook_04_cleaning_real_data.html">Notebook 4</a>:</strong> a hand-maintained survey file arrives with every failure Notebook 1 catalogued, and you clean it: entity resolution, string and date repair, outliers, imputation, and every fix as reproducible code.</li>
+</ul>
+<section id="references" class="level3">
+<h3 class="anchored" data-anchor-id="references">References</h3>
+<ul>
+<li>Malan, D. (2024). <em>CS50’s Introduction to Databases with SQL.</em> Harvard University. https://cs50.harvard.edu/sql/ (Lectures on relating and viewing cover subqueries and views.)</li>
+<li>ThoughtSpot (formerly Mode). <em>SQL tutorial: advanced.</em> https://www.thoughtspot.com/sql-tutorial Window functions and subqueries with practice data.</li>
+<li>Munroe, R. <em>Exploits of a mom.</em> xkcd 327. https://xkcd.com/327/ The Bobby Tables cartoon, section 7’s joke and its best mnemonic.</li>
+<li>OWASP Foundation. <em>SQL injection.</em> https://owasp.org/www-community/attacks/SQL_Injection The standard reference on the attack and its defenses.</li>
+<li>SQLite. <em>Window functions.</em> https://www.sqlite.org/windowfunctions.html The engine’s own documentation for section 5.</li>
+<li>SQLite. <em>The WITH clause.</em> https://www.sqlite.org/lang_with.html CTEs, including recursive ones this stream leaves for another day.</li>
+</ul>
+<hr>
+
+
+<div class="hidden" aria-hidden="true">
+<span class="glightbox-desc lightbox-desc-2">The same six rows, summarized two ways. GROUP BY folds them into one row per group. A window function leaves all six in place and writes the group context onto each of them.</span>
+<span class="glightbox-desc lightbox-desc-4">xkcd 327, “Exploits of a Mom”. The school’s software pasted the student’s name straight into its SQL, the name’s quote ended the string early, and <code>DROP TABLE Students</code> ran as a live command. Our <code>wages_in</code> has exactly this hole.</span>
+</div>
+</section>
+</section>
+
+</main> <!-- /main -->
+<button id="scroll-to-top" aria-label="Back to top">
+  <svg width="18" height="18" viewbox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M12 19V5M12 5L5 12M12 5L19 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path>
+  </svg>
+</button>
+
+<style>
+#scroll-to-top {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  z-index: 999;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+
+  /* Follows the active Comet theme (light/dark) automatically,
+     since these are the same Bootstrap vars compiled from
+     comet_theme.scss / comet_theme_dark.scss */
+  background-color: var(--bs-primary, #041746);
+  color: #FFFFFF;
+
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(10px);
+  transition: opacity 0.2s ease, transform 0.2s ease, background-color 0.2s ease;
+}
+
+#scroll-to-top.is-visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+#scroll-to-top:hover,
+#scroll-to-top:focus-visible {
+  background-color: var(--bs-secondary, #CC7A00);
+  outline: none;
+}
+
+#scroll-to-top svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Tooltip shown on hover/focus, to the left so it stays in the viewport */
+#scroll-to-top::after {
+  content: "Back to top";
+  position: absolute;
+  right: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background-color: rgba(0, 0, 0, 0.8);
+  color: #FFFFFF;
+  font-size: 0.8rem;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+#scroll-to-top:hover::after,
+#scroll-to-top:focus-visible::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+@media (max-width: 768px) {
+  #scroll-to-top {
+    bottom: 20px;
+    right: 16px;
+    width: 40px;
+    height: 40px;
+  }
+}
+</style>
+
+<script>
+(function () {
+  var btn = document.getElementById("scroll-to-top");
+  if (!btn) return;
+
+  var toggleVisibility = function () {
+    if (window.scrollY > 300) {
+      btn.classList.add("is-visible");
+    } else {
+      btn.classList.remove("is-visible");
+    }
+  };
+
+  window.addEventListener("scroll", toggleVisibility, { passive: true });
+  toggleVisibility();
+
+  btn.addEventListener("click", function () {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+})();
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const disableStylesheet = (stylesheets) => {
+    for (let i=0; i < stylesheets.length; i++) {
+      const stylesheet = stylesheets[i];
+      stylesheet.rel = 'prefetch';
+    }
+  }
+  const enableStylesheet = (stylesheets) => {
+    for (let i=0; i < stylesheets.length; i++) {
+      const stylesheet = stylesheets[i];
+      stylesheet.rel = 'stylesheet';
+    }
+  }
+  const manageTransitions = (selector, allowTransitions) => {
+    const els = window.document.querySelectorAll(selector);
+    for (let i=0; i < els.length; i++) {
+      const el = els[i];
+      if (allowTransitions) {
+        el.classList.remove('notransition');
+      } else {
+        el.classList.add('notransition');
+      }
+    }
+  }
+  const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+    const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+    const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+    let newTheme = '';
+    if(darkModeDefault) {
+      newTheme = isAlternate ? baseTheme : alternateTheme;
+    } else {
+      newTheme = isAlternate ? alternateTheme : baseTheme;
+    }
+    const changeGiscusTheme = () => {
+      // From: https://github.com/giscus/giscus/issues/336
+      const sendMessage = (message) => {
+        const iframe = document.querySelector('iframe.giscus-frame');
+        if (!iframe) return;
+        iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+      }
+      sendMessage({
+        setConfig: {
+          theme: newTheme
+        }
+      });
+    }
+    const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+    if (isGiscussLoaded) {
+      changeGiscusTheme();
+    }
+  }
+  const toggleColorMode = (alternate) => {
+    // Switch the stylesheets
+    const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+    manageTransitions('#quarto-margin-sidebar .nav-link', false);
+    if (alternate) {
+      enableStylesheet(alternateStylesheets);
+      for (const sheetNode of alternateStylesheets) {
+        if (sheetNode.id === "quarto-bootstrap") {
+          toggleBodyColorMode(sheetNode);
+        }
+      }
+    } else {
+      disableStylesheet(alternateStylesheets);
+      toggleBodyColorPrimary();
+    }
+    manageTransitions('#quarto-margin-sidebar .nav-link', true);
+    // Switch the toggles
+    const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+    for (let i=0; i < toggles.length; i++) {
+      const toggle = toggles[i];
+      if (toggle) {
+        if (alternate) {
+          toggle.classList.add("alternate");     
+        } else {
+          toggle.classList.remove("alternate");
+        }
+      }
+    }
+    // Hack to workaround the fact that safari doesn't
+    // properly recolor the scrollbar when toggling (#1455)
+    if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+      manageTransitions("body", false);
+      window.scrollTo(0, 1);
+      setTimeout(() => {
+        window.scrollTo(0, 0);
+        manageTransitions("body", true);
+      }, 40);  
+    }
+  }
+  const isFileUrl = () => { 
+    return window.location.protocol === 'file:';
+  }
+  const hasAlternateSentinel = () => {  
+    let styleSentinel = getColorSchemeSentinel();
+    if (styleSentinel !== null) {
+      return styleSentinel === "alternate";
+    } else {
+      return false;
+    }
+  }
+  const setStyleSentinel = (alternate) => {
+    const value = alternate ? "alternate" : "default";
+    if (!isFileUrl()) {
+      window.localStorage.setItem("quarto-color-scheme", value);
+    } else {
+      localAlternateSentinel = value;
+    }
+  }
+  const getColorSchemeSentinel = () => {
+    if (!isFileUrl()) {
+      const storageValue = window.localStorage.getItem("quarto-color-scheme");
+      return storageValue != null ? storageValue : localAlternateSentinel;
+    } else {
+      return localAlternateSentinel;
+    }
+  }
+  const darkModeDefault = false;
+  let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+  // Dark / light mode switch
+  window.quartoToggleColorScheme = () => {
+    // Read the current dark / light value 
+    let toAlternate = !hasAlternateSentinel();
+    toggleColorMode(toAlternate);
+    setStyleSentinel(toAlternate);
+    toggleGiscusIfUsed(toAlternate, darkModeDefault);
+  };
+  // Ensure there is a toggle, if there isn't float one in the top right
+  if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+    const a = window.document.createElement('a');
+    a.classList.add('top-right');
+    a.classList.add('quarto-color-scheme-toggle');
+    a.href = "";
+    a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+    const i = window.document.createElement("i");
+    i.classList.add('bi');
+    a.appendChild(i);
+    window.document.body.appendChild(a);
+  }
+  // Switch to dark mode if need be
+  if (hasAlternateSentinel()) {
+    toggleColorMode(true);
+  } else {
+    toggleColorMode(false);
+  }
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+          // target, if specified
+          link.setAttribute("target", "_blank");
+          if (link.getAttribute("rel") === null) {
+            link.setAttribute("rel", "noopener");
+          }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      // TODO in 1.5, we should make sure this works without a callout special case
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+ <a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc-sa/4.0/80x15.png"></a>.  <a rel="license" href="https://ubcecon.github.io/comet-open/pages/copyright.html">See details.</a>
+  </li>  
+</ul>
+    </div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/ubcecon/praxis-ubc/issues/new" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></div>
+    <div class="nav-footer-right">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+ The Praxis Project and UBC are located on the traditional, ancestral and unceded territory of the xʷməθkʷəy̓əm (Musqueam) and Sḵwx̱wú7mesh (Squamish) peoples.
+  </li>  
+</ul>
+    </div>
+  </div>
+</footer>
+<script>var lightboxQuarto = GLightbox({"closeEffect":"zoom","openEffect":"zoom","descPosition":"bottom","selector":".lightbox","loop":false});
+window.onload = () => {
+  lightboxQuarto.on('slide_before_load', (data) => {
+    const { slideIndex, slideNode, slideConfig, player, trigger } = data;
+    const href = trigger.getAttribute('href');
+    if (href !== null) {
+      const imgEl = window.document.querySelector(`a[href="${href}"] img`);
+      if (imgEl !== null) {
+        const srcAttr = imgEl.getAttribute("src");
+        if (srcAttr && srcAttr.startsWith("data:")) {
+          slideConfig.href = srcAttr;
+        }
+      }
+    } 
+  });
+
+  lightboxQuarto.on('slide_after_load', (data) => {
+    const { slideIndex, slideNode, slideConfig, player, trigger } = data;
+    if (window.Quarto?.typesetMath) {
+      window.Quarto.typesetMath(slideNode);
+    }
+  });
+
+};
+          </script>
+
+
+
+
+</body></html>

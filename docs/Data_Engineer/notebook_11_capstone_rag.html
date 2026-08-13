@@ -1,0 +1,2257 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-GB" xml:lang="en-GB"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.4.557">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Alex Ronczewski">
+<meta name="dcterms.date" content="2026-08-05">
+<meta name="description" content="The final notebook in the Data Engineering stream. We combine everything we have built into one complete system: a pipeline extracts, cleans, chunks, embeds, validates, and loads a corpus of real consumer complaints, a language model answers questions from retrieved excerpts with citations, and every answer can be traced back to its source rows.">
+
+<title>Praxis - Capstone: Building a RAG System</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script><script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<link href="../../media/praxis-badge.png" rel="icon" type="image/png">
+<script src="../../site_libs/quarto-html/quarto.js"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark.css" rel="prefetch" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark.min.css" rel="prefetch" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<script src="../../site_libs/quarto-contrib/glightbox/glightbox.min.js"></script>
+<link href="../../site_libs/quarto-contrib/glightbox/glightbox.min.css" rel="stylesheet">
+<link href="../../site_libs/quarto-contrib/glightbox/lightbox.css" rel="stylesheet">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<meta name="keywords" content="economics, econometrics, R, data, machine learning, UBC, COMET, geog 374, econ 325, econ 326, learning, teaching, learn r, r help, help, tutorial, r tutorial for beginners,learning statistics with r, learn r programming, learn statistics, linear regression, r machine learning, learn machine learning, university of british columbia, british columbia, r programming for beginners, r language tutorial, r tutorial for beginners, economic data, econometrics tutoring, economics help for students, economics homework help, oer resources for teachers, open educational resources for teachers, educational resource, oer project, oer materials, oer resources, learn economics online, learn econometrics, teach yourself economics, teach yourself econometrics, econometrics basics for beginners">
+
+<!-- Google Search Console -->
+<meta name="google-site-verification" content="wUHlRBWRzzUYwBbnKdvYg0lBpw5b0F7hnEq-QekkpQw">
+<!-- End Google Search Console -->
+
+<script>
+(function() {
+    function updateThemeImages() {
+        var isDark = document.body.classList.contains('quarto-dark');
+        var images = document.querySelectorAll('img[data-light-src][data-dark-src]');
+
+        images.forEach(function(img) {
+            var lightSrc = img.getAttribute('data-light-src');
+            var darkSrc = img.getAttribute('data-dark-src');
+            var newSrc = isDark ? darkSrc : lightSrc;
+
+            // Only update if src is different to avoid reload flicker
+            if (img.getAttribute('src') !== newSrc) {
+                img.setAttribute('src', newSrc);
+            }
+        });
+    }
+
+    // Run when DOM is ready
+    document.addEventListener('DOMContentLoaded', function() {
+        updateThemeImages();
+
+        // Watch for theme changes on body
+        var observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.attributeName === 'class') {
+                    updateThemeImages();
+                }
+            });
+        });
+
+        observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    });
+
+    // Also run after full page load
+    window.addEventListener('load', updateThemeImages);
+})();
+</script>
+
+<!-- Cloudflare Web Analytics -->
+<script defer="" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon="{&quot;token&quot;: &quot;911859291fee44e6ba0acc25f4f08be4&quot;}"></script>
+<!-- End Cloudflare Web Analytics -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" integrity="sha512-c3Nl8+7g4LMSTdrm621y7kf9v3SDPnhxLNhcjFJbKECVnmZHTdo+IRO05sNLTH/D3vA6u1X32ehoLC7WFVdheg==" crossorigin="anonymous"></script>
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+
+
+<link rel="stylesheet" href="../../styles.css">
+</head>
+
+<body class="nav-fixed">
+<!-- praxis-launch-notebook: per-notebook launch button (injected into output HTML at build time) -->
+<script>
+(function () {
+  // Notebooks that get a launch button (path from "docs/", no extension)
+  var NOTEBOOKS = [
+    "docs/AMNE-376/amne_376_image_embedding",
+    "docs/CTree_CEA/political_economy",
+    "docs/Causal_ML/notebook_01_prediction_inference_causality",
+    "docs/Causal_ML/notebook_02_regularization_ridge_lasso",
+    "docs/Causal_ML/notebook_03_trees_forests_boosting",
+    "docs/Causal_ML/notebook_04_prediction_to_treatment_effects",
+    "docs/Causal_ML/notebook_05_post_double_selection",
+    "docs/Causal_ML/notebook_06_propensity_ipw",
+    "docs/Causal_ML/notebook_07_double_machine_learning",
+    "docs/Causal_ML/notebook_08_heterogeneous_effects_causal_forests",
+    "docs/Data_Engineer/notebook_01_why_databases_exist",
+    "docs/Data_Engineer/notebook_02_basic_querying",
+    "docs/Data_Engineer/notebook_03_advanced_sql",
+    "docs/Data_Engineer/notebook_04_cleaning_real_data",
+    "docs/Data_Engineer/notebook_05_designing_data",
+    "docs/Data_Engineer/notebook_06_storage_speed_transactions",
+    "docs/Data_Engineer/notebook_07_two_kinds_of_databases",
+    "docs/Data_Engineer/notebook_08_pipelines_one",
+    "docs/Data_Engineer/notebook_09_pipelines_two",
+    "docs/Data_Engineer/notebook_10_embeddings_vector_search",
+    "docs/Data_Engineer/notebook_11_capstone_rag",
+    "docs/ECON-227/llm_distributions",
+    "docs/Game_Theory/notebook_01_games_best_responses_nash",
+    "docs/Game_Theory/notebook_02_mixed_strategies_fictitious_play",
+    "docs/Game_Theory/notebook_03_repeated_games_axelrod_tournament",
+    "docs/Game_Theory/notebook_04_learning_agents_collusion",
+    "docs/OCR/ocr_notebook",
+    "docs/SOCI-280/soci_280_bert",
+    "docs/SOCI-415/cbdb_dataset",
+    "docs/SOCI-415/kinmatrix",
+    "docs/SOCI-415/soci_415_network_analysis",
+    "docs/hist_workshop/text_embeddings_workshop",
+    "docs/image_analysis/image_analysis",
+    "docs/intro_to_cnns/intro_to_cnn",
+    "docs/intro_to_convolutions/intro_to_convolution",
+    "docs/intro_to_deep_learning/intro_to_fundamental_ML",
+    "docs/intro_to_transformers/intro_to_transformers",
+    "docs/text_analysis/text_analysis"
+  ];
+
+  function init() {
+    var i = window.location.pathname.indexOf("/docs/");
+    if (i === -1) return;
+    var rel = window.location.pathname.slice(i + 1).replace(/\.html$/, "");
+    if (NOTEBOOKS.indexOf(rel) === -1) return;
+
+    var nb = rel + ".ipynb";
+    var repo = "https%3A%2F%2Fgithub.com%2Fubcecon%2Fpraxis-ubc";
+    var urlpath = encodeURIComponent("lab/tree/praxis-ubc/" + nb);
+    var jupyter = "https://open.jupyter.ubc.ca/jupyter/hub/user-redirect/git-pull?repo=" +
+      repo + "&urlpath=" + urlpath + "&branch=praxis-notebooks";
+    var colab = "https://colab.research.google.com/github/ubcecon/praxis-ubc/blob/praxis-notebooks/" + nb;
+
+    var wrap = document.createElement("div");
+    wrap.className = "btn-group";
+    wrap.style.margin = "0.5rem 0 1rem";
+    wrap.innerHTML =
+      '<button class="btn btn-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">' +
+        '<i class="bi bi-play-fill"></i> Launch this notebook</button>' +
+      '<ul class="dropdown-menu">' +
+        '<li><a class="dropdown-item" target="_blank" rel="noopener" href="' + jupyter + '"><i class="bi bi-cloud-check"></i> JupyterOpen</a></li>' +
+        '<li><a class="dropdown-item" target="_blank" rel="noopener" href="' + colab + '"><i class="bi bi-google"></i> Colab</a></li>' +
+      '</ul>';
+
+    var header = document.getElementById("title-block-header");
+    if (header) {
+      header.appendChild(wrap);
+    } else {
+      var main = document.querySelector("main.content") || document.querySelector("main");
+      if (main) main.insertBefore(wrap, main.firstChild);
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
+</script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="../../index.html" class="navbar-brand navbar-brand-logo">
+    <img src="../../media/praxis-badge-white.png" alt="" class="navbar-logo">
+    </a>
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">Praxis</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-get-started" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Get Started</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-get-started">    
+        <li>
+    <a class="dropdown-item" href="../../pages/quickstart.html">
+ <span class="dropdown-text">Quickstart Guide</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-courses" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Courses</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-courses">    
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_AMNE-376.html">
+ <span class="dropdown-text">AMNE-376</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_SOCI415.html">
+ <span class="dropdown-text">SOCI-415</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_SOCI280.html">
+ <span class="dropdown-text">SOCI-280</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_ECON227.html">
+ <span class="dropdown-text">ECON-227</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_Causal_ML.html">
+ <span class="dropdown-text">Causal Machine Learning</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_Game_Theory.html">
+ <span class="dropdown-text">Game Theory</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_Data_Engineer.html">
+ <span class="dropdown-text">Data Engineering</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="../../pages/index/all.html">
+ <span class="dropdown-text">Browse All</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="../../pages/index/all.html"> 
+<span class="menu-text">All Topics</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-teach-with-praxis" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Teach with Praxis</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-teach-with-praxis">    
+        <li>
+    <a class="dropdown-item" href="../../pages/teaching_with_praxis.html">
+ <span class="dropdown-text">Learn how to teach with Praxis</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-launch-praxis" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+      <i class="bi bi-play" role="img">
+</i> 
+ <span class="menu-text">Launch Praxis</span>
+    </a>
+    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="nav-menu-launch-praxis">    
+        <li>
+    <a class="dropdown-item" href="https://open.jupyter.ubc.ca/jupyter/hub/user-redirect/git-pull?repo=https%3A%2F%2Fgithub.com%2Fubcecon%2Fpraxis-ubc&amp;urlpath=lab%2Ftree%2Fpraxis-ubc%2F&amp;branch=praxis-notebooks"><i class="bi bi-cloud-check" role="img">
+</i> 
+ <span class="dropdown-text">Launch on JupyterOpen (with Data)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://open.jupyter.ubc.ca/jupyter/hub/user-redirect/git-pull?repo=https%3A%2F%2Fgithub.com%2Fubcecon%2Fpraxis-ubc&amp;urlpath=lab%2Ftree%2Fpraxis-ubc%2F&amp;branch=praxis-notebooks"><i class="bi bi-cloud-check" role="img">
+</i> 
+ <span class="dropdown-text">Launch on JupyterOpen (lite)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ubc.syzygy.ca/jupyter/hub/user-redirect/git-pull?repo=https%3A%2F%2Fgithub.com%2Fubcecon%2Fpraxis-ubc&amp;urlpath=lab%2Ftree%2Fpraxis-ubc%2F&amp;branch=praxis-notebooks"><i class="bi bi-gear" role="img">
+</i> 
+ <span class="dropdown-text">Launch on Syzygy</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://colab.research.google.com/github/ubcecon/praxis-ubc/blob/praxis-notebooks/"><i class="bi bi-google" role="img">
+</i> 
+ <span class="dropdown-text">Launch on Colab</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://github.com/ubcecon/praxis-ubc/archive/refs/heads/praxis-notebooks.zip"><i class="bi bi-cloud-download" role="img">
+</i> 
+ <span class="dropdown-text">Launch Locally</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="https://github.com/ubcecon/praxis-ubc">
+ <span class="dropdown-text">Github Repository</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="../../#"> 
+<span class="menu-text">|</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/ubcecon/praxis-ubc" target="_blank"> <i class="bi bi-github" role="img" aria-label="GitHub">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-about" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">About</span>
+    </a>
+    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="nav-menu-about">    
+        <li>
+    <a class="dropdown-item" href="../../pages/team.html">
+ <span class="dropdown-text">Praxis Team</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/copyright.html">
+ <span class="dropdown-text">Copyright Information</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+          </div> <!-- /navcollapse -->
+          <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-full page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#outline" id="toc-outline" class="nav-link active" data-scroll-target="#outline">Outline</a>
+  <ul class="collapse">
+  <li><a href="#prerequisites" id="toc-prerequisites" class="nav-link" data-scroll-target="#prerequisites">Prerequisites</a></li>
+  <li><a href="#learning-outcomes" id="toc-learning-outcomes" class="nav-link" data-scroll-target="#learning-outcomes">Learning Outcomes</a></li>
+  </ul></li>
+  <li><a href="#where-we-are-in-the-stream" id="toc-where-we-are-in-the-stream" class="nav-link" data-scroll-target="#where-we-are-in-the-stream">1. Where we are in the stream</a></li>
+  <li><a href="#the-corpus-gets-a-home" id="toc-the-corpus-gets-a-home" class="nav-link" data-scroll-target="#the-corpus-gets-a-home">2. The corpus gets a home</a></li>
+  <li><a href="#the-ingestion-tasks" id="toc-the-ingestion-tasks" class="nav-link" data-scroll-target="#the-ingestion-tasks">3. The ingestion tasks</a></li>
+  <li><a href="#you-author-the-dag" id="toc-you-author-the-dag" class="nav-link" data-scroll-target="#you-author-the-dag">4. You author the DAG</a></li>
+  <li><a href="#asking-questions" id="toc-asking-questions" class="nav-link" data-scroll-target="#asking-questions">5. Asking questions</a></li>
+  <li><a href="#the-language-model-reads-the-prompt" id="toc-the-language-model-reads-the-prompt" class="nav-link" data-scroll-target="#the-language-model-reads-the-prompt">6. The language model reads the prompt</a></li>
+  <li><a href="#what-the-assistant-cannot-answer" id="toc-what-the-assistant-cannot-answer" class="nav-link" data-scroll-target="#what-the-assistant-cannot-answer">7. What the assistant cannot answer</a></li>
+  <li><a href="#measuring-retrieval-quality" id="toc-measuring-retrieval-quality" class="nav-link" data-scroll-target="#measuring-retrieval-quality">8. Measuring retrieval quality</a></li>
+  <li><a href="#new-documents-arrive" id="toc-new-documents-arrive" class="nav-link" data-scroll-target="#new-documents-arrive">9. New documents arrive</a>
+  <ul class="collapse">
+  <li><a href="#make-it-yours" id="toc-make-it-yours" class="nav-link" data-scroll-target="#make-it-yours">9.1 Make it yours</a></li>
+  </ul></li>
+  <li><a href="#the-end-of-the-stream" id="toc-the-end-of-the-stream" class="nav-link" data-scroll-target="#the-end-of-the-stream">10. The end of the stream</a>
+  <ul class="collapse">
+  <li><a href="#where-to-go-next" id="toc-where-to-go-next" class="nav-link" data-scroll-target="#where-to-go-next">10.1 Where to go next</a></li>
+  <li><a href="#recommended-reading" id="toc-recommended-reading" class="nav-link" data-scroll-target="#recommended-reading">10.2 Recommended reading</a></li>
+  </ul></li>
+  <li><a href="#connections" id="toc-connections" class="nav-link" data-scroll-target="#connections">Connections</a>
+  <ul class="collapse">
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
+  </ul></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/ubcecon/praxis-ubc/issues/new" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div><div class="quarto-alternate-formats"><h2>Other Formats</h2><ul><li><a href="notebook_11_capstone_rag.ipynb" download="notebook_11_capstone_rag.ipynb"><i class="bi bi-journal-code"></i>Jupyter</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content column-page-left" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Capstone: Building a RAG System</h1>
+  <div class="quarto-categories">
+    <div class="quarto-category">Python</div>
+    <div class="quarto-category">SQL</div>
+    <div class="quarto-category">data engineering</div>
+  </div>
+  </div>
+
+<div>
+  <div class="description">
+    The final notebook in the Data Engineering stream. We combine everything we have built into one complete system: a pipeline extracts, cleans, chunks, embeds, validates, and loads a corpus of real consumer complaints, a language model answers questions from retrieved excerpts with citations, and every answer can be traced back to its source rows.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta column-page-left">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Alex Ronczewski </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">5 August 2026</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="outline" class="level2">
+<h2 class="anchored" data-anchor-id="outline">Outline</h2>
+<section id="prerequisites" class="level3">
+<h3 class="anchored" data-anchor-id="prerequisites">Prerequisites</h3>
+<ul>
+<li>Notebook 10 of this stream: embeddings, vector search, and the CFPB complaint data.</li>
+</ul>
+</section>
+<section id="learning-outcomes" class="level3">
+<h3 class="anchored" data-anchor-id="learning-outcomes">Learning Outcomes</h3>
+<p>By the end of this notebook you will be able to:</p>
+<ol type="1">
+<li>Explain what <strong>retrieval-augmented generation (RAG)</strong> is.</li>
+<li>Build an <strong>ingestion pipeline</strong> that extracts, cleans, chunks, embeds, validates, and loads a document corpus, using the same executor as Notebooks 8 and 9.</li>
+<li>Assemble retrieved excerpts into a <strong>prompt with citations</strong>, send it to a language model.</li>
+<li>Measure retrieval quality with <strong>golden questions</strong>, and make that measurement a task inside the pipeline.</li>
+<li>Trace any answer back to its source document and to the pipeline tasks that produced it.</li>
+</ol>
+</section>
+</section>
+<section id="where-we-are-in-the-stream" class="level2">
+<h2 class="anchored" data-anchor-id="where-we-are-in-the-stream">1. Where we are in the stream</h2>
+<p><a href="media/NB11/stream_map.png" class="lightbox" data-gallery="quarto-lightbox-gallery-1"><img src="media/NB11/stream_map.png" class="img-fluid" style="width:85.0%" alt="Stream roadmap: four arcs, Querying data (NB1-4), Designing and storing data (NB5-7), Keeping data flowing (NB8-9), and Data for AI (NB10-11), with the current notebook highlighted."></a></p>
+<p>The last notebook in our data engineering stream, I am very excited, we have been leading up to this task. Ten notebooks ago you loaded a single CSV into SQLite and ran your first <code>SELECT</code>. This notebook asks for everything you have learned since, all at once. As always here is our request:</p>
+<blockquote class="blockquote">
+<p><strong>The commission, Thursday 4:10 p.m.</strong> “The harassment search convinced the whole team. We want the full assistant now: we ask a question in plain language, it answers from the complaints, and every claim comes with a citation so we can see where it came from. New complaints arrive every month, so it has to refresh itself and prove it still works after each refresh. And build it so a stranger can rebuild the whole thing from the raw files.”</p>
+</blockquote>
+<p>What the team is asking for has a name:</p>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Retrieval-augmented generation (RAG)
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>RAG</strong> is a question answered in three steps: embed the question, retrieve the most similar pieces of text from a database, and hand those pieces to a language model as part of its prompt, so the model answers from <em>your</em> data instead of from its training memory. The model never trains on your documents; it just reads what retrieval puts in front of it, and is instructed to cite where it got the information from.</p>
+</div>
+</div>
+<p>This notebook’s thesis is that RAG is not an AI technique. It is database architecture with a language model attached, and throughout this stream we have already built every part of it:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Piece of a RAG system</th>
+<th>Where you built it</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Ingesting documents on a schedule</td>
+<td>ETL and pipelines (Notebooks 7 and 8)</td>
+</tr>
+<tr class="even">
+<td>Cleaning the corpus, immutable raw data</td>
+<td>Notebook 4</td>
+</tr>
+<tr class="odd">
+<td>Keys, chunk table’s schema, and grain</td>
+<td>Notebooks 2, 5, and 10</td>
+</tr>
+<tr class="even">
+<td>Validating every batch before it loads</td>
+<td>Notebook 9</td>
+</tr>
+<tr class="odd">
+<td>Retrieval itself</td>
+<td><code>ORDER BY distance LIMIT k</code> (Notebook 10)</td>
+</tr>
+<tr class="even">
+<td>The language model</td>
+<td>The only new part, and it is just one function call</td>
+</tr>
+</tbody>
+</table>
+<p>The plan for this notebook: we define the tables, write the data ingestion, connect them together in a DAG, put a language model on top, measure whether retrieval actually works, and then let a new batch of complaints demonstrate the whole machine refreshing itself. As always we load our libraries</p>
+<div id="5156d3b7" class="cell" data-execution_count="1">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>os.environ[<span class="st">"USE_TF"</span>] <span class="op">=</span> <span class="st">"0"</span>                             <span class="co">#transformers: use torch only, skip TensorFlow</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>os.environ[<span class="st">"HF_HUB_DISABLE_SYMLINKS_WARNING"</span>] <span class="op">=</span> <span class="st">"1"</span>    <span class="co">#disable a Windows-only cache warning</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> json</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> datetime <span class="im">import</span> datetime</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> anthropic</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> duckdb</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> networkx <span class="im">as</span> nx</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> torch</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> transformers <span class="im">import</span> AutoTokenizer, AutoModel</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>pd.set_option(<span class="st">"display.max_colwidth"</span>, <span class="dv">100</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="the-corpus-gets-a-home" class="level2">
+<h2 class="anchored" data-anchor-id="the-corpus-gets-a-home">2. The corpus gets a home</h2>
+<p>Notebook 10 left the 390 CFPB complaint text corpus inside of a <code>complaint</code> table, which is outside of our pipeline ecosystem and will never be updated. This architecture was completely fine for that notebook; but it is not fine for this system where new complaints will be arriving continuously. A system needs a schema, so we start with what Notebook 5 taught us: choose the tables, the keys, and the grain before any data arrives.</p>
+<p>We create two tables. <code>document</code> holds one row per complaint, as cleaning left it. This is the source our LLM citations will point back to. <code>chunk</code> holds one row per paragraph of a document, with the embedding stored next to the text in a <code>FLOAT[384]</code> column. The grain decision comes from the end of Notebook 10. We choose one rule, where we split on blank lines, so a short complaint stays a single chunk of text while a long one is split into paragraphs.</p>
+<p>The DDL below is Notebook 5’s lesson just for DuckDB: primary keys, <code>NOT NULL</code>, and a foreign key from <code>chunk</code> to <code>document</code>, so no chunk can ever exist without its source. The primary key of <code>chunk</code> is the <em>pair</em> of columns <code>(complaint_id, chunk_number)</code>, which is a composite key: neither column alone identifies a paragraph, but together they do.</p>
+<div id="c043c016" class="cell" data-execution_count="2">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>warehouse <span class="op">=</span> duckdb.<span class="ex">connect</span>(<span class="st">"datasets/wage_warehouse.duckdb"</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>warehouse.execute(<span class="st">"DROP TABLE IF EXISTS chunk"</span>)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>warehouse.execute(<span class="st">"DROP TABLE IF EXISTS document"</span>)</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>warehouse.execute(<span class="st">"""CREATE TABLE document (</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="st">    complaint_id BIGINT PRIMARY KEY,</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="st">    issue        VARCHAR NOT NULL,</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="st">    state        VARCHAR,</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="st">    narrative    VARCHAR NOT NULL)"""</span>)</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>warehouse.execute(<span class="st">"""CREATE TABLE chunk (</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="st">    complaint_id BIGINT NOT NULL REFERENCES document(complaint_id),</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="st">    chunk_number INTEGER NOT NULL,</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="st">    text         VARCHAR NOT NULL,</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a><span class="st">    embedding    FLOAT[384] NOT NULL,</span></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a><span class="st">    PRIMARY KEY (complaint_id, chunk_number))"""</span>)</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>warehouse.execute(<span class="st">"SHOW TABLES"</span>).df()                  <span class="co">#SHOW TABLES lists every table in the database</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="2">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">name</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>chunk</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>complaint</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>dim_date</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>dim_province</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">4</td>
+<td>dim_respondent</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">5</td>
+<td>document</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">6</td>
+<td>fact_response</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">7</td>
+<td>monthly_report</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">8</td>
+<td>staging_chunks</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">9</td>
+<td>staging_documents</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">10</td>
+<td>staging_fact</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">11</td>
+<td>staging_raw</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">12</td>
+<td>staging_respondents</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">13</td>
+<td>staging_responses</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>The wage survey’s star schema and the two new tables, side by side in the same warehouse file. This does not cause us any problems for our survey data, this is a key advantage of everything living in one database. New data in various shapes can be added without conflict.</p>
+</section>
+<section id="the-ingestion-tasks" class="level2">
+<h2 class="anchored" data-anchor-id="the-ingestion-tasks">3. The ingestion tasks</h2>
+<p>Now the pipeline that fills those tables. We apply Notebook 8’s rules: every task is a small named function, idempotent, handing data to the next task through storage. The only changes we make are to the tasks themselves, as the data is now text instead of survey responses.</p>
+<p>The first two tasks handle data arrival. <code>extract_documents</code> reads the current file waiting in the inbox; <code>inbox</code> is a one-item list holding the current file’s path, the same device as Notebook 9’s <code>run_month</code>, so a later batch only has to change the path. It keeps the four columns every complaint batch shares, since the CFPB files do not all carry the same extras, and stages the batch untouched as <code>staging_raw</code>.</p>
+<p><code>clean</code> reads that and writes its repaired copy to a separate table, <code>staging_documents</code>, so the raw data survives for the lake. We make three changes to the data itself: strip Windows <code>\r</code> characters and stray whitespace, drop exact duplicate narratives with <code>.drop_duplicates</code>, and drop anonymization boilerplate, rows where the <code>XXXX</code> scrubbing marks make up half the text or more.</p>
+<div id="2c2fcfcf" class="cell" data-execution_count="3">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> log(message):</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"[</span><span class="sc">{</span>datetime<span class="sc">.</span>now()<span class="sc">.</span>strftime(<span class="st">'%H:%M:%S'</span>)<span class="sc">}</span><span class="ss">] </span><span class="sc">{</span>message<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>inbox <span class="op">=</span> [<span class="st">"datasets/cfpb_complaints.csv"</span>]               <span class="co">#the file the next run will ingest</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> extract_documents():</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    pulled <span class="op">=</span> pd.read_csv(inbox[<span class="dv">0</span>])[[<span class="st">"complaint_id"</span>, <span class="st">"issue"</span>, <span class="st">"state"</span>, <span class="st">"narrative"</span>]]</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    warehouse.execute(<span class="st">"CREATE OR REPLACE TABLE staging_raw AS SELECT * FROM pulled"</span>)</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>    log(<span class="ss">f"extract_documents: </span><span class="sc">{</span><span class="bu">len</span>(pulled)<span class="sc">}</span><span class="ss"> documents from </span><span class="sc">{</span>inbox[<span class="dv">0</span>]<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> clean():</span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>    docs <span class="op">=</span> warehouse.execute(<span class="st">"SELECT * FROM staging_raw"</span>).df()</span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>    docs[<span class="st">"narrative"</span>] <span class="op">=</span> docs[<span class="st">"narrative"</span>].<span class="bu">str</span>.replace(<span class="st">"</span><span class="ch">\r</span><span class="st">"</span>, <span class="st">""</span>).<span class="bu">str</span>.strip()</span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>    before <span class="op">=</span> <span class="bu">len</span>(docs)</span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>    docs <span class="op">=</span> docs.drop_duplicates(subset<span class="op">=</span><span class="st">"narrative"</span>)</span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>    share <span class="op">=</span> docs[<span class="st">"narrative"</span>].<span class="bu">str</span>.count(<span class="st">"XXXX"</span>) <span class="op">*</span> <span class="dv">4</span> <span class="op">/</span> docs[<span class="st">"narrative"</span>].<span class="bu">str</span>.<span class="bu">len</span>()</span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>    docs <span class="op">=</span> docs[share <span class="op">&lt;</span> <span class="fl">0.5</span>]</span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>    warehouse.execute(<span class="st">"CREATE OR REPLACE TABLE staging_documents AS SELECT * FROM docs"</span>)</span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>    log(<span class="ss">f"clean: dropped </span><span class="sc">{</span>before <span class="op">-</span> <span class="bu">len</span>(docs)<span class="sc">}</span><span class="ss"> junk rows, </span><span class="sc">{</span><span class="bu">len</span>(docs)<span class="sc">}</span><span class="ss"> documents kept"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>The next two nodes turn documents into searchable coordinates, we load the embedding model and Notebook 10’s <code>embed</code> function (which we copy from that notebook line-by-line, if you need a refresher look at Notebook 10). <code>chunk</code> applies the grain rule from section 2, keeping <code>complaint_id</code> and a running <code>chunk_number</code> on every piece, which is the provenance that later lets an answer from our LLM point back to its source. <code>embed_documents</code> runs <code>embed</code> over the staged chunks in batches. Critically, it never touches the <code>chunk</code> table, only this batch’s staging table, so a refresh only ever embeds the new arrivals, this saves a lot of compute if we had more data.</p>
+<div id="1033b0a2" class="cell" data-execution_count="4">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>tokenizer <span class="op">=</span> AutoTokenizer.from_pretrained(<span class="st">"sentence-transformers/all-MiniLM-L6-v2"</span>)</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> AutoModel.from_pretrained(<span class="st">"sentence-transformers/all-MiniLM-L6-v2"</span>).<span class="bu">eval</span>()</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> embed(texts):</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    encoded <span class="op">=</span> tokenizer(texts, padding<span class="op">=</span><span class="va">True</span>, truncation<span class="op">=</span><span class="va">True</span>, return_tensors<span class="op">=</span><span class="st">"pt"</span>)</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> torch.no_grad():</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>        output <span class="op">=</span> model(<span class="op">**</span>encoded)</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    mask <span class="op">=</span> encoded[<span class="st">"attention_mask"</span>].unsqueeze(<span class="op">-</span><span class="dv">1</span>)</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    vectors <span class="op">=</span> (output.last_hidden_state <span class="op">*</span> mask).<span class="bu">sum</span>(<span class="dv">1</span>) <span class="op">/</span> mask.<span class="bu">sum</span>(<span class="dv">1</span>)</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>    vectors <span class="op">=</span> vectors <span class="op">/</span> vectors.norm(dim<span class="op">=</span><span class="dv">1</span>, keepdim<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> vectors.numpy()</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> chunk():</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>    docs <span class="op">=</span> warehouse.execute(<span class="st">"SELECT * FROM staging_documents"</span>).df()</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>    pieces <span class="op">=</span> []</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> cid, text <span class="kw">in</span> <span class="bu">zip</span>(docs[<span class="st">"complaint_id"</span>], docs[<span class="st">"narrative"</span>]):</span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> number, para <span class="kw">in</span> <span class="bu">enumerate</span>(text.split(<span class="st">"</span><span class="ch">\n\n</span><span class="st">"</span>), <span class="dv">1</span>):</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> para.strip():</span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>                pieces.append({<span class="st">"complaint_id"</span>: cid, <span class="st">"chunk_number"</span>: number, <span class="st">"text"</span>: para.strip()})</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>    piece_df <span class="op">=</span> pd.DataFrame(pieces)</span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>    warehouse.execute(<span class="st">"CREATE OR REPLACE TABLE staging_chunks AS SELECT * FROM piece_df"</span>)</span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>    log(<span class="ss">f"chunk: </span><span class="sc">{</span><span class="bu">len</span>(docs)<span class="sc">}</span><span class="ss"> documents split into </span><span class="sc">{</span><span class="bu">len</span>(pieces)<span class="sc">}</span><span class="ss"> chunks"</span>)</span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> embed_documents():</span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>    staged <span class="op">=</span> warehouse.execute(<span class="st">"SELECT * FROM staging_chunks"</span>).df()</span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>    vectors <span class="op">=</span> []</span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> start <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">0</span>, <span class="bu">len</span>(staged), <span class="dv">64</span>):</span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a>        vectors.extend(embed(staged[<span class="st">"text"</span>].tolist()[start:start <span class="op">+</span> <span class="dv">64</span>]))</span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a>    staged[<span class="st">"embedding"</span>] <span class="op">=</span> [v.tolist() <span class="cf">for</span> v <span class="kw">in</span> vectors]</span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a>    warehouse.execute(<span class="st">"CREATE OR REPLACE TABLE staging_chunks AS SELECT * FROM staged"</span>)</span>
+<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a>    log(<span class="ss">f"embed_documents: </span><span class="sc">{</span><span class="bu">len</span>(staged)<span class="sc">}</span><span class="ss"> chunks embedded"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Now three data validation checks from Notebook 9 aimed at the staged batch: every document produced at least one chunk, no chunk is empty text, and every embedding exists and has exactly 384 numbers. <code>validate</code> runs them and raises an error on any failure, which the executor turns into skipped downstream tasks, just like before with no new machinery required. We could also add more possible checks (and in the real world people do), but three is sufficient for this exercise.</p>
+<div id="40ea59a8" class="cell" data-execution_count="5">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> check_coverage():</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    n <span class="op">=</span> warehouse.execute(<span class="st">"""SELECT COUNT(*) FROM staging_documents</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="st">        WHERE complaint_id NOT IN (SELECT complaint_id FROM staging_chunks)"""</span>).df().iloc[<span class="dv">0</span>, <span class="dv">0</span>]</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> n <span class="op">==</span> <span class="dv">0</span>, <span class="ss">f"</span><span class="sc">{</span>n<span class="sc">}</span><span class="ss"> documents produced no chunks"</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> check_text():</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    n <span class="op">=</span> warehouse.execute(<span class="st">"SELECT COUNT(*) FROM staging_chunks WHERE TRIM(text) = ''"</span>).df().iloc[<span class="dv">0</span>, <span class="dv">0</span>]</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> n <span class="op">==</span> <span class="dv">0</span>, <span class="ss">f"</span><span class="sc">{</span>n<span class="sc">}</span><span class="ss"> empty chunks staged"</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> check_embeddings():</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>    n <span class="op">=</span> warehouse.execute(<span class="st">"""SELECT COUNT(*) FROM staging_chunks</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a><span class="st">        WHERE embedding IS NULL OR len(embedding) != 384"""</span>).df().iloc[<span class="dv">0</span>, <span class="dv">0</span>]</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> n <span class="op">==</span> <span class="dv">0</span>, <span class="ss">f"</span><span class="sc">{</span>n<span class="sc">}</span><span class="ss"> embeddings missing or the wrong size"</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> validate():</span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>    problems <span class="op">=</span> []</span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> check <span class="kw">in</span> [check_coverage, check_text, check_embeddings]:</span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>        passed, detail <span class="op">=</span> check()</span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>        log(<span class="ss">f"</span><span class="sc">{</span><span class="st">'PASS'</span> <span class="cf">if</span> passed <span class="cf">else</span> <span class="st">'FAIL'</span><span class="sc">}</span><span class="ss"> </span><span class="sc">{</span>check<span class="sc">.</span><span class="va">__name__</span><span class="sc">}</span><span class="ss">: </span><span class="sc">{</span>detail<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="kw">not</span> passed:</span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>            problems.append(check.<span class="va">__name__</span>)</span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> problems:</span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>        <span class="cf">raise</span> <span class="pp">RuntimeError</span>(<span class="ss">f"validation failed: </span><span class="sc">{</span><span class="st">', '</span><span class="sc">.</span>join(problems)<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>    log(<span class="st">"validate: batch is clean"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Now for the last part, the load itself: delete-then-insert scoped to the batch, which maintains Notebook 8’s idempotency construction.</p>
+<div id="20430f78" class="cell" data-execution_count="6">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> load():</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>    warehouse.execute(<span class="st">"""DELETE FROM chunk WHERE complaint_id IN</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="st">                         (SELECT complaint_id FROM staging_documents)"""</span>)</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    warehouse.execute(<span class="st">"""DELETE FROM document WHERE complaint_id IN</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="st">                         (SELECT complaint_id FROM staging_documents)"""</span>)</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    warehouse.execute(<span class="st">"INSERT INTO document SELECT * FROM staging_documents"</span>)</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    warehouse.execute(<span class="st">"""INSERT INTO chunk SELECT complaint_id, chunk_number, text,</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="st">                         CAST(embedding AS FLOAT[384]) FROM staging_chunks"""</span>)</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>    log(<span class="st">"load: document and chunk tables up to date"</span>)</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> archive_raw():</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>    batch <span class="op">=</span> warehouse.execute(<span class="st">"SELECT * FROM staging_raw"</span>).df()</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>    name <span class="op">=</span> os.path.basename(inbox[<span class="dv">0</span>]).replace(<span class="st">".csv"</span>, <span class="st">""</span>)</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>    batch.to_parquet(<span class="ss">f"datasets/archive_</span><span class="sc">{</span>name<span class="sc">}</span><span class="ss">.parquet"</span>)</span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>    log(<span class="ss">f"archive_raw: </span><span class="sc">{</span><span class="bu">len</span>(batch)<span class="sc">}</span><span class="ss"> documents to the lake (</span><span class="sc">{</span>name<span class="sc">}</span><span class="ss">)"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Seven tasks, that was a lot. Time to draw the arrows on our DAG.</p>
+</section>
+<section id="you-author-the-dag" class="level2">
+<h2 class="anchored" data-anchor-id="you-author-the-dag">4. You author the DAG</h2>
+<p>In Notebook 8 I handed you the graph. This is the capstone, so this time the arrows are your job.</p>
+<p><strong>Your turn.</strong> Build <code>pipeline</code> as an <code>nx.DiGraph</code> from these dependencies: <code>clean</code> needs <code>extract_documents</code>, and so does <code>archive_raw</code> (it archives what arrived, so nothing else may touch the data first); <code>chunk</code> needs <code>clean</code>; <code>embed_documents</code> needs <code>chunk</code>; <code>validate</code> needs <code>embed_documents</code>; <code>load</code> needs <code>validate</code>. Write the <code>add_edges_from</code> call before opening the answer. If you need help you can revisit Notebook 8.</p>
+<div id="f6bf9c6f" class="cell" data-execution_count="7">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># your DAG here</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="co">#Type your graph above and uncomment the print statements below when ready</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="co">#print("acyclic:", nx.is_directed_acyclic_graph(pipeline))</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="co">#print("one possible valid order:", list(nx.topological_sort(pipeline)))</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<details>
+<summary>
+Show / hide answer
+</summary>
+<div id="5cf5b3ca" class="cell" data-execution_count="8">
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>pipeline <span class="op">=</span> nx.DiGraph()</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>pipeline.add_edges_from([</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"extract_documents"</span>, <span class="st">"clean"</span>),</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"extract_documents"</span>, <span class="st">"archive_raw"</span>),</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"clean"</span>, <span class="st">"chunk"</span>),</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"chunk"</span>, <span class="st">"embed_documents"</span>),</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"embed_documents"</span>, <span class="st">"validate"</span>),</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"validate"</span>, <span class="st">"load"</span>),</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>])</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"acyclic:"</span>, nx.is_directed_acyclic_graph(pipeline))</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"one possible valid order:"</span>, <span class="bu">list</span>(nx.topological_sort(pipeline)))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>acyclic: True
+one possible valid order: ['extract_documents', 'clean', 'archive_raw', 'chunk', 'embed_documents', 'validate', 'load']</code></pre>
+</div>
+</div>
+</details>
+<p>Perfect, it’s acyclic and has a valid order. Just like in Notebook 8, we will draw it with <code>nx.draw</code> to clearly show the structure.</p>
+<div id="4a0b0885" class="cell" data-execution_count="9">
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>positions <span class="op">=</span> {<span class="st">"extract_documents"</span>: (<span class="dv">0</span>, <span class="fl">0.5</span>), <span class="st">"archive_raw"</span>: (<span class="fl">1.1</span>, <span class="fl">1.4</span>), <span class="st">"clean"</span>: (<span class="fl">1.1</span>, <span class="fl">0.5</span>),</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>             <span class="st">"chunk"</span>: (<span class="fl">2.2</span>, <span class="fl">0.5</span>), <span class="st">"embed_documents"</span>: (<span class="fl">3.3</span>, <span class="fl">0.5</span>), <span class="st">"validate"</span>: (<span class="fl">4.4</span>, <span class="fl">0.5</span>), <span class="st">"load"</span>: (<span class="fl">5.5</span>, <span class="fl">0.5</span>)}</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>plt.figure(figsize<span class="op">=</span>(<span class="dv">12</span>, <span class="dv">4</span>))</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>nx.draw(pipeline, positions, with_labels<span class="op">=</span><span class="va">True</span>, node_color<span class="op">=</span><span class="st">"#c8e6c9"</span>, edgecolors<span class="op">=</span><span class="st">"#2e7d32"</span>,</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>        node_size<span class="op">=</span><span class="dv">6000</span>, font_size<span class="op">=</span><span class="dv">8</span>, edge_color<span class="op">=</span><span class="st">"#666666"</span>, arrowsize<span class="op">=</span><span class="dv">20</span>, width<span class="op">=</span><span class="fl">1.6</span>)</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>plt.margins(x<span class="op">=</span><span class="fl">0.09</span>, y<span class="op">=</span><span class="fl">0.18</span>)</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><a href="notebook_11_capstone_rag_files/figure-html/cell-10-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-2"><img src="notebook_11_capstone_rag_files/figure-html/cell-10-output-1.png" width="1171" height="403" class="figure-img"></a></p>
+</figure>
+</div>
+</div>
+</div>
+<p>The executor we use is <code>run_pipeline</code> from Notebook 8, which we copy exactly. This is because an executor does not care whether the data running through it is survey responses or paragraphs of text.</p>
+<div id="34fe721d" class="cell" data-execution_count="10">
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> run_pipeline(graph, tasks):</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="kw">not</span> nx.is_directed_acyclic_graph(graph):</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>        <span class="cf">raise</span> <span class="pp">ValueError</span>(<span class="st">"this graph has a cycle: no run order exists"</span>)</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>    finished, failed, skipped <span class="op">=</span> [], [], []</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> name <span class="kw">in</span> nx.topological_sort(graph):</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>        blocked <span class="op">=</span> [task <span class="cf">for</span> task <span class="kw">in</span> graph.predecessors(name) <span class="cf">if</span> task <span class="kw">in</span> failed <span class="kw">or</span> task <span class="kw">in</span> skipped]</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> blocked:</span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>            skipped.append(name)</span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>            log(<span class="ss">f"SKIP </span><span class="sc">{</span>name<span class="sc">}</span><span class="ss"> (upstream trouble: </span><span class="sc">{</span>blocked[<span class="dv">0</span>]<span class="sc">}</span><span class="ss">)"</span>)</span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a>            <span class="cf">continue</span></span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>        <span class="cf">try</span>:</span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a>            tasks[name]()</span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a>            finished.append(name)</span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>        <span class="cf">except</span> <span class="pp">Exception</span> <span class="im">as</span> error:</span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>            failed.append(name)</span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a>            log(<span class="ss">f"FAIL </span><span class="sc">{</span>name<span class="sc">}</span><span class="ss">: </span><span class="sc">{</span>error<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> finished, failed, skipped</span>
+<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a>tasks <span class="op">=</span> {<span class="st">"extract_documents"</span>: extract_documents, <span class="st">"clean"</span>: clean, <span class="st">"chunk"</span>: chunk,</span>
+<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a>         <span class="st">"embed_documents"</span>: embed_documents, <span class="st">"validate"</span>: validate, <span class="st">"load"</span>: load,</span>
+<span id="cb11-21"><a href="#cb11-21" aria-hidden="true" tabindex="-1"></a>         <span class="st">"archive_raw"</span>: archive_raw}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Finally we have all of our steps and we can run the executor, it is just one line.</p>
+<div id="bb5fc9e8" class="cell" data-execution_count="11">
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>run_pipeline(pipeline, tasks)</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>warehouse.execute(<span class="st">"""SELECT (SELECT COUNT(*) FROM document) AS documents,</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="st">                            (SELECT COUNT(*) FROM chunk)    AS chunks"""</span>).df()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[21:23:47] extract_documents: 390 documents from datasets/cfpb_complaints.csv
+[21:23:47] clean: dropped 0 junk rows, 390 documents kept
+[21:23:47] archive_raw: 390 documents to the lake (cfpb_complaints)
+[21:23:47] chunk: 390 documents split into 577 chunks
+[21:23:55] embed_documents: 577 chunks embedded
+[21:23:55] PASS check_coverage: 0 documents produced no chunks
+[21:23:55] PASS check_text: 0 empty chunks staged
+[21:23:55] PASS check_embeddings: 0 embeddings missing or the wrong size
+[21:23:55] validate: batch is clean
+[21:23:55] load: document and chunk tables up to date</code></pre>
+</div>
+<div class="cell-output cell-output-display" data-execution_count="11">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">documents</th>
+<th data-quarto-table-cell-role="th">chunks</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>390</td>
+<td>577</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>Every task ran, every check passed, and the index exists: 390 documents which become 577 chunks. The difference comes from the grain rule where we split the longer text entries. Next we run <code>MAX</code> and <code>HAVING</code> to check how many entries were split:</p>
+<div id="edd98812" class="cell" data-execution_count="12">
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>warehouse.execute(<span class="st">"""SELECT COUNT(*) AS single_chunk_documents,</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="st">                            (SELECT MAX(n) FROM (SELECT COUNT(*) AS n FROM chunk GROUP BY complaint_id)) AS most_chunks</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="st">                     FROM (SELECT complaint_id FROM chunk GROUP BY complaint_id HAVING COUNT(*) = 1)"""</span>).df()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="12">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">single_chunk_documents</th>
+<th data-quarto-table-cell-role="th">most_chunks</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>286</td>
+<td>7</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>286 of the 390 complaints stayed a single chunk, and the longest split into 7 paragraphs.</p>
+</section>
+<section id="asking-questions" class="level2">
+<h2 class="anchored" data-anchor-id="asking-questions">5. Asking questions</h2>
+<p>Retrieval against the new tables is Notebook 10’s search with one upgrade: a <code>JOIN</code> back to <code>document</code>, so every hit arrives already carrying its source’s id and label. The citations become built into the query. We will search for <em>What do debt collectors actually do when they harass people?</em>.</p>
+<div id="2cdba415" class="cell" data-execution_count="13">
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> retrieve(question, k<span class="op">=</span><span class="dv">5</span>):</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>    qv <span class="op">=</span> embed([question])[<span class="dv">0</span>].tolist()</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> warehouse.execute(<span class="st">"""</span></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a><span class="st">        SELECT d.complaint_id, c.chunk_number, d.issue, d.state,</span></span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a><span class="st">               round(array_cosine_distance(c.embedding, CAST(? AS FLOAT[384])), 3) AS distance,</span></span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a><span class="st">               substr(c.text, 1, 80) AS start_of_chunk</span></span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a><span class="st">        FROM chunk AS c</span></span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a><span class="st">        JOIN document AS d ON c.complaint_id = d.complaint_id</span></span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a><span class="st">        ORDER BY distance LIMIT ?"""</span>, [qv, k]).df()</span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a>retrieve(<span class="st">"What do debt collectors actually do when they harass people?"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="13">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">complaint_id</th>
+<th data-quarto-table-cell-role="th">chunk_number</th>
+<th data-quarto-table-cell-role="th">issue</th>
+<th data-quarto-table-cell-role="th">state</th>
+<th data-quarto-table-cell-role="th">distance</th>
+<th data-quarto-table-cell-role="th">start_of_chunk</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>6674790</td>
+<td>3</td>
+<td>Problem with a purchase shown on your statement</td>
+<td>CA</td>
+<td>0.326</td>
+<td>I consider this repeated action, pure and simple harassment which is tantamount</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>6661495</td>
+<td>1</td>
+<td>Communication tactics</td>
+<td>NJ</td>
+<td>0.393</td>
+<td>XXXX XXXX, a debt collector keeps calling me multiple times a day every single d</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>6643584</td>
+<td>1</td>
+<td>Communication tactics</td>
+<td>FL</td>
+<td>0.399</td>
+<td>ON XXXX I saw a charge off on my credit report from company Caine &amp; Weiner i cal</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>6659905</td>
+<td>1</td>
+<td>Communication tactics</td>
+<td>TN</td>
+<td>0.418</td>
+<td>Employees, at the XXXX TN location repeatedly use very aggressive and threating</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">4</td>
+<td>6661543</td>
+<td>1</td>
+<td>Communication tactics</td>
+<td>NJ</td>
+<td>0.419</td>
+<td>Portfolio recovery, a debt collector keeps calling me multiple times a day every</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>The form of our prompt has changed; it is now a question. It reflects what the team will actually type (or something you would ask an LLM). Retrieval handles it perfectly: four of the five hits carry the Communication tactics label, at distances 0.326 to 0.419. The one stray entry is familiar: complaint 6674790 describes “pure and simple harassment” in its own words, so the model ranks it high even though the CFPB filed it under a card-statement category. This is the exact same situation as the Notebook 10 Navient complaint. Labels and meaning disagree, and our model is searching for the meaning component.</p>
+<p>The last step before the language model is bundling the output into a prompt to put into the LLM. <code>build_prompt</code> retrieves the top <code>k</code> chunks, labels each one with its <code>complaint_id</code> in square brackets, and wraps them in instructions: answer only from the excerpts, cite the id after every claim, and say so if the excerpts do not contain the answer. The final clause is the most important one as it stops the model from hallucinating and grounds our answer.</p>
+<div id="1b4730c5" class="cell" data-execution_count="14">
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> build_prompt(question, k<span class="op">=</span><span class="dv">3</span>):</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>    hits <span class="op">=</span> warehouse.execute(<span class="st">"""</span></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a><span class="st">        SELECT d.complaint_id, c.text</span></span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a><span class="st">        FROM chunk AS c</span></span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a><span class="st">        JOIN document AS d ON c.complaint_id = d.complaint_id</span></span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a><span class="st">        ORDER BY array_cosine_distance(c.embedding, CAST(? AS FLOAT[384])) LIMIT ?"""</span>,</span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>        [embed([question])[<span class="dv">0</span>].tolist(), k]).df()</span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>    excerpts <span class="op">=</span> <span class="st">"</span><span class="ch">\n\n</span><span class="st">"</span>.join(<span class="ss">f"[</span><span class="sc">{</span>cid<span class="sc">}</span><span class="ss">] </span><span class="sc">{</span>text<span class="sc">}</span><span class="ss">"</span> <span class="cf">for</span> cid, text <span class="kw">in</span> <span class="bu">zip</span>(hits[<span class="st">"complaint_id"</span>], hits[<span class="st">"text"</span>]))</span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> (<span class="ss">f"Answer the question using only the excerpts below, and cite the id in square "</span></span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a>            <span class="ss">f"brackets after every claim. If the excerpts do not contain the answer, say so.</span><span class="ch">\n\n</span><span class="ss">"</span></span>
+<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a>            <span class="ss">f"Excerpts:</span><span class="ch">\n\n</span><span class="sc">{</span>excerpts<span class="sc">}</span><span class="ch">\n\n</span><span class="ss">Question: </span><span class="sc">{</span>question<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a>prompt <span class="op">=</span> build_prompt(<span class="st">"What do debt collectors actually do when they harass people?"</span>)</span>
+<span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(prompt)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Answer the question using only the excerpts below, and cite the id in square brackets after every claim. If the excerpts do not contain the answer, say so.
+
+Excerpts:
+
+[6674790] I consider this repeated action, pure and simple harassment which is tantamount to violations of Fair Debt Collection Practices Act.
+
+[6661495] XXXX XXXX, a debt collector keeps calling me multiple times a day every single day, when I block a number they call me from they call me from a different number. This has been going on for YEARS now. The debt started with capitol one, which I DID NOT take those credit cards out, my ex boyfriend did and ran them up {$4000.00} on each card. I contacted capitol one and explained it was fraud and they told me that there is nothing they can do I'm responsible for paying it, long story short they cut the debt in half, I paid around 55 % of the debt and I told them I am NOT paying anymore because I should of had to give them a cent in the first place. Now XXXX XXXX will NOT stop harassing me! Something needs to be done or I will take legal action. Please help me.
+
+[6643584] ON XXXX I saw a charge off on my credit report from company Caine &amp; Weiner i called spoke with a collector who I explained i never received any notices validation letters anything that was sent out prior to just putting a charge off on my credit she said they emailed me a settlement letter for XXXX something trying to get me to settle told her i never received that and told her I am willing to settle at {$1200.00} she said she cant do it ask for her supervisor which was the worst person I ever spoke with she was rude a bully very defensive she scream yelled at me refuse to let me talk she told me her company does not offer settlements told her that info is false her collector just told me a settlement was offered and emailed to me she became extremely upset scream called me unkindly things and refuse to talk and she hung up on me this is how progressive allow their customers to be treated being abused by a collections agency this is not right and consumers like me we need protection UPDATED NEW NUMBER XXXX XXXX XXXX
+
+Question: What do debt collectors actually do when they harass people?</code></pre>
+</div>
+</div>
+<p>We have done it! The printout above <em>is</em> RAG. We have created a database attached to our model. We get a prompt with three excerpts our SQL selected, each tagged with the row it came from, followed by the question. This is what we will hand our model.</p>
+</section>
+<section id="the-language-model-reads-the-prompt" class="level2">
+<h2 class="anchored" data-anchor-id="the-language-model-reads-the-prompt">6. The language model reads the prompt</h2>
+<p>The prompt could go into any language model (and you can paste it into any web one right now: ChatGPT, Claude, Gemini etc). To make it part of the system we call one through an API, and we do it with the discipline we have learned throughout the whole stream: safely and idempotently. The replies below were generated once with the <code>claude-opus-5</code> model and shipped with the repository and come from local cache so notebook re-runs do not cost extra money; delete an entry from <code>datasets/llm_answers.json</code> if you ever want a fresh one.</p>
+<p>On a cache miss the function calls the API. <code>anthropic.Anthropic()</code> finds your key in the <code>ANTHROPIC_API_KEY</code> environment variable, <code>max_tokens</code> caps the reply’s length.</p>
+<div id="430f7e64" class="cell" data-execution_count="15">
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> ask_llm(slug, prompt):</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>    answers <span class="op">=</span> {}</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> os.path.exists(<span class="st">"datasets/llm_answers.json"</span>):</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>        answers <span class="op">=</span> json.load(<span class="bu">open</span>(<span class="st">"datasets/llm_answers.json"</span>))</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> slug <span class="kw">not</span> <span class="kw">in</span> answers:</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>        client <span class="op">=</span> anthropic.Anthropic()</span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>        reply <span class="op">=</span> client.messages.create(model<span class="op">=</span><span class="st">"claude-opus-5"</span>, max_tokens<span class="op">=</span><span class="dv">1000</span>,</span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>                                       messages<span class="op">=</span>[{<span class="st">"role"</span>: <span class="st">"user"</span>, <span class="st">"content"</span>: prompt}])</span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>        answers[slug] <span class="op">=</span> <span class="st">""</span>.join(block.text <span class="cf">for</span> block <span class="kw">in</span> reply.content <span class="cf">if</span> block.<span class="bu">type</span> <span class="op">==</span> <span class="st">"text"</span>)</span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>        json.dump(answers, <span class="bu">open</span>(<span class="st">"datasets/llm_answers.json"</span>, <span class="st">"w"</span>), indent<span class="op">=</span><span class="dv">2</span>)</span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> answers[slug]</span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(ask_llm(<span class="st">"harassment_rag"</span>, prompt))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Based on the excerpts, debt collectors repeatedly call people multiple times a day, every day, and when blocked from one number, switch to a different number to continue calling [6661495]. This calling pattern can persist for years [6661495]. In another instance, when a consumer disputed a debt and sought validation records, a collector's supervisor became abusive—yelling, refusing to let the consumer speak, calling them names, and hanging up on them [6643584]. One excerpt characterizes this kind of repeated contact as harassment that may violate the Fair Debt Collection Practices Act, though it does not specify further concrete actions beyond describing the conduct as repeated [6674790].</code></pre>
+</div>
+</div>
+<p>An answer created entirely from the three excerpts we fed it, with a citation after each claim. Now the control experiment: the same question with no excerpts included at all, which is what asking a standard chatbot looks like.</p>
+<div id="aecc90e0" class="cell" data-execution_count="16">
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(ask_llm(<span class="st">"harassment_no_rag"</span>, <span class="st">"What do debt collectors actually do when they harass people? Answer in a short paragraph."</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Debt collectors harass people through a mix of persistent contact and pressure tactics: calling repeatedly throughout the day (sometimes dozens of times), calling before 8am or after 9pm, contacting people at work despite being told not to, and calling family members, friends, or employers to pressure the debtor or embarrass them into paying. They often use aggressive or threatening language—implying arrest, lawsuits, or wage garnishment that may not actually be legally possible—and sometimes misrepresent the amount owed, claim to be attorneys or government officials when they aren't, or threaten to report debts to credit bureaus in ways designed to scare rather than inform. Some continue contacting people after receiving a written cease-and-desist request, or attempt to collect debts that are time-barred, already paid, or not actually owed by the person being contacted. Much of this conduct violates the Fair Debt Collection Practices Act (FDCPA), which is why complaints about these practices are a major category in consumer protection databases like the CFPB complaint system.</code></pre>
+</div>
+</div>
+<p>Both answers are written properly and seem correct, but the second one lacks direct examples. The standard answer is a competent summary of the world in general. It is most likely true on average, grounded in nothing and can’t be checked, you just have to trust it blindly. The RAG answer makes claims about <em>our</em> 390 complaints and includes a citation for each one. We can follow through with these citations, because every single one is a key into our own tables; take the answer’s first one, 6661495:</p>
+<div id="3f314464" class="cell" data-execution_count="17">
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>warehouse.execute(<span class="st">"""SELECT complaint_id, issue, state, substr(narrative, 1, 200) AS narrative_start</span></span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a><span class="st">                     FROM document WHERE complaint_id = 6661495"""</span>).df()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="17">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">complaint_id</th>
+<th data-quarto-table-cell-role="th">issue</th>
+<th data-quarto-table-cell-role="th">state</th>
+<th data-quarto-table-cell-role="th">narrative_start</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>6661495</td>
+<td>Communication tactics</td>
+<td>NJ</td>
+<td>XXXX XXXX, a debt collector keeps calling me multiple times a day every single day, when I block...</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>There is the source row, label, state, and full narrative from our warehouse. We can also check the passage’s history using Notebook 9’s techniques. <code>nx.ancestors</code> names every task that touched this passage before the model ever saw it, printed in pipeline order with a small helper function. We can use this to see what edits, cleaning or validation checks it has gone through.</p>
+<div id="ee96ca27" class="cell" data-execution_count="18">
+<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> in_dag_order(task_set):</span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> [task <span class="cf">for</span> task <span class="kw">in</span> nx.topological_sort(pipeline) <span class="cf">if</span> task <span class="kw">in</span> task_set]</span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"this passage passed through:"</span>, in_dag_order(nx.ancestors(pipeline, <span class="st">"load"</span>)))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>this passage passed through: ['extract_documents', 'clean', 'chunk', 'embed_documents', 'validate']</code></pre>
+</div>
+</div>
+<p>Extraction, cleaning, chunking, embedding, validation, then lastly the load. An answer, its source row, and the full audit trail of how that row got there: that is what “traceable” means, and we never made any new machinery for it, we just re-used the ones from Notebook 1 through 10.</p>
+</section>
+<section id="what-the-assistant-cannot-answer" class="level2">
+<h2 class="anchored" data-anchor-id="what-the-assistant-cannot-answer">7. What the assistant cannot answer</h2>
+<p>Notebook 10 ended with us looking at three long identity-theft complaints and searching for one specific anecdote: fraud that cost a consumer refinancing, and student loans for their daughter. Those three long complaints never went through the data pipeline or the RAG so they are just sitting in a dataframe somewhere. They are also not in the index. So when the team repeats Notebook 10’s exact search sentence, retrieval does its best with what it has:</p>
+<div id="898c1d91" class="cell" data-execution_count="19">
+<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>daughter_question <span class="op">=</span> <span class="st">"the fraud made me unable to get student loans for my daughter"</span></span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>retrieve(daughter_question)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="19">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">complaint_id</th>
+<th data-quarto-table-cell-role="th">chunk_number</th>
+<th data-quarto-table-cell-role="th">issue</th>
+<th data-quarto-table-cell-role="th">state</th>
+<th data-quarto-table-cell-role="th">distance</th>
+<th data-quarto-table-cell-role="th">start_of_chunk</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>6677003</td>
+<td>1</td>
+<td>Dealing with your lender or servicer</td>
+<td>CA</td>
+<td>0.394</td>
+<td>Went to XXXX XXXX in XXXX XXXX in XXXX and School was closed for preditory lend</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>6635376</td>
+<td>1</td>
+<td>Dealing with your lender or servicer</td>
+<td>WA</td>
+<td>0.438</td>
+<td>The complaint is against Mohela, the federal student loan servicer.</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>6634428</td>
+<td>1</td>
+<td>Incorrect information on your report</td>
+<td>MS</td>
+<td>0.452</td>
+<td>XXXX reported my account as delinquent. I do not have to pay because my loans ar</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>6704078</td>
+<td>1</td>
+<td>Dealing with your lender or servicer</td>
+<td>TX</td>
+<td>0.456</td>
+<td>My school closed down and my payments went into forbearance and I had been makin</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">4</td>
+<td>6708202</td>
+<td>1</td>
+<td>Dealing with your lender or servicer</td>
+<td>KY</td>
+<td>0.463</td>
+<td>Climb credit had me to sign up for a student loan for XXXX school classes. Howev</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>Five student-loan stories, with none of them coming closer than 0.394, and not one of them about fraud blocking a daughter’s education. Retrieval has to rank, it is forced to have an output and it tries its best. The model, though, was told what to do when the excerpts come up empty:</p>
+<div id="d3a3e80d" class="cell" data-execution_count="20">
+<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(ask_llm(<span class="st">"daughter_missing"</span>, build_prompt(daughter_question)))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>The excerpts do not contain the answer. None of the three excerpts [6677003] [6635376] [6634428] mention fraud affecting the ability to obtain student loans for a daughter.</code></pre>
+</div>
+</div>
+<p>It says the excerpts do not contain the answer. Because we told it to stick to the excerpts, the language model declines to hallucinate or improvise. A normal chatbot can’t do that (unless you ask how to make a bomb!). That discipline comes from the prompt instructions rather than a hard technical wall; the model can still occasionally ignore them, which is why the next section’s check matters — but when it holds, a wrong answer is usually a <em>data</em> problem, and data problems are exactly what the rest of this stream taught us to find and fix.</p>
+</section>
+<section id="measuring-retrieval-quality" class="level2">
+<h2 class="anchored" data-anchor-id="measuring-retrieval-quality">8. Measuring retrieval quality</h2>
+<p>Let’s now turn to the hardest question the email also asked for: after each refresh, <em>prove the system still functions</em>. The checks we used in Notebook 9 can certify rows: counts, nulls, types. None of them can certify that searching this index still finds the right things; this is a claim about behaviour. Our efforts are not wasted though, the deeper lesson from notebook 9 still applies: “loaded” and “retrieves well” are different claims, and we can use written-down expectations to prove retrieval quality.</p>
+<p>For retrieval, the written-down expectation is a set of <strong>golden questions</strong>: questions the office actually asks often, each with a known right answer we can grade against. The CFPB’s issue labels are the free answer key which we will re-use. We ask five questions, one per category we can phrase cleanly, graded on how many of the top 5 hits are from the expected label:</p>
+<div id="76c4554f" class="cell" data-execution_count="21">
+<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>golden <span class="op">=</span> {</span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">"debt collectors harassing me with constant phone calls"</span>: <span class="st">"Communication tactics"</span>,</span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"my mortgage payment was misapplied and my escrow account is wrong"</span>: <span class="st">"Trouble during payment process"</span>,</span>
+<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"wrong accounts are showing up on my credit report"</span>: <span class="st">"Incorrect information on your report"</span>,</span>
+<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">"my bank closed my checking account without warning and froze my money"</span>: <span class="st">"Managing an account"</span>,</span>
+<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">"problems getting my student loan servicer to fix my account"</span>: <span class="st">"Dealing with your lender or servicer"</span>,</span>
+<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb28-8"><a href="#cb28-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-9"><a href="#cb28-9" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> question, label <span class="kw">in</span> golden.items():</span>
+<span id="cb28-10"><a href="#cb28-10" aria-hidden="true" tabindex="-1"></a>    hits <span class="op">=</span> retrieve(question)</span>
+<span id="cb28-11"><a href="#cb28-11" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>(hits[<span class="st">'issue'</span>] <span class="op">==</span> label)<span class="sc">.</span><span class="bu">sum</span>()<span class="sc">}</span><span class="ss">/5  </span><span class="sc">{</span>label<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>5/5  Communication tactics
+5/5  Trouble during payment process
+5/5  Incorrect information on your report
+4/5  Managing an account
+4/5  Dealing with your lender or servicer</code></pre>
+</div>
+</div>
+<p>23 of 25 of our outputs are from the expected label, with no section below 4/5. These are good scores! We have a healthy index, so we will freeze them into an expectation, 3 of 5 or better on every question, and make the grading a task in our pipeline. This is Notebook 9 coming back again: first we ran checks by hand, then we put them into the pipeline so they had to be run, and we could never forget. We repeat the same surgery, one <code>add_edge</code> for the task <code>eval_retrieval</code>:</p>
+<div id="8076bff1" class="cell" data-execution_count="22">
+<div class="sourceCode cell-code" id="cb30"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> eval_retrieval():</span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>    problems <span class="op">=</span> []</span>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> question, label <span class="kw">in</span> golden.items():</span>
+<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a>        score <span class="op">=</span> (retrieve(question)[<span class="st">"issue"</span>] <span class="op">==</span> label).<span class="bu">sum</span>()</span>
+<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a>        log(<span class="ss">f"</span><span class="sc">{</span><span class="st">'PASS'</span> <span class="cf">if</span> score <span class="op">&gt;=</span> <span class="dv">3</span> <span class="cf">else</span> <span class="st">'FAIL'</span><span class="sc">}</span><span class="ss"> </span><span class="sc">{</span>score<span class="sc">}</span><span class="ss">/5 golden: </span><span class="sc">{</span>question<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb30-6"><a href="#cb30-6" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> score <span class="op">&lt;</span> <span class="dv">3</span>:</span>
+<span id="cb30-7"><a href="#cb30-7" aria-hidden="true" tabindex="-1"></a>            problems.append(question)</span>
+<span id="cb30-8"><a href="#cb30-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> problems:</span>
+<span id="cb30-9"><a href="#cb30-9" aria-hidden="true" tabindex="-1"></a>        <span class="cf">raise</span> <span class="pp">RuntimeError</span>(<span class="ss">f"retrieval eval failed on </span><span class="sc">{</span><span class="bu">len</span>(problems)<span class="sc">}</span><span class="ss"> questions"</span>)</span>
+<span id="cb30-10"><a href="#cb30-10" aria-hidden="true" tabindex="-1"></a>    log(<span class="st">"eval_retrieval: the index still answers like it should"</span>)</span>
+<span id="cb30-11"><a href="#cb30-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-12"><a href="#cb30-12" aria-hidden="true" tabindex="-1"></a>pipeline.add_edge(<span class="st">"load"</span>, <span class="st">"eval_retrieval"</span>)</span>
+<span id="cb30-13"><a href="#cb30-13" aria-hidden="true" tabindex="-1"></a>tasks[<span class="st">"eval_retrieval"</span>] <span class="op">=</span> eval_retrieval</span>
+<span id="cb30-14"><a href="#cb30-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-15"><a href="#cb30-15" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"one possible valid order:"</span>, <span class="bu">list</span>(nx.topological_sort(pipeline)))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>one possible valid order: ['extract_documents', 'clean', 'archive_raw', 'chunk', 'embed_documents', 'validate', 'load', 'eval_retrieval']</code></pre>
+</div>
+</div>
+<p>We add it after the load, because it queries the live index. If the eval came before it would not see the new entries as the load has not fired yet. <code>validate</code> acts as a gate that stops bad rows before they land; <code>eval_retrieval</code> is an alarm that fires after they land, the pipeline’s own way of checking if the refresh made search quality drastically worse (even if each individual entry is valid). We can now vouch for the index’s quality and behaviour.</p>
+</section>
+<section id="new-documents-arrive" class="level2">
+<h2 class="anchored" data-anchor-id="new-documents-arrive">9. New documents arrive</h2>
+<p>Time to fix section 7. The three long complaints from above arrive as this month’s batch. To make our task a bit more difficult the batch also picked up two bad rows on its way through the office: an exact duplicate of one complaint under a fresh id, and a row whose narrative is nothing except <code>XXXX</code> anonymization boilerplate. We run the arrival manually, and drop the file in the inbox:</p>
+<div id="bee3e22d" class="cell" data-execution_count="23">
+<div class="sourceCode cell-code" id="cb32"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a>longs <span class="op">=</span> pd.read_csv(<span class="st">"datasets/cfpb_long_complaints.csv"</span>)</span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a>batch2 <span class="op">=</span> longs[[<span class="st">"complaint_id"</span>, <span class="st">"issue"</span>, <span class="st">"state"</span>, <span class="st">"narrative"</span>]].copy()</span>
+<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-4"><a href="#cb32-4" aria-hidden="true" tabindex="-1"></a>copied <span class="op">=</span> batch2.iloc[[<span class="dv">1</span>]].copy()                      </span>
+<span id="cb32-5"><a href="#cb32-5" aria-hidden="true" tabindex="-1"></a>copied[<span class="st">"complaint_id"</span>] <span class="op">=</span> <span class="dv">6632902</span></span>
+<span id="cb32-6"><a href="#cb32-6" aria-hidden="true" tabindex="-1"></a>junk <span class="op">=</span> pd.DataFrame([{<span class="st">"complaint_id"</span>: <span class="dv">6640000</span>, <span class="st">"issue"</span>: <span class="st">"Other"</span>, <span class="st">"state"</span>: <span class="st">"XX"</span>,</span>
+<span id="cb32-7"><a href="#cb32-7" aria-hidden="true" tabindex="-1"></a>                      <span class="st">"narrative"</span>: <span class="st">" "</span>.join([<span class="st">"XXXX"</span>] <span class="op">*</span> <span class="dv">50</span>)}])  </span>
+<span id="cb32-8"><a href="#cb32-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-9"><a href="#cb32-9" aria-hidden="true" tabindex="-1"></a>batch2 <span class="op">=</span> pd.concat([batch2, copied, junk], ignore_index<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb32-10"><a href="#cb32-10" aria-hidden="true" tabindex="-1"></a>batch2.to_csv(<span class="st">"datasets/complaints_batch2.csv"</span>, index<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb32-11"><a href="#cb32-11" aria-hidden="true" tabindex="-1"></a>inbox[<span class="dv">0</span>] <span class="op">=</span> <span class="st">"datasets/complaints_batch2.csv"</span></span>
+<span id="cb32-12"><a href="#cb32-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-13"><a href="#cb32-13" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="bu">len</span>(batch2)<span class="sc">}</span><span class="ss"> documents in the inbox"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>5 documents in the inbox</code></pre>
+</div>
+</div>
+<blockquote class="blockquote">
+<p><strong>Predict first.</strong> Five documents go in. Walk the graph: how many come out the other end of <code>clean</code>, and does anything downstream of it fail?</p>
+</blockquote>
+<div id="109d6104" class="cell" data-execution_count="24">
+<div class="sourceCode cell-code" id="cb34"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a>run_pipeline(pipeline, tasks)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[21:23:55] extract_documents: 5 documents from datasets/complaints_batch2.csv
+[21:23:55] clean: dropped 2 junk rows, 3 documents kept
+[21:23:55] archive_raw: 5 documents to the lake (complaints_batch2)
+[21:23:55] chunk: 3 documents split into 16 chunks
+[21:23:55] embed_documents: 16 chunks embedded
+[21:23:55] PASS check_coverage: 0 documents produced no chunks
+[21:23:55] PASS check_text: 0 empty chunks staged
+[21:23:55] PASS check_embeddings: 0 embeddings missing or the wrong size
+[21:23:55] validate: batch is clean
+[21:23:55] load: document and chunk tables up to date
+[21:23:55] PASS 5/5 golden: debt collectors harassing me with constant phone calls
+[21:23:55] PASS 5/5 golden: my mortgage payment was misapplied and my escrow account is wrong
+[21:23:55] PASS 5/5 golden: wrong accounts are showing up on my credit report
+[21:23:55] PASS 4/5 golden: my bank closed my checking account without warning and froze my money
+[21:23:55] PASS 4/5 golden: problems getting my student loan servicer to fix my account
+[21:23:55] eval_retrieval: the index still answers like it should</code></pre>
+</div>
+<div class="cell-output cell-output-display" data-execution_count="24">
+<pre><code>(['extract_documents',
+  'clean',
+  'archive_raw',
+  'chunk',
+  'embed_documents',
+  'validate',
+  'load',
+  'eval_retrieval'],
+ [],
+ [])</code></pre>
+</div>
+</div>
+<p>Read the log output in full, because it is a concise summary of this whole stream. The extract pulled 5, <code>clean</code> dropped the duplicate and the excess anonymization (the document with just <code>XXXX</code>) and kept 3, the archive kept all 5 exactly as they arrived as the lake needs them in their original state. The 3 long complaints split into 16 paragraph chunks, every embedding checked out, the load landed them idempotently, and the golden questions still pass on the refreshed index. Nobody edited a script; a new file and one call was the entire refresh.</p>
+<div id="2d456d10" class="cell" data-execution_count="25">
+<div class="sourceCode cell-code" id="cb37"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a>warehouse.execute(<span class="st">"""SELECT (SELECT COUNT(*) FROM document) AS documents,</span></span>
+<span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a><span class="st">                            (SELECT COUNT(*) FROM chunk)    AS chunks"""</span>).df()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="25">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">documents</th>
+<th data-quarto-table-cell-role="th">chunks</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>393</td>
+<td>593</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>393 documents, 593 chunks. Let’s reinvestigate the question that failed in section 7, first retrieve the closest passages.</p>
+<div id="da0ea32e" class="cell" data-execution_count="26">
+<div class="sourceCode cell-code" id="cb38"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a>retrieve(daughter_question)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="26">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">complaint_id</th>
+<th data-quarto-table-cell-role="th">chunk_number</th>
+<th data-quarto-table-cell-role="th">issue</th>
+<th data-quarto-table-cell-role="th">state</th>
+<th data-quarto-table-cell-role="th">distance</th>
+<th data-quarto-table-cell-role="th">start_of_chunk</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>6627407</td>
+<td>3</td>
+<td>Attempts to collect debt not owed</td>
+<td>CA</td>
+<td>0.386</td>
+<td>In XXXX, I began receiving calls and letters from Persolve LLC demanding payment</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>6677003</td>
+<td>1</td>
+<td>Dealing with your lender or servicer</td>
+<td>CA</td>
+<td>0.394</td>
+<td>Went to XXXX XXXX in XXXX XXXX in XXXX and School was closed for preditory lend</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>6635376</td>
+<td>1</td>
+<td>Dealing with your lender or servicer</td>
+<td>WA</td>
+<td>0.438</td>
+<td>The complaint is against Mohela, the federal student loan servicer.</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>6634428</td>
+<td>1</td>
+<td>Incorrect information on your report</td>
+<td>MS</td>
+<td>0.452</td>
+<td>XXXX reported my account as delinquent. I do not have to pay because my loans ar</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">4</td>
+<td>6704078</td>
+<td>1</td>
+<td>Dealing with your lender or servicer</td>
+<td>TX</td>
+<td>0.456</td>
+<td>My school closed down and my payments went into forbearance and I had been makin</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>The top hit is complaint 6627407, paragraph 3, at distance 0.386, which is the paragraph Notebook 10’s chunking demo found (Correct! It is the paragraph with the story we are looking for). The margin over the second best is quite small, 0.386 against 0.394. This slight gap is sufficient as retrieval’s job is only to carry the right passage into the prompt; interpreting and reading is the job of the model.</p>
+<div id="c0835b24" class="cell" data-execution_count="27">
+<div class="sourceCode cell-code" id="cb39"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(ask_llm(<span class="st">"daughter_rag"</span>, build_prompt(daughter_question)))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Excerpt [6627407] directly supports this: the writer states that after Persolve LLC pursued a fraudulent debt and refused to remove it from their credit report, they were "denied refinancing for my home, student loans for my daughter's education, and personal credit cards" [6627407]. The other excerpts do not address this claim — [6677003] concerns predatory lending and being forced into a loan for a course of study, and [6635376] simply names Mohela as the servicer in a complaint, with no mention of fraud or a daughter's student loans.</code></pre>
+</div>
+</div>
+<p>We now have an answer, and it is cited, coming from a document that was not in the system a few sections ago, ingested through a pipeline that cleaned it, validated it, archived its raw form, and re-graded its own retrieval on the way. We have done it, this is the deliverable for this notebook! Answers with receipts, a system that refreshes itself and can prove it still works, and every step reproducible from the raw files, because this notebook, run top to bottom, is the self-contained rebuild.</p>
+<section id="make-it-yours" class="level3">
+<h3 class="anchored" data-anchor-id="make-it-yours">9.1 Make it yours</h3>
+<p>The system you just built does not care that its documents are consumer complaints. Every stage is a valid swap point, and the sky is the limit with what you can do with it, feel free to customize it and make it yours, I would love nothing more! Aim it at course notes, interview transcripts, a club’s meeting minutes, StatCan release notes, video game patch notes, news articles, anything at all! The table below contains the recipe.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Stage</th>
+<th>Here</th>
+<th>With your corpus</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>extract_documents</code></td>
+<td>a CSV in the inbox</td>
+<td>your files, an API, a folder of PDFs turned to text</td>
+</tr>
+<tr class="even">
+<td><code>clean</code></td>
+<td><code>XXXX</code> boilerplate, duplicates</td>
+<td>whatever junk your source produces that needs cleaning</td>
+</tr>
+<tr class="odd">
+<td><code>chunk</code></td>
+<td>split on blank lines</td>
+<td>your documents’ natural unit: sections, pages, speaker turns</td>
+</tr>
+<tr class="even">
+<td><code>embed_documents</code></td>
+<td>MiniLM, 384 dimensions</td>
+<td>the same model, or use a larger one if quality demands it</td>
+</tr>
+<tr class="odd">
+<td><code>validate</code></td>
+<td>coverage, empty text, dimensions</td>
+<td>identical</td>
+</tr>
+<tr class="even">
+<td><code>load</code> + keys</td>
+<td><code>document</code> and <code>chunk</code> tables</td>
+<td>identical</td>
+</tr>
+<tr class="odd">
+<td><code>eval_retrieval</code></td>
+<td>golden questions graded by CFPB labels</td>
+<td>questions <em>you</em> can grade, even by hand-labelling twenty documents</td>
+</tr>
+<tr class="even">
+<td><code>ask_llm</code></td>
+<td>cached Claude Opus 5 replies</td>
+<td>identical, plus your own questions</td>
+</tr>
+</tbody>
+</table>
+<p>The stages that require change are the ones that touch your data’s shape, but you are now well equipped and knowledgeable to make these changes yourself! The architecture, the graph, the executor, the validation gate, the RAG quality check, the citations, all of it transfers untouched. That is what it means for RAG to be database architecture: the hard parts are the parts you now know. This is not a magic AI technique, it is a data engineering technique!</p>
+</section>
+</section>
+<section id="the-end-of-the-stream" class="level2">
+<h2 class="anchored" data-anchor-id="the-end-of-the-stream">10. The end of the stream</h2>
+<p>This is the last notebook, so let’s look back at the whole stream. Notebook 1 showed us that data lives in databases and loaded one CSV to prove queries beat files. Notebook 2 and Notebook 3 taught the query language SQL: joins, aggregates, windows, and fixing incorrect queries. Notebook 4 took a horrible hand-maintained file and made cleaning a reproducible script instead of multiple hand edits. Notebook 5 drew the schema and taught the database to outright refuse bad data; Notebook 6 looked at performance with transactions, indexes, and columnar storage; Notebook 7 split the world into intake systems and warehouses and bridged them with ETL. Notebook 8 turned scripts into a DAG with an executor that survives failure, and Notebook 9 taught the pipeline to check its own data, trace poisoned-data, and re-run its past. Notebook 10 put meaning itself into a column with text and embedding search. And today all of it comes together beautifully, schema, cleaning, ETL, validation, lineage, retrieval, ran as one system with a language model on top.</p>
+<p><a href="media/NB11/stream_recap.png" class="lightbox" data-gallery="quarto-lightbox-gallery-3"><img src="media/NB11/stream_recap.png" class="img-fluid" alt="The stream in six steps: a messy file, queries, a schema that refuses bad data, a fast safe warehouse, a pipeline that checks itself, and a database a model can read."></a></p>
+<p>Notebook 1 opened with the Sculley figure: the tiny black box of ML code surrounded by the huge grey boxes of data infrastructure. We then spent ten notebooks living inside the grey boxes, and when the model finally showed up today, it was one function. The proportions in that figure are the true proportions of this stream. Thank you for reading this stream, and congratulations on finishing it! I am so happy and I hope you learned, the skills and concepts taught here are valuable, and they are yours now! Thank you!</p>
+<section id="where-to-go-next" class="level3">
+<h3 class="anchored" data-anchor-id="where-to-go-next">10.1 Where to go next</h3>
+<ul>
+<li><strong>The models this plumbing feeds.</strong> The prAxIs Causal ML stream is the natural next step: it lives entirely downstream of a data warehouse, and swapping this capstone’s answer stage for a model-retraining task would make an excellent project for your resume.</li>
+<li><strong>The industry tools.</strong> You built the concepts dbt and Airflow sell; you are ready to directly learn them. The free <a href="https://github.com/DataTalksClub/data-engineering-zoomcamp">DataTalksClub data engineering zoomcamp</a> is a full open curriculum that takes this stream’s ideas and scales them to the cloud and real production.</li>
+<li><strong>The theory.</strong> If the design questions hooked you, UBC’s CPSC 368 and 304 go deeper on database internals, and Kleppmann (below) is the book behind half this stream’s “why”.</li>
+</ul>
+</section>
+<section id="recommended-reading" class="level3">
+<h3 class="anchored" data-anchor-id="recommended-reading">10.2 Recommended reading</h3>
+<p>If you would like to learn more these are also excellent resources:</p>
+<ul>
+<li>Kleppmann, <em>Designing Data-Intensive Applications</em> (O’Reilly). The why behind storage, replication, and batch processing, one layer below everything we did.</li>
+<li>Reis and Housley, <em>Fundamentals of Data Engineering</em> (O’Reilly). The industry-wide map of the job this stream introduced.</li>
+<li>Lewis et al.&nbsp;(2020), <em>Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks.</em> The paper that named the pattern you built in this notebook.</li>
+<li>The <a href="https://datalemur.com/">DataLemur</a>, <a href="https://www.stratascratch.com/">StrataScratch</a>, and <a href="https://leetcode.com/studyplan/top-sql-50/">LeetCode SQL</a> grinders from Notebook 2, because the interviews that lead to this work still start with SQL.</li>
+</ul>
+</section>
+</section>
+<section id="connections" class="level2">
+<h2 class="anchored" data-anchor-id="connections">Connections</h2>
+<ul>
+<li><strong>Back to <a href="../../docs/Data_Engineer/notebook_10_embeddings_vector_search.html">Notebook 10</a>:</strong> it taught search over one table of text; this notebook wrapped that search in schema, pipeline, validation, and a model, and the long complaints it analyzed on the side finally entered the warehouse properly.</li>
+</ul>
+<section id="references" class="level3">
+<h3 class="anchored" data-anchor-id="references">References</h3>
+<ul>
+<li>Consumer Financial Protection Bureau. <em>Consumer Complaint Database.</em> https://www.consumerfinance.gov/data-research/consumer-complaints/ The corpus: public domain, published with consumer consent, scrubbed of identifying details.</li>
+<li>Lewis, P., et al.&nbsp;(2020). <em>Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks.</em> NeurIPS 2020. The original RAG paper; its retriever-plus-generator design is this notebook’s DAG in miniature.</li>
+<li>Anthropic. <em>Claude API documentation.</em> https://platform.claude.com/docs/ The <code>anthropic</code> client, the Messages API, and the model this notebook’s cached replies came from.</li>
+<li>Sculley, D., et al.&nbsp;(2015). <em>Hidden technical debt in machine learning systems.</em> Advances in Neural Information Processing Systems, 28. The figure that opened Notebook 1 and, ten notebooks later, described everything in between.</li>
+</ul>
+<hr>
+
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<button id="scroll-to-top" aria-label="Back to top">
+  <svg width="18" height="18" viewbox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M12 19V5M12 5L5 12M12 5L19 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path>
+  </svg>
+</button>
+
+<style>
+#scroll-to-top {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  z-index: 999;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+
+  /* Follows the active Comet theme (light/dark) automatically,
+     since these are the same Bootstrap vars compiled from
+     comet_theme.scss / comet_theme_dark.scss */
+  background-color: var(--bs-primary, #041746);
+  color: #FFFFFF;
+
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(10px);
+  transition: opacity 0.2s ease, transform 0.2s ease, background-color 0.2s ease;
+}
+
+#scroll-to-top.is-visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+#scroll-to-top:hover,
+#scroll-to-top:focus-visible {
+  background-color: var(--bs-secondary, #CC7A00);
+  outline: none;
+}
+
+#scroll-to-top svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Tooltip shown on hover/focus, to the left so it stays in the viewport */
+#scroll-to-top::after {
+  content: "Back to top";
+  position: absolute;
+  right: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background-color: rgba(0, 0, 0, 0.8);
+  color: #FFFFFF;
+  font-size: 0.8rem;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+#scroll-to-top:hover::after,
+#scroll-to-top:focus-visible::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+@media (max-width: 768px) {
+  #scroll-to-top {
+    bottom: 20px;
+    right: 16px;
+    width: 40px;
+    height: 40px;
+  }
+}
+</style>
+
+<script>
+(function () {
+  var btn = document.getElementById("scroll-to-top");
+  if (!btn) return;
+
+  var toggleVisibility = function () {
+    if (window.scrollY > 300) {
+      btn.classList.add("is-visible");
+    } else {
+      btn.classList.remove("is-visible");
+    }
+  };
+
+  window.addEventListener("scroll", toggleVisibility, { passive: true });
+  toggleVisibility();
+
+  btn.addEventListener("click", function () {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+})();
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const disableStylesheet = (stylesheets) => {
+    for (let i=0; i < stylesheets.length; i++) {
+      const stylesheet = stylesheets[i];
+      stylesheet.rel = 'prefetch';
+    }
+  }
+  const enableStylesheet = (stylesheets) => {
+    for (let i=0; i < stylesheets.length; i++) {
+      const stylesheet = stylesheets[i];
+      stylesheet.rel = 'stylesheet';
+    }
+  }
+  const manageTransitions = (selector, allowTransitions) => {
+    const els = window.document.querySelectorAll(selector);
+    for (let i=0; i < els.length; i++) {
+      const el = els[i];
+      if (allowTransitions) {
+        el.classList.remove('notransition');
+      } else {
+        el.classList.add('notransition');
+      }
+    }
+  }
+  const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+    const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+    const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+    let newTheme = '';
+    if(darkModeDefault) {
+      newTheme = isAlternate ? baseTheme : alternateTheme;
+    } else {
+      newTheme = isAlternate ? alternateTheme : baseTheme;
+    }
+    const changeGiscusTheme = () => {
+      // From: https://github.com/giscus/giscus/issues/336
+      const sendMessage = (message) => {
+        const iframe = document.querySelector('iframe.giscus-frame');
+        if (!iframe) return;
+        iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+      }
+      sendMessage({
+        setConfig: {
+          theme: newTheme
+        }
+      });
+    }
+    const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+    if (isGiscussLoaded) {
+      changeGiscusTheme();
+    }
+  }
+  const toggleColorMode = (alternate) => {
+    // Switch the stylesheets
+    const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+    manageTransitions('#quarto-margin-sidebar .nav-link', false);
+    if (alternate) {
+      enableStylesheet(alternateStylesheets);
+      for (const sheetNode of alternateStylesheets) {
+        if (sheetNode.id === "quarto-bootstrap") {
+          toggleBodyColorMode(sheetNode);
+        }
+      }
+    } else {
+      disableStylesheet(alternateStylesheets);
+      toggleBodyColorPrimary();
+    }
+    manageTransitions('#quarto-margin-sidebar .nav-link', true);
+    // Switch the toggles
+    const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+    for (let i=0; i < toggles.length; i++) {
+      const toggle = toggles[i];
+      if (toggle) {
+        if (alternate) {
+          toggle.classList.add("alternate");     
+        } else {
+          toggle.classList.remove("alternate");
+        }
+      }
+    }
+    // Hack to workaround the fact that safari doesn't
+    // properly recolor the scrollbar when toggling (#1455)
+    if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+      manageTransitions("body", false);
+      window.scrollTo(0, 1);
+      setTimeout(() => {
+        window.scrollTo(0, 0);
+        manageTransitions("body", true);
+      }, 40);  
+    }
+  }
+  const isFileUrl = () => { 
+    return window.location.protocol === 'file:';
+  }
+  const hasAlternateSentinel = () => {  
+    let styleSentinel = getColorSchemeSentinel();
+    if (styleSentinel !== null) {
+      return styleSentinel === "alternate";
+    } else {
+      return false;
+    }
+  }
+  const setStyleSentinel = (alternate) => {
+    const value = alternate ? "alternate" : "default";
+    if (!isFileUrl()) {
+      window.localStorage.setItem("quarto-color-scheme", value);
+    } else {
+      localAlternateSentinel = value;
+    }
+  }
+  const getColorSchemeSentinel = () => {
+    if (!isFileUrl()) {
+      const storageValue = window.localStorage.getItem("quarto-color-scheme");
+      return storageValue != null ? storageValue : localAlternateSentinel;
+    } else {
+      return localAlternateSentinel;
+    }
+  }
+  const darkModeDefault = false;
+  let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+  // Dark / light mode switch
+  window.quartoToggleColorScheme = () => {
+    // Read the current dark / light value 
+    let toAlternate = !hasAlternateSentinel();
+    toggleColorMode(toAlternate);
+    setStyleSentinel(toAlternate);
+    toggleGiscusIfUsed(toAlternate, darkModeDefault);
+  };
+  // Ensure there is a toggle, if there isn't float one in the top right
+  if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+    const a = window.document.createElement('a');
+    a.classList.add('top-right');
+    a.classList.add('quarto-color-scheme-toggle');
+    a.href = "";
+    a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+    const i = window.document.createElement("i");
+    i.classList.add('bi');
+    a.appendChild(i);
+    window.document.body.appendChild(a);
+  }
+  // Switch to dark mode if need be
+  if (hasAlternateSentinel()) {
+    toggleColorMode(true);
+  } else {
+    toggleColorMode(false);
+  }
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+          // target, if specified
+          link.setAttribute("target", "_blank");
+          if (link.getAttribute("rel") === null) {
+            link.setAttribute("rel", "noopener");
+          }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      // TODO in 1.5, we should make sure this works without a callout special case
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+ <a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc-sa/4.0/80x15.png"></a>.  <a rel="license" href="https://ubcecon.github.io/comet-open/pages/copyright.html">See details.</a>
+  </li>  
+</ul>
+    </div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/ubcecon/praxis-ubc/issues/new" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></div>
+    <div class="nav-footer-right">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+ The Praxis Project and UBC are located on the traditional, ancestral and unceded territory of the xʷməθkʷəy̓əm (Musqueam) and Sḵwx̱wú7mesh (Squamish) peoples.
+  </li>  
+</ul>
+    </div>
+  </div>
+</footer>
+<script>var lightboxQuarto = GLightbox({"openEffect":"zoom","descPosition":"bottom","loop":false,"selector":".lightbox","closeEffect":"zoom"});
+window.onload = () => {
+  lightboxQuarto.on('slide_before_load', (data) => {
+    const { slideIndex, slideNode, slideConfig, player, trigger } = data;
+    const href = trigger.getAttribute('href');
+    if (href !== null) {
+      const imgEl = window.document.querySelector(`a[href="${href}"] img`);
+      if (imgEl !== null) {
+        const srcAttr = imgEl.getAttribute("src");
+        if (srcAttr && srcAttr.startsWith("data:")) {
+          slideConfig.href = srcAttr;
+        }
+      }
+    } 
+  });
+
+  lightboxQuarto.on('slide_after_load', (data) => {
+    const { slideIndex, slideNode, slideConfig, player, trigger } = data;
+    if (window.Quarto?.typesetMath) {
+      window.Quarto.typesetMath(slideNode);
+    }
+  });
+
+};
+          </script>
+
+
+
+
+</body></html>

@@ -1,0 +1,2202 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-GB" xml:lang="en-GB"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.4.557">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Alex Ronczewski">
+<meta name="dcterms.date" content="2026-07-27">
+<meta name="description" content="The fifth notebook in the Data Engineering stream. The survey office is replacing the pilot’s spreadsheet with real intake software, and we must make the database design: entities and relationships, primary and foreign keys, and a schema written in DDL.">
+
+<title>Praxis - Designing Data</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script><script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<link href="../../media/praxis-badge.png" rel="icon" type="image/png">
+<script src="../../site_libs/quarto-html/quarto.js"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark.css" rel="prefetch" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark.min.css" rel="prefetch" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<script src="../../site_libs/quarto-contrib/glightbox/glightbox.min.js"></script>
+<link href="../../site_libs/quarto-contrib/glightbox/glightbox.min.css" rel="stylesheet">
+<link href="../../site_libs/quarto-contrib/glightbox/lightbox.css" rel="stylesheet">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<meta name="keywords" content="economics, econometrics, R, data, machine learning, UBC, COMET, geog 374, econ 325, econ 326, learning, teaching, learn r, r help, help, tutorial, r tutorial for beginners,learning statistics with r, learn r programming, learn statistics, linear regression, r machine learning, learn machine learning, university of british columbia, british columbia, r programming for beginners, r language tutorial, r tutorial for beginners, economic data, econometrics tutoring, economics help for students, economics homework help, oer resources for teachers, open educational resources for teachers, educational resource, oer project, oer materials, oer resources, learn economics online, learn econometrics, teach yourself economics, teach yourself econometrics, econometrics basics for beginners">
+
+<!-- Google Search Console -->
+<meta name="google-site-verification" content="wUHlRBWRzzUYwBbnKdvYg0lBpw5b0F7hnEq-QekkpQw">
+<!-- End Google Search Console -->
+
+<script>
+(function() {
+    function updateThemeImages() {
+        var isDark = document.body.classList.contains('quarto-dark');
+        var images = document.querySelectorAll('img[data-light-src][data-dark-src]');
+
+        images.forEach(function(img) {
+            var lightSrc = img.getAttribute('data-light-src');
+            var darkSrc = img.getAttribute('data-dark-src');
+            var newSrc = isDark ? darkSrc : lightSrc;
+
+            // Only update if src is different to avoid reload flicker
+            if (img.getAttribute('src') !== newSrc) {
+                img.setAttribute('src', newSrc);
+            }
+        });
+    }
+
+    // Run when DOM is ready
+    document.addEventListener('DOMContentLoaded', function() {
+        updateThemeImages();
+
+        // Watch for theme changes on body
+        var observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.attributeName === 'class') {
+                    updateThemeImages();
+                }
+            });
+        });
+
+        observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    });
+
+    // Also run after full page load
+    window.addEventListener('load', updateThemeImages);
+})();
+</script>
+
+<!-- Cloudflare Web Analytics -->
+<script defer="" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon="{&quot;token&quot;: &quot;911859291fee44e6ba0acc25f4f08be4&quot;}"></script>
+<!-- End Cloudflare Web Analytics -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" integrity="sha512-c3Nl8+7g4LMSTdrm621y7kf9v3SDPnhxLNhcjFJbKECVnmZHTdo+IRO05sNLTH/D3vA6u1X32ehoLC7WFVdheg==" crossorigin="anonymous"></script>
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+
+
+<link rel="stylesheet" href="../../styles.css">
+</head>
+
+<body class="nav-fixed">
+<!-- praxis-launch-notebook: per-notebook launch button (injected into output HTML at build time) -->
+<script>
+(function () {
+  // Notebooks that get a launch button (path from "docs/", no extension)
+  var NOTEBOOKS = [
+    "docs/AMNE-376/amne_376_image_embedding",
+    "docs/CTree_CEA/political_economy",
+    "docs/Causal_ML/notebook_01_prediction_inference_causality",
+    "docs/Causal_ML/notebook_02_regularization_ridge_lasso",
+    "docs/Causal_ML/notebook_03_trees_forests_boosting",
+    "docs/Causal_ML/notebook_04_prediction_to_treatment_effects",
+    "docs/Causal_ML/notebook_05_post_double_selection",
+    "docs/Causal_ML/notebook_06_propensity_ipw",
+    "docs/Causal_ML/notebook_07_double_machine_learning",
+    "docs/Causal_ML/notebook_08_heterogeneous_effects_causal_forests",
+    "docs/Data_Engineer/notebook_01_why_databases_exist",
+    "docs/Data_Engineer/notebook_02_basic_querying",
+    "docs/Data_Engineer/notebook_03_advanced_sql",
+    "docs/Data_Engineer/notebook_04_cleaning_real_data",
+    "docs/Data_Engineer/notebook_05_designing_data",
+    "docs/Data_Engineer/notebook_06_storage_speed_transactions",
+    "docs/Data_Engineer/notebook_07_two_kinds_of_databases",
+    "docs/Data_Engineer/notebook_08_pipelines_one",
+    "docs/Data_Engineer/notebook_09_pipelines_two",
+    "docs/Data_Engineer/notebook_10_embeddings_vector_search",
+    "docs/Data_Engineer/notebook_11_capstone_rag",
+    "docs/ECON-227/llm_distributions",
+    "docs/Game_Theory/notebook_01_games_best_responses_nash",
+    "docs/Game_Theory/notebook_02_mixed_strategies_fictitious_play",
+    "docs/Game_Theory/notebook_03_repeated_games_axelrod_tournament",
+    "docs/Game_Theory/notebook_04_learning_agents_collusion",
+    "docs/OCR/ocr_notebook",
+    "docs/SOCI-280/soci_280_bert",
+    "docs/SOCI-415/cbdb_dataset",
+    "docs/SOCI-415/kinmatrix",
+    "docs/SOCI-415/soci_415_network_analysis",
+    "docs/hist_workshop/text_embeddings_workshop",
+    "docs/image_analysis/image_analysis",
+    "docs/intro_to_cnns/intro_to_cnn",
+    "docs/intro_to_convolutions/intro_to_convolution",
+    "docs/intro_to_deep_learning/intro_to_fundamental_ML",
+    "docs/intro_to_transformers/intro_to_transformers",
+    "docs/text_analysis/text_analysis"
+  ];
+
+  function init() {
+    var i = window.location.pathname.indexOf("/docs/");
+    if (i === -1) return;
+    var rel = window.location.pathname.slice(i + 1).replace(/\.html$/, "");
+    if (NOTEBOOKS.indexOf(rel) === -1) return;
+
+    var nb = rel + ".ipynb";
+    var repo = "https%3A%2F%2Fgithub.com%2Fubcecon%2Fpraxis-ubc";
+    var urlpath = encodeURIComponent("lab/tree/praxis-ubc/" + nb);
+    var jupyter = "https://open.jupyter.ubc.ca/jupyter/hub/user-redirect/git-pull?repo=" +
+      repo + "&urlpath=" + urlpath + "&branch=praxis-notebooks";
+    var colab = "https://colab.research.google.com/github/ubcecon/praxis-ubc/blob/praxis-notebooks/" + nb;
+
+    var wrap = document.createElement("div");
+    wrap.className = "btn-group";
+    wrap.style.margin = "0.5rem 0 1rem";
+    wrap.innerHTML =
+      '<button class="btn btn-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">' +
+        '<i class="bi bi-play-fill"></i> Launch this notebook</button>' +
+      '<ul class="dropdown-menu">' +
+        '<li><a class="dropdown-item" target="_blank" rel="noopener" href="' + jupyter + '"><i class="bi bi-cloud-check"></i> JupyterOpen</a></li>' +
+        '<li><a class="dropdown-item" target="_blank" rel="noopener" href="' + colab + '"><i class="bi bi-google"></i> Colab</a></li>' +
+      '</ul>';
+
+    var header = document.getElementById("title-block-header");
+    if (header) {
+      header.appendChild(wrap);
+    } else {
+      var main = document.querySelector("main.content") || document.querySelector("main");
+      if (main) main.insertBefore(wrap, main.firstChild);
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
+</script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="../../index.html" class="navbar-brand navbar-brand-logo">
+    <img src="../../media/praxis-badge-white.png" alt="" class="navbar-logo">
+    </a>
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">Praxis</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-get-started" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Get Started</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-get-started">    
+        <li>
+    <a class="dropdown-item" href="../../pages/quickstart.html">
+ <span class="dropdown-text">Quickstart Guide</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-courses" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Courses</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-courses">    
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_AMNE-376.html">
+ <span class="dropdown-text">AMNE-376</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_SOCI415.html">
+ <span class="dropdown-text">SOCI-415</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_SOCI280.html">
+ <span class="dropdown-text">SOCI-280</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_ECON227.html">
+ <span class="dropdown-text">ECON-227</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_Causal_ML.html">
+ <span class="dropdown-text">Causal Machine Learning</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_Game_Theory.html">
+ <span class="dropdown-text">Game Theory</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_Data_Engineer.html">
+ <span class="dropdown-text">Data Engineering</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="../../pages/index/all.html">
+ <span class="dropdown-text">Browse All</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="../../pages/index/all.html"> 
+<span class="menu-text">All Topics</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-teach-with-praxis" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Teach with Praxis</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-teach-with-praxis">    
+        <li>
+    <a class="dropdown-item" href="../../pages/teaching_with_praxis.html">
+ <span class="dropdown-text">Learn how to teach with Praxis</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-launch-praxis" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+      <i class="bi bi-play" role="img">
+</i> 
+ <span class="menu-text">Launch Praxis</span>
+    </a>
+    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="nav-menu-launch-praxis">    
+        <li>
+    <a class="dropdown-item" href="https://open.jupyter.ubc.ca/jupyter/hub/user-redirect/git-pull?repo=https%3A%2F%2Fgithub.com%2Fubcecon%2Fpraxis-ubc&amp;urlpath=lab%2Ftree%2Fpraxis-ubc%2F&amp;branch=praxis-notebooks"><i class="bi bi-cloud-check" role="img">
+</i> 
+ <span class="dropdown-text">Launch on JupyterOpen (with Data)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://open.jupyter.ubc.ca/jupyter/hub/user-redirect/git-pull?repo=https%3A%2F%2Fgithub.com%2Fubcecon%2Fpraxis-ubc&amp;urlpath=lab%2Ftree%2Fpraxis-ubc%2F&amp;branch=praxis-notebooks"><i class="bi bi-cloud-check" role="img">
+</i> 
+ <span class="dropdown-text">Launch on JupyterOpen (lite)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ubc.syzygy.ca/jupyter/hub/user-redirect/git-pull?repo=https%3A%2F%2Fgithub.com%2Fubcecon%2Fpraxis-ubc&amp;urlpath=lab%2Ftree%2Fpraxis-ubc%2F&amp;branch=praxis-notebooks"><i class="bi bi-gear" role="img">
+</i> 
+ <span class="dropdown-text">Launch on Syzygy</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://colab.research.google.com/github/ubcecon/praxis-ubc/blob/praxis-notebooks/"><i class="bi bi-google" role="img">
+</i> 
+ <span class="dropdown-text">Launch on Colab</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://github.com/ubcecon/praxis-ubc/archive/refs/heads/praxis-notebooks.zip"><i class="bi bi-cloud-download" role="img">
+</i> 
+ <span class="dropdown-text">Launch Locally</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="https://github.com/ubcecon/praxis-ubc">
+ <span class="dropdown-text">Github Repository</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="../../#"> 
+<span class="menu-text">|</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/ubcecon/praxis-ubc" target="_blank"> <i class="bi bi-github" role="img" aria-label="GitHub">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-about" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">About</span>
+    </a>
+    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="nav-menu-about">    
+        <li>
+    <a class="dropdown-item" href="../../pages/team.html">
+ <span class="dropdown-text">Praxis Team</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/copyright.html">
+ <span class="dropdown-text">Copyright Information</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+          </div> <!-- /navcollapse -->
+          <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-full page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#outline" id="toc-outline" class="nav-link active" data-scroll-target="#outline">Outline</a>
+  <ul class="collapse">
+  <li><a href="#prerequisites" id="toc-prerequisites" class="nav-link" data-scroll-target="#prerequisites">Prerequisites</a></li>
+  <li><a href="#learning-outcomes" id="toc-learning-outcomes" class="nav-link" data-scroll-target="#learning-outcomes">Learning Outcomes</a></li>
+  </ul></li>
+  <li><a href="#where-we-are-in-the-stream" id="toc-where-we-are-in-the-stream" class="nav-link" data-scroll-target="#where-we-are-in-the-stream">1. Where we are in the stream</a></li>
+  <li><a href="#what-to_sql-never-gave-us" id="toc-what-to_sql-never-gave-us" class="nav-link" data-scroll-target="#what-to_sql-never-gave-us">2. What <code>to_sql</code> never gave us</a></li>
+  <li><a href="#drawing-the-data-before-you-build-it" id="toc-drawing-the-data-before-you-build-it" class="nav-link" data-scroll-target="#drawing-the-data-before-you-build-it">3. Drawing the data before you build it</a></li>
+  <li><a href="#identity-and-links-keys" id="toc-identity-and-links-keys" class="nav-link" data-scroll-target="#identity-and-links-keys">4. Identity and links: keys</a></li>
+  <li><a href="#grains" id="toc-grains" class="nav-link" data-scroll-target="#grains">5. Grains</a></li>
+  <li><a href="#writing-it-down-ddl" id="toc-writing-it-down-ddl" class="nav-link" data-scroll-target="#writing-it-down-ddl">6. Writing it down: DDL</a></li>
+  <li><a href="#load-day" id="toc-load-day" class="nav-link" data-scroll-target="#load-day">7. Load day</a></li>
+  <li><a href="#the-acceptance-test" id="toc-the-acceptance-test" class="nav-link" data-scroll-target="#the-acceptance-test">8. The acceptance test</a></li>
+  <li><a href="#one-fact-one-place" id="toc-one-fact-one-place" class="nav-link" data-scroll-target="#one-fact-one-place">9. One fact, one place</a></li>
+  <li><a href="#conclusion" id="toc-conclusion" class="nav-link" data-scroll-target="#conclusion">10. Conclusion</a></li>
+  <li><a href="#connections" id="toc-connections" class="nav-link" data-scroll-target="#connections">Connections</a>
+  <ul class="collapse">
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
+  </ul></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/ubcecon/praxis-ubc/issues/new" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div><div class="quarto-alternate-formats"><h2>Other Formats</h2><ul><li><a href="notebook_05_designing_data.ipynb" download="notebook_05_designing_data.ipynb"><i class="bi bi-journal-code"></i>Jupyter</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content column-page-left" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Designing Data</h1>
+  <div class="quarto-categories">
+    <div class="quarto-category">Python</div>
+    <div class="quarto-category">SQL</div>
+    <div class="quarto-category">schema design</div>
+    <div class="quarto-category">data engineering</div>
+  </div>
+  </div>
+
+<div>
+  <div class="description">
+    The fifth notebook in the Data Engineering stream. The survey office is replacing the pilot’s spreadsheet with real intake software, and we must make the database design: entities and relationships, primary and foreign keys, and a schema written in DDL.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta column-page-left">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Alex Ronczewski </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">27 July 2026</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="outline" class="level2">
+<h2 class="anchored" data-anchor-id="outline">Outline</h2>
+<section id="prerequisites" class="level3">
+<h3 class="anchored" data-anchor-id="prerequisites">Prerequisites</h3>
+<ul>
+<li>Notebook 4 of this stream: cleaning messy data as code.</li>
+</ul>
+</section>
+<section id="learning-outcomes" class="level3">
+<h3 class="anchored" data-anchor-id="learning-outcomes">Learning Outcomes</h3>
+<p>By the end of this notebook you will be able to:</p>
+<ol type="1">
+<li>Draw a data model: <strong>entities</strong>, attributes, <strong>relationships</strong> and their cardinality.</li>
+<li>Explain <strong>primary keys</strong>, <strong>foreign keys</strong> and <strong>referential integrity</strong>, and say which problem from the pilot each one would have prevented.</li>
+<li>Write a schema in <strong>DDL</strong> with types and constraints, and say what each rule protects.</li>
+<li>Predict which rows a schema will refuse, and read the database’s error when it does.</li>
+<li>Explain <strong>one fact, one place</strong>, and when to break it on purpose.</li>
+</ol>
+</section>
+</section>
+<section id="where-we-are-in-the-stream" class="level2">
+<h2 class="anchored" data-anchor-id="where-we-are-in-the-stream">1. Where we are in the stream</h2>
+<p><a href="media/NB5/stream_map.png" class="lightbox" data-gallery="quarto-lightbox-gallery-1"><img src="media/NB5/stream_map.png" class="img-fluid" style="width:85.0%" alt="Stream roadmap: four arcs, Querying data (NB1-4), Designing and storing data (NB5-7), Keeping data flowing (NB8-9), and Data for AI (NB10-11), with the current notebook highlighted."></a></p>
+<p>Notebook 4 ended with the pilot report delivered: an average wage of 25.40, rescued from a spreadsheet where one man had four names and one column quietly changed meaning in April (along with other errors). The report went over well. This morning there is a new message waiting.</p>
+<blockquote class="blockquote">
+<p><strong>The commission, from the research lead.</strong> “The pilot taught everyone a lesson. Wave 2 of the survey launches in the fall, and the office is replacing the spreadsheet with proper intake software. Before they write it, they need the database design from us. Deliverable: the tables, the rules, and proof that what happened to the pilot cannot happen again.”</p>
+</blockquote>
+<p>Here we are finally being asked for something different. We are not writing a query or cleaning a file, we need to make a <strong>design</strong>. This is the notebook where we stop working around other people’s tables and decide what the tables are.</p>
+</section>
+<section id="what-to_sql-never-gave-us" class="level2">
+<h2 class="anchored" data-anchor-id="what-to_sql-never-gave-us">2. What <code>to_sql</code> never gave us</h2>
+<p>Every database this stream has built so far came from one command: <code>to_sql</code>, which takes a dataframe and turns it into a table. We start the design work by looking closely at what that command actually produces, in a fresh database file so nothing here touches the working copy from Notebooks 1 to 4.</p>
+<div id="3dd5f246" class="cell" data-execution_count="1">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> sqlite3</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div id="358794c4" class="cell" data-execution_count="2">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>conn <span class="op">=</span> sqlite3.<span class="ex">connect</span>(<span class="st">"datasets/wage_survey_designed.db"</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>pd.read_csv(<span class="st">"datasets/wage_survey.csv"</span>).to_sql(<span class="st">"survey_staging"</span>, conn, index<span class="op">=</span><span class="va">False</span>, if_exists<span class="op">=</span><span class="st">"replace"</span>)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>pd.read_csv(<span class="st">"datasets/provinces.csv"</span>).to_sql(<span class="st">"province_staging"</span>, conn, index<span class="op">=</span><span class="va">False</span>, if_exists<span class="op">=</span><span class="st">"replace"</span>)</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>pd.read_csv(<span class="st">"datasets/certifications.csv"</span>).to_sql(<span class="st">"certification_staging"</span>, conn, index<span class="op">=</span><span class="va">False</span>, if_exists<span class="op">=</span><span class="st">"replace"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="2">
+<pre><code>684</code></pre>
+</div>
+</div>
+<p>The 684 is the row count of the last table written, the certifications. Tables loaded this way, raw and waiting to feed the real tables we will build next to them, are called <strong>staging</strong> tables, and the <code>_staging</code> suffix is a common convention for marking them.</p>
+<div id="3a6c901e" class="cell" data-execution_count="3">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="op">%</span>load_ext sql</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="op">%</span>config SqlMagic.autopandas <span class="op">=</span> <span class="va">True</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="op">%</span>config SqlMagic.displaycon <span class="op">=</span> <span class="va">False</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="op">%</span>config SqlMagic.feedback <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="op">%</span>sql sqlite:<span class="op">///</span>datasets<span class="op">/</span>wage_survey_designed.db</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Back in Notebook 1 we asked the database to describe a table with <code>PRAGMA table_info</code> and looked at two of the columns it returned, the name and the type. Here is the same command with nothing hidden:</p>
+<div id="a3a88919" class="cell" data-execution_count="4">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>pd.read_sql(<span class="st">"PRAGMA table_info(survey_staging)"</span>, conn)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="4">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">cid</th>
+<th data-quarto-table-cell-role="th">name</th>
+<th data-quarto-table-cell-role="th">type</th>
+<th data-quarto-table-cell-role="th">notnull</th>
+<th data-quarto-table-cell-role="th">dflt_value</th>
+<th data-quarto-table-cell-role="th">pk</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>0</td>
+<td>respondent_id</td>
+<td>INTEGER</td>
+<td>0</td>
+<td>None</td>
+<td>0</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>1</td>
+<td>age</td>
+<td>INTEGER</td>
+<td>0</td>
+<td>None</td>
+<td>0</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>2</td>
+<td>gender</td>
+<td>TEXT</td>
+<td>0</td>
+<td>None</td>
+<td>0</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>3</td>
+<td>education</td>
+<td>TEXT</td>
+<td>0</td>
+<td>None</td>
+<td>0</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">4</td>
+<td>4</td>
+<td>province</td>
+<td>TEXT</td>
+<td>0</td>
+<td>None</td>
+<td>0</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">5</td>
+<td>5</td>
+<td>industry</td>
+<td>TEXT</td>
+<td>0</td>
+<td>None</td>
+<td>0</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">6</td>
+<td>6</td>
+<td>union_member</td>
+<td>INTEGER</td>
+<td>0</td>
+<td>None</td>
+<td>0</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">7</td>
+<td>7</td>
+<td>weekly_hours</td>
+<td>REAL</td>
+<td>0</td>
+<td>None</td>
+<td>0</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">8</td>
+<td>8</td>
+<td>hourly_wage</td>
+<td>REAL</td>
+<td>0</td>
+<td>None</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>Read the two columns on the right. <code>notnull</code> is 0 the whole way down, this means that every field is optional, and a row of nothing but blanks would be accepted. We can submit nothing into the table and it will be valid. <code>pk</code> is 0 the whole way down too, and that column is where a table records which field identifies a row, so this table has no idea which respondent is which. Nothing anywhere says that <code>province</code> should match the province table. Names and types are everything <code>to_sql</code> gave us.</p>
+<p>And even the types are weaker than they look. <code>weekly_hours</code> is declared <code>REAL</code>, so let’s hand it a word and see. <code>typeof</code> asks SQLite what a stored value actually is:</p>
+<div id="49153ba0" class="cell" data-execution_count="5">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>INSERT INTO survey_staging (respondent_id, weekly_hours) VALUES (<span class="dv">9999</span>, <span class="st">'forty'</span>)<span class="op">;</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>SELECT respondent_id, weekly_hours, typeof(weekly_hours) AS stored_as</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>FROM survey_staging</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>WHERE respondent_id <span class="op">=</span> <span class="dv">9999</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="5">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">respondent_id</th>
+<th data-quarto-table-cell-role="th">weekly_hours</th>
+<th data-quarto-table-cell-role="th">stored_as</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>9999</td>
+<td>forty</td>
+<td>text</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>The word <code>forty</code> went into a <code>REAL</code> column and was stored as text, no error raised, in a row that is otherwise entirely blank. Notebook 1 promised that in a database a wage column holds numbers, so <code>refused</code> or <code>none</code> cannot live in it. That is true of a database somebody designed: our schema was inferred automatically from a dataframe, and writing one ourselves was a job for later. The job has arrived. First, take the fake row back out:</p>
+<div id="b0c7513b" class="cell" data-execution_count="6">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>DELETE FROM survey_staging WHERE respondent_id <span class="op">=</span> <span class="dv">9999</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="6">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+</tr>
+</thead>
+<tbody>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</section>
+<section id="drawing-the-data-before-you-build-it" class="level2">
+<h2 class="anchored" data-anchor-id="drawing-the-data-before-you-build-it">3. Drawing the data before you build it</h2>
+<p>A design starts on paper, and the vocabulary for the drawing has three key words.</p>
+<p>An <strong>entity</strong> is a kind of thing you keep records about: a respondent, a province, a certificate. An <strong>attribute</strong> is a fact about one of those things: a respondent’s age, a province’s minimum wage. A <strong>relationship</strong> connects two entities, and the useful part of a relationship is its <strong>cardinality</strong>: how many of one go with how many of the other.</p>
+<ul>
+<li><strong>One to many (1-N).</strong> One province is home to many respondents, and each respondent lives in one province. The most common relationship you will meet.</li>
+<li><strong>Many to many (M-N).</strong> One respondent can hold several certificates, and one certificate is held by many respondents. This does not fit in either entity’s table, so it gets a table of its own that holds the pairs.</li>
+<li><strong>One to one (1-1).</strong> One respondent, one passport number or email. Rare, and usually a sign that two tables should be one, unless you are splitting off something sensitive or rarely used.</li>
+</ul>
+<p>Here are our three entities and two relationships, drawn in the standard notation:</p>
+<p><a href="media/NB5/er_simple.png" class="lightbox" data-gallery="quarto-lightbox-gallery-2"><img src="media/NB5/er_simple.png" class="img-fluid" style="width:80.0%" alt="Three entities: PROVINCE is home to many RESPONDENTs, and a RESPONDENT holds many CERTIFICATIONs."></a></p>
+<p>The crow’s foot symbol (the three-pronged end of each line) marks the “many” side. Read the top line as one province, many respondents. Both of our relationships are one-to-many on the diagram. The many-to-many between respondents and certificates has been split into two one-to-many links through the <code>CERTIFICATION</code> table, which holds one row per pair. A table with that purpose is called a <strong>bridge table</strong>, and it is how every M-N relationship is actually stored.</p>
+<p>You may also have noticed the entity names went singular: <code>RESPONDENT</code> where four notebooks said <code>survey</code>. A designed table is conventionally named for what one of its rows stands for, one respondent, one province, one person-certificate pair. Notebook 2 called that idea the grain, here we write it explicitly into the design.</p>
+</section>
+<section id="identity-and-links-keys" class="level2">
+<h2 class="anchored" data-anchor-id="identity-and-links-keys">4. Identity and links: keys</h2>
+<p>The drawing so far says what the tables are. Two more ideas say how rows get an identity and how tables hold together, they are exactly what the pilot file was missing.</p>
+<p>A <strong>primary key</strong> is the attribute that says which row is which: it must be present and it must never repeat. For us <code>respondent_id</code> is our survey’s primary key. The pilot had no primary key at all, which is exactly why Notebook 4 spent half its length working out whether <code>Tremblay, Luc</code>, <code>Luc Tremblay</code> and <code>Tremblay, L.</code> were one person. Identity was never recorded, so it had to be reconstructed.</p>
+<p>A <strong>foreign key</strong> is a column that points at another table’s primary key. <code>respondent.province</code> points at <code>province.province</code>, and the rule the database then enforces is called <strong>referential integrity</strong>: you cannot point at a row that does not exist. That is the rule that would have refused <code>Britsh Columbia</code> on the way in, because no such province was ever in the lookup table.</p>
+<p>The bridge table’s key is more special. Respondent 8 appears on more than one row, and so does any popular certificate, so the key is both columns together: a <strong>composite key</strong>. This is convenient as the pair itself can never repeat. Nobody can be recorded as holding the same certificate twice.</p>
+<p>Here is the diagram again with the keys marked, which makes it the finished data model:</p>
+<p><a href="media/NB5/er_full.png" class="lightbox" data-gallery="quarto-lightbox-gallery-3"><img src="media/NB5/er_full.png" class="img-fluid" style="width:95.0%" alt="Entity relationship diagram of PROVINCE, RESPONDENT, and CERTIFICATION with every column, type, and key labelled."></a></p>
+<p>In the province table the <code>province</code> column itself is the primary key: the name is already unique, so it needs no artificial id, and it is the value the respondent table’s foreign key points at.</p>
+<p>Our model has three tables. A real production model has more, but it reads exactly the same way. Here is one for a small equipment-hire business:</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="media/NB5/ERD.png" class="lightbox" data-gallery="quarto-lightbox-gallery-4" data-glightbox="description: .lightbox-desc-4" title="A real-world data model, from Impact Technology’s example ER diagram. A dozen tables instead of our three, and nothing in it is new: every table declares its primary key, the foreign key columns are labelled, and the crow’s feet mark the many side. tblPROJECT_EQUIPMENT on the right is a bridge table doing exactly our certification table’s job, with one addition worth noticing: it carries a fact of its own, the booking rate, because some facts belong to the pair itself."><img src="media/NB5/ERD.png" class="img-fluid figure-img" style="width:95.0%" alt="A real-world data model, from Impact Technology’s example ER diagram. A dozen tables instead of our three, and nothing in it is new: every table declares its primary key, the foreign key columns are labelled, and the crow’s feet mark the many side. tblPROJECT_EQUIPMENT on the right is a bridge table doing exactly our certification table’s job, with one addition worth noticing: it carries a fact of its own, the booking rate, because some facts belong to the pair itself."></a></p>
+<figcaption>A real-world data model, from Impact Technology’s example ER diagram. A dozen tables instead of our three, and nothing in it is new: every table declares its primary key, the foreign key columns are labelled, and the crow’s feet mark the many side. <code>tblPROJECT_EQUIPMENT</code> on the right is a bridge table doing exactly our certification table’s job, with one addition worth noticing: it carries a fact of its own, the booking rate, because some facts belong to the pair itself.</figcaption>
+</figure>
+</div>
+</section>
+<section id="grains" class="level2">
+<h2 class="anchored" data-anchor-id="grains">5. Grains</h2>
+<p>Notebook 2 gave us the word for what one row of a table stands for: its <strong>grain</strong>. A primary key is the grain written down where the database can enforce it. Let’s count our three grains from the staging tables:</p>
+<div id="c0fed394" class="cell" data-execution_count="7">
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>SELECT <span class="st">'provinces (1 row per province)'</span> AS grain, COUNT(<span class="op">*</span>) AS row_count FROM province_staging</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>UNION ALL</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>SELECT <span class="st">'respondents (1 row per person)'</span>, COUNT(<span class="op">*</span>) FROM survey_staging</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>UNION ALL</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>SELECT <span class="st">'certifications (1 row per person-certificate pair)'</span>, COUNT(<span class="op">*</span>) FROM certification_staging</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>UNION ALL</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>SELECT <span class="st">'people holding at least one certificate'</span>, COUNT(DISTINCT respondent_id) FROM certification_staging</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>UNION ALL</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>SELECT <span class="st">'distinct certificates on offer'</span>, COUNT(DISTINCT certification) FROM certification_staging</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="7">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">grain</th>
+<th data-quarto-table-cell-role="th">row_count</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>provinces (1 row per province)</td>
+<td>5</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>respondents (1 row per person)</td>
+<td>1000</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>certifications (1 row per person-certificate p...</td>
+<td>684</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>people holding at least one certificate</td>
+<td>452</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">4</td>
+<td>distinct certificates on offer</td>
+<td>10</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>Ten certificates spread over 452 people produce 684 pairs, which is what a many-to-many relationship looks like from the inside. And grain is not bookkeeping; it changes answers. Notebook 2 averaged wages over the 684-row join and got 39.89, and Notebook 3 collapsed it to one row per person and got 39.44. The grain we used changed the answer.</p>
+<p>It changes models the same way. A regression run on person rows estimates something about people; the identical regression run on person-certificate rows estimates something about certificate holdings, with every multi-certificate person counted once per certificate. Those are two different models. When a schema names the grain of every table, the mistake of mixing them has to be made on purpose and is now not accidental.</p>
+</section>
+<section id="writing-it-down-ddl" class="level2">
+<h2 class="anchored" data-anchor-id="writing-it-down-ddl">6. Writing it down: DDL</h2>
+<p>Now we translate the model into SQL. The part of the language that creates and changes the shape of a database, rather than the data in it, is called <strong>DDL</strong> (Data Definition Language), and <code>CREATE TABLE</code> is its main command.</p>
+<p>Two settings first. SQLite ships with foreign key enforcement switched <strong>off</strong>. The setting lives on the connection, not in the file, so every script that touches the database has to check it and switch it on:</p>
+<div id="82817f94" class="cell" data-execution_count="8">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>PRAGMA foreign_keys</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="8">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">foreign_keys</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>Zero: enforcement is off, exactly as warned. We now swap it on:</p>
+<div id="4738b54a" class="cell" data-execution_count="9">
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>PRAGMA foreign_keys <span class="op">=</span> ON</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="9">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+</tr>
+</thead>
+<tbody>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>The other is <code>STRICT</code>, a newer SQLite feature that fixes section 2’s <code>forty</code> problem: put the word after a <code>CREATE TABLE</code>’s closing bracket and the declared types become binding, so a <code>REAL</code> column refuses text instead of keeping it.</p>
+<p>Before creating tables we drop any old versions, so that no foreign key is ever left pointing at a table that has just vanished:</p>
+<div id="18826dee" class="cell" data-execution_count="10">
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>DROP TABLE IF EXISTS certification<span class="op">;</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>DROP TABLE IF EXISTS respondent<span class="op">;</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>DROP TABLE IF EXISTS province</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="10">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+</tr>
+</thead>
+<tbody>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>The province table comes first, since other tables will point at it. Read the comments on the right: every one is a rule about the world that we are asking the database to enforce from now on.</p>
+<div id="9629d079" class="cell" data-execution_count="11">
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>CREATE TABLE province (</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>    province     TEXT    PRIMARY KEY,                        <span class="op">--</span> the name identifies the row, so it cannot repeat</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>    region       TEXT    NOT NULL,                           <span class="op">--</span> every province belongs to a region</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>    minimum_wage REAL    NOT NULL CHECK (minimum_wage <span class="op">&gt;</span> <span class="dv">0</span>),  <span class="op">--</span> CHECK refuses <span class="bu">any</span> row failing the test</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>    population   INTEGER NOT NULL CHECK (population <span class="op">&gt;</span> <span class="dv">0</span>)</span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>) STRICT</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="11">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+</tr>
+</thead>
+<tbody>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>The cell prints nothing, which is what we want: like <code>CREATE VIEW</code> in Notebook 3, <code>CREATE TABLE</code> changes the shape of the database and returns no rows.</p>
+<div class="callout callout-style-default callout-caution callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Wrong-query gallery #4
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>The respondent table is the big one, and a colleague has sent over a draft for it:</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode sql code-with-copy"><code class="sourceCode sql"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> respondent (</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>    respondent_id <span class="dt">INTEGER</span>,</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>    age           <span class="dt">INTEGER</span>,</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>    gender        TEXT,</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>    education     TEXT,</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>    province      TEXT,</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>    industry      TEXT,</span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>    union_member  <span class="dt">INTEGER</span>,</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>    weekly_hours  <span class="dt">REAL</span>,</span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>    hourly_wage   TEXT</span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>This runs without a single error, which in this case is really bad. A bad query fails in front of you, or in the next command, but a bad schema fails months later, one accepted row at a time. Before opening the answer: how many of the pilot’s problems would this table have stopped?</p>
+<details>
+<summary>
+Show / hide answer
+</summary>
+<p>None of them. There is no <code>PRIMARY KEY</code>, so the same person can be entered any number of times and the table has no idea, which is the pilot’s four-named Luc Tremblay all over again. There is no <code>REFERENCES</code>, so <code>Britsh Columbia</code> is accepted. Nothing is <code>NOT NULL</code>, so a row of pure blanks is a valid record. <code>hourly_wage</code> is typed <code>TEXT</code>, which accepts <code>refused</code> just as readily as actual numeric values. And without <code>STRICT</code>, even the types that are declared are only suggestions (so numbers can go into <code>hourly_wage</code> anyway). This is the same as our .csv, nothing meaningful changed.</p>
+</details>
+</div>
+</div>
+<p>Here is the version we ship instead, with every gap from the draft closed:</p>
+<div id="35cc6975" class="cell" data-execution_count="12">
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>CREATE TABLE respondent (</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>    respondent_id INTEGER PRIMARY KEY,                              <span class="op">--</span> one row per person, <span class="kw">and</span> no repeats</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>    age           INTEGER NOT NULL CHECK (age BETWEEN <span class="dv">15</span> AND <span class="dv">100</span>),  <span class="op">--</span> outside this <span class="bu">range</span> it <span class="kw">is</span> a typo, <span class="kw">not</span> an age</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>    gender        TEXT    NOT NULL,</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>    education     TEXT    NOT NULL,</span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>    province      TEXT    NOT NULL REFERENCES province(province),   <span class="op">--</span> must match a province we actually have</span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>    industry      TEXT    NOT NULL,</span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>    union_member  INTEGER NOT NULL CHECK (union_member IN (<span class="dv">0</span>, <span class="dv">1</span>)),  <span class="op">--</span> a yes<span class="op">/</span>no answer, <span class="kw">and</span> nothing <span class="cf">else</span></span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>    weekly_hours  REAL    NOT NULL CHECK (weekly_hours BETWEEN <span class="dv">0</span> AND <span class="dv">100</span>),  <span class="op">--</span> <span class="dv">100</span> hours weekly <span class="kw">is</span> the maximum we permit</span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a>    hourly_wage   REAL    NOT NULL CHECK (hourly_wage <span class="op">&gt;</span> <span class="dv">0</span>)          <span class="op">--</span> no blanks, no <span class="op">-</span><span class="dv">1</span>, no <span class="dv">9999999</span></span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a>) STRICT</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="12">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+</tr>
+</thead>
+<tbody>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<blockquote class="blockquote">
+<p><strong>Your turn.</strong> One table left, and it is yours: write <code>CREATE TABLE</code> for <code>certification</code>. It needs two columns, <code>respondent_id</code> and <code>certification</code>, both required; the pair as a composite primary key, written <code>PRIMARY KEY (col1, col2)</code> on its own line; a foreign key to the respondent table; and <code>STRICT</code>. Draft it in the cell below, then check against the answer. Don’t forget to start the cell with <code>%%sql</code>!</p>
+</blockquote>
+<div id="44ec1cd6" class="cell" data-execution_count="13">
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co"># your CREATE TABLE here</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<details>
+<summary>
+Show / hide answer
+</summary>
+<div id="3260d893" class="cell" data-execution_count="14">
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>DROP TABLE IF EXISTS certification<span class="op">;</span></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>CREATE TABLE certification (</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>    respondent_id INTEGER NOT NULL REFERENCES respondent(respondent_id),  <span class="op">--</span> must be a person who exists</span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>    certification TEXT    NOT NULL,</span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>    PRIMARY KEY (respondent_id, certification)                            <span class="op">--</span> the pair <span class="kw">is</span> the key: no duplicates</span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>) STRICT</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="14">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+</tr>
+</thead>
+<tbody>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>The <code>DROP TABLE IF EXISTS</code> in front makes the cell safe to run whether or not your own draft already created the table.</p>
+</details>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Five kinds of rule, every database
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>The rules inside a <code>CREATE TABLE</code> are called <strong>constraints</strong>, and the five you just wrote cover most schemas you will ever read. <code>PRIMARY KEY</code> gives a row its identity. <code>REFERENCES</code> points a column at another table and enforces referential integrity. <code>NOT NULL</code> makes a fact required rather than optional. <code>CHECK</code> accepts any condition you can write and refuses rows that fail it. <code>STRICT</code> makes the declared types binding.</p>
+</div>
+</div>
+<p>Notice what is <em>not</em> in the schema. There is no rule that respondents in Alberta earn less than respondents in Ontario, because that is a finding, not a fact about what a valid record is. A schema encodes what must be true for a record to be a record at all, and does not ask anything of the data itself.</p>
+</section>
+<section id="load-day" class="level2">
+<h2 class="anchored" data-anchor-id="load-day">7. Load day</h2>
+<p>The staging tables are already sitting in the file, so loading the real tables is <code>INSERT INTO ... SELECT</code>: Notebook 3’s <code>INSERT</code>, except the rows come from a query instead of a typed-out <code>VALUES</code> list. Provinces first, since everything points at them:</p>
+<div id="19644c25" class="cell" data-execution_count="15">
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>INSERT INTO province SELECT province, region, minimum_wage, population FROM province_staging</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="15">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+</tr>
+</thead>
+<tbody>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>Five provinces in, no complaints. Now the people.</p>
+<blockquote class="blockquote">
+<p><strong>Predict first.</strong> <code>survey_staging</code> holds 1,000 rows, every one a real respondent from the survey we have queried for four notebooks. How many of them make it into <code>respondent</code>?</p>
+</blockquote>
+<div id="b881cc73" class="cell" data-execution_count="16">
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>INSERT INTO respondent</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>SELECT respondent_id, age, gender, education, province, industry, union_member, weekly_hours, hourly_wage</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>FROM survey_staging</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>RuntimeError: (sqlite3.IntegrityError) FOREIGN KEY constraint failed
+[SQL: INSERT INTO respondent
+SELECT respondent_id, age, gender, education, province, industry, union_member, weekly_hours, hourly_wage
+FROM survey_staging]
+(Background on this error at: https://sqlalche.me/e/20/gkpj)</code></pre>
+</div>
+</div>
+<p><code>FOREIGN KEY constraint failed</code>, and the load is refused. The database has stopped us before, but this is a new kind of error. Notebook 2’s <code>misuse of aggregate</code> and Notebook 3’s window function error were complaints about our <strong>questions</strong>. This is the first time it has refused our <strong>data</strong>, and if you predicted 1,000, the surprise is the lesson: constraints check the world, not the syntax.</p>
+<div id="56e68c01" class="cell" data-execution_count="17">
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>SELECT COUNT(<span class="op">*</span>) AS rows_in_respondent FROM respondent</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="17">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">rows_in_respondent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>The answer to the prediction is zero. Not 954 either (which was the number Notebook 2’s inner join would have kept): a single <code>INSERT</code> finishes completely or not at all, so there is no partially-loaded table to clean up. We will revisit that all-or-nothing guarantee in Notebook 6. Somewhere in those 1,000 rows is a respondent pointing at a province our lookup table does not have, and rather than load around them, the database threw the whole statement back at us.</p>
+<p>Finding the value is a job we already know how to do, the left join from Notebook 2:</p>
+<div id="9121126c" class="cell" data-execution_count="18">
+<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>SELECT DISTINCT s.province</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>FROM survey_staging AS s</span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>LEFT JOIN province AS p ON s.province <span class="op">=</span> p.province</span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>WHERE p.province IS NULL</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="18">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">province</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>Saskatchewan</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>Saskatchewan. The same 46 respondents an inner join silently deleted in Notebook 2, and look at what the foreign key did: the identical gap that once quietly skewed our average is now a hard stop, before the data is even loaded. The data was never wrong; our province table was just incomplete. So we complete it, from the same sources as the rest of that table, the federal minimum wage database and Statistics Canada’s population estimates:</p>
+<div id="15f720db" class="cell" data-execution_count="19">
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>INSERT INTO province VALUES (<span class="st">'Saskatchewan'</span>, <span class="st">'Prairies'</span>, <span class="fl">15.00</span>, <span class="dv">1253569</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="19">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+</tr>
+</thead>
+<tbody>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>With the lookup fixed, both loads run clean:</p>
+<div id="62396495" class="cell" data-execution_count="20">
+<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>INSERT INTO respondent</span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>SELECT respondent_id, age, gender, education, province, industry, union_member, weekly_hours, hourly_wage</span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>FROM survey_staging<span class="op">;</span></span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a>INSERT INTO certification SELECT respondent_id, certification FROM certification_staging</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="20">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+</tr>
+</thead>
+<tbody>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>One query with three small subqueries computes the result of our load:</p>
+<div id="b3493bdd" class="cell" data-execution_count="21">
+<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>SELECT (SELECT COUNT(<span class="op">*</span>) FROM province) AS provinces,</span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>       (SELECT COUNT(<span class="op">*</span>) FROM respondent) AS respondents,</span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>       (SELECT COUNT(<span class="op">*</span>) FROM certification) AS certifications</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="21">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">provinces</th>
+<th data-quarto-table-cell-role="th">respondents</th>
+<th data-quarto-table-cell-role="th">certifications</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>6</td>
+<td>1000</td>
+<td>684</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>Six provinces, 1,000 respondents, 684 certification pairs, all of it now living under rules. The first half of our task is done.</p>
+</section>
+<section id="the-acceptance-test" class="level2">
+<h2 class="anchored" data-anchor-id="the-acceptance-test">8. The acceptance test</h2>
+<p>The second half of our task was proof: <em>what happened to the pilot cannot happen again</em>. So we prove it the direct way. Each of the following cells recreates one of the pilot file’s actual problems as a fresh <code>INSERT</code> and hands it to our schema. If the design is right, every single one should be outright rejected.</p>
+<p>The pilot recorded one man under four names, because nothing tracked identity. Here is a second respondent arriving under an id that is already taken:</p>
+<div id="d942892c" class="cell" data-execution_count="22">
+<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>INSERT INTO respondent VALUES (<span class="dv">1</span>, <span class="dv">41</span>, <span class="st">'Woman'</span>, <span class="st">'Graduate degree'</span>, <span class="st">'Alberta'</span>, <span class="st">'Technology'</span>, <span class="dv">0</span>, <span class="fl">40.0</span>, <span class="fl">55.0</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>RuntimeError: (sqlite3.IntegrityError) UNIQUE constraint failed: respondent.respondent_id
+[SQL: INSERT INTO respondent VALUES (1, 41, 'Woman', 'Graduate degree', 'Alberta', 'Technology', 0, 40.0, 55.0)]
+(Background on this error at: https://sqlalche.me/e/20/gkpj)</code></pre>
+</div>
+</div>
+<p>Refused: the primary key says respondent 1 already exists. The pilot spelled one province four ways; here comes the most famous of them:</p>
+<div id="038c6051" class="cell" data-execution_count="23">
+<div class="sourceCode cell-code" id="cb27"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>INSERT INTO respondent VALUES (<span class="dv">2001</span>, <span class="dv">33</span>, <span class="st">'Man'</span>, <span class="st">'High school'</span>, <span class="st">'Britsh Columbia'</span>, <span class="st">'Retail'</span>, <span class="dv">0</span>, <span class="fl">38.0</span>, <span class="fl">24.0</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>RuntimeError: (sqlite3.IntegrityError) FOREIGN KEY constraint failed
+[SQL: INSERT INTO respondent VALUES (2001, 33, 'Man', 'High school', 'Britsh Columbia', 'Retail', 0, 38.0, 24.0)]
+(Background on this error at: https://sqlalche.me/e/20/gkpj)</code></pre>
+</div>
+</div>
+<p>Refused: <code>Britsh Columbia</code> is not a row in the province table, and referential integrity does not negotiate. The pilot used <code>-1</code> as a code for “did not know”:</p>
+<div id="855c3710" class="cell" data-execution_count="24">
+<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>INSERT INTO respondent VALUES (<span class="dv">2002</span>, <span class="dv">33</span>, <span class="st">'Man'</span>, <span class="st">'High school'</span>, <span class="st">'Alberta'</span>, <span class="st">'Retail'</span>, <span class="dv">0</span>, <span class="fl">38.0</span>, <span class="op">-</span><span class="dv">1</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>RuntimeError: (sqlite3.IntegrityError) CHECK constraint failed: hourly_wage &gt; 0
+[SQL: INSERT INTO respondent VALUES (2002, 33, 'Man', 'High school', 'Alberta', 'Retail', 0, 38.0, -1)]
+(Background on this error at: https://sqlalche.me/e/20/gkpj)</code></pre>
+</div>
+</div>
+<p>Refused: the <code>CHECK</code> on <code>hourly_wage</code> demands a positive number, so sentinel codes throw errors. The pilot’s wage column also contained the literal word <code>refused</code>:</p>
+<div id="24aae902" class="cell" data-execution_count="25">
+<div class="sourceCode cell-code" id="cb31"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>INSERT INTO respondent VALUES (<span class="dv">2003</span>, <span class="dv">33</span>, <span class="st">'Man'</span>, <span class="st">'High school'</span>, <span class="st">'Alberta'</span>, <span class="st">'Retail'</span>, <span class="dv">0</span>, <span class="fl">38.0</span>, <span class="st">'refused'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>RuntimeError: (sqlite3.IntegrityError) cannot store TEXT value in REAL column respondent.hourly_wage
+[SQL: INSERT INTO respondent VALUES (2003, 33, 'Man', 'High school', 'Alberta', 'Retail', 0, 38.0, 'refused')]
+(Background on this error at: https://sqlalche.me/e/20/gkpj)</code></pre>
+</div>
+</div>
+<p>Refused: <code>STRICT</code> will not store text in a <code>REAL</code> column, which is the <code>forty</code> demonstration from section 2 with the ending it should have had. Last, a certificate for respondent 9999, who does not exist:</p>
+<div id="e56e2472" class="cell" data-execution_count="26">
+<div class="sourceCode cell-code" id="cb33"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>INSERT INTO certification VALUES (<span class="dv">9999</span>, <span class="st">'Cloud Practitioner'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>RuntimeError: (sqlite3.IntegrityError) FOREIGN KEY constraint failed
+[SQL: INSERT INTO certification VALUES (9999, 'Cloud Practitioner')]
+(Background on this error at: https://sqlalche.me/e/20/gkpj)</code></pre>
+</div>
+</div>
+<p>Refused: a bridge table’s foreign key means a pair can only ever connect two rows that are really there. Five errors from the pilot, five refusals, each error message naming the rule that fired. And the table is exactly as we left it:</p>
+<div id="aa014d29" class="cell" data-execution_count="27">
+<div class="sourceCode cell-code" id="cb35"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a>SELECT COUNT(<span class="op">*</span>) AS respondents FROM respondent</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="27">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">respondents</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>1000</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>Still 1,000. Nothing leaked through to poison our data.</p>
+<p>We can connect these refusals back to Notebook 1’s table of what goes wrong with shared files. The same person stored several times: refused by the primary key. Free text where a fixed set of values was intended: refused by the foreign key. A column that holds whatever anyone types: refused by <code>STRICT</code> and <code>CHECK</code>. The update anomaly is section 9’s subject.</p>
+<p>Notebook 4 found every one of these problems after the fact, by writing queries to hunt them down. Here they never get in. That is the switch this notebook makes: a good design versus a whole notebook’s worth of cleaning.</p>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Constraints are a theory of your data
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Every line of the schema is a claim about the world: wages are positive, every respondent has exactly one province, a person holds a given certificate once. Writing the claims down does two things at once: the database enforces them, and the next person to open the file can read what you believed and argue with you. A rule in a schema is a rule nobody has to remember.</p>
+</div>
+</div>
+</section>
+<section id="one-fact-one-place" class="level2">
+<h2 class="anchored" data-anchor-id="one-fact-one-place">9. One fact, one place</h2>
+<p>One design question remains: why three tables? A single wide table with the province facts copied onto every respondent would be simpler to look at, and plenty of real spreadsheets are built like this. We have a database now, so instead of arguing we can build the wide version and watch what goes wrong. <code>CREATE TABLE ... AS</code> builds a table directly from a query’s output, types inferred and no constraints attached, which suits this specific case: the wide version is supposed to live without our rules as they don’t fit it anyway.</p>
+<div id="ae8607f8" class="cell" data-execution_count="28">
+<div class="sourceCode cell-code" id="cb36"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a>DROP TABLE IF EXISTS survey_wide<span class="op">;</span></span>
+<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a>CREATE TABLE survey_wide AS</span>
+<span id="cb36-4"><a href="#cb36-4" aria-hidden="true" tabindex="-1"></a>SELECT r.respondent_id, r.province, r.hourly_wage, p.region, p.minimum_wage</span>
+<span id="cb36-5"><a href="#cb36-5" aria-hidden="true" tabindex="-1"></a>FROM respondent AS r</span>
+<span id="cb36-6"><a href="#cb36-6" aria-hidden="true" tabindex="-1"></a>JOIN province AS p ON r.province <span class="op">=</span> p.province</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="28">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+</tr>
+</thead>
+<tbody>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>Every respondent’s row now carries their province’s minimum wage. How many times does British Columbia’s rate appear?</p>
+<div id="ae3ecf55" class="cell" data-execution_count="29">
+<div class="sourceCode cell-code" id="cb37"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a>SELECT COUNT(<span class="op">*</span>) AS bc_rows, COUNT(DISTINCT minimum_wage) AS distinct_minimum_wages</span>
+<span id="cb37-3"><a href="#cb37-3" aria-hidden="true" tabindex="-1"></a>FROM survey_wide</span>
+<span id="cb37-4"><a href="#cb37-4" aria-hidden="true" tabindex="-1"></a>WHERE province <span class="op">=</span> <span class="st">'British Columbia'</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="29">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">bc_rows</th>
+<th data-quarto-table-cell-role="th">distinct_minimum_wages</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>353</td>
+<td>1</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>353 copies of one fact. Storage is not the problem here; 353 numbers are ok. The problem arrives the day the rate changes and the update misses some of the copies: a too-narrow <code>WHERE</code>, a stale list, a job that dies partway through its batch. Let’s see it happen, simulated by an <code>UPDATE</code> that only reaches the even-numbered respondents. <code>%</code> is the remainder after division, so <code>respondent_id % 2 = 0</code> picks out the even ids:</p>
+<div id="6063ba7e" class="cell" data-execution_count="30">
+<div class="sourceCode cell-code" id="cb38"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a>UPDATE survey_wide SET minimum_wage <span class="op">=</span> <span class="fl">17.85</span></span>
+<span id="cb38-3"><a href="#cb38-3" aria-hidden="true" tabindex="-1"></a>WHERE province <span class="op">=</span> <span class="st">'British Columbia'</span> AND respondent_id <span class="op">%</span> <span class="dv">2</span> <span class="op">=</span> <span class="dv">0</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="30">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+</tr>
+</thead>
+<tbody>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<div id="d8419530" class="cell" data-execution_count="31">
+<div class="sourceCode cell-code" id="cb39"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a>SELECT minimum_wage, COUNT(<span class="op">*</span>) AS row_count</span>
+<span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a>FROM survey_wide</span>
+<span id="cb39-4"><a href="#cb39-4" aria-hidden="true" tabindex="-1"></a>WHERE province <span class="op">=</span> <span class="st">'British Columbia'</span></span>
+<span id="cb39-5"><a href="#cb39-5" aria-hidden="true" tabindex="-1"></a>GROUP BY minimum_wage</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="31">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">minimum_wage</th>
+<th data-quarto-table-cell-role="th">row_count</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>17.40</td>
+<td>184</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>17.85</td>
+<td>169</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>British Columbia now has two minimum wages: 169 rows say 17.85 and 184 still say 17.40, and the table has no way to tell you which is true. No error was raised, and any average computed from that column now depends on which rows happen to land in it. Notebook 1 named this an <strong>update anomaly</strong>, back when it was a line in a table of file failures; this is what one looks like up close.</p>
+<p>In the designed schema, the same change is one row, because the fact lives in exactly one place:</p>
+<div id="1239344d" class="cell" data-execution_count="32">
+<div class="sourceCode cell-code" id="cb40"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a>UPDATE province SET minimum_wage <span class="op">=</span> <span class="fl">17.85</span> WHERE province <span class="op">=</span> <span class="st">'British Columbia'</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="32">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+</tr>
+</thead>
+<tbody>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>One row changed, and every query that joins to the province table sees the new rate immediately, all 353 respondents’ worth. That principle, <strong>one fact in one place</strong>, is what data engineers mean by <strong>normalization</strong>. Give each kind of thing its own table, give each table a key, and never store a fact in a table it is not about. British Columbia’s minimum wage is a fact about British Columbia, not about respondent 412.</p>
+<p>There’s a good chance this feels familiar. Hadley Wickham’s <strong>tidy data</strong> rules, which you may have met in other classes, say that each variable is a column, each observation is a row, and each type of observational unit is its own table.</p>
+</section>
+<section id="conclusion" class="level2">
+<h2 class="anchored" data-anchor-id="conclusion">10. Conclusion</h2>
+<p>The task is delivered: three entities, two relationships, a primary key on every table, foreign keys so nothing can point at something that does not exist, and a set of <code>NOT NULL</code> and <code>CHECK</code> rules saying what a valid record is. We loaded the real survey into it, got refused once for a good reason we then fixed at the source, and attacked it five times with the pilot’s own mistakes. Five refusals. The survey office can build wave 2’s software on these tables, and the software will refuse in real time what took us all of Notebook 4 to repair. We saved a full notebook’s worth of time and issues.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+You can now answer these interview questions
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>What is a primary key, and what is a foreign key?</li>
+<li>What does referential integrity mean, and what breaks without it?</li>
+<li>What is an update anomaly, and how does normalization prevent it?</li>
+</ul>
+<details>
+<summary>
+Show / hide model answers
+</summary>
+<ul>
+<li>A primary key is the column, or set of columns, that identifies a row: it must be present and must never repeat. A foreign key is a column that points at another table’s primary key, which is how tables connect.</li>
+<li>It means every foreign key value must match a real row in the table it points at, so the database refuses orphan entries. Without it you get records referring to things that do not exist, and joins drop them without errors, which is how 46 Saskatchewan respondents nearly went missing from our published briefing.</li>
+<li>It is when the same fact is stored in many rows and an update only reaches some of them, leaving the table contradicting itself with no error raised. Normalization prevents it by storing each fact exactly once, so a change touches one row.</li>
+</ul>
+</details>
+</div>
+</div>
+</section>
+<section id="connections" class="level2">
+<h2 class="anchored" data-anchor-id="connections">Connections</h2>
+<ul>
+<li><strong>Back to <a href="../../docs/Data_Engineer/notebook_04_cleaning_real_data.html">Notebook 4</a>:</strong> every problem we cleaned by hand there met a constraint here that refuses it. The pilot had no primary key, which is the reason entity resolution was ever needed.</li>
+<li><strong>Forward to <a href="../../docs/Data_Engineer/notebook_06_storage_speed_transactions.html">Notebook 6</a>:</strong> the schema says what may be stored. Next is how it is stored and how fast it comes back: the all-or-nothing guarantee behind our refused load, indexes, and why column storage beats row storage for analysis.</li>
+</ul>
+<section id="references" class="level3">
+<h3 class="anchored" data-anchor-id="references">References</h3>
+<ul>
+<li>Codd, E. F. (1970). <em>A relational model of data for large shared data banks.</em> Communications of the ACM, 13(6), 377-387. Where keys and the relational model come from.</li>
+<li>Government of Canada. <em>Current and forthcoming general minimum wage rates in Canada.</em> https://minwage-salairemin.service.canada.ca/en/general.html The source of Saskatchewan’s rate in section 7.</li>
+<li>Impact Technology. <em>Example entity relationship diagram.</em> https://www.impacttechnology.co.uk/example-entity-relationship-diagram The production-scale data model in section 4.</li>
+<li>Kleppmann, M. (2017). <em>Designing Data-Intensive Applications.</em> O’Reilly. Chapter 2 on data models, including when normalization stops paying.</li>
+<li>Malan, D. (2024). <em>CS50’s Introduction to Databases with SQL.</em> Harvard University. https://cs50.harvard.edu/sql/ The lecture on designing covers keys and constraints.</li>
+<li>SQLite. <em>CREATE TABLE.</em> https://www.sqlite.org/lang_createtable.html Constraints, primary keys and foreign key clauses.</li>
+<li>SQLite. <em>STRICT tables.</em> https://www.sqlite.org/stricttables.html Why section 2’s <code>forty</code> was accepted, and how to stop it.</li>
+<li>SQLite. <em>SQLite foreign key support.</em> https://www.sqlite.org/foreignkeys.html Including why the pragma is off by default.</li>
+<li>Statistics Canada. (2025). <em>Canada’s population estimates, first quarter 2025.</em> The Daily, June 18, 2025. https://www150.statcan.gc.ca/n1/daily-quotidien/250618/dq250618a-eng.htm The source of the population figure in section 7.</li>
+<li>Wickham, H. (2014). <em>Tidy data.</em> Journal of Statistical Software, 59(10), 1-23. The analyst’s version of section 9.</li>
+</ul>
+<hr>
+
+
+<div class="hidden" aria-hidden="true">
+<span class="glightbox-desc lightbox-desc-4">A real-world data model, from Impact Technology’s example ER diagram. A dozen tables instead of our three, and nothing in it is new: every table declares its primary key, the foreign key columns are labelled, and the crow’s feet mark the many side. <code>tblPROJECT_EQUIPMENT</code> on the right is a bridge table doing exactly our certification table’s job, with one addition worth noticing: it carries a fact of its own, the booking rate, because some facts belong to the pair itself.</span>
+</div>
+</section>
+</section>
+
+</main> <!-- /main -->
+<button id="scroll-to-top" aria-label="Back to top">
+  <svg width="18" height="18" viewbox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M12 19V5M12 5L5 12M12 5L19 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path>
+  </svg>
+</button>
+
+<style>
+#scroll-to-top {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  z-index: 999;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+
+  /* Follows the active Comet theme (light/dark) automatically,
+     since these are the same Bootstrap vars compiled from
+     comet_theme.scss / comet_theme_dark.scss */
+  background-color: var(--bs-primary, #041746);
+  color: #FFFFFF;
+
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(10px);
+  transition: opacity 0.2s ease, transform 0.2s ease, background-color 0.2s ease;
+}
+
+#scroll-to-top.is-visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+#scroll-to-top:hover,
+#scroll-to-top:focus-visible {
+  background-color: var(--bs-secondary, #CC7A00);
+  outline: none;
+}
+
+#scroll-to-top svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Tooltip shown on hover/focus, to the left so it stays in the viewport */
+#scroll-to-top::after {
+  content: "Back to top";
+  position: absolute;
+  right: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background-color: rgba(0, 0, 0, 0.8);
+  color: #FFFFFF;
+  font-size: 0.8rem;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+#scroll-to-top:hover::after,
+#scroll-to-top:focus-visible::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+@media (max-width: 768px) {
+  #scroll-to-top {
+    bottom: 20px;
+    right: 16px;
+    width: 40px;
+    height: 40px;
+  }
+}
+</style>
+
+<script>
+(function () {
+  var btn = document.getElementById("scroll-to-top");
+  if (!btn) return;
+
+  var toggleVisibility = function () {
+    if (window.scrollY > 300) {
+      btn.classList.add("is-visible");
+    } else {
+      btn.classList.remove("is-visible");
+    }
+  };
+
+  window.addEventListener("scroll", toggleVisibility, { passive: true });
+  toggleVisibility();
+
+  btn.addEventListener("click", function () {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+})();
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const disableStylesheet = (stylesheets) => {
+    for (let i=0; i < stylesheets.length; i++) {
+      const stylesheet = stylesheets[i];
+      stylesheet.rel = 'prefetch';
+    }
+  }
+  const enableStylesheet = (stylesheets) => {
+    for (let i=0; i < stylesheets.length; i++) {
+      const stylesheet = stylesheets[i];
+      stylesheet.rel = 'stylesheet';
+    }
+  }
+  const manageTransitions = (selector, allowTransitions) => {
+    const els = window.document.querySelectorAll(selector);
+    for (let i=0; i < els.length; i++) {
+      const el = els[i];
+      if (allowTransitions) {
+        el.classList.remove('notransition');
+      } else {
+        el.classList.add('notransition');
+      }
+    }
+  }
+  const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+    const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+    const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+    let newTheme = '';
+    if(darkModeDefault) {
+      newTheme = isAlternate ? baseTheme : alternateTheme;
+    } else {
+      newTheme = isAlternate ? alternateTheme : baseTheme;
+    }
+    const changeGiscusTheme = () => {
+      // From: https://github.com/giscus/giscus/issues/336
+      const sendMessage = (message) => {
+        const iframe = document.querySelector('iframe.giscus-frame');
+        if (!iframe) return;
+        iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+      }
+      sendMessage({
+        setConfig: {
+          theme: newTheme
+        }
+      });
+    }
+    const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+    if (isGiscussLoaded) {
+      changeGiscusTheme();
+    }
+  }
+  const toggleColorMode = (alternate) => {
+    // Switch the stylesheets
+    const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+    manageTransitions('#quarto-margin-sidebar .nav-link', false);
+    if (alternate) {
+      enableStylesheet(alternateStylesheets);
+      for (const sheetNode of alternateStylesheets) {
+        if (sheetNode.id === "quarto-bootstrap") {
+          toggleBodyColorMode(sheetNode);
+        }
+      }
+    } else {
+      disableStylesheet(alternateStylesheets);
+      toggleBodyColorPrimary();
+    }
+    manageTransitions('#quarto-margin-sidebar .nav-link', true);
+    // Switch the toggles
+    const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+    for (let i=0; i < toggles.length; i++) {
+      const toggle = toggles[i];
+      if (toggle) {
+        if (alternate) {
+          toggle.classList.add("alternate");     
+        } else {
+          toggle.classList.remove("alternate");
+        }
+      }
+    }
+    // Hack to workaround the fact that safari doesn't
+    // properly recolor the scrollbar when toggling (#1455)
+    if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+      manageTransitions("body", false);
+      window.scrollTo(0, 1);
+      setTimeout(() => {
+        window.scrollTo(0, 0);
+        manageTransitions("body", true);
+      }, 40);  
+    }
+  }
+  const isFileUrl = () => { 
+    return window.location.protocol === 'file:';
+  }
+  const hasAlternateSentinel = () => {  
+    let styleSentinel = getColorSchemeSentinel();
+    if (styleSentinel !== null) {
+      return styleSentinel === "alternate";
+    } else {
+      return false;
+    }
+  }
+  const setStyleSentinel = (alternate) => {
+    const value = alternate ? "alternate" : "default";
+    if (!isFileUrl()) {
+      window.localStorage.setItem("quarto-color-scheme", value);
+    } else {
+      localAlternateSentinel = value;
+    }
+  }
+  const getColorSchemeSentinel = () => {
+    if (!isFileUrl()) {
+      const storageValue = window.localStorage.getItem("quarto-color-scheme");
+      return storageValue != null ? storageValue : localAlternateSentinel;
+    } else {
+      return localAlternateSentinel;
+    }
+  }
+  const darkModeDefault = false;
+  let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+  // Dark / light mode switch
+  window.quartoToggleColorScheme = () => {
+    // Read the current dark / light value 
+    let toAlternate = !hasAlternateSentinel();
+    toggleColorMode(toAlternate);
+    setStyleSentinel(toAlternate);
+    toggleGiscusIfUsed(toAlternate, darkModeDefault);
+  };
+  // Ensure there is a toggle, if there isn't float one in the top right
+  if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+    const a = window.document.createElement('a');
+    a.classList.add('top-right');
+    a.classList.add('quarto-color-scheme-toggle');
+    a.href = "";
+    a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+    const i = window.document.createElement("i");
+    i.classList.add('bi');
+    a.appendChild(i);
+    window.document.body.appendChild(a);
+  }
+  // Switch to dark mode if need be
+  if (hasAlternateSentinel()) {
+    toggleColorMode(true);
+  } else {
+    toggleColorMode(false);
+  }
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+          // target, if specified
+          link.setAttribute("target", "_blank");
+          if (link.getAttribute("rel") === null) {
+            link.setAttribute("rel", "noopener");
+          }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      // TODO in 1.5, we should make sure this works without a callout special case
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+ <a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc-sa/4.0/80x15.png"></a>.  <a rel="license" href="https://ubcecon.github.io/comet-open/pages/copyright.html">See details.</a>
+  </li>  
+</ul>
+    </div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/ubcecon/praxis-ubc/issues/new" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></div>
+    <div class="nav-footer-right">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+ The Praxis Project and UBC are located on the traditional, ancestral and unceded territory of the xʷməθkʷəy̓əm (Musqueam) and Sḵwx̱wú7mesh (Squamish) peoples.
+  </li>  
+</ul>
+    </div>
+  </div>
+</footer>
+<script>var lightboxQuarto = GLightbox({"closeEffect":"zoom","descPosition":"bottom","selector":".lightbox","openEffect":"zoom","loop":false});
+window.onload = () => {
+  lightboxQuarto.on('slide_before_load', (data) => {
+    const { slideIndex, slideNode, slideConfig, player, trigger } = data;
+    const href = trigger.getAttribute('href');
+    if (href !== null) {
+      const imgEl = window.document.querySelector(`a[href="${href}"] img`);
+      if (imgEl !== null) {
+        const srcAttr = imgEl.getAttribute("src");
+        if (srcAttr && srcAttr.startsWith("data:")) {
+          slideConfig.href = srcAttr;
+        }
+      }
+    } 
+  });
+
+  lightboxQuarto.on('slide_after_load', (data) => {
+    const { slideIndex, slideNode, slideConfig, player, trigger } = data;
+    if (window.Quarto?.typesetMath) {
+      window.Quarto.typesetMath(slideNode);
+    }
+  });
+
+};
+          </script>
+
+
+
+
+</body></html>

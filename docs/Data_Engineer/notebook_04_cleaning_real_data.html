@@ -1,0 +1,2542 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-GB" xml:lang="en-GB"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.4.557">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Alex Ronczewski">
+<meta name="dcterms.date" content="2026-07-25">
+<meta name="description" content="The fourth notebook in the Data Engineering stream. The survey we have been querying was clean because somebody cleaned it, this time we have to do it. We get a messy pilot file, and we write the cleaning as a SQL script over raw data we never touch.">
+
+<title>Praxis - Cleaning Real Data</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script><script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<link href="../../media/praxis-badge.png" rel="icon" type="image/png">
+<script src="../../site_libs/quarto-html/quarto.js"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark.css" rel="prefetch" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark.min.css" rel="prefetch" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<script src="../../site_libs/quarto-contrib/glightbox/glightbox.min.js"></script>
+<link href="../../site_libs/quarto-contrib/glightbox/glightbox.min.css" rel="stylesheet">
+<link href="../../site_libs/quarto-contrib/glightbox/lightbox.css" rel="stylesheet">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<meta name="keywords" content="economics, econometrics, R, data, machine learning, UBC, COMET, geog 374, econ 325, econ 326, learning, teaching, learn r, r help, help, tutorial, r tutorial for beginners,learning statistics with r, learn r programming, learn statistics, linear regression, r machine learning, learn machine learning, university of british columbia, british columbia, r programming for beginners, r language tutorial, r tutorial for beginners, economic data, econometrics tutoring, economics help for students, economics homework help, oer resources for teachers, open educational resources for teachers, educational resource, oer project, oer materials, oer resources, learn economics online, learn econometrics, teach yourself economics, teach yourself econometrics, econometrics basics for beginners">
+
+<!-- Google Search Console -->
+<meta name="google-site-verification" content="wUHlRBWRzzUYwBbnKdvYg0lBpw5b0F7hnEq-QekkpQw">
+<!-- End Google Search Console -->
+
+<script>
+(function() {
+    function updateThemeImages() {
+        var isDark = document.body.classList.contains('quarto-dark');
+        var images = document.querySelectorAll('img[data-light-src][data-dark-src]');
+
+        images.forEach(function(img) {
+            var lightSrc = img.getAttribute('data-light-src');
+            var darkSrc = img.getAttribute('data-dark-src');
+            var newSrc = isDark ? darkSrc : lightSrc;
+
+            // Only update if src is different to avoid reload flicker
+            if (img.getAttribute('src') !== newSrc) {
+                img.setAttribute('src', newSrc);
+            }
+        });
+    }
+
+    // Run when DOM is ready
+    document.addEventListener('DOMContentLoaded', function() {
+        updateThemeImages();
+
+        // Watch for theme changes on body
+        var observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.attributeName === 'class') {
+                    updateThemeImages();
+                }
+            });
+        });
+
+        observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    });
+
+    // Also run after full page load
+    window.addEventListener('load', updateThemeImages);
+})();
+</script>
+
+<!-- Cloudflare Web Analytics -->
+<script defer="" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon="{&quot;token&quot;: &quot;911859291fee44e6ba0acc25f4f08be4&quot;}"></script>
+<!-- End Cloudflare Web Analytics -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" integrity="sha512-c3Nl8+7g4LMSTdrm621y7kf9v3SDPnhxLNhcjFJbKECVnmZHTdo+IRO05sNLTH/D3vA6u1X32ehoLC7WFVdheg==" crossorigin="anonymous"></script>
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+
+
+<link rel="stylesheet" href="../../styles.css">
+</head>
+
+<body class="nav-fixed">
+<!-- praxis-launch-notebook: per-notebook launch button (injected into output HTML at build time) -->
+<script>
+(function () {
+  // Notebooks that get a launch button (path from "docs/", no extension)
+  var NOTEBOOKS = [
+    "docs/AMNE-376/amne_376_image_embedding",
+    "docs/CTree_CEA/political_economy",
+    "docs/Causal_ML/notebook_01_prediction_inference_causality",
+    "docs/Causal_ML/notebook_02_regularization_ridge_lasso",
+    "docs/Causal_ML/notebook_03_trees_forests_boosting",
+    "docs/Causal_ML/notebook_04_prediction_to_treatment_effects",
+    "docs/Causal_ML/notebook_05_post_double_selection",
+    "docs/Causal_ML/notebook_06_propensity_ipw",
+    "docs/Causal_ML/notebook_07_double_machine_learning",
+    "docs/Causal_ML/notebook_08_heterogeneous_effects_causal_forests",
+    "docs/Data_Engineer/notebook_01_why_databases_exist",
+    "docs/Data_Engineer/notebook_02_basic_querying",
+    "docs/Data_Engineer/notebook_03_advanced_sql",
+    "docs/Data_Engineer/notebook_04_cleaning_real_data",
+    "docs/Data_Engineer/notebook_05_designing_data",
+    "docs/Data_Engineer/notebook_06_storage_speed_transactions",
+    "docs/Data_Engineer/notebook_07_two_kinds_of_databases",
+    "docs/Data_Engineer/notebook_08_pipelines_one",
+    "docs/Data_Engineer/notebook_09_pipelines_two",
+    "docs/Data_Engineer/notebook_10_embeddings_vector_search",
+    "docs/Data_Engineer/notebook_11_capstone_rag",
+    "docs/ECON-227/llm_distributions",
+    "docs/Game_Theory/notebook_01_games_best_responses_nash",
+    "docs/Game_Theory/notebook_02_mixed_strategies_fictitious_play",
+    "docs/Game_Theory/notebook_03_repeated_games_axelrod_tournament",
+    "docs/Game_Theory/notebook_04_learning_agents_collusion",
+    "docs/OCR/ocr_notebook",
+    "docs/SOCI-280/soci_280_bert",
+    "docs/SOCI-415/cbdb_dataset",
+    "docs/SOCI-415/kinmatrix",
+    "docs/SOCI-415/soci_415_network_analysis",
+    "docs/hist_workshop/text_embeddings_workshop",
+    "docs/image_analysis/image_analysis",
+    "docs/intro_to_cnns/intro_to_cnn",
+    "docs/intro_to_convolutions/intro_to_convolution",
+    "docs/intro_to_deep_learning/intro_to_fundamental_ML",
+    "docs/intro_to_transformers/intro_to_transformers",
+    "docs/text_analysis/text_analysis"
+  ];
+
+  function init() {
+    var i = window.location.pathname.indexOf("/docs/");
+    if (i === -1) return;
+    var rel = window.location.pathname.slice(i + 1).replace(/\.html$/, "");
+    if (NOTEBOOKS.indexOf(rel) === -1) return;
+
+    var nb = rel + ".ipynb";
+    var repo = "https%3A%2F%2Fgithub.com%2Fubcecon%2Fpraxis-ubc";
+    var urlpath = encodeURIComponent("lab/tree/praxis-ubc/" + nb);
+    var jupyter = "https://open.jupyter.ubc.ca/jupyter/hub/user-redirect/git-pull?repo=" +
+      repo + "&urlpath=" + urlpath + "&branch=praxis-notebooks";
+    var colab = "https://colab.research.google.com/github/ubcecon/praxis-ubc/blob/praxis-notebooks/" + nb;
+
+    var wrap = document.createElement("div");
+    wrap.className = "btn-group";
+    wrap.style.margin = "0.5rem 0 1rem";
+    wrap.innerHTML =
+      '<button class="btn btn-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">' +
+        '<i class="bi bi-play-fill"></i> Launch this notebook</button>' +
+      '<ul class="dropdown-menu">' +
+        '<li><a class="dropdown-item" target="_blank" rel="noopener" href="' + jupyter + '"><i class="bi bi-cloud-check"></i> JupyterOpen</a></li>' +
+        '<li><a class="dropdown-item" target="_blank" rel="noopener" href="' + colab + '"><i class="bi bi-google"></i> Colab</a></li>' +
+      '</ul>';
+
+    var header = document.getElementById("title-block-header");
+    if (header) {
+      header.appendChild(wrap);
+    } else {
+      var main = document.querySelector("main.content") || document.querySelector("main");
+      if (main) main.insertBefore(wrap, main.firstChild);
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
+</script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="../../index.html" class="navbar-brand navbar-brand-logo">
+    <img src="../../media/praxis-badge-white.png" alt="" class="navbar-logo">
+    </a>
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">Praxis</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-get-started" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Get Started</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-get-started">    
+        <li>
+    <a class="dropdown-item" href="../../pages/quickstart.html">
+ <span class="dropdown-text">Quickstart Guide</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-courses" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Courses</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-courses">    
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_AMNE-376.html">
+ <span class="dropdown-text">AMNE-376</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_SOCI415.html">
+ <span class="dropdown-text">SOCI-415</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_SOCI280.html">
+ <span class="dropdown-text">SOCI-280</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_ECON227.html">
+ <span class="dropdown-text">ECON-227</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_Causal_ML.html">
+ <span class="dropdown-text">Causal Machine Learning</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_Game_Theory.html">
+ <span class="dropdown-text">Game Theory</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_Data_Engineer.html">
+ <span class="dropdown-text">Data Engineering</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="../../pages/index/all.html">
+ <span class="dropdown-text">Browse All</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="../../pages/index/all.html"> 
+<span class="menu-text">All Topics</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-teach-with-praxis" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Teach with Praxis</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-teach-with-praxis">    
+        <li>
+    <a class="dropdown-item" href="../../pages/teaching_with_praxis.html">
+ <span class="dropdown-text">Learn how to teach with Praxis</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-launch-praxis" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+      <i class="bi bi-play" role="img">
+</i> 
+ <span class="menu-text">Launch Praxis</span>
+    </a>
+    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="nav-menu-launch-praxis">    
+        <li>
+    <a class="dropdown-item" href="https://open.jupyter.ubc.ca/jupyter/hub/user-redirect/git-pull?repo=https%3A%2F%2Fgithub.com%2Fubcecon%2Fpraxis-ubc&amp;urlpath=lab%2Ftree%2Fpraxis-ubc%2F&amp;branch=praxis-notebooks"><i class="bi bi-cloud-check" role="img">
+</i> 
+ <span class="dropdown-text">Launch on JupyterOpen (with Data)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://open.jupyter.ubc.ca/jupyter/hub/user-redirect/git-pull?repo=https%3A%2F%2Fgithub.com%2Fubcecon%2Fpraxis-ubc&amp;urlpath=lab%2Ftree%2Fpraxis-ubc%2F&amp;branch=praxis-notebooks"><i class="bi bi-cloud-check" role="img">
+</i> 
+ <span class="dropdown-text">Launch on JupyterOpen (lite)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ubc.syzygy.ca/jupyter/hub/user-redirect/git-pull?repo=https%3A%2F%2Fgithub.com%2Fubcecon%2Fpraxis-ubc&amp;urlpath=lab%2Ftree%2Fpraxis-ubc%2F&amp;branch=praxis-notebooks"><i class="bi bi-gear" role="img">
+</i> 
+ <span class="dropdown-text">Launch on Syzygy</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://colab.research.google.com/github/ubcecon/praxis-ubc/blob/praxis-notebooks/"><i class="bi bi-google" role="img">
+</i> 
+ <span class="dropdown-text">Launch on Colab</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://github.com/ubcecon/praxis-ubc/archive/refs/heads/praxis-notebooks.zip"><i class="bi bi-cloud-download" role="img">
+</i> 
+ <span class="dropdown-text">Launch Locally</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="https://github.com/ubcecon/praxis-ubc">
+ <span class="dropdown-text">Github Repository</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="../../#"> 
+<span class="menu-text">|</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/ubcecon/praxis-ubc" target="_blank"> <i class="bi bi-github" role="img" aria-label="GitHub">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-about" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">About</span>
+    </a>
+    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="nav-menu-about">    
+        <li>
+    <a class="dropdown-item" href="../../pages/team.html">
+ <span class="dropdown-text">Praxis Team</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/copyright.html">
+ <span class="dropdown-text">Copyright Information</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+          </div> <!-- /navcollapse -->
+          <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-full page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#outline" id="toc-outline" class="nav-link active" data-scroll-target="#outline">Outline</a>
+  <ul class="collapse">
+  <li><a href="#prerequisites" id="toc-prerequisites" class="nav-link" data-scroll-target="#prerequisites">Prerequisites</a></li>
+  <li><a href="#learning-outcomes" id="toc-learning-outcomes" class="nav-link" data-scroll-target="#learning-outcomes">Learning Outcomes</a></li>
+  </ul></li>
+  <li><a href="#where-we-are-in-the-stream" id="toc-where-we-are-in-the-stream" class="nav-link" data-scroll-target="#where-we-are-in-the-stream">1. Where we are in the stream</a></li>
+  <li><a href="#the-file" id="toc-the-file" class="nav-link" data-scroll-target="#the-file">2. The file</a></li>
+  <li><a href="#what-is-actually-broken" id="toc-what-is-actually-broken" class="nav-link" data-scroll-target="#what-is-actually-broken">3. What is actually broken</a></li>
+  <li><a href="#the-cleaning-script" id="toc-the-cleaning-script" class="nav-link" data-scroll-target="#the-cleaning-script">4. The cleaning script</a></li>
+  <li><a href="#the-column-that-changed-meaning" id="toc-the-column-that-changed-meaning" class="nav-link" data-scroll-target="#the-column-that-changed-meaning">5. The column that changed meaning</a></li>
+  <li><a href="#one-person-four-names" id="toc-one-person-four-names" class="nav-link" data-scroll-target="#one-person-four-names">6. One person, four names</a></li>
+  <li><a href="#the-same-script-eight-ways" id="toc-the-same-script-eight-ways" class="nav-link" data-scroll-target="#the-same-script-eight-ways">7. The same script, eight ways</a></li>
+  <li><a href="#what-we-do-not-fix" id="toc-what-we-do-not-fix" class="nav-link" data-scroll-target="#what-we-do-not-fix">8. What we do not fix</a></li>
+  <li><a href="#conclusion" id="toc-conclusion" class="nav-link" data-scroll-target="#conclusion">9. Conclusion</a></li>
+  <li><a href="#connections" id="toc-connections" class="nav-link" data-scroll-target="#connections">Connections</a>
+  <ul class="collapse">
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
+  </ul></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/ubcecon/praxis-ubc/issues/new" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div><div class="quarto-alternate-formats"><h2>Other Formats</h2><ul><li><a href="notebook_04_cleaning_real_data.ipynb" download="notebook_04_cleaning_real_data.ipynb"><i class="bi bi-journal-code"></i>Jupyter</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content column-page-left" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Cleaning Real Data</h1>
+  <div class="quarto-categories">
+    <div class="quarto-category">Python</div>
+    <div class="quarto-category">SQL</div>
+    <div class="quarto-category">data cleaning</div>
+    <div class="quarto-category">data engineering</div>
+  </div>
+  </div>
+
+<div>
+  <div class="description">
+    The fourth notebook in the Data Engineering stream. The survey we have been querying was clean because somebody cleaned it, this time we have to do it. We get a messy pilot file, and we write the cleaning as a SQL script over raw data we never touch.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta column-page-left">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Alex Ronczewski </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">25 July 2026</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="outline" class="level2">
+<h2 class="anchored" data-anchor-id="outline">Outline</h2>
+<section id="prerequisites" class="level3">
+<h3 class="anchored" data-anchor-id="prerequisites">Prerequisites</h3>
+<ul>
+<li>Notebook 3 of this stream: CTEs, views, window functions, and <code>COALESCE</code>.</li>
+</ul>
+</section>
+<section id="learning-outcomes" class="level3">
+<h3 class="anchored" data-anchor-id="learning-outcomes">Learning Outcomes</h3>
+<p>By the end of this notebook you will be able to:</p>
+<ol type="1">
+<li>Profile a raw file and find the issues which do not cause SQL errors.</li>
+<li>Write a whole cleaning process as a <strong>SQL view</strong> over raw data you never modify, and state its advantages versus fixing things manually.</li>
+<li>Resolve people recorded under several names with a <strong>normalized key</strong> and <strong>fuzzy matching</strong>.</li>
+<li>Run the same analysis under several defensible cleaning rules, and understand that cleaning rules actually change the answer.</li>
+</ol>
+</section>
+</section>
+<section id="where-we-are-in-the-stream" class="level2">
+<h2 class="anchored" data-anchor-id="where-we-are-in-the-stream">1. Where we are in the stream</h2>
+<p><a href="media/NB4/stream_map.png" class="lightbox" data-gallery="quarto-lightbox-gallery-1"><img src="media/NB4/stream_map.png" class="img-fluid" style="width:85.0%" alt="Stream roadmap: four arcs, Querying data (NB1-4), Designing and storing data (NB5-7), Keeping data flowing (NB8-9), and Data for AI (NB10-11), with the current notebook highlighted."></a></p>
+<p>Three notebooks in, and every query we have written has (mostly) just worked. That was not luck. The survey came out of software that refused incorrect entries and standardized spellings and variables, and somebody set that software up.</p>
+<p>Real data does not always arrive like that; like today. Before the main survey existed the team ran a <strong>pilot</strong>: 46 interviews over six months, kept in one spreadsheet that three people took turns editing. It has resurfaced, and the research lead wants one number out of it, the average hourly wage. That is your job today. (A disclosure before we start: like the survey, the pilot file is constructed for this stream, because a cleaning lesson only works when every failure is planted and known in advance. This file carries all five of Notebook 1’s failure modes on purpose.)</p>
+<p>This is the notebook where you stop being a person who queries data and start being the person who makes data queryable. It is also the last stop before Notebook 5, where we design the schema that would have prevented all of this in the first place.</p>
+</section>
+<section id="the-file" class="level2">
+<h2 class="anchored" data-anchor-id="the-file">2. The file</h2>
+<div id="ef4df647" class="cell" data-execution_count="1">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> itertools</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> difflib</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> sqlite3</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Our cleaning starts before we even load the data. Left alone, <code>read_csv</code> guesses a type for each column and treats a fixed list of tokens (blank, <code>NA</code>, <code>n/a</code>, <code>null</code>, and friends) as missing, so <code>n/a</code> would silently become NaN before we had the chance to work with it. <code>refused</code> is not on that list, so it survives, but it forces the whole column to be read as text instead of numbers, which is its own kind of quiet damage. We want the true file, not a guess of what could be in it: <code>dtype=str</code> reads everything as text and <code>keep_default_na=False</code> leaves the blanks alone.</p>
+<div id="7c27c718" class="cell" data-execution_count="2">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>raw <span class="op">=</span> pd.read_csv(<span class="st">"datasets/wage_survey_pilot.csv"</span>, dtype<span class="op">=</span><span class="bu">str</span>, keep_default_na<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>conn <span class="op">=</span> sqlite3.<span class="ex">connect</span>(<span class="st">"datasets/wage_survey.db"</span>)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>raw.to_sql(<span class="st">"survey_raw"</span>, conn, index<span class="op">=</span><span class="va">False</span>, if_exists<span class="op">=</span><span class="st">"replace"</span>)</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>pd.read_csv(<span class="st">"datasets/provinces.csv"</span>).to_sql(<span class="st">"provinces"</span>, conn, index<span class="op">=</span><span class="va">False</span>, if_exists<span class="op">=</span><span class="st">"replace"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="2">
+<pre><code>5</code></pre>
+</div>
+</div>
+<div id="780ad71e" class="cell" data-execution_count="3">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="op">%</span>load_ext sql</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="op">%</span>config SqlMagic.autopandas <span class="op">=</span> <span class="va">True</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="op">%</span>config SqlMagic.displaycon <span class="op">=</span> <span class="va">False</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="op">%</span>config SqlMagic.feedback <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="op">%</span>sql sqlite:<span class="op">///</span>datasets<span class="op">/</span>wage_survey.db</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Now we inspect the data.</p>
+<div id="53a553d8" class="cell" data-execution_count="4">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>SELECT <span class="op">*</span> FROM survey_raw LIMIT <span class="dv">6</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="4">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">respondent</th>
+<th data-quarto-table-cell-role="th">region</th>
+<th data-quarto-table-cell-role="th">hourly_wage</th>
+<th data-quarto-table-cell-role="th">weekly_hours</th>
+<th data-quarto-table-cell-role="th">date_surveyed</th>
+<th data-quarto-table-cell-role="th">notes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>Chen, Amy</td>
+<td>BC</td>
+<td>41000</td>
+<td>40</td>
+<td>2025-01-14</td>
+<td></td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>Singh, Manpreet</td>
+<td>BC</td>
+<td>52500</td>
+<td>40</td>
+<td>2025-01-14</td>
+<td></td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>Singh, Manpreet</td>
+<td>BC</td>
+<td>52500</td>
+<td>40</td>
+<td>2025-01-14</td>
+<td></td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>Tremblay, Luc</td>
+<td>B.C.</td>
+<td>61000</td>
+<td>37.5</td>
+<td>15/01/2025</td>
+<td></td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">4</td>
+<td>Garcia, Maria</td>
+<td>British Columbia</td>
+<td>38500</td>
+<td>40</td>
+<td>2025-01-21</td>
+<td></td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">5</td>
+<td>Novak, Peter</td>
+<td>bc</td>
+<td>44,000</td>
+<td>40</td>
+<td>January 22 2025</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="media/NB4/pilot_spreadsheet.png" class="lightbox" data-glightbox="description: .lightbox-desc-2" data-gallery="quarto-lightbox-gallery-2" title="The pilot file in Excel. Three people editing, and nothing stopping anyone from typing anything into it."><img src="media/NB4/pilot_spreadsheet.png" class="img-fluid figure-img" alt="The pilot file in Excel. Three people editing, and nothing stopping anyone from typing anything into it."></a></p>
+<figcaption>The pilot file in Excel. Three people editing, and nothing stopping anyone from typing anything into it.</figcaption>
+</figure>
+</div>
+<p>Manpreet Singh appears twice. One province (British Columbia) is spelled four different ways. Two of the six dates are written in a format the other four are not. And somebody’s wage is <code>44,000</code>, which is an impossible hourly wage.</p>
+<p>If we ask for the average anyway, without any cleaning we get:</p>
+<div id="97bc41df" class="cell" data-execution_count="5">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>SELECT COUNT(<span class="op">*</span>) AS records,</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>       ROUND(AVG(CAST(hourly_wage AS REAL)), <span class="dv">2</span>) AS avg_hourly_wage</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>FROM survey_raw</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="5">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">records</th>
+<th data-quarto-table-cell-role="th">avg_hourly_wage</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>46</td>
+<td>236336.79</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>236,336.79 dollars an hour. <code>CAST(x AS REAL)</code> tells SQLite to read a value as a decimal number, and it did that for all 46 rows without a single error. This is the whole problem with messy data: nothing failed, and the answer is nonsensical.</p>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Raw data is immutable
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><code>survey_raw</code> is a copy of the file the survey office sent, and nothing in this notebook will modify it. No <code>UPDATE</code>, no <code>DELETE</code>, no editing the spreadsheet by hand. Every fix will be a <code>SELECT</code> that derives a <strong>new</strong> column from an old one.</p>
+<p>This is the single most important habit in the notebook. A hand edit disappears the moment you close the file, and nobody, including you next week, can tell what you changed, why and what was there before.</p>
+</div>
+</div>
+</section>
+<section id="what-is-actually-broken" class="level2">
+<h2 class="anchored" data-anchor-id="what-is-actually-broken">3. What is actually broken</h2>
+<p>So rather than hunt these one at a time, let’s count all of them in one query.</p>
+<p><code>UNION ALL</code> stacks the results of several queries into one table as long as they return the same columns, so each line below is one problem and how many rows have it.</p>
+<p>Where does the list of queries to check even come from? Reading the six rows above is a good start, and it is what caught the province spellings, but it does not scale: this file holds 46 records, the next one could be 2TB of data, and no amount of scrolling finds the one row in a million that ruins your average. What scales is running the same fixed set of checks every time without looking at the data at all: distinct values in each category, minimum and maximum of each number, how many entries fail to convert to the type you expect, and the row count against the number of distinct people. Those are all aggregates, so the database answers them in one pass whether the file holds 46 rows or 46 million. We can keep the query list as a test suite to re-run whenever we need (which is exactly what Notebook 9 builds).</p>
+<div id="6910566e" class="cell" data-execution_count="6">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>SELECT <span class="st">'wage written as text (n/a, refused, blank)'</span> AS problem,</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>       COUNT(<span class="op">*</span>) AS records FROM survey_raw WHERE hourly_wage IN (<span class="st">''</span>, <span class="st">'n/a'</span>, <span class="st">'refused'</span>)</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>UNION ALL</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>SELECT <span class="st">'wage is a code, not a number (9999999, -1)'</span>,</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>       COUNT(<span class="op">*</span>) FROM survey_raw WHERE CAST(hourly_wage AS REAL) IN (<span class="op">-</span><span class="dv">1</span>, <span class="dv">9999999</span>)</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>UNION ALL</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>SELECT <span class="st">'wage has punctuation in it ($ or ,)'</span>,</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>       COUNT(<span class="op">*</span>) FROM survey_raw WHERE hourly_wage LIKE <span class="st">'%$%'</span> OR hourly_wage LIKE <span class="st">'%,%'</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>UNION ALL</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>SELECT <span class="st">'hours written as text (forty, blank)'</span>,</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>       COUNT(<span class="op">*</span>) FROM survey_raw WHERE weekly_hours IN (<span class="st">''</span>, <span class="st">'forty'</span>)</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>UNION ALL</span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>SELECT <span class="st">'date SQLite cannot read'</span>,</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>       COUNT(<span class="op">*</span>) FROM survey_raw WHERE date(date_surveyed) IS NULL</span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>UNION ALL</span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>SELECT <span class="st">'distinct spellings of two provinces'</span>,</span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>       COUNT(DISTINCT region) FROM survey_raw</span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>UNION ALL</span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>SELECT <span class="st">'records, and distinct names among them'</span>,</span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>       COUNT(DISTINCT respondent) FROM survey_raw</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="6">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">problem</th>
+<th data-quarto-table-cell-role="th">records</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>wage written as text (n/a, refused, blank)</td>
+<td>3</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>wage is a code, not a number (9999999, -1)</td>
+<td>2</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>wage has punctuation in it ($ or ,)</td>
+<td>2</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>hours written as text (forty, blank)</td>
+<td>2</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">4</td>
+<td>date SQLite cannot read</td>
+<td>7</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">5</td>
+<td>distinct spellings of two provinces</td>
+<td>8</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">6</td>
+<td>records, and distinct names among them</td>
+<td>41</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>There is our damage report. A few notes on what these mean:</p>
+<p><code>9999999</code> and <code>-1</code> are <strong>sentinel values</strong>: numbers chosen to mean “no value here” in a column which normally has no way to say so. Here <code>9999999</code> means the respondent refused and <code>-1</code> means they did not know. This convention is older than SQL and it is still used everywhere in survey data. A sentinel passes every type check you can throw at it, and poisons your average, which is most of where that 236,336.79 came from.</p>
+<p>The punctuation is worse, because <code>CAST</code> does not fail. Handed text it cannot read it just returns 0 and moves on:</p>
+<div id="8e19b427" class="cell" data-execution_count="7">
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>SELECT hourly_wage, CAST(hourly_wage AS REAL) AS what_cast_gives</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>FROM survey_raw</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>WHERE hourly_wage LIKE <span class="st">'%$%'</span> OR hourly_wage LIKE <span class="st">'%,%'</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="7">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">hourly_wage</th>
+<th data-quarto-table-cell-role="th">what_cast_gives</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>44,000</td>
+<td>44.0</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>$26.75</td>
+<td>0.0</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>A real wage of <code>$26.75</code> turns into 0, and a 44,000 dollar salary turns into <strong>44.0</strong>, because <code>CAST</code> stopped reading at the comma. Forty-four dollars an hour is a completely believable number, and that is what makes it dangerous. It survives every sanity check you would think to run.</p>
+<p>SQLite understands exactly one written form of dates, the ISO 8601 form <code>2025-01-14</code> (YYYY-MM-DD) and returns NULL for everything else. This is not SQLite being fussy: ISO dates sort correctly as plain text, so <code>survey_date &lt; '2025-04-01'</code> just works immediately. The alternatives are ambiguous, since <code>04/02/2025</code> could be February or April, and the only reason we can tell this file is day-first is that another row reads <code>15/01/2025</code> and there is no fifteenth month.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="media/NB4/iso_8601_2x.png" class="lightbox" data-glightbox="description: .lightbox-desc-3" data-gallery="quarto-lightbox-gallery-3" title="xkcd 1179. A fun comic about data formats!"><img src="media/NB4/iso_8601_2x.png" class="img-fluid figure-img" alt="xkcd 1179. A fun comic about data formats!"></a></p>
+<figcaption>xkcd 1179. A fun comic about data formats!</figcaption>
+</figure>
+</div>
+</section>
+<section id="the-cleaning-script" class="level2">
+<h2 class="anchored" data-anchor-id="the-cleaning-script">4. The cleaning script</h2>
+<p>Now we write the fix. All of it, once, as a view.</p>
+<p>Notebook 3 used <code>CREATE VIEW</code> to store a query permanently inside the database file, and that is exactly what a cleaning process should be: it copies no data, it re-runs itself every time anyone selects from it. Anybody with the file can read what it does, argue with it, and improve it. <code>DROP VIEW IF EXISTS</code> in front makes the pair safe to re-run.</p>
+<p>Read the comments down the right-hand side (marked with <strong>–</strong>). Each one is a decision, and each decision is a line somebody could disagree with:</p>
+<div id="d3e21ea5" class="cell" data-execution_count="8">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>DROP VIEW IF EXISTS pilot_typed</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="8">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+</tr>
+</thead>
+<tbody>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<div id="4e9367d4" class="cell" data-execution_count="9">
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>CREATE VIEW pilot_typed AS</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>WITH months(month_name, month_num) AS (            <span class="op">--</span> a little month<span class="op">-</span>name lookup table, built right here</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    VALUES (<span class="st">'January'</span>, <span class="st">'01'</span>), (<span class="st">'February'</span>, <span class="st">'02'</span>), (<span class="st">'March'</span>, <span class="st">'03'</span>), (<span class="st">'April'</span>, <span class="st">'04'</span>),</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>           (<span class="st">'May'</span>, <span class="st">'05'</span>), (<span class="st">'June'</span>, <span class="st">'06'</span>), (<span class="st">'July'</span>, <span class="st">'07'</span>), (<span class="st">'August'</span>, <span class="st">'08'</span>),</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>           (<span class="st">'September'</span>, <span class="st">'09'</span>), (<span class="st">'October'</span>, <span class="st">'10'</span>), (<span class="st">'November'</span>, <span class="st">'11'</span>), (<span class="st">'December'</span>, <span class="st">'12'</span>)</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>),</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>dated AS (</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>    SELECT r.rowid AS row_id, r.respondent, r.region, r.hourly_wage, r.weekly_hours, r.notes,</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>           CASE</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>             WHEN date(r.date_surveyed) IS NOT NULL THEN r.date_surveyed                <span class="op">--</span> this one <span class="kw">is</span> already the right shape, so leave it alone</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>             WHEN instr(r.date_surveyed, <span class="st">'/'</span>) <span class="op">&gt;</span> <span class="dv">0</span>                                       <span class="op">--</span> instr looks <span class="cf">for</span> a slash, which <span class="kw">is</span> how we spot <span class="dv">15</span><span class="op">/</span><span class="dv">0</span><span class="er">1</span><span class="op">/</span><span class="dv">2025</span></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>                  THEN substr(r.date_surveyed, <span class="dv">7</span>, <span class="dv">4</span>) <span class="op">||</span> <span class="st">'-'</span> <span class="op">||</span>                          <span class="op">--</span> substr cuts a piece out of the text: here, the year</span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>                       substr(r.date_surveyed, <span class="dv">4</span>, <span class="dv">2</span>) <span class="op">||</span> <span class="st">'-'</span> <span class="op">||</span>                          <span class="op">--</span> then the month, <span class="kw">and</span> <span class="op">||</span> glues the pieces together</span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>                       substr(r.date_surveyed, <span class="dv">1</span>, <span class="dv">2</span>)                                    <span class="op">--</span> <span class="kw">and</span> the day, so <span class="dv">15</span><span class="op">/</span><span class="dv">0</span><span class="er">1</span><span class="op">/</span><span class="dv">2025</span> comes back <span class="im">as</span> <span class="dv">2025</span><span class="op">-</span><span class="dv">0</span><span class="er">1</span><span class="op">-</span><span class="dv">15</span></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>             ELSE substr(r.date_surveyed, <span class="op">-</span><span class="dv">4</span>) <span class="op">||</span> <span class="st">'-'</span> <span class="op">||</span> m.month_num <span class="op">||</span> <span class="st">'-'</span> <span class="op">||</span>           <span class="op">--</span> <span class="cf">for</span> <span class="st">"January 22 2025"</span>, counting back finds the year</span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>                  printf(<span class="st">'</span><span class="sc">%02d</span><span class="st">'</span>, CAST(substr(r.date_surveyed, instr(r.date_surveyed, <span class="st">' '</span>) <span class="op">+</span> <span class="dv">1</span>) AS INTEGER))</span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>           END AS survey_date                                                           <span class="op">--</span> printf writes day <span class="dv">8</span> <span class="im">as</span> <span class="dv">0</span><span class="er">8</span>, so the dates <span class="bu">all</span> line up</span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>    FROM survey_raw AS r</span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>    LEFT JOIN months AS m ON m.month_name <span class="op">=</span> substr(r.date_surveyed, <span class="dv">1</span>, instr(r.date_surveyed, <span class="st">' '</span>) <span class="op">-</span> <span class="dv">1</span>)</span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>SELECT row_id, TRIM(respondent) AS respondent, survey_date, notes,                      <span class="op">--</span> TRIM shaves off <span class="bu">any</span> stray spaces around the name</span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>       CASE WHEN UPPER(TRIM(region)) IN (<span class="st">'BC'</span>, <span class="st">'B.C.'</span>, <span class="st">'BRITISH COLUMBIA'</span>, <span class="st">'BRITSH COLUMBIA'</span>)</span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a>                 THEN <span class="st">'British Columbia'</span>                                                <span class="op">--</span> <span class="bu">all</span> four of these spellings mean this one province...</span>
+<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a>            WHEN UPPER(TRIM(region)) IN (<span class="st">'AB'</span>, <span class="st">'ALBERTA'</span>) THEN <span class="st">'Alberta'</span>                <span class="op">--</span> ...<span class="kw">and</span> these two mean the other. We decided that, <span class="kw">not</span> SQL</span>
+<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a>       END AS province,                                                                 <span class="op">--</span> <span class="cf">with</span> no ELSE, a spelling we have <span class="kw">not</span> seen lands here <span class="im">as</span> NULL</span>
+<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a>       CASE WHEN weekly_hours IN (<span class="st">''</span>, <span class="st">'forty'</span>) THEN NULL</span>
+<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a>            ELSE CAST(weekly_hours AS REAL) END AS weekly_hours,                        <span class="op">--</span> <span class="st">'forty'</span> <span class="kw">and</span> the blanks are unknown, but a real <span class="dv">0</span> stays <span class="dv">0</span></span>
+<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a>       NULLIF(NULLIF(                                                                   <span class="op">--</span> NULLIF blanks out a value we name, <span class="kw">and</span> we name two below</span>
+<span id="cb10-30"><a href="#cb10-30" aria-hidden="true" tabindex="-1"></a>           CASE WHEN hourly_wage IN (<span class="st">''</span>, <span class="st">'n/a'</span>, <span class="st">'refused'</span>) THEN NULL</span>
+<span id="cb10-31"><a href="#cb10-31" aria-hidden="true" tabindex="-1"></a>                ELSE CAST(REPLACE(REPLACE(hourly_wage, <span class="st">','</span>, <span class="st">''</span>), <span class="st">'$'</span>, <span class="st">''</span>) AS REAL)      <span class="op">--</span> REPLACE strips the punctuation first</span>
+<span id="cb10-32"><a href="#cb10-32" aria-hidden="true" tabindex="-1"></a>           END, <span class="dv">9999999</span>), <span class="op">-</span><span class="dv">1</span>) AS wage_reported                                          <span class="op">--</span> then both sentinels become NULL</span>
+<span id="cb10-33"><a href="#cb10-33" aria-hidden="true" tabindex="-1"></a>FROM dated</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="9">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+</tr>
+</thead>
+<tbody>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>Let’s think about a couple of our cleaning decisions.</p>
+<p>The <code>CASE</code> for provinces has no <code>ELSE</code>, which is on purpose. A <code>CASE</code> with no matching branch returns NULL, so if the survey office ever sends a row spelled <code>B C</code>, it lands in a NULL group instead of being quietly folded into a province. Given the choice between a rule that guesses and a rule that leaves a null where the guess would be, we take the null.</p>
+<p>The hours rule is also important. Three entries read as zero hours if you just <code>CAST</code> them, and only one of those is a person who worked zero hours: Mathieu Girard, who was on leave and said so in the notes. <code>forty</code> and the blank are unknown. Zero and unknown are different values, and a careless <code>CAST</code> makes them identical.</p>
+<p>Here are the same six rows we started with, after we ran the script:</p>
+<div id="ff944a35" class="cell" data-execution_count="10">
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>SELECT <span class="op">*</span> FROM pilot_typed ORDER BY row_id LIMIT <span class="dv">6</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="10">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">row_id</th>
+<th data-quarto-table-cell-role="th">respondent</th>
+<th data-quarto-table-cell-role="th">survey_date</th>
+<th data-quarto-table-cell-role="th">notes</th>
+<th data-quarto-table-cell-role="th">province</th>
+<th data-quarto-table-cell-role="th">weekly_hours</th>
+<th data-quarto-table-cell-role="th">wage_reported</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>1</td>
+<td>Chen, Amy</td>
+<td>2025-01-14</td>
+<td></td>
+<td>British Columbia</td>
+<td>40.0</td>
+<td>41000.0</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>2</td>
+<td>Singh, Manpreet</td>
+<td>2025-01-14</td>
+<td></td>
+<td>British Columbia</td>
+<td>40.0</td>
+<td>52500.0</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>3</td>
+<td>Singh, Manpreet</td>
+<td>2025-01-14</td>
+<td></td>
+<td>British Columbia</td>
+<td>40.0</td>
+<td>52500.0</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>4</td>
+<td>Tremblay, Luc</td>
+<td>2025-01-15</td>
+<td></td>
+<td>British Columbia</td>
+<td>37.5</td>
+<td>61000.0</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">4</td>
+<td>5</td>
+<td>Garcia, Maria</td>
+<td>2025-01-21</td>
+<td></td>
+<td>British Columbia</td>
+<td>40.0</td>
+<td>38500.0</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">5</td>
+<td>6</td>
+<td>Novak, Peter</td>
+<td>2025-01-22</td>
+<td></td>
+<td>British Columbia</td>
+<td>40.0</td>
+<td>44000.0</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>Four spellings of BC have become one, and both awkward dates are gone: Luc Tremblay’s <code>15/01/2025</code> and Peter Novak’s <code>January 22 2025</code> come back as <code>2025-01-15</code> and <code>2025-01-22</code>. Novak’s wage reads 44000.0 too, rather than the 44.0 a plain <code>CAST</code> gave us.</p>
+<p>Now that the column is finally made of numbers, look down it: all six hourly wages are in the tens of thousands.</p>
+</section>
+<section id="the-column-that-changed-meaning" class="level2">
+<h2 class="anchored" data-anchor-id="the-column-that-changed-meaning">5. The column that changed meaning</h2>
+<p>Now that the dates work we can ask a question that was impossible five minutes ago: what does this survey look like over time? <code>strftime('%Y-%m', d)</code> formats a date, <code>%Y</code> being the year and <code>%m</code> the month, which gives us something to group on. The <code>&lt;&lt;</code> arrow is Notebook 1’s trick for storing a result in a Python variable so we can plot it.</p>
+<div id="f435863d" class="cell" data-execution_count="11">
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql monthly <span class="op">&lt;&lt;</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>SELECT strftime(<span class="st">'%Y-%m'</span>, survey_date) AS month,</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>       COUNT(<span class="op">*</span>) AS records,</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>       ROUND(AVG(wage_reported), <span class="dv">2</span>) AS avg_wage</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>FROM pilot_typed</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>GROUP BY month</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div id="2243eed4" class="cell" data-execution_count="12">
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>plt.figure(figsize<span class="op">=</span>(<span class="dv">9</span>, <span class="dv">5</span>))</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>plt.bar(monthly[<span class="st">"month"</span>], monthly[<span class="st">"avg_wage"</span>], color<span class="op">=</span><span class="st">"tab:green"</span>)</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>plt.yscale(<span class="st">"log"</span>) <span class="co">#log scale on y-axis</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>plt.ylabel(<span class="st">"average of the wage column (log scale)"</span>)</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>plt.title(<span class="st">"Something happened to this column in April"</span>)</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><a href="notebook_04_cleaning_real_data_files/figure-html/cell-13-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-4"><img src="notebook_04_cleaning_real_data_files/figure-html/cell-13-output-1.png" width="740" height="431" class="figure-img"></a></p>
+</figure>
+</div>
+</div>
+</div>
+<p>We need a log scale to fit it on one chart. January to March average in the tens of thousands. April to June average in the tens. This is not normal at all, no labour market does that.</p>
+<p>The people filling in the form wrote down what happened:</p>
+<div id="30c182c1" class="cell" data-execution_count="13">
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>SELECT respondent, date_surveyed, hourly_wage, notes</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>FROM survey_raw</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>WHERE notes LIKE <span class="st">'</span><span class="sc">%f</span><span class="st">orm%'</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="13">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">respondent</th>
+<th data-quarto-table-cell-role="th">date_surveyed</th>
+<th data-quarto-table-cell-role="th">hourly_wage</th>
+<th data-quarto-table-cell-role="th">notes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>Fontaine, Marc</td>
+<td>2025-02-25</td>
+<td>40950</td>
+<td>wage column held annual salary on the old form...</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>Ivanov, Dmitri</td>
+<td>2025-02-25</td>
+<td></td>
+<td>wage missing on paper form</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>Taylor, Emma</td>
+<td>2025-04-01</td>
+<td>24.50</td>
+<td>new form starts here</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>Chen, Amy</td>
+<td>2025-06-03</td>
+<td>20.20</td>
+<td>resurveyed on new form</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>The old form asked for an annual salary, the new one asks for an hourly wage, and both answers went into a column called <code>hourly_wage</code>. Notebook 1 listed this failure as “no enforced types or meaning: a column is whatever anyone types into it”. The column name lied for three months of the data.</p>
+<p>The fix is arithmetic: an annual salary divided by the weeks and hours worked becomes a hourly wage, so <code>salary / (weekly_hours * 52)</code> for everything collected before April.</p>
+<p>That is a big assumption to make on the strength of a note in a spreadsheet, so let’s test it. Several people were interviewed more than once and some of those repeats exist across the form change, which gives us a free check: if the rule is right, a person’s converted salary should land near the hourly wage they reported later (with a small possibility of a raise or a job change).</p>
+<div id="f5b34588" class="cell" data-execution_count="14">
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>WITH converted AS (</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>    SELECT respondent, survey_date, wage_reported, weekly_hours,</span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>           CASE WHEN survey_date <span class="op">&lt;</span> <span class="st">'2025-04-01'</span></span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>                THEN ROUND(wage_reported <span class="op">/</span> (weekly_hours <span class="op">*</span> <span class="dv">52</span>), <span class="dv">2</span>)</span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>                ELSE wage_reported</span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>           END AS hourly_rate</span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>    FROM pilot_typed</span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>SELECT <span class="op">*</span> FROM converted</span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a>WHERE respondent IN (SELECT respondent FROM pilot_typed GROUP BY respondent HAVING COUNT(<span class="op">*</span>) <span class="op">&gt;</span> <span class="dv">1</span>)</span>
+<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a>ORDER BY respondent, survey_date</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="14">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">respondent</th>
+<th data-quarto-table-cell-role="th">survey_date</th>
+<th data-quarto-table-cell-role="th">wage_reported</th>
+<th data-quarto-table-cell-role="th">weekly_hours</th>
+<th data-quarto-table-cell-role="th">hourly_rate</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>Chen, Amy</td>
+<td>2025-01-14</td>
+<td>41000.00</td>
+<td>40.0</td>
+<td>19.71</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>Chen, Amy</td>
+<td>2025-06-03</td>
+<td>20.20</td>
+<td>40.0</td>
+<td>20.20</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>Park, Jisoo</td>
+<td>2025-02-04</td>
+<td>21000.00</td>
+<td>35.0</td>
+<td>11.54</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>Park, Jisoo</td>
+<td>2025-02-04</td>
+<td>31000.00</td>
+<td>35.0</td>
+<td>17.03</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">4</td>
+<td>Singh, Manpreet</td>
+<td>2025-01-14</td>
+<td>52500.00</td>
+<td>40.0</td>
+<td>25.24</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">5</td>
+<td>Singh, Manpreet</td>
+<td>2025-01-14</td>
+<td>52500.00</td>
+<td>40.0</td>
+<td>25.24</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">6</td>
+<td>Singh, Manpreet</td>
+<td>2025-04-29</td>
+<td>25.25</td>
+<td>40.0</td>
+<td>25.25</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">7</td>
+<td>Tremblay, Luc</td>
+<td>2025-01-15</td>
+<td>61000.00</td>
+<td>37.5</td>
+<td>31.28</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">8</td>
+<td>Tremblay, Luc</td>
+<td>2025-03-11</td>
+<td>61000.00</td>
+<td>37.5</td>
+<td>31.28</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>Manpreet Singh’s January salary of 52,500 over a 40-hour week converts to <strong>25.24</strong> an hour. In April, on the new form, he reported <strong>25.25</strong>. One cent apart, from two different forms four months apart. Amy Chen converts to 19.71 in January and reports 20.20 in June, which is likely to be a raise. The rule holds, and now we can add it to the pipeline.</p>
+</section>
+<section id="one-person-four-names" class="level2">
+<h2 class="anchored" data-anchor-id="one-person-four-names">6. One person, four names</h2>
+<p>There is one more big problem in the data. Luc Tremblay was interviewed four times, but he only shows up twice, because the file spells his name three different ways and grouping on <code>respondent</code> only catches the identical ones.</p>
+<div id="e42e7799" class="cell" data-execution_count="15">
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>SELECT COUNT(<span class="op">*</span>) AS records, COUNT(DISTINCT respondent) AS name_strings</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>FROM survey_raw</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="15">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">records</th>
+<th data-quarto-table-cell-role="th">name_strings</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>46</td>
+<td>41</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>Forty-one name strings across 46 records, and whether that is 41 people is a question the file cannot answer. A spreadsheet has no notion of identity, so <code>Tremblay, Luc</code> and <code>Luc Tremblay</code> are unrelated pieces of text to it. Working out which records are the same person is called <strong>entity resolution</strong>, and it is one of the standard problems in survey and administrative data, where the same person shows up as <code>Smith, J.</code>, <code>John Smith</code> and <code>J. Smith</code>.</p>
+<p>The first logical move is a <strong>normalized key</strong>, which rewrites the name so the differences you do not care about disappear. <code>TRIM</code> and <code>LOWER</code> kill spacing and capitalization, <code>REPLACE(x, '.', '')</code> kills the periods, and since the comma tells us whether a name is written last-first or first-last, <code>instr</code> and <code>substr</code> can put both into the same order.</p>
+<div id="befb0864" class="cell" data-execution_count="16">
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>WITH keyed AS (</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>    SELECT TRIM(respondent) AS respondent,</span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>           LOWER(CASE WHEN instr(respondent, <span class="st">','</span>) <span class="op">&gt;</span> <span class="dv">0</span>                            <span class="op">--</span> the last name on its own,</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>                      THEN TRIM(substr(respondent, <span class="dv">1</span>, instr(respondent, <span class="st">','</span>) <span class="op">-</span> <span class="dv">1</span>))</span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>                      ELSE substr(respondent, instr(respondent, <span class="st">' '</span>) <span class="op">+</span> <span class="dv">1</span>)</span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>                 END) AS last_name,                                              <span class="op">--</span> which we use <span class="kw">in</span> the HAVING below</span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>           LOWER(CASE WHEN instr(respondent, <span class="st">','</span>) <span class="op">&gt;</span> <span class="dv">0</span></span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>                      THEN TRIM(substr(respondent, <span class="dv">1</span>, instr(respondent, <span class="st">','</span>) <span class="op">-</span> <span class="dv">1</span>)) <span class="op">||</span> <span class="st">', '</span> <span class="op">||</span></span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>                           TRIM(REPLACE(substr(respondent, instr(respondent, <span class="st">','</span>) <span class="op">+</span> <span class="dv">1</span>), <span class="st">'.'</span>, <span class="st">''</span>))</span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>                      ELSE substr(respondent, instr(respondent, <span class="st">' '</span>) <span class="op">+</span> <span class="dv">1</span>) <span class="op">||</span> <span class="st">', '</span> <span class="op">||</span></span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a>                           substr(respondent, <span class="dv">1</span>, instr(respondent, <span class="st">' '</span>) <span class="op">-</span> <span class="dv">1</span>)</span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a>                 END) AS name_key</span>
+<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a>    FROM survey_raw</span>
+<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a>SELECT last_name, name_key, COUNT(<span class="op">*</span>) AS records, COUNT(DISTINCT respondent) AS spellings</span>
+<span id="cb17-17"><a href="#cb17-17" aria-hidden="true" tabindex="-1"></a>FROM keyed</span>
+<span id="cb17-18"><a href="#cb17-18" aria-hidden="true" tabindex="-1"></a>GROUP BY name_key</span>
+<span id="cb17-19"><a href="#cb17-19" aria-hidden="true" tabindex="-1"></a>HAVING records <span class="op">&gt;</span> <span class="dv">1</span>                                                               <span class="op">--</span> keys that pulled records together,</span>
+<span id="cb17-20"><a href="#cb17-20" aria-hidden="true" tabindex="-1"></a>    OR last_name IN (SELECT last_name FROM keyed                                 <span class="op">--</span> plus <span class="bu">any</span> key that shares a last name</span>
+<span id="cb17-21"><a href="#cb17-21" aria-hidden="true" tabindex="-1"></a>                     GROUP BY last_name HAVING COUNT(DISTINCT name_key) <span class="op">&gt;</span> <span class="dv">1</span>)     <span class="op">--</span> <span class="cf">with</span> a different key</span>
+<span id="cb17-22"><a href="#cb17-22" aria-hidden="true" tabindex="-1"></a>ORDER BY records DESC, name_key</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="16">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">last_name</th>
+<th data-quarto-table-cell-role="th">name_key</th>
+<th data-quarto-table-cell-role="th">records</th>
+<th data-quarto-table-cell-role="th">spellings</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>singh</td>
+<td>singh, manpreet</td>
+<td>3</td>
+<td>1</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>tremblay</td>
+<td>tremblay, luc</td>
+<td>3</td>
+<td>2</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>chen</td>
+<td>chen, amy</td>
+<td>2</td>
+<td>1</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>park</td>
+<td>park, jisoo</td>
+<td>2</td>
+<td>1</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">4</td>
+<td>tremblay</td>
+<td>tremblay, l</td>
+<td>1</td>
+<td>1</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>Four people account for ten of the 46 records, and the key worked: <code>Luc Tremblay</code> and <code>Tremblay, Luc</code> now produce the same <code>tremblay, luc</code>, but look at the last row. <code>Tremblay, L.</code> normalizes to <code>tremblay, l</code>, which is still a different string, so he sits on his own with a single record while his other three are grouped above him. Any key you build will have a case like this, because exact matching is by nature - exact.</p>
+<p>So we escalate one step further to <strong>fuzzy matching</strong>: instead of asking whether two strings are equal, we can mathematically measure how similar they are. <code>difflib.SequenceMatcher(None, a, b).ratio()</code> returns a number between 0 and 1 where 1 means identical, and <code>itertools.combinations</code> computes every pair of names. We set a similarity bar of 0.6, but you can experiment with different bars.</p>
+<p>(Learn more about comparing text and other natural language processing techniques in this prAxIs notebook: <a href="https://ubcecon.github.io/praxis-ubc/docs/text_analysis/text_analysis.html">Text Analysis Overview</a>.)</p>
+<div id="5ce4067a" class="cell" data-execution_count="17">
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>names <span class="op">=</span> <span class="bu">sorted</span>(pd.read_sql(<span class="st">"SELECT DISTINCT TRIM(respondent) AS name FROM survey_raw"</span>, conn)[<span class="st">"name"</span>])</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>candidates <span class="op">=</span> [(a, b, <span class="bu">round</span>(difflib.SequenceMatcher(<span class="va">None</span>, a.lower(), b.lower()).ratio(), <span class="dv">2</span>))</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>              <span class="cf">for</span> a, b <span class="kw">in</span> itertools.combinations(names, <span class="dv">2</span>)</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>              <span class="cf">if</span> difflib.SequenceMatcher(<span class="va">None</span>, a.lower(), b.lower()).ratio() <span class="op">&gt;=</span> <span class="fl">0.6</span>] <span class="co"># The 0.6 here is our bar, change it and see what happens. </span></span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="bu">len</span>(names), <span class="st">"names,"</span>, <span class="bu">len</span>(names) <span class="op">*</span> (<span class="bu">len</span>(names) <span class="op">-</span> <span class="dv">1</span>) <span class="op">//</span> <span class="dv">2</span>, <span class="st">"pairs compared"</span>)</span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>pd.DataFrame(candidates, columns<span class="op">=</span>[<span class="st">"name_a"</span>, <span class="st">"name_b"</span>, <span class="st">"similarity"</span>]).sort_values(<span class="st">"similarity"</span>, ascending<span class="op">=</span><span class="va">False</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>41 names, 820 pairs compared</code></pre>
+</div>
+<div class="cell-output cell-output-display" data-execution_count="17">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">name_a</th>
+<th data-quarto-table-cell-role="th">name_b</th>
+<th data-quarto-table-cell-role="th">similarity</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>Tremblay, L.</td>
+<td>Tremblay, Luc</td>
+<td>0.88</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">0</td>
+<td>Luc Tremblay</td>
+<td>Tremblay, L.</td>
+<td>0.67</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">1</td>
+<td>Luc Tremblay</td>
+<td>Tremblay, Luc</td>
+<td>0.64</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>Three pairs clear the bar and all three are Luc Tremblay. Note that 41 names took 820 comparisons, and the pair count grows with the square of the records, so a million records would be 500 billion comparisons. Real data systems avoid that with <strong>blocking</strong>: only compare records inside groups that could plausibly match at all, usually formed on something computationally simple like a last name or a postal code.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="media/NB4/entity_resolution.png" class="lightbox" data-glightbox="description: .lightbox-desc-5" data-gallery="quarto-lightbox-gallery-5" title="The four ways this file spells one man, the key that merges three of them, and the similarity score that catches the fourth."><img src="media/NB4/entity_resolution.png" class="img-fluid figure-img" alt="The four ways this file spells one man, the key that merges three of them, and the similarity score that catches the fourth."></a></p>
+<figcaption>The four ways this file spells one man, the key that merges three of them, and the similarity score that catches the fourth.</figcaption>
+</figure>
+</div>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Fuzzy matching proposes, but a human should always decide
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>That output is a review list for us, not a set of merges we must make. Splitting one person into two records costs you a slightly smaller sample. Merging two people into one invents a person who does not exist and corrupts every variable at once. Those two mistakes are not equally bad, so you set the threshold low, look at the result, and decide.</p>
+</div>
+</div>
+<p>We look, and all four records are clearly the same man. To record that decision we widen the key to last name plus first initial, and take each person’s most recent record with <code>ROW_NUMBER()</code>, which is Notebook 3’s <code>RANK()</code> except it never ties, so we can be sure we kept exactly one row per person.</p>
+<div id="ec6a1438" class="cell" data-execution_count="18">
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>DROP VIEW IF EXISTS pilot_clean<span class="op">;</span></span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>DROP VIEW IF EXISTS pilot_records</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="18">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+</tr>
+</thead>
+<tbody>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>Two views, because there are two useful grains here (Check Notebook 2). <code>pilot_records</code> is one row per interview, with the conversion and the key attached. <code>pilot_clean</code> is one row per person.</p>
+<div id="98078c8c" class="cell" data-execution_count="19">
+<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>CREATE VIEW pilot_records AS</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>SELECT <span class="op">*</span>,</span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>       CASE WHEN survey_date <span class="op">&lt;</span> <span class="st">'2025-04-01'</span>                                  <span class="op">--</span> section <span class="dv">5</span><span class="st">'s conversion, now permanent</span></span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a><span class="er">            THEN ROUND</span>(wage_reported <span class="op">/</span> (weekly_hours <span class="op">*</span> <span class="dv">52</span>), <span class="dv">2</span>)</span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>            ELSE wage_reported END AS hourly_wage,</span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a>       LOWER(CASE WHEN instr(respondent, <span class="st">','</span>) <span class="op">&gt;</span> <span class="dv">0</span>                            <span class="op">--</span> last name plus first initial</span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a>                  THEN TRIM(substr(respondent, <span class="dv">1</span>, instr(respondent, <span class="st">','</span>) <span class="op">-</span> <span class="dv">1</span>)) <span class="op">||</span> <span class="st">', '</span> <span class="op">||</span></span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a>                       substr(TRIM(REPLACE(substr(respondent, instr(respondent, <span class="st">','</span>) <span class="op">+</span> <span class="dv">1</span>), <span class="st">'.'</span>, <span class="st">''</span>)), <span class="dv">1</span>, <span class="dv">1</span>)</span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a>                  ELSE substr(respondent, instr(respondent, <span class="st">' '</span>) <span class="op">+</span> <span class="dv">1</span>) <span class="op">||</span> <span class="st">', '</span> <span class="op">||</span></span>
+<span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a>                       substr(respondent, <span class="dv">1</span>, <span class="dv">1</span>) END) AS person_key</span>
+<span id="cb21-12"><a href="#cb21-12" aria-hidden="true" tabindex="-1"></a>FROM pilot_typed</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="19">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+</tr>
+</thead>
+<tbody>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<div id="b432b20a" class="cell" data-execution_count="20">
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>CREATE VIEW pilot_clean AS</span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>WITH numbered AS (</span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>    SELECT <span class="op">*</span>, ROW_NUMBER() OVER (PARTITION BY person_key                         <span class="op">--</span> newest record first</span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>                                 ORDER BY survey_date DESC, row_id DESC) AS record_number</span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a>    FROM pilot_records</span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a>SELECT person_key, respondent, survey_date, province, weekly_hours, hourly_wage, notes</span>
+<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a>FROM numbered WHERE record_number <span class="op">=</span> <span class="dv">1</span>                                            <span class="op">--</span> keep only the newest</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="20">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+</tr>
+</thead>
+<tbody>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<div id="57bae191" class="cell" data-execution_count="21">
+<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>SELECT COUNT(<span class="op">*</span>) AS people,</span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>       COUNT(hourly_wage) AS wages_we_can_use,</span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>       ROUND(AVG(hourly_wage), <span class="dv">2</span>) AS avg_hourly_wage</span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a>FROM pilot_clean</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="21">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">people</th>
+<th data-quarto-table-cell-role="th">wages_we_can_use</th>
+<th data-quarto-table-cell-role="th">avg_hourly_wage</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>39</td>
+<td>33</td>
+<td>25.4</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>Thirty-nine people, 33 usable wages, with an average of $25.40 an hour. That is the number the research lead asked for, and unlike the 236,336.79 we can defend every step between the file and it. Additionally, re-running the whole thing is one <code>SELECT</code>. Done!</p>
+</section>
+<section id="the-same-script-eight-ways" class="level2">
+<h2 class="anchored" data-anchor-id="the-same-script-eight-ways">7. The same script, eight ways</h2>
+<p>This is the most important part of this notebook, far more than any numerical result we have found.</p>
+<p>Look back at what we just wrote and count the places we made a cleaning decision. Convert the old-form salaries, or drop those records as not comparable? One row per person, or one row per interview? How we deal with NULL values. Everyone, or only the full-time workers, the way Notebook 2’s briefing did it? None of those is wrong. A careful analyst could pick any combination and defend it properly.</p>
+<p>So let’s stop arguing and run all of them. Because the cleaning is code, this costs us one function:</p>
+<div id="7580f95c" class="cell" data-execution_count="22">
+<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>records <span class="op">=</span> pd.read_sql(<span class="st">"SELECT * FROM pilot_records"</span>, conn)</span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> average_wage(convert_units, one_row_per_person, full_time_only):</span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>    d <span class="op">=</span> records.copy()</span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a>    d[<span class="st">"wage"</span>] <span class="op">=</span> (d[<span class="st">"hourly_wage"</span>] <span class="cf">if</span> convert_units                              <span class="co"># convert the old form...</span></span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a>                 <span class="cf">else</span> d[<span class="st">"wage_reported"</span>].where(d[<span class="st">"survey_date"</span>] <span class="op">&gt;=</span> <span class="st">"2025-04-01"</span>))  <span class="co"># ...or drop those records</span></span>
+<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> full_time_only:</span>
+<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a>        d <span class="op">=</span> d[d[<span class="st">"weekly_hours"</span>] <span class="op">&gt;=</span> <span class="dv">30</span>]</span>
+<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> one_row_per_person:</span>
+<span id="cb24-10"><a href="#cb24-10" aria-hidden="true" tabindex="-1"></a>        d <span class="op">=</span> d.sort_values([<span class="st">"survey_date"</span>, <span class="st">"row_id"</span>]).drop_duplicates(<span class="st">"person_key"</span>, keep<span class="op">=</span><span class="st">"last"</span>)</span>
+<span id="cb24-11"><a href="#cb24-11" aria-hidden="true" tabindex="-1"></a>    wages <span class="op">=</span> d[<span class="st">"wage"</span>].dropna()</span>
+<span id="cb24-12"><a href="#cb24-12" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> {<span class="st">"convert"</span>: convert_units, <span class="st">"per_person"</span>: one_row_per_person, <span class="st">"full_time"</span>: full_time_only,</span>
+<span id="cb24-13"><a href="#cb24-13" aria-hidden="true" tabindex="-1"></a>            <span class="st">"n"</span>: <span class="bu">len</span>(wages), <span class="st">"mean"</span>: <span class="bu">round</span>(wages.mean(), <span class="dv">2</span>)}</span>
+<span id="cb24-14"><a href="#cb24-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-15"><a href="#cb24-15" aria-hidden="true" tabindex="-1"></a>specs <span class="op">=</span> pd.DataFrame([average_wage(c, p, f)</span>
+<span id="cb24-16"><a href="#cb24-16" aria-hidden="true" tabindex="-1"></a>                      <span class="cf">for</span> c, p, f <span class="kw">in</span> itertools.product([<span class="va">True</span>, <span class="va">False</span>], repeat<span class="op">=</span><span class="dv">3</span>)])</span>
+<span id="cb24-17"><a href="#cb24-17" aria-hidden="true" tabindex="-1"></a>specs.sort_values(<span class="st">"mean"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="22">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">convert</th>
+<th data-quarto-table-cell-role="th">per_person</th>
+<th data-quarto-table-cell-role="th">full_time</th>
+<th data-quarto-table-cell-role="th">n</th>
+<th data-quarto-table-cell-role="th">mean</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">3</td>
+<td>True</td>
+<td>False</td>
+<td>False</td>
+<td>40</td>
+<td>25.29</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">2</td>
+<td>True</td>
+<td>False</td>
+<td>True</td>
+<td>37</td>
+<td>25.33</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">1</td>
+<td>True</td>
+<td>True</td>
+<td>False</td>
+<td>33</td>
+<td>25.40</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">0</td>
+<td>True</td>
+<td>True</td>
+<td>True</td>
+<td>31</td>
+<td>25.58</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">5</td>
+<td>False</td>
+<td>True</td>
+<td>False</td>
+<td>19</td>
+<td>28.83</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">7</td>
+<td>False</td>
+<td>False</td>
+<td>False</td>
+<td>20</td>
+<td>28.86</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">4</td>
+<td>False</td>
+<td>True</td>
+<td>True</td>
+<td>17</td>
+<td>29.56</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">6</td>
+<td>False</td>
+<td>False</td>
+<td>True</td>
+<td>17</td>
+<td>29.56</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>Each result here is one of our possible defendable cleaning pipelines. We show eight pipelines, and the answers run from <strong>25.29 to 29.56</strong>. That is a spread of 4.27 dollars an hour, about 17%, on the same 46 interviews. We also plot it:</p>
+<div id="b7a0a948" class="cell" data-execution_count="23">
+<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>s <span class="op">=</span> specs.sort_values(<span class="st">"mean"</span>).reset_index(drop<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>fig, (top, bot) <span class="op">=</span> plt.subplots(<span class="dv">2</span>, <span class="dv">1</span>, figsize<span class="op">=</span>(<span class="dv">9</span>, <span class="dv">6</span>), height_ratios<span class="op">=</span>[<span class="dv">2</span>, <span class="dv">1</span>], sharex<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>top.scatter(s.index, s[<span class="st">"mean"</span>], color<span class="op">=</span><span class="st">"tab:green"</span>, s<span class="op">=</span><span class="dv">70</span>, zorder<span class="op">=</span><span class="dv">3</span>)</span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>top.axhline(<span class="fl">25.40</span>, color<span class="op">=</span><span class="st">"black"</span>, linestyle<span class="op">=</span><span class="st">"--"</span>, linewidth<span class="op">=</span><span class="dv">1</span>, label<span class="op">=</span><span class="st">"the pipeline we wrote: 25.40"</span>)</span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a>top.set_ylabel(<span class="st">"average hourly wage"</span>)</span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a>top.set_title(<span class="st">"Eight defensible cleaning pipelines, eight answers"</span>)</span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a>top.margins(y<span class="op">=</span><span class="fl">0.25</span>)</span>
+<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a>top.grid(axis<span class="op">=</span><span class="st">"y"</span>, alpha<span class="op">=</span><span class="fl">0.3</span>)</span>
+<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a>top.legend(loc<span class="op">=</span><span class="st">"upper left"</span>)</span>
+<span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> row, switch <span class="kw">in</span> <span class="bu">enumerate</span>([<span class="st">"convert"</span>, <span class="st">"per_person"</span>, <span class="st">"full_time"</span>]):</span>
+<span id="cb25-13"><a href="#cb25-13" aria-hidden="true" tabindex="-1"></a>    on <span class="op">=</span> s[switch].to_numpy()</span>
+<span id="cb25-14"><a href="#cb25-14" aria-hidden="true" tabindex="-1"></a>    bot.scatter(s.index[on], [row] <span class="op">*</span> on.<span class="bu">sum</span>(), color<span class="op">=</span><span class="st">"tab:green"</span>, s<span class="op">=</span><span class="dv">45</span>)</span>
+<span id="cb25-15"><a href="#cb25-15" aria-hidden="true" tabindex="-1"></a>    bot.scatter(s.index[<span class="op">~</span>on], [row] <span class="op">*</span> (<span class="op">~</span>on).<span class="bu">sum</span>(), color<span class="op">=</span><span class="st">"lightgrey"</span>, s<span class="op">=</span><span class="dv">45</span>)</span>
+<span id="cb25-16"><a href="#cb25-16" aria-hidden="true" tabindex="-1"></a>bot.set_yticks([<span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">2</span>], [<span class="st">"convert old form"</span>, <span class="st">"one row per person"</span>, <span class="st">"full-time only"</span>])</span>
+<span id="cb25-17"><a href="#cb25-17" aria-hidden="true" tabindex="-1"></a>bot.set_xticks([])</span>
+<span id="cb25-18"><a href="#cb25-18" aria-hidden="true" tabindex="-1"></a>bot.set_xlabel(<span class="st">"each column is one pipeline, green means the choice was switched on"</span>)</span>
+<span id="cb25-19"><a href="#cb25-19" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><a href="notebook_04_cleaning_real_data_files/figure-html/cell-24-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-6"><img src="notebook_04_cleaning_real_data_files/figure-html/cell-24-output-1.png" width="828" height="501" class="figure-img"></a></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Read the bottom panel. The four pipelines on the left all converted the old-form salaries and the four on the right all dropped them. This single decision accounts for essentially the whole spread. This is of course a dramatic example, but decisions like this stack up and accuracy is important. Whether you keep one row per person or one per interview moves the answer only by a few cents.</p>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+This is a real method
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Running your analysis under every defensible version of your choices, instead of picking one and hoping, is called a <strong>multiverse analysis</strong> (Steegen et al., 2016), and the plot above is a <strong>specification curve</strong> (Simonsohn et al., 2020). When 29 research teams were handed the same dataset and the same question, they produced 29 different answers: about two thirds found a significant effect and about a third found no significant effect at all (Silberzahn et al., 2018).</p>
+<p>You cannot do any of this if your cleaning lives in a spreadsheet you edited by hand. It costs one function only because the cleaning was code.</p>
+</div>
+</div>
+</section>
+<section id="what-we-do-not-fix" class="level2">
+<h2 class="anchored" data-anchor-id="what-we-do-not-fix">8. What we do not fix</h2>
+<p>Some things in this file cannot be repaired, because repairing them would mean knowing values we do not have, but that does not mean we just ignore them.</p>
+<p>Two rules worth having. First, the statistical one is the rule behind every boxplot: take the first and third quartiles, and flag anything more than 1.5 interquartile ranges outside them. <code>NTILE(4)</code> is the window function that splits the ordered rows into quarters. Second, the <code>CASE</code> without an <code>ELSE</code> shows up again here, returning the wage for one quarter and NULL for the rest, and <code>MAX</code> ignores NULLs.</p>
+<div id="350a2224" class="cell" data-execution_count="24">
+<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>WITH quartiles AS (</span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>    SELECT hourly_wage, NTILE(<span class="dv">4</span>) OVER (ORDER BY hourly_wage) AS quarter</span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>    FROM pilot_clean WHERE hourly_wage IS NOT NULL</span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>),</span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>fence AS (</span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>    SELECT MAX(CASE WHEN quarter <span class="op">=</span> <span class="dv">1</span> THEN hourly_wage END) AS q1,</span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a>           MAX(CASE WHEN quarter <span class="op">=</span> <span class="dv">3</span> THEN hourly_wage END) AS q3 FROM quartiles</span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a>SELECT person_key, province, hourly_wage, weekly_hours,</span>
+<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a>       (SELECT ROUND(q3 <span class="op">+</span> <span class="fl">1.5</span> <span class="op">*</span> (q3 <span class="op">-</span> q1), <span class="dv">2</span>) FROM fence) AS high_fence</span>
+<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a>FROM pilot_clean</span>
+<span id="cb26-13"><a href="#cb26-13" aria-hidden="true" tabindex="-1"></a>WHERE hourly_wage <span class="op">&gt;</span> (SELECT q3 <span class="op">+</span> <span class="fl">1.5</span> <span class="op">*</span> (q3 <span class="op">-</span> q1) FROM fence)</span>
+<span id="cb26-14"><a href="#cb26-14" aria-hidden="true" tabindex="-1"></a>   OR hourly_wage <span class="op">&lt;</span> (SELECT q1 <span class="op">-</span> <span class="fl">1.5</span> <span class="op">*</span> (q3 <span class="op">-</span> q1) FROM fence)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="24">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">person_key</th>
+<th data-quarto-table-cell-role="th">province</th>
+<th data-quarto-table-cell-role="th">hourly_wage</th>
+<th data-quarto-table-cell-role="th">weekly_hours</th>
+<th data-quarto-table-cell-role="th">high_fence</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>bouchard, e</td>
+<td>British Columbia</td>
+<td>60.1</td>
+<td>60.0</td>
+<td>41.14</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>moreau, a</td>
+<td>British Columbia</td>
+<td>44.6</td>
+<td>40.0</td>
+<td>41.14</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>Two people, and neither is an error. Emile Bouchard earns 60.10 an hour and works 60 hours a week, which is feasible for a real person, not an error. A statistical fence finds the records furthest from the middle, which is not the same as finding the records that are wrong. This is a check we run, but we never outright delete what it prints out, a human analyst decides. Our action would be different if the wage was 6010.00 an hour.</p>
+<p>The other rule knows something about wages. Every province in <code>provinces</code> carries its legal minimum wage, and a wage below it is not unusual, it is outright impossible:</p>
+<div id="9e527468" class="cell" data-execution_count="25">
+<div class="sourceCode cell-code" id="cb27"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>SELECT c.person_key, c.province, c.hourly_wage, p.minimum_wage, c.notes</span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a>FROM pilot_clean AS c</span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a>JOIN provinces AS p ON c.province <span class="op">=</span> p.province</span>
+<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a>WHERE c.hourly_wage <span class="op">&lt;</span> p.minimum_wage</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="25">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">person_key</th>
+<th data-quarto-table-cell-role="th">province</th>
+<th data-quarto-table-cell-role="th">hourly_wage</th>
+<th data-quarto-table-cell-role="th">minimum_wage</th>
+<th data-quarto-table-cell-role="th">notes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>park, j</td>
+<td>British Columbia</td>
+<td>17.03</td>
+<td>17.4</td>
+<td>correction: wage typo in earlier row, use this...</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>One record, and it does not immediately look incorrect. Jisoo Park’s converted salary comes to 17.03 against a British Columbia minimum of 17.40, and her note says this row is already the correction to an earlier typo. So either the correction is wrong, or her hours are wrong, or that number was never annual in the first place. We cannot tell from here, and that is the answer: this row needs an email to the survey office, not a decision from us. We flag it and for now keep it, till we get a response.</p>
+<p>Last, the six people with no usable wage at all. The tempting fix is to fill the holes with the column’s mean, let’s see what that does. The variance is the average squared distance from the mean, which SQL can compute as the average of the squares minus the square of the average:</p>
+<div id="7be5b375" class="cell" data-execution_count="26">
+<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>sql</span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>WITH filled AS (</span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>    SELECT COALESCE(hourly_wage, (SELECT AVG(hourly_wage) FROM pilot_clean)) AS wage</span>
+<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a>    FROM pilot_clean</span>
+<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a>SELECT (SELECT COUNT(hourly_wage) FROM pilot_clean) AS n_observed,</span>
+<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a>       ROUND((SELECT AVG(hourly_wage <span class="op">*</span> hourly_wage) <span class="op">-</span> AVG(hourly_wage) <span class="op">*</span> AVG(hourly_wage)</span>
+<span id="cb28-8"><a href="#cb28-8" aria-hidden="true" tabindex="-1"></a>              FROM pilot_clean), <span class="dv">2</span>) AS variance_observed,</span>
+<span id="cb28-9"><a href="#cb28-9" aria-hidden="true" tabindex="-1"></a>       (SELECT COUNT(<span class="op">*</span>) FROM filled) AS n_filled,</span>
+<span id="cb28-10"><a href="#cb28-10" aria-hidden="true" tabindex="-1"></a>       ROUND((SELECT AVG(wage <span class="op">*</span> wage) <span class="op">-</span> AVG(wage) <span class="op">*</span> AVG(wage) FROM filled), <span class="dv">2</span>) AS variance_filled</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="26">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">n_observed</th>
+<th data-quarto-table-cell-role="th">variance_observed</th>
+<th data-quarto-table-cell-role="th">n_filled</th>
+<th data-quarto-table-cell-role="th">variance_filled</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>33</td>
+<td>73.33</td>
+<td>39</td>
+<td>62.05</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>The mean cannot move, because filling holes with the mean by definition keeps it in the same spot, and that is exactly why the trick feels safe. The variance falls from 73.33 to 62.05, about 15%. Every standard error and confidence interval you compute afterwards inherits this reduction, so your results look more precise than your survey ever was. This is not the approach we should take, instead leave the empty spots, and print the count next to the mean. This is far more honest than artificially reducing our survey variance.</p>
+</section>
+<section id="conclusion" class="level2">
+<h2 class="anchored" data-anchor-id="conclusion">9. Conclusion</h2>
+<p>The pilot’s average hourly wage is 25.40, on 33 usable wages from 39 people, and the more useful output is what we used to get that number: two views anybody can run in one line, a list of what we decided, three flagged records, and a chart showing how much the answer moves when the decisions change.</p>
+<p>Notebook 1 listed five ways a shared file goes wrong. This one (on purpose) had all five, and you have now handled each: a person under four spellings, a correction appended instead of applied, a column that changed meaning halfway through, four spellings of one province, and no rules anywhere to stop any of it. The habit underneath them is what makes all the difference at work. Raw data is immutable, cleaning is code, and the reason is not tidiness. It is that a cleaning script can be re-run, argued with, improved, and run eight ways in an afternoon, and a spreadsheet you edited by hand can do none of those things.</p>
+<p>That script is also a pipeline! It has inputs it never modifies, a fixed sequence of steps, and a reproducible output. Give it a schedule and a way to fail loudly and you have the result of Notebook 8. First though, Notebook 5 asks the obvious question: what if the database had simply refused to accept <code>Britsh Columbia</code> and <code>refused</code> in the first place? And how can we make it do just that?</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+You can now answer these interview questions
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ul>
+<li>What is entity resolution, and why is an exact match on a name not enough?</li>
+<li>Why should raw data never be edited in place?</li>
+<li>What is a sentinel value, and what makes it dangerous?</li>
+<li>What does filling missing values with the column mean do to a variance estimate?</li>
+</ul>
+<details>
+<summary>
+Show / hide model answers
+</summary>
+<ul>
+<li>It is working out which records refer to the same real thing when nothing in the data says so. Exact matching fails because the same person appears with different spacing, punctuation, capitalization, name order and abbreviations, we can use a key or fuzzy similarity (or other techniques) to resolve this.</li>
+<li>Because a hand edit is invisible. It destroys your ability to see what the data originally said, to re-run the cleaning after finding a mistake in step two, and to let anyone else check what you changed. Deriving new columns from an untouched raw table keeps all three.</li>
+<li>A number used to mean “no value”, like <code>9999999</code> or <code>-1</code>. It is dangerous because it is a perfectly valid number, so it passes every type check and poisons every average, sum, minimum and maximum without raising an error.</li>
+<li>It leaves the mean unchanged by construction and shrinks the variance, because every filled value sits exactly at the centre with zero deviation. Standard errors and confidence intervals computed afterwards come out too narrow, so the results look more precise than the data supports.</li>
+</ul>
+</details>
+</div>
+</div>
+</section>
+<section id="connections" class="level2">
+<h2 class="anchored" data-anchor-id="connections">Connections</h2>
+<ul>
+<li><strong>Back to <a href="../../docs/Data_Engineer/notebook_03_advanced_sql.html">Notebook 3</a>:</strong> views turned out to be an excellent tool for a cleaning pipeline, and the window functions that ranked earners by province here rank a person’s records by date so we can keep one.</li>
+<li><strong>Forward to <a href="../../docs/Data_Engineer/notebook_05_designing_data.html">Notebook 5</a>:</strong> none of this work would have been necessary if the pilot had been collected under a schema. Next we design the tables ourselves: entities and relationships, primary and foreign keys, and the constraints that make a database reject a bad row or value immediately instead of six months later.</li>
+</ul>
+<section id="references" class="level3">
+<h3 class="anchored" data-anchor-id="references">References</h3>
+<ul>
+<li>Christen, P. (2012). <em>Data Matching: Concepts and Techniques for Record Linkage, Entity Resolution, and Duplicate Detection.</em> Springer. The standard reference for section 6, including blocking.</li>
+<li>Little, R. J. A., &amp; Rubin, D. B. (2019). <em>Statistical Analysis with Missing Data</em> (3rd ed.). Wiley. Where the missing-value choices at the end of section 8 are treated properly.</li>
+<li>Munroe, R. <em>ISO 8601.</em> xkcd 1179. https://xkcd.com/1179/</li>
+<li>Silberzahn, R., Uhlmann, E. L., Martin, D. P., et al.&nbsp;(2018). <em>Many analysts, one data set: making transparent how variations in analytic choices affect results.</em> Advances in Methods and Practices in Psychological Science, 1(3), 337-356. https://doi.org/10.1177/2515245917747646</li>
+<li>Simonsohn, U., Simmons, J. P., &amp; Nelson, L. D. (2020). <em>Specification curve analysis.</em> Nature Human Behaviour, 4, 1208-1214. https://doi.org/10.1038/s41562-020-0912-z The plot in section 7.</li>
+<li>SQLite. <em>Built-in scalar SQL functions.</em> https://www.sqlite.org/lang_corefunc.html <code>TRIM</code>, <code>REPLACE</code>, <code>substr</code>, <code>instr</code>, <code>printf</code> and <code>NULLIF</code>.</li>
+<li>SQLite. <em>Date and time functions.</em> https://www.sqlite.org/lang_datefunc.html Why section 3 only accepts one date format.</li>
+<li>Steegen, S., Tuerlinckx, F., Gelman, A., &amp; Vanpaemel, W. (2016). <em>Increasing transparency through a multiverse analysis.</em> Perspectives on Psychological Science, 11(5), 702-712. https://doi.org/10.1177/1745691616658637</li>
+<li>Ziemann, M., Eren, Y., &amp; El-Osta, A. (2016). <em>Gene name errors are widespread in the scientific literature.</em> Genome Biology, 17, 177. https://doi.org/10.1186/s13059-016-1044-7 A fifth of published genetics papers had gene names silently corrupted by a spreadsheet’s type guessing.</li>
+</ul>
+<hr>
+
+
+<div class="hidden" aria-hidden="true">
+<span class="glightbox-desc lightbox-desc-2">The pilot file in Excel. Three people editing, and nothing stopping anyone from typing anything into it.</span>
+<span class="glightbox-desc lightbox-desc-3">xkcd 1179. A fun comic about data formats!</span>
+<span class="glightbox-desc lightbox-desc-5">The four ways this file spells one man, the key that merges three of them, and the similarity score that catches the fourth.</span>
+</div>
+</section>
+</section>
+
+</main> <!-- /main -->
+<button id="scroll-to-top" aria-label="Back to top">
+  <svg width="18" height="18" viewbox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M12 19V5M12 5L5 12M12 5L19 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path>
+  </svg>
+</button>
+
+<style>
+#scroll-to-top {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  z-index: 999;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+
+  /* Follows the active Comet theme (light/dark) automatically,
+     since these are the same Bootstrap vars compiled from
+     comet_theme.scss / comet_theme_dark.scss */
+  background-color: var(--bs-primary, #041746);
+  color: #FFFFFF;
+
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(10px);
+  transition: opacity 0.2s ease, transform 0.2s ease, background-color 0.2s ease;
+}
+
+#scroll-to-top.is-visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+#scroll-to-top:hover,
+#scroll-to-top:focus-visible {
+  background-color: var(--bs-secondary, #CC7A00);
+  outline: none;
+}
+
+#scroll-to-top svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Tooltip shown on hover/focus, to the left so it stays in the viewport */
+#scroll-to-top::after {
+  content: "Back to top";
+  position: absolute;
+  right: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background-color: rgba(0, 0, 0, 0.8);
+  color: #FFFFFF;
+  font-size: 0.8rem;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+#scroll-to-top:hover::after,
+#scroll-to-top:focus-visible::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+@media (max-width: 768px) {
+  #scroll-to-top {
+    bottom: 20px;
+    right: 16px;
+    width: 40px;
+    height: 40px;
+  }
+}
+</style>
+
+<script>
+(function () {
+  var btn = document.getElementById("scroll-to-top");
+  if (!btn) return;
+
+  var toggleVisibility = function () {
+    if (window.scrollY > 300) {
+      btn.classList.add("is-visible");
+    } else {
+      btn.classList.remove("is-visible");
+    }
+  };
+
+  window.addEventListener("scroll", toggleVisibility, { passive: true });
+  toggleVisibility();
+
+  btn.addEventListener("click", function () {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+})();
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const disableStylesheet = (stylesheets) => {
+    for (let i=0; i < stylesheets.length; i++) {
+      const stylesheet = stylesheets[i];
+      stylesheet.rel = 'prefetch';
+    }
+  }
+  const enableStylesheet = (stylesheets) => {
+    for (let i=0; i < stylesheets.length; i++) {
+      const stylesheet = stylesheets[i];
+      stylesheet.rel = 'stylesheet';
+    }
+  }
+  const manageTransitions = (selector, allowTransitions) => {
+    const els = window.document.querySelectorAll(selector);
+    for (let i=0; i < els.length; i++) {
+      const el = els[i];
+      if (allowTransitions) {
+        el.classList.remove('notransition');
+      } else {
+        el.classList.add('notransition');
+      }
+    }
+  }
+  const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+    const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+    const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+    let newTheme = '';
+    if(darkModeDefault) {
+      newTheme = isAlternate ? baseTheme : alternateTheme;
+    } else {
+      newTheme = isAlternate ? alternateTheme : baseTheme;
+    }
+    const changeGiscusTheme = () => {
+      // From: https://github.com/giscus/giscus/issues/336
+      const sendMessage = (message) => {
+        const iframe = document.querySelector('iframe.giscus-frame');
+        if (!iframe) return;
+        iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+      }
+      sendMessage({
+        setConfig: {
+          theme: newTheme
+        }
+      });
+    }
+    const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+    if (isGiscussLoaded) {
+      changeGiscusTheme();
+    }
+  }
+  const toggleColorMode = (alternate) => {
+    // Switch the stylesheets
+    const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+    manageTransitions('#quarto-margin-sidebar .nav-link', false);
+    if (alternate) {
+      enableStylesheet(alternateStylesheets);
+      for (const sheetNode of alternateStylesheets) {
+        if (sheetNode.id === "quarto-bootstrap") {
+          toggleBodyColorMode(sheetNode);
+        }
+      }
+    } else {
+      disableStylesheet(alternateStylesheets);
+      toggleBodyColorPrimary();
+    }
+    manageTransitions('#quarto-margin-sidebar .nav-link', true);
+    // Switch the toggles
+    const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+    for (let i=0; i < toggles.length; i++) {
+      const toggle = toggles[i];
+      if (toggle) {
+        if (alternate) {
+          toggle.classList.add("alternate");     
+        } else {
+          toggle.classList.remove("alternate");
+        }
+      }
+    }
+    // Hack to workaround the fact that safari doesn't
+    // properly recolor the scrollbar when toggling (#1455)
+    if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+      manageTransitions("body", false);
+      window.scrollTo(0, 1);
+      setTimeout(() => {
+        window.scrollTo(0, 0);
+        manageTransitions("body", true);
+      }, 40);  
+    }
+  }
+  const isFileUrl = () => { 
+    return window.location.protocol === 'file:';
+  }
+  const hasAlternateSentinel = () => {  
+    let styleSentinel = getColorSchemeSentinel();
+    if (styleSentinel !== null) {
+      return styleSentinel === "alternate";
+    } else {
+      return false;
+    }
+  }
+  const setStyleSentinel = (alternate) => {
+    const value = alternate ? "alternate" : "default";
+    if (!isFileUrl()) {
+      window.localStorage.setItem("quarto-color-scheme", value);
+    } else {
+      localAlternateSentinel = value;
+    }
+  }
+  const getColorSchemeSentinel = () => {
+    if (!isFileUrl()) {
+      const storageValue = window.localStorage.getItem("quarto-color-scheme");
+      return storageValue != null ? storageValue : localAlternateSentinel;
+    } else {
+      return localAlternateSentinel;
+    }
+  }
+  const darkModeDefault = false;
+  let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+  // Dark / light mode switch
+  window.quartoToggleColorScheme = () => {
+    // Read the current dark / light value 
+    let toAlternate = !hasAlternateSentinel();
+    toggleColorMode(toAlternate);
+    setStyleSentinel(toAlternate);
+    toggleGiscusIfUsed(toAlternate, darkModeDefault);
+  };
+  // Ensure there is a toggle, if there isn't float one in the top right
+  if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+    const a = window.document.createElement('a');
+    a.classList.add('top-right');
+    a.classList.add('quarto-color-scheme-toggle');
+    a.href = "";
+    a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+    const i = window.document.createElement("i");
+    i.classList.add('bi');
+    a.appendChild(i);
+    window.document.body.appendChild(a);
+  }
+  // Switch to dark mode if need be
+  if (hasAlternateSentinel()) {
+    toggleColorMode(true);
+  } else {
+    toggleColorMode(false);
+  }
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+          // target, if specified
+          link.setAttribute("target", "_blank");
+          if (link.getAttribute("rel") === null) {
+            link.setAttribute("rel", "noopener");
+          }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      // TODO in 1.5, we should make sure this works without a callout special case
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+ <a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc-sa/4.0/80x15.png"></a>.  <a rel="license" href="https://ubcecon.github.io/comet-open/pages/copyright.html">See details.</a>
+  </li>  
+</ul>
+    </div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/ubcecon/praxis-ubc/issues/new" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></div>
+    <div class="nav-footer-right">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+ The Praxis Project and UBC are located on the traditional, ancestral and unceded territory of the xʷməθkʷəy̓əm (Musqueam) and Sḵwx̱wú7mesh (Squamish) peoples.
+  </li>  
+</ul>
+    </div>
+  </div>
+</footer>
+<script>var lightboxQuarto = GLightbox({"loop":false,"closeEffect":"zoom","selector":".lightbox","descPosition":"bottom","openEffect":"zoom"});
+window.onload = () => {
+  lightboxQuarto.on('slide_before_load', (data) => {
+    const { slideIndex, slideNode, slideConfig, player, trigger } = data;
+    const href = trigger.getAttribute('href');
+    if (href !== null) {
+      const imgEl = window.document.querySelector(`a[href="${href}"] img`);
+      if (imgEl !== null) {
+        const srcAttr = imgEl.getAttribute("src");
+        if (srcAttr && srcAttr.startsWith("data:")) {
+          slideConfig.href = srcAttr;
+        }
+      }
+    } 
+  });
+
+  lightboxQuarto.on('slide_after_load', (data) => {
+    const { slideIndex, slideNode, slideConfig, player, trigger } = data;
+    if (window.Quarto?.typesetMath) {
+      window.Quarto.typesetMath(slideNode);
+    }
+  });
+
+};
+          </script>
+
+
+
+
+</body></html>

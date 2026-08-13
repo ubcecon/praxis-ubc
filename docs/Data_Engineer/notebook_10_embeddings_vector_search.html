@@ -1,0 +1,2316 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-GB" xml:lang="en-GB"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.4.557">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Alex Ronczewski">
+<meta name="dcterms.date" content="2026-08-02">
+<meta name="description" content="The tenth notebook in the Data Engineering stream. We now examine a table of consumer-complaint narratives and SQL fails at a simple request: find the ones about debt collectors harassing people. We turn text into embeddings, search by meaning with ORDER BY, and choose the right grain for long documents.">
+
+<title>Praxis - Databases for AI: Embeddings and Vector Search</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script><script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<link href="../../media/praxis-badge.png" rel="icon" type="image/png">
+<script src="../../site_libs/quarto-html/quarto.js"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark.css" rel="prefetch" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark.min.css" rel="prefetch" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<script src="../../site_libs/quarto-contrib/glightbox/glightbox.min.js"></script>
+<link href="../../site_libs/quarto-contrib/glightbox/glightbox.min.css" rel="stylesheet">
+<link href="../../site_libs/quarto-contrib/glightbox/lightbox.css" rel="stylesheet">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<meta name="keywords" content="economics, econometrics, R, data, machine learning, UBC, COMET, geog 374, econ 325, econ 326, learning, teaching, learn r, r help, help, tutorial, r tutorial for beginners,learning statistics with r, learn r programming, learn statistics, linear regression, r machine learning, learn machine learning, university of british columbia, british columbia, r programming for beginners, r language tutorial, r tutorial for beginners, economic data, econometrics tutoring, economics help for students, economics homework help, oer resources for teachers, open educational resources for teachers, educational resource, oer project, oer materials, oer resources, learn economics online, learn econometrics, teach yourself economics, teach yourself econometrics, econometrics basics for beginners">
+
+<!-- Google Search Console -->
+<meta name="google-site-verification" content="wUHlRBWRzzUYwBbnKdvYg0lBpw5b0F7hnEq-QekkpQw">
+<!-- End Google Search Console -->
+
+<script>
+(function() {
+    function updateThemeImages() {
+        var isDark = document.body.classList.contains('quarto-dark');
+        var images = document.querySelectorAll('img[data-light-src][data-dark-src]');
+
+        images.forEach(function(img) {
+            var lightSrc = img.getAttribute('data-light-src');
+            var darkSrc = img.getAttribute('data-dark-src');
+            var newSrc = isDark ? darkSrc : lightSrc;
+
+            // Only update if src is different to avoid reload flicker
+            if (img.getAttribute('src') !== newSrc) {
+                img.setAttribute('src', newSrc);
+            }
+        });
+    }
+
+    // Run when DOM is ready
+    document.addEventListener('DOMContentLoaded', function() {
+        updateThemeImages();
+
+        // Watch for theme changes on body
+        var observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.attributeName === 'class') {
+                    updateThemeImages();
+                }
+            });
+        });
+
+        observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    });
+
+    // Also run after full page load
+    window.addEventListener('load', updateThemeImages);
+})();
+</script>
+
+<!-- Cloudflare Web Analytics -->
+<script defer="" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon="{&quot;token&quot;: &quot;911859291fee44e6ba0acc25f4f08be4&quot;}"></script>
+<!-- End Cloudflare Web Analytics -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" integrity="sha512-c3Nl8+7g4LMSTdrm621y7kf9v3SDPnhxLNhcjFJbKECVnmZHTdo+IRO05sNLTH/D3vA6u1X32ehoLC7WFVdheg==" crossorigin="anonymous"></script>
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN") {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../../styles.css">
+</head>
+
+<body class="nav-fixed">
+<!-- praxis-launch-notebook: per-notebook launch button (injected into output HTML at build time) -->
+<script>
+(function () {
+  // Notebooks that get a launch button (path from "docs/", no extension)
+  var NOTEBOOKS = [
+    "docs/AMNE-376/amne_376_image_embedding",
+    "docs/CTree_CEA/political_economy",
+    "docs/Causal_ML/notebook_01_prediction_inference_causality",
+    "docs/Causal_ML/notebook_02_regularization_ridge_lasso",
+    "docs/Causal_ML/notebook_03_trees_forests_boosting",
+    "docs/Causal_ML/notebook_04_prediction_to_treatment_effects",
+    "docs/Causal_ML/notebook_05_post_double_selection",
+    "docs/Causal_ML/notebook_06_propensity_ipw",
+    "docs/Causal_ML/notebook_07_double_machine_learning",
+    "docs/Causal_ML/notebook_08_heterogeneous_effects_causal_forests",
+    "docs/Data_Engineer/notebook_01_why_databases_exist",
+    "docs/Data_Engineer/notebook_02_basic_querying",
+    "docs/Data_Engineer/notebook_03_advanced_sql",
+    "docs/Data_Engineer/notebook_04_cleaning_real_data",
+    "docs/Data_Engineer/notebook_05_designing_data",
+    "docs/Data_Engineer/notebook_06_storage_speed_transactions",
+    "docs/Data_Engineer/notebook_07_two_kinds_of_databases",
+    "docs/Data_Engineer/notebook_08_pipelines_one",
+    "docs/Data_Engineer/notebook_09_pipelines_two",
+    "docs/Data_Engineer/notebook_10_embeddings_vector_search",
+    "docs/Data_Engineer/notebook_11_capstone_rag",
+    "docs/ECON-227/llm_distributions",
+    "docs/Game_Theory/notebook_01_games_best_responses_nash",
+    "docs/Game_Theory/notebook_02_mixed_strategies_fictitious_play",
+    "docs/Game_Theory/notebook_03_repeated_games_axelrod_tournament",
+    "docs/Game_Theory/notebook_04_learning_agents_collusion",
+    "docs/OCR/ocr_notebook",
+    "docs/SOCI-280/soci_280_bert",
+    "docs/SOCI-415/cbdb_dataset",
+    "docs/SOCI-415/kinmatrix",
+    "docs/SOCI-415/soci_415_network_analysis",
+    "docs/hist_workshop/text_embeddings_workshop",
+    "docs/image_analysis/image_analysis",
+    "docs/intro_to_cnns/intro_to_cnn",
+    "docs/intro_to_convolutions/intro_to_convolution",
+    "docs/intro_to_deep_learning/intro_to_fundamental_ML",
+    "docs/intro_to_transformers/intro_to_transformers",
+    "docs/text_analysis/text_analysis"
+  ];
+
+  function init() {
+    var i = window.location.pathname.indexOf("/docs/");
+    if (i === -1) return;
+    var rel = window.location.pathname.slice(i + 1).replace(/\.html$/, "");
+    if (NOTEBOOKS.indexOf(rel) === -1) return;
+
+    var nb = rel + ".ipynb";
+    var repo = "https%3A%2F%2Fgithub.com%2Fubcecon%2Fpraxis-ubc";
+    var urlpath = encodeURIComponent("lab/tree/praxis-ubc/" + nb);
+    var jupyter = "https://open.jupyter.ubc.ca/jupyter/hub/user-redirect/git-pull?repo=" +
+      repo + "&urlpath=" + urlpath + "&branch=praxis-notebooks";
+    var colab = "https://colab.research.google.com/github/ubcecon/praxis-ubc/blob/praxis-notebooks/" + nb;
+
+    var wrap = document.createElement("div");
+    wrap.className = "btn-group";
+    wrap.style.margin = "0.5rem 0 1rem";
+    wrap.innerHTML =
+      '<button class="btn btn-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">' +
+        '<i class="bi bi-play-fill"></i> Launch this notebook</button>' +
+      '<ul class="dropdown-menu">' +
+        '<li><a class="dropdown-item" target="_blank" rel="noopener" href="' + jupyter + '"><i class="bi bi-cloud-check"></i> JupyterOpen</a></li>' +
+        '<li><a class="dropdown-item" target="_blank" rel="noopener" href="' + colab + '"><i class="bi bi-google"></i> Colab</a></li>' +
+      '</ul>';
+
+    var header = document.getElementById("title-block-header");
+    if (header) {
+      header.appendChild(wrap);
+    } else {
+      var main = document.querySelector("main.content") || document.querySelector("main");
+      if (main) main.insertBefore(wrap, main.firstChild);
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
+</script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="../../index.html" class="navbar-brand navbar-brand-logo">
+    <img src="../../media/praxis-badge-white.png" alt="" class="navbar-logo">
+    </a>
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">Praxis</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-get-started" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Get Started</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-get-started">    
+        <li>
+    <a class="dropdown-item" href="../../pages/quickstart.html">
+ <span class="dropdown-text">Quickstart Guide</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-courses" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Courses</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-courses">    
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_AMNE-376.html">
+ <span class="dropdown-text">AMNE-376</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_SOCI415.html">
+ <span class="dropdown-text">SOCI-415</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_SOCI280.html">
+ <span class="dropdown-text">SOCI-280</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_ECON227.html">
+ <span class="dropdown-text">ECON-227</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_Causal_ML.html">
+ <span class="dropdown-text">Causal Machine Learning</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_Game_Theory.html">
+ <span class="dropdown-text">Game Theory</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/index/index_Data_Engineer.html">
+ <span class="dropdown-text">Data Engineering</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="../../pages/index/all.html">
+ <span class="dropdown-text">Browse All</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="../../pages/index/all.html"> 
+<span class="menu-text">All Topics</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-teach-with-praxis" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Teach with Praxis</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-teach-with-praxis">    
+        <li>
+    <a class="dropdown-item" href="../../pages/teaching_with_praxis.html">
+ <span class="dropdown-text">Learn how to teach with Praxis</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-launch-praxis" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+      <i class="bi bi-play" role="img">
+</i> 
+ <span class="menu-text">Launch Praxis</span>
+    </a>
+    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="nav-menu-launch-praxis">    
+        <li>
+    <a class="dropdown-item" href="https://open.jupyter.ubc.ca/jupyter/hub/user-redirect/git-pull?repo=https%3A%2F%2Fgithub.com%2Fubcecon%2Fpraxis-ubc&amp;urlpath=lab%2Ftree%2Fpraxis-ubc%2F&amp;branch=praxis-notebooks"><i class="bi bi-cloud-check" role="img">
+</i> 
+ <span class="dropdown-text">Launch on JupyterOpen (with Data)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://open.jupyter.ubc.ca/jupyter/hub/user-redirect/git-pull?repo=https%3A%2F%2Fgithub.com%2Fubcecon%2Fpraxis-ubc&amp;urlpath=lab%2Ftree%2Fpraxis-ubc%2F&amp;branch=praxis-notebooks"><i class="bi bi-cloud-check" role="img">
+</i> 
+ <span class="dropdown-text">Launch on JupyterOpen (lite)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://ubc.syzygy.ca/jupyter/hub/user-redirect/git-pull?repo=https%3A%2F%2Fgithub.com%2Fubcecon%2Fpraxis-ubc&amp;urlpath=lab%2Ftree%2Fpraxis-ubc%2F&amp;branch=praxis-notebooks"><i class="bi bi-gear" role="img">
+</i> 
+ <span class="dropdown-text">Launch on Syzygy</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://colab.research.google.com/github/ubcecon/praxis-ubc/blob/praxis-notebooks/"><i class="bi bi-google" role="img">
+</i> 
+ <span class="dropdown-text">Launch on Colab</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://github.com/ubcecon/praxis-ubc/archive/refs/heads/praxis-notebooks.zip"><i class="bi bi-cloud-download" role="img">
+</i> 
+ <span class="dropdown-text">Launch Locally</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="https://github.com/ubcecon/praxis-ubc">
+ <span class="dropdown-text">Github Repository</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="../../#"> 
+<span class="menu-text">|</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/ubcecon/praxis-ubc" target="_blank"> <i class="bi bi-github" role="img" aria-label="GitHub">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-about" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">About</span>
+    </a>
+    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="nav-menu-about">    
+        <li>
+    <a class="dropdown-item" href="../../pages/team.html">
+ <span class="dropdown-text">Praxis Team</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../pages/copyright.html">
+ <span class="dropdown-text">Copyright Information</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+          </div> <!-- /navcollapse -->
+          <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-full page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#outline" id="toc-outline" class="nav-link active" data-scroll-target="#outline">Outline</a>
+  <ul class="collapse">
+  <li><a href="#prerequisites" id="toc-prerequisites" class="nav-link" data-scroll-target="#prerequisites">Prerequisites</a></li>
+  <li><a href="#learning-outcomes" id="toc-learning-outcomes" class="nav-link" data-scroll-target="#learning-outcomes">Learning Outcomes</a></li>
+  </ul></li>
+  <li><a href="#where-we-are-in-the-stream" id="toc-where-we-are-in-the-stream" class="nav-link" data-scroll-target="#where-we-are-in-the-stream">1. Where we are in the stream</a></li>
+  <li><a href="#text-data" id="toc-text-data" class="nav-link" data-scroll-target="#text-data">2. Text Data</a></li>
+  <li><a href="#keyword-search-is-limited" id="toc-keyword-search-is-limited" class="nav-link" data-scroll-target="#keyword-search-is-limited">3. Keyword search is limited</a></li>
+  <li><a href="#embeddings-coordinates-of-meaning" id="toc-embeddings-coordinates-of-meaning" class="nav-link" data-scroll-target="#embeddings-coordinates-of-meaning">4. Embeddings: coordinates of meaning</a></li>
+  <li><a href="#vector-search-with-order-by" id="toc-vector-search-with-order-by" class="nav-link" data-scroll-target="#vector-search-with-order-by">5. Vector search with ORDER BY</a></li>
+  <li><a href="#the-scoreboard-and-where-keywords-still-win" id="toc-the-scoreboard-and-where-keywords-still-win" class="nav-link" data-scroll-target="#the-scoreboard-and-where-keywords-still-win">6. The scoreboard, and where keywords still win</a></li>
+  <li><a href="#chunking-is-a-grain-decision" id="toc-chunking-is-a-grain-decision" class="nav-link" data-scroll-target="#chunking-is-a-grain-decision">7. Chunking is a grain decision</a></li>
+  <li><a href="#conclusion" id="toc-conclusion" class="nav-link" data-scroll-target="#conclusion">8. Conclusion</a></li>
+  <li><a href="#appendix-the-landscape-beyond-tables" id="toc-appendix-the-landscape-beyond-tables" class="nav-link" data-scroll-target="#appendix-the-landscape-beyond-tables">Appendix: the landscape beyond tables</a></li>
+  <li><a href="#connections" id="toc-connections" class="nav-link" data-scroll-target="#connections">Connections</a>
+  <ul class="collapse">
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
+  </ul></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/ubcecon/praxis-ubc/issues/new" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div><div class="quarto-alternate-formats"><h2>Other Formats</h2><ul><li><a href="notebook_10_embeddings_vector_search.ipynb" download="notebook_10_embeddings_vector_search.ipynb"><i class="bi bi-journal-code"></i>Jupyter</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content column-page-left" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Databases for AI: Embeddings and Vector Search</h1>
+  <div class="quarto-categories">
+    <div class="quarto-category">Python</div>
+    <div class="quarto-category">SQL</div>
+    <div class="quarto-category">data engineering</div>
+  </div>
+  </div>
+
+<div>
+  <div class="description">
+    The tenth notebook in the Data Engineering stream. We now examine a table of consumer-complaint narratives and SQL fails at a simple request: find the ones about debt collectors harassing people. We turn text into embeddings, search by meaning with ORDER BY, and choose the right grain for long documents.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta column-page-left">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Alex Ronczewski </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">2 August 2026</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="outline" class="level2">
+<h2 class="anchored" data-anchor-id="outline">Outline</h2>
+<section id="prerequisites" class="level3">
+<h3 class="anchored" data-anchor-id="prerequisites">Prerequisites</h3>
+<ul>
+<li>Notebook 9 of this stream: the pipeline that loads and validates every new data batch.</li>
+</ul>
+</section>
+<section id="learning-outcomes" class="level3">
+<h3 class="anchored" data-anchor-id="learning-outcomes">Learning Outcomes</h3>
+<p>By the end of this notebook you will be able to:</p>
+<ol type="1">
+<li>Explain why keyword search fails on meaning (synonyms, phrasing, negation), and name situations where it succeeds.</li>
+<li>Turn text into <strong>embeddings</strong>, and interpret cosine similarity.</li>
+<li>Run <strong>vector search</strong> and <strong>filtered vector search</strong> in SQL against the warehouse.</li>
+<li>Justify a <strong>chunking</strong> grain with retrieval evidence when documents are long.</li>
+</ol>
+</section>
+</section>
+<section id="where-we-are-in-the-stream" class="level2">
+<h2 class="anchored" data-anchor-id="where-we-are-in-the-stream">1. Where we are in the stream</h2>
+<p><a href="media/NB10/stream_map.png" class="lightbox" data-gallery="quarto-lightbox-gallery-1"><img src="media/NB10/stream_map.png" class="img-fluid" style="width:85.0%" alt="Stream roadmap: four arcs, Querying data (NB1-4), Designing and storing data (NB5-7), Keeping data flowing (NB8-9), and Data for AI (NB10-11), with the current notebook highlighted."></a></p>
+<p>A new arc begins here. Nine notebooks gave us a warehouse filled with data we can trust, updated daily by a pipeline that clearly validates its own work. This notebook is about what happened when different data appears: real text, from real people.</p>
+<blockquote class="blockquote">
+<p><strong>The request, Tuesday 1:55 p.m.</strong> “For the household-debt study we pulled 390 published complaint narratives from the CFPB, the American consumer-protection agency. We want to know what borrowers actually face from debt collectors: find the complaints where people describe collectors harassing them. This should take you an hour.”</p>
+</blockquote>
+<p>It will not take an hour. By the end of section 3 you will watch every tool from Notebooks 2 through 9 fail at this request. First, every library the notebook needs, and some small config updates:</p>
+<div id="668c0c1e" class="cell" data-execution_count="1">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>os.environ[<span class="st">"USE_TF"</span>] <span class="op">=</span> <span class="st">"0"</span>                             <span class="co">#transformers: use torch only, skip TensorFlow</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>os.environ[<span class="st">"HF_HUB_DISABLE_SYMLINKS_WARNING"</span>] <span class="op">=</span> <span class="st">"1"</span>    <span class="co">#disable a Windows-only cache warning</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> sqlite3</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> duckdb</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> torch</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> transformers <span class="im">import</span> AutoTokenizer, AutoModel</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.decomposition <span class="im">import</span> PCA</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>pd.set_option(<span class="st">"display.max_colwidth"</span>, <span class="dv">100</span>)             <span class="co">#show more of each text column, needed for cell output readability</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="text-data" class="level2">
+<h2 class="anchored" data-anchor-id="text-data">2. Text Data</h2>
+<p>For the first time in this stream nothing is simulated. The <a href="https://www.consumerfinance.gov/data-research/consumer-complaints/">Consumer Financial Protection Bureau</a> publishes complaints that American consumers file against financial companies. The CFPB also publishes their story in their own words, scrubbed of any personal information; every <code>XXXX</code> you see is that anonymization, blocking names, dates, and amounts. The database is in the public domain.</p>
+<p>We pulled 390 of these stories from March 2023, drawn evenly from six complaint categories. Our target category is labelled <strong>Communication tactics</strong>: the debt-collection label that covers harassing calls. Consumers pick these labels themselves from a fixed menu when they file, which gives us a free answer key for this notebook. We will check how many of our results from different approaches land in the <strong>Communication tactics</strong> category.</p>
+<div id="ee8a6fca" class="cell" data-execution_count="2">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>complaints <span class="op">=</span> pd.read_csv(<span class="st">"datasets/cfpb_complaints.csv"</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"narratives:"</span>, <span class="bu">len</span>(complaints))</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>complaints[<span class="st">"issue"</span>].value_counts()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>narratives: 390</code></pre>
+</div>
+<div class="cell-output cell-output-display" data-execution_count="2">
+<pre><code>issue
+Trouble during payment process                     65
+Dealing with your lender or servicer               65
+Problem with a purchase shown on your statement    65
+Incorrect information on your report               65
+Communication tactics                              65
+Managing an account                                65
+Name: count, dtype: int64</code></pre>
+</div>
+</div>
+<p>390 total narratives, 65 in each of six categories, including the 65 under Communication tactics. Here is what three of them look like - we print the first 250 characters of each:</p>
+<div id="489af124" class="cell" data-execution_count="3">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">3</span>):</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    row <span class="op">=</span> complaints.iloc[i]</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"[</span><span class="sc">{</span>row[<span class="st">'state'</span>]<span class="sc">}</span><span class="ss"> | </span><span class="sc">{</span>row[<span class="st">'issue'</span>]<span class="sc">}</span><span class="ss">]"</span>)</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(row[<span class="st">"narrative"</span>][:<span class="dv">250</span>] <span class="op">+</span> <span class="st">"...</span><span class="ch">\n</span><span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[SC | Trouble during payment process]
+I made a {$5000.00} payment to the money source company. Before they transferred the mortgage to Mr Cooper. Now Mr Cooper will not acknowledge the {$5000.00} payment on their side. I have proof of payment from XXXX. Please help....
+
+[TX | Dealing with your lender or servicer]
+It is my belief, The Department of Education, MOHELA, XXXX, XXXX and XXXX d/b/a the UNITED STATES XXXX are all voluntarily , knowingly and intentionally, individually, and personally undeniable aware of criminal acts of mis-administration and malfeas...
+
+[CO | Trouble during payment process]
+We lost our home in a wildfire. This was a federally declared disaster. Cardinal Financial holds our Mortgage Loan. All insurance proceeds checks are made out to Cardinal Financial, as well as us. We have endorsed all checks and forwarded them to Car...
+</code></pre>
+</div>
+</div>
+<p>Each entry has the state that it comes from along with a deeper category label like “Trouble during payment process.” This is real text about experiences real Americans had; let’s dig deeper and search for harassment.</p>
+</section>
+<section id="keyword-search-is-limited" class="level2">
+<h2 class="anchored" data-anchor-id="keyword-search-is-limited">3. Keyword search is limited</h2>
+<p>Notebook 4 gave us a tool we can use here. The SQL command <code>LIKE</code>, where <code>%</code> matches any run of characters, so <code>'%call%'</code> matches “call” anywhere inside a narrative. In these stories harassment usually happens over the phone, so <code>call</code> is an obvious keyword for us to try. Another option is harass, but people often describe situations of harassment without explicitly using the word. We load the complaints into a scratch SQLite database and try it:</p>
+<div id="9c7d0c8f" class="cell" data-execution_count="4">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>lite <span class="op">=</span> sqlite3.<span class="ex">connect</span>(<span class="st">":memory:"</span>)</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>complaints.to_sql(<span class="st">"complaint"</span>, lite, index<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(pd.read_sql(<span class="st">"SELECT COUNT(*) FROM complaint WHERE narrative LIKE '</span><span class="sc">%c</span><span class="st">all%'"</span>, lite).iloc[<span class="dv">0</span>, <span class="dv">0</span>],</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>      <span class="st">"of 390 complaints mention 'call'"</span>)</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>pd.read_sql(<span class="st">"""SELECT issue, COUNT(*) AS mentions_call FROM complaint</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="st">               WHERE narrative LIKE '</span><span class="sc">%c</span><span class="st">all%' GROUP BY issue ORDER BY issue"""</span>, lite)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>163 of 390 complaints mention 'call'</code></pre>
+</div>
+<div class="cell-output cell-output-display" data-execution_count="4">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">issue</th>
+<th data-quarto-table-cell-role="th">mentions_call</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>Communication tactics</td>
+<td>51</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>Dealing with your lender or servicer</td>
+<td>23</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>Incorrect information on your report</td>
+<td>5</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>Managing an account</td>
+<td>24</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">4</td>
+<td>Problem with a purchase shown on your statement</td>
+<td>32</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">5</td>
+<td>Trouble during payment process</td>
+<td>28</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>163 of 390, spread across all six categories. As a filter the word is worthless. Let’s look deeper at some of the 163 hits.</p>
+<div id="306d3622" class="cell" data-execution_count="5">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>they_call <span class="op">=</span> pd.read_sql(<span class="st">"""SELECT narrative FROM complaint</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="st">    WHERE issue = 'Communication tactics' AND narrative LIKE '</span><span class="sc">%c</span><span class="st">alls me%'</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="st">    ORDER BY complaint_id LIMIT 1"""</span>, lite)</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"them calling:"</span>)</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(they_call.iloc[<span class="dv">0</span>][<span class="st">"narrative"</span>][:<span class="dv">250</span>] <span class="op">+</span> <span class="st">"...</span><span class="ch">\n</span><span class="st">"</span>)</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>i_called <span class="op">=</span> pd.read_sql(<span class="st">"""SELECT narrative FROM complaint</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a><span class="st">    WHERE narrative LIKE '%I called%' AND issue != 'Communication tactics'</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a><span class="st">    ORDER BY complaint_id"""</span>, lite)</span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"calling them:"</span>)</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(i_called.iloc[<span class="dv">1</span>][<span class="st">"narrative"</span>][:<span class="dv">250</span>] <span class="op">+</span> <span class="st">"..."</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>them calling:
+Commenity Bank calls me numerous times a day under different numbers, as well as blocked numbers that show up as unknown and no caller ID. I explained my situation to them a few months ago, that I am unable to make a payment currently, but they conti...
+
+calling them:
+On XX/XX/2022, I wrote to Comenity Bank/Victoria Secret to dispute 2 late payments showing on my account. I advised them that I called member service when I got out of the hospital to file a claim with Account Assure as I would be unable to make my p...</code></pre>
+</div>
+</div>
+<p>The keyword “call” is correctly mentioned in both, but the situations are polar opposites. In the first, the calls <em>are</em> the harassment: numerous times a day, from different numbers, from blocked numbers. In the second, the customer is the one calling, while trying to fix a billing dispute. <code>LIKE</code> sees the text string “call” and nothing more: not who is calling, not how often, not why. Meaning lives in context, and raw letters don’t carry contextual meaning.</p>
+<p>The next logical idea we can try is dropping the generic word (call) and combining precise phrasings instead:</p>
+<blockquote class="blockquote">
+<p><strong>Predict first.</strong> Four patterns: <code>calls me</code>, <code>stop calling</code>, <code>keep calling</code>, <code>threaten</code>. There are 65 Communication tactics complaints. How many will the new chain catch, and will everything it catches be one of them?</p>
+</blockquote>
+<div id="90137f32" class="cell" data-execution_count="6">
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>chain <span class="op">=</span> pd.read_sql(<span class="st">"""SELECT issue FROM complaint</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="st">                       WHERE narrative LIKE '</span><span class="sc">%c</span><span class="st">alls me%' OR narrative LIKE '</span><span class="sc">%s</span><span class="st">top calling%'</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="st">                          OR narrative LIKE '%keep calling%' OR narrative LIKE '%threaten%'"""</span>, lite)</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"the chain catches </span><span class="sc">{</span><span class="bu">len</span>(chain)<span class="sc">}</span><span class="ss"> complaints"</span>)</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>chain[<span class="st">"issue"</span>].value_counts()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>the chain catches 26 complaints</code></pre>
+</div>
+<div class="cell-output cell-output-display" data-execution_count="6">
+<pre><code>issue
+Communication tactics                              20
+Trouble during payment process                      3
+Dealing with your lender or servicer                2
+Problem with a purchase shown on your statement     1
+Name: count, dtype: int64</code></pre>
+</div>
+</div>
+<p>26 hits: 20 from our target category, and 6 from other categories. We improved our precision quite significantly, but two problems remain. First the strays; here is one, caught by <code>threaten</code> alone:</p>
+<div id="76a1dff5" class="cell" data-execution_count="7">
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>stray <span class="op">=</span> pd.read_sql(<span class="st">"""SELECT issue, narrative FROM complaint</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="st">                       WHERE narrative LIKE '%threaten%' AND issue != 'Communication tactics'</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="st">                       ORDER BY complaint_id LIMIT 1"""</span>, lite)</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"[</span><span class="sc">{</span>stray<span class="sc">.</span>iloc[<span class="dv">0</span>][<span class="st">'issue'</span>]<span class="sc">}</span><span class="ss">]"</span>)</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(stray.iloc[<span class="dv">0</span>][<span class="st">"narrative"</span>][:<span class="dv">250</span>] <span class="op">+</span> <span class="st">"..."</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[Trouble during payment process]
+Plaza Home Mortgage has threatened on two occasions, to charge me approximately {$380.00} for supposedly not having homeowners ' insurance from XX/XX/XXXX to XX/XX/XXXX. I've called this company a total of four times in an attempt to correct the issu...</code></pre>
+</div>
+</div>
+<p>A mortgage company “threatened” a 380 dollar insurance charge. This is not the debt collector harassment we are looking for; there are no debt collectors or repeated calls. The bigger problem is everything the chain never sees:</p>
+<div id="615f7a20" class="cell" data-execution_count="8">
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>missed <span class="op">=</span> pd.read_sql(<span class="st">"""SELECT narrative FROM complaint</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="st">    WHERE issue = 'Communication tactics'</span></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a><span class="st">      AND narrative NOT LIKE '</span><span class="sc">%c</span><span class="st">alls me%' AND narrative NOT LIKE '</span><span class="sc">%s</span><span class="st">top calling%'</span></span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a><span class="st">      AND narrative NOT LIKE '%keep calling%' AND narrative NOT LIKE '%threaten%'</span></span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a><span class="st">    ORDER BY complaint_id"""</span>, lite)</span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="bu">len</span>(missed)<span class="sc">}</span><span class="ss"> harassment complaints match none of the four patterns</span><span class="ch">\n</span><span class="ss">"</span>)</span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">3</span>):</span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(missed.iloc[i][<span class="st">"narrative"</span>][:<span class="dv">250</span>] <span class="op">+</span> <span class="st">"...</span><span class="ch">\n</span><span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>45 harassment complaints match none of the four patterns
+
+XX/XX/23 - Received a phone call from XXXX asking to speak with XXXX XXXX. Informed person that they have the wrong number and that I've received multiple phone calls in the pass from this number asking to speak with the same person. I've explained I...
+
+I've been contacted by this XXXX company about 20 times by completely different ( spoofed ) phone numbers. Each time I tell them I am not the person that they are looking for and to take me off their calling list. I recently got a string of SMS messa...
+
+National Credit Systems , INC is operating with out a state license and not registration in South Carolina according to the XXXX consumer access report. They have added two collections on XXXX and XXXX and I would like them removed for this illegal t...
+</code></pre>
+</div>
+</div>
+<p>45 of the 65 harassment complaints slip through all four patterns. Read how people actually write: “I’ve received multiple phone calls in the pass from this number asking to speak with the same person”, “contacted by this XXXX company about 20 times by completely different ( spoofed ) phone numbers”. These are examples of the harassment we are looking for, but they are not written in the same way; we are running into <strong>synonym</strong> and <strong>phrasing</strong> failures. Every pattern we add fixes some previous misses, but at the same time creates new ones, and we could keep adding <code>OR</code> lines for a week without converging to all 65. This is simply a bad approach.</p>
+<p>There is one more over-arching issue here: a complaint saying “the collector never calls me” would still match <code>calls me</code>, because matching characters cannot see a “never”. That is a <strong>negation</strong> failure. <code>LIKE</code> matches characters. Our task asked for a meaning. Let’s look at a popular way to derive that meaning.</p>
+</section>
+<section id="embeddings-coordinates-of-meaning" class="level2">
+<h2 class="anchored" data-anchor-id="embeddings-coordinates-of-meaning">4. Embeddings: coordinates of meaning</h2>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Embeddings
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>An <strong>embedding</strong> is a list of numbers that records where a piece of text sits in a space of meanings. A model trained on billions of sentences has learned which words tend to appear together, and it uses that experience to place every text at a point: texts about the same topic land close together, unrelated texts land far apart. When similar text lands together we can compute distance and similarity mathematically.</p>
+</div>
+</div>
+<p>This all sounds quite abstract, and if you have not studied other natural language processing (NLP) techniques or linear algebra it may be unfamiliar. We will start with an example in two dimensions and build up from there.</p>
+<p>A list of two numbers, like <span class="math inline">\((3, 4)\)</span>, is a <strong>vector</strong>: an arrow from the origin to that point in the plane. In the case of embeddings two arrows pointing the same direction mean they are similar, while two arrows at a right angle are completely unrelated. The standard measurement of “how much do two arrows agree” is <strong>cosine similarity</strong>, the cosine of the angle between them. Mathematically it is:</p>
+<p><span class="math display">\[
+\text{similarity}(a, b) \;=\; \cos(\theta) \;=\; \frac{a \cdot b}{\lVert a \rVert \, \lVert b \rVert}
+\]</span></p>
+<p>At the top, the <strong>dot product</strong> <span class="math inline">\(a \cdot b\)</span> multiplies coordinates from the same axis and then sums them. The <strong>length</strong> <span class="math inline">\(\lVert a \rVert\)</span> is just how long the arrow is. The result is <span class="math inline">\(1\)</span> when the arrows point the same way, <span class="math inline">\(0\)</span> at a right angle, and <span class="math inline">\(-1\)</span> when they point in opposite directions. So cosine similarity ranges from <span class="math inline">\(1\)</span> to <span class="math inline">\(-1\)</span>, with <span class="math inline">\(1\)</span> being identical and <span class="math inline">\(-1\)</span> being opposite.</p>
+<p>Let’s show this visually. The next cell builds three vectors: <code>b</code> points in a direction similar to <code>a</code>, and <code>c</code> sits at a right angle to it. The <code>cosine</code> function is the formula above in Python. We draw both comparisons side by side, with the computed similarity in each title:</p>
+<div id="c84c1f14" class="cell" data-execution_count="9">
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>a <span class="op">=</span> np.array([<span class="dv">3</span>, <span class="dv">4</span>])</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>b <span class="op">=</span> np.array([<span class="dv">4</span>, <span class="dv">1</span>])      <span class="co">#points in a similar direction to a</span></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>c <span class="op">=</span> np.array([<span class="dv">4</span>, <span class="op">-</span><span class="dv">3</span>])     <span class="co">#at a right angle to a</span></span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> cosine(u, v):</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> u <span class="op">@</span> v <span class="op">/</span> (np.linalg.norm(u) <span class="op">*</span> np.linalg.norm(v))</span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">10</span>, <span class="dv">5</span>))</span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> ax, other, name <span class="kw">in</span> [(axes[<span class="dv">0</span>], b, <span class="st">"b"</span>), (axes[<span class="dv">1</span>], c, <span class="st">"c"</span>)]:</span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>    ax.arrow(<span class="dv">0</span>, <span class="dv">0</span>, a[<span class="dv">0</span>], a[<span class="dv">1</span>], head_width<span class="op">=</span><span class="fl">0.25</span>, length_includes_head<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>    ax.arrow(<span class="dv">0</span>, <span class="dv">0</span>, other[<span class="dv">0</span>], other[<span class="dv">1</span>], head_width<span class="op">=</span><span class="fl">0.25</span>, length_includes_head<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>    ax.text(a[<span class="dv">0</span>] <span class="op">+</span> <span class="fl">0.3</span>, a[<span class="dv">1</span>], <span class="st">"a"</span>)</span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a>    ax.text(other[<span class="dv">0</span>] <span class="op">+</span> <span class="fl">0.3</span>, other[<span class="dv">1</span>], name)</span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a>    ax.set_xlim(<span class="op">-</span><span class="dv">1</span>, <span class="dv">6</span>)</span>
+<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a>    ax.set_ylim(<span class="op">-</span><span class="fl">4.5</span>, <span class="fl">5.5</span>)</span>
+<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a>    ax.grid(<span class="va">True</span>)</span>
+<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a>    ax.set_aspect(<span class="st">"equal"</span>)</span>
+<span id="cb18-18"><a href="#cb18-18" aria-hidden="true" tabindex="-1"></a>    ax.set_title(<span class="ss">f"similarity(a, </span><span class="sc">{</span>name<span class="sc">}</span><span class="ss">) = </span><span class="sc">{</span>cosine(a, other)<span class="sc">:.2f}</span><span class="ss">"</span>)</span>
+<span id="cb18-19"><a href="#cb18-19" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><a href="notebook_10_embeddings_vector_search_files/figure-html/cell-10-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-2"><img src="notebook_10_embeddings_vector_search_files/figure-html/cell-10-output-1.png" width="717" height="431" class="figure-img"></a></p>
+</figure>
+</div>
+</div>
+</div>
+<p>The vectors <code>a</code> and <code>b</code> are similar so they score a positive and high similarity (<span class="math inline">\(0.78\)</span>); the right angle from <code>a</code> and <code>c</code> scores exactly 0. The lengths of the arrows never matter, only the angle between them.</p>
+<p>Everything we just did in 2 dimensions works in any number of dimensions, 2, 200 or 2000. The model we use is <code>all-MiniLM-L6-v2</code>, a small, free, commonly used sentence-embedding model that maps any text to 384 dimensions. The initial download is about 90 MB; after that it loads from a local cache. If you want to go deeper into the NLP side of all this we have a <a href="https://ubcecon.github.io/praxis-ubc/docs/hist_workshop/text_embeddings_workshop.html">prAxIs text embeddings workshop</a>.</p>
+<p>Let’s load the model.</p>
+<div id="df3b88c3" class="cell" data-execution_count="10">
+<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>tokenizer <span class="op">=</span> AutoTokenizer.from_pretrained(<span class="st">"sentence-transformers/all-MiniLM-L6-v2"</span>)</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> AutoModel.from_pretrained(<span class="st">"sentence-transformers/all-MiniLM-L6-v2"</span>).<span class="bu">eval</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>The model hands back one vector <em>per token</em>, and we want one per <em>text</em>. A <strong>token</strong> is the small unit of text the model actually reads, produced by the model’s own tokenizer. Let’s look at how the tokenizer works on two example phrases: <strong>“The collector keeps calling about my debt”</strong> and <strong>“I called Comenity about my paycheque”</strong>.</p>
+<div id="902e40a2" class="cell" data-execution_count="11">
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(tokenizer.tokenize(<span class="st">"The collector keeps calling about my debt"</span>))</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(tokenizer.tokenize(<span class="st">"I called Comenity about my paycheque"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>['the', 'collector', 'keeps', 'calling', 'about', 'my', 'debt']
+['i', 'called', 'come', '##nity', 'about', 'my', 'pay', '##che', '##que']</code></pre>
+</div>
+</div>
+<p>The first sentence is seven everyday words, so it becomes seven tokens. These words already exist in the model’s training set so it just re-uses the ones it knows. In the second, the model has never seen the firm “Comenity” or the Canadian spelling of “paycheque”, so it builds them from pieces: “come” plus “##nity”, “pay” plus “##che” plus “##que”, where <code>##</code> marks a fragment that continues the previous piece. Every token gets its own 384-number vector, which is why a sentence output is a bunch of values which together form its vector in 384-dimension space.</p>
+<p>To get our embeddings we run four steps: tokenize the batch, run the model, average each text’s token vectors into one, then scale every vector to length one. We also explicitly never train this model, we just use it as is.</p>
+<div id="beea9951" class="cell" data-execution_count="12">
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> embed(texts):</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>    encoded <span class="op">=</span> tokenizer(texts, padding<span class="op">=</span><span class="va">True</span>, truncation<span class="op">=</span><span class="va">True</span>, return_tensors<span class="op">=</span><span class="st">"pt"</span>)</span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> torch.no_grad():</span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>        output <span class="op">=</span> model(<span class="op">**</span>encoded)                                <span class="co">#one vector per token</span></span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>    mask <span class="op">=</span> encoded[<span class="st">"attention_mask"</span>].unsqueeze(<span class="op">-</span><span class="dv">1</span>)               <span class="co">#1 for real tokens, 0 for padding</span></span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a>    vectors <span class="op">=</span> (output.last_hidden_state <span class="op">*</span> mask).<span class="bu">sum</span>(<span class="dv">1</span>) <span class="op">/</span> mask.<span class="bu">sum</span>(<span class="dv">1</span>)   <span class="co">#mean pooling</span></span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a>    vectors <span class="op">=</span> vectors <span class="op">/</span> vectors.norm(dim<span class="op">=</span><span class="dv">1</span>, keepdim<span class="op">=</span><span class="va">True</span>)        <span class="co">#stretch to length one</span></span>
+<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> vectors.numpy()</span>
+<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a>demo <span class="op">=</span> embed([<span class="st">"The collector calls me five times a day"</span>, <span class="st">"They will not stop phoning me at all hours"</span>]) <span class="co">#the sentences we compare in this demo cell</span></span>
+<span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"shape:"</span>, demo.shape)</span>
+<span id="cb22-12"><a href="#cb22-12" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"first five numbers of the first vector:"</span>, np.<span class="bu">round</span>(demo[<span class="dv">0</span>, :<span class="dv">5</span>], <span class="dv">3</span>))   <span class="co">#np.round trims the printout</span></span>
+<span id="cb22-13"><a href="#cb22-13" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"similarity = </span><span class="sc">{</span>demo[<span class="dv">0</span>] <span class="op">@</span> demo[<span class="dv">1</span>]<span class="sc">:.3f}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>shape: (2, 384)
+first five numbers of the first vector: [-0.04   0.081  0.001  0.011 -0.093]
+similarity = 0.341</code></pre>
+</div>
+</div>
+<p>The first five values of our 384 dimension vector are <span class="math inline">\(-0.04, 0.081, 0.001, 0.011, -0.093\)</span>, and individually they mean nothing; only the whole direction of all 384 numbers does.</p>
+<p>We can look at how different sentences compare, we will use <strong>“The collector calls me five times a day”</strong> as our baseline and contrast it to 4 other sentences and compute each one’s cosine similarity. You can read the other sentences in the cell code below.</p>
+<div id="10bbb795" class="cell" data-execution_count="13">
+<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="co">#Comparison sentences below</span></span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>pairs <span class="op">=</span> [(<span class="st">"The collector calls me five times a day"</span>, <span class="st">"They will not stop phoning me at all hours"</span>),</span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>         (<span class="st">"The collector calls me five times a day"</span>, <span class="st">"My credit report shows an account that is not mine"</span>),</span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>         (<span class="st">"The collector calls me five times a day"</span>, <span class="st">"My escrow analysis came back wrong this year"</span>),</span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a>         (<span class="st">"The collector calls me five times a day"</span>, <span class="st">"The collector never calls me at all"</span>)]</span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a>rows <span class="op">=</span> []</span>
+<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> a, b <span class="kw">in</span> pairs:</span>
+<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a>    va, vb <span class="op">=</span> embed([a, b])</span>
+<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a>    rows.append({<span class="st">"sentence_b"</span>: b, <span class="st">"similarity"</span>: <span class="bu">round</span>(<span class="bu">float</span>(va <span class="op">@</span> vb), <span class="dv">3</span>)})</span>
+<span id="cb24-10"><a href="#cb24-10" aria-hidden="true" tabindex="-1"></a>pd.DataFrame(rows)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="13">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">sentence_b</th>
+<th data-quarto-table-cell-role="th">similarity</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>They will not stop phoning me at all hours</td>
+<td>0.341</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>My credit report shows an account that is not mine</td>
+<td>0.191</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>My escrow analysis came back wrong this year</td>
+<td>0.144</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>The collector never calls me at all</td>
+<td>0.754</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>The phone-call paraphrase is close (<span class="math inline">\(0.341\)</span>), the credit-report complaint is more unrelated at <span class="math inline">\(0.191\)</span>, the escrow complaint furthest (<span class="math inline">\(0.144\)</span>). What really matters for us is the ordering. Now look at the last row: this is the sentence with the exact opposite meaning and it scores a <span class="math inline">\(0.754\)</span>, the highest on the table.</p>
+<p>If you expected a negative number, which represents arrows pointing exactly opposite ways, then you would be mistaken, as a negation is not an anti-topic. Embeddings measure <em>topic</em>, never truth or stance. Both sentences are precisely about a collector and calling, so their arrows are very similar. The model correctly identifies these as similar.</p>
+<p>Now the whole text corpus. The narratives are long, so we embed them in batches of 64 and collect the results into one list. The warehouse then stores the vectors in a column next to the text. DuckDB has a column type for exactly this, a fixed-length array written <code>FLOAT[384]</code>, and Notebook 9’s <code>DESCRIBE</code> confirms what we built:</p>
+<div id="e0defe6e" class="cell" data-execution_count="14">
+<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>texts <span class="op">=</span> complaints[<span class="st">"narrative"</span>].tolist()               <span class="co">#.tolist turns the column into a plain list</span></span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>vectors <span class="op">=</span> []</span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> start <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">0</span>, <span class="bu">len</span>(texts), <span class="dv">64</span>):                 <span class="co">#count upwards in steps of 64</span></span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>    vectors.extend(embed(texts[start:start <span class="op">+</span> <span class="dv">64</span>]))     <span class="co">#.extend appends the whole batch at once</span></span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>complaints[<span class="st">"embedding"</span>] <span class="op">=</span> [v.tolist() <span class="cf">for</span> v <span class="kw">in</span> vectors]</span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a>warehouse <span class="op">=</span> duckdb.<span class="ex">connect</span>(<span class="st">"datasets/wage_warehouse.duckdb"</span>)</span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a>warehouse.execute(<span class="st">"""CREATE OR REPLACE TABLE complaint AS</span></span>
+<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a><span class="st">    SELECT complaint_id, state, issue, narrative, CAST(embedding AS FLOAT[384]) AS embedding</span></span>
+<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a><span class="st">    FROM complaints"""</span>)</span>
+<span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a>warehouse.execute(<span class="st">"DESCRIBE complaint"</span>).df()[[<span class="st">"column_name"</span>, <span class="st">"column_type"</span>]]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="14">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">column_name</th>
+<th data-quarto-table-cell-role="th">column_type</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>complaint_id</td>
+<td>BIGINT</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>state</td>
+<td>VARCHAR</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>issue</td>
+<td>VARCHAR</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>narrative</td>
+<td>VARCHAR</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">4</td>
+<td>embedding</td>
+<td>FLOAT[384]</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>The complaint table now holds text and coordinates in different columns. Before searching, let’s look at the space itself. 384 dimensions are impossible to visualize (and would be pretty meaningless anyway), so PCA (principal component analysis) pushes them down to the two directions with the most spread; distances survive the pressing only roughly, but clusters stay clearly visible:</p>
+<div id="6dbe6f6e" class="cell" data-execution_count="15">
+<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>flat <span class="op">=</span> PCA(n_components<span class="op">=</span><span class="dv">2</span>, random_state<span class="op">=</span><span class="dv">42</span>).fit_transform(np.array(vectors))   <span class="co">#learn and apply the 2-D projection</span></span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>plt.figure(figsize<span class="op">=</span>(<span class="dv">9</span>, <span class="dv">6</span>))</span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> issue <span class="kw">in</span> complaints[<span class="st">"issue"</span>].unique():</span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>    inside <span class="op">=</span> (complaints[<span class="st">"issue"</span>] <span class="op">==</span> issue).to_numpy()                         <span class="co">#True/False mask for this category</span></span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>    plt.scatter(flat[inside, <span class="dv">0</span>], flat[inside, <span class="dv">1</span>], label<span class="op">=</span>issue, s<span class="op">=</span><span class="dv">22</span>, alpha<span class="op">=</span><span class="fl">0.8</span>)</span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>plt.legend(fontsize<span class="op">=</span><span class="dv">8</span>)</span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a>plt.title(<span class="st">"390 complaints, 384 dimensions, pressed onto 2"</span>)</span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><a href="notebook_10_embeddings_vector_search_files/figure-html/cell-16-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-3"><img src="notebook_10_embeddings_vector_search_files/figure-html/cell-16-output-1.png" width="730" height="505" class="figure-img"></a></p>
+</figure>
+</div>
+</div>
+</div>
+<p>We can see some rough structure, even though it is messy. Mortgage and payment troubles drift to the upper right, student-loan complaints sit closer to the right edge, and the credit-report disputes cluster towards the bottom. The model never saw the CFPB’s labels, and still drew this structure on its own.</p>
+</section>
+<section id="vector-search-with-order-by" class="level2">
+<h2 class="anchored" data-anchor-id="vector-search-with-order-by">5. Vector search with ORDER BY</h2>
+<p>To search this space we don’t need any new tools. DuckDB’s <code>array_cosine_distance</code> computes one minus the cosine similarity from section 4, so 0 means identical direction and bigger means further apart. We wrap it in a helper function that shows the first 80 characters of each hit, and start with the literal word from the request “harassment”:</p>
+<div id="8253591e" class="cell" data-execution_count="16">
+<div class="sourceCode cell-code" id="cb27"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> search(query, k<span class="op">=</span><span class="dv">5</span>):</span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>    qv <span class="op">=</span> embed([query])[<span class="dv">0</span>].tolist()</span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> warehouse.execute(<span class="st">"""SELECT round(array_cosine_distance(embedding, CAST(? AS FLOAT[384])), 3) AS distance,</span></span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a><span class="st">                                       issue, substr(narrative, 1, 80) AS start_of_narrative</span></span>
+<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a><span class="st">                                FROM complaint ORDER BY distance LIMIT ?"""</span>, [qv, k]).df()</span>
+<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a>search(<span class="st">"harassment"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="16">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">distance</th>
+<th data-quarto-table-cell-role="th">issue</th>
+<th data-quarto-table-cell-role="th">start_of_narrative</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>0.459</td>
+<td>Dealing with your lender or servicer</td>
+<td>XXXX, XXXX XXXX XXXX with Navient has contacted my employer and has attempted to</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>0.560</td>
+<td>Communication tactics</td>
+<td>Employees, at the XXXX TN location repeatedly use very aggressive and threating</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>0.569</td>
+<td>Communication tactics</td>
+<td>ON XXXX I saw a charge off on my credit report from company Caine &amp; Weiner i cal</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>0.571</td>
+<td>Communication tactics</td>
+<td>XXXX or XXXX XXXX XXXX has now called me back to back within 2 seconds of each</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">4</td>
+<td>0.579</td>
+<td>Communication tactics</td>
+<td>On Monday XX/XX/2023 at XXXX I began to receive repeated text messages from mult</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>Four of the five issues in our output are from the Communication tactics label, this is already better, but let’s inspect the top result:</p>
+<div id="239f4adb" class="cell" data-execution_count="17">
+<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>top_hit <span class="op">=</span> warehouse.execute(<span class="st">"""SELECT narrative FROM complaint</span></span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a><span class="st">    ORDER BY array_cosine_distance(embedding, CAST(? AS FLOAT[384])) LIMIT 1"""</span>,</span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>    [embed([<span class="st">"harassment"</span>])[<span class="dv">0</span>].tolist()]).df()</span>
+<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(top_hit.iloc[<span class="dv">0</span>][<span class="st">"narrative"</span>][:<span class="dv">400</span>] <span class="op">+</span> <span class="st">"..."</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>XXXX, XXXX XXXX XXXX with Navient has contacted my employer and has attempted to harass me and my employer. He wants my employer to call him and to send him personal information on me. In an attempt to get them to put pressure on me or possibly fire me. This tactic is unprofessional and unethical. Please stop Navient from using these bullying techniques on Alabama employers and employees. 
+
+Thank ...</code></pre>
+</div>
+</div>
+<p>It is a <em>student-loan</em> complaint, filed under “Dealing with your lender or servicer”, about Navient contacting the writer’s employer. The consumer filed it under servicing; the model read the content, and saw it as a harassment story. The label and the model disagree, but in my opinion the model might be right; this could be classified as harassment. Regardless of your stance on this, a one-word query is a vague point in meaning space. Let’s do something else and phrase the query as “debt collectors harassing me with constant phone calls” which is far more detailed and carries greater meaning for the model than just “harassment”.</p>
+<div id="1e382aca" class="cell" data-execution_count="18">
+<div class="sourceCode cell-code" id="cb30"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>search(<span class="st">"debt collectors harassing me with constant phone calls"</span>, <span class="dv">10</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="18">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">distance</th>
+<th data-quarto-table-cell-role="th">issue</th>
+<th data-quarto-table-cell-role="th">start_of_narrative</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>0.247</td>
+<td>Communication tactics</td>
+<td>XXXX XXXX, a debt collector keeps calling me multiple times a day every single d</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>0.260</td>
+<td>Communication tactics</td>
+<td>this is medical debt that my insurance lapsed on. ive never had a collection com</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>0.291</td>
+<td>Communication tactics</td>
+<td>THIS COMPANY CALLS EVERY SINGLE DAY 2-3X/DAY, AT ALL HOURS OF THE DAY. \nI HAVE R</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>0.315</td>
+<td>Communication tactics</td>
+<td>Portfolio recovery, a debt collector keeps calling me multiple times a day every</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">4</td>
+<td>0.318</td>
+<td>Communication tactics</td>
+<td>Commenity Bank calls me numerous times a day under different numbers, as well as</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">5</td>
+<td>0.322</td>
+<td>Communication tactics</td>
+<td>collector is desrespecful to my family members/XXXX XXXX was told of following t</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">6</td>
+<td>0.329</td>
+<td>Communication tactics</td>
+<td>I've been getting several calls monthly to my cellphone now daily from Portfolio</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">7</td>
+<td>0.334</td>
+<td>Communication tactics</td>
+<td>This company called me sometimes up to 5 times a day even though I had told them</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">8</td>
+<td>0.354</td>
+<td>Communication tactics</td>
+<td>On XX/XX/XXXX, I received a call from MCM Midland Management LLC. I never author</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">9</td>
+<td>0.360</td>
+<td>Communication tactics</td>
+<td>I called the number back because of constant calls and emails and The gentleman</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>Ten out of ten from the target category, at distances 0.247 to 0.360. Read what the ranking found: “keeps calling me multiple times a day every single day”, “CALLS EVERY SINGLE DAY 2-3X/DAY, AT ALL HOURS”, “calls me numerous times a day under different numbers”. None of those rows contain the word “harass”. No keyword chain built this list, and none ever could. Meaning did, easily.</p>
+</section>
+<section id="the-scoreboard-and-where-keywords-still-win" class="level2">
+<h2 class="anchored" data-anchor-id="the-scoreboard-and-where-keywords-still-win">6. The scoreboard, and where keywords still win</h2>
+<p>The CFPB’s labels let us grade both search methods. The keyword chain caught 26 complaints, 20 of them actually in the target category. For vector search, count the labels deeper into the ranking:</p>
+<div id="3c569e34" class="cell" data-execution_count="19">
+<div class="sourceCode cell-code" id="cb31"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a>qv <span class="op">=</span> embed([<span class="st">"debt collectors harassing me with constant phone calls"</span>])[<span class="dv">0</span>].tolist()</span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>top20 <span class="op">=</span> warehouse.execute(<span class="st">"""SELECT issue, substr(narrative, 1, 80) AS start_of_narrative FROM complaint</span></span>
+<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a><span class="st">    ORDER BY array_cosine_distance(embedding, CAST(? AS FLOAT[384])) LIMIT 20"""</span>, [qv]).df()</span>
+<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"top 20 by distance: </span><span class="sc">{</span>(top20[<span class="st">'issue'</span>] <span class="op">==</span> <span class="st">'Communication tactics'</span>)<span class="sc">.</span><span class="bu">sum</span>()<span class="sc">}</span><span class="ss"> carry the target label"</span>)</span>
+<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a>top20</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>top 20 by distance: 18 carry the target label</code></pre>
+</div>
+<div class="cell-output cell-output-display" data-execution_count="19">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">issue</th>
+<th data-quarto-table-cell-role="th">start_of_narrative</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>Communication tactics</td>
+<td>XXXX XXXX, a debt collector keeps calling me multiple times a day every single d</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>Communication tactics</td>
+<td>this is medical debt that my insurance lapsed on. ive never had a collection com</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>Communication tactics</td>
+<td>THIS COMPANY CALLS EVERY SINGLE DAY 2-3X/DAY, AT ALL HOURS OF THE DAY. \nI HAVE R</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>Communication tactics</td>
+<td>Portfolio recovery, a debt collector keeps calling me multiple times a day every</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">4</td>
+<td>Communication tactics</td>
+<td>Commenity Bank calls me numerous times a day under different numbers, as well as</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">5</td>
+<td>Communication tactics</td>
+<td>collector is desrespecful to my family members/XXXX XXXX was told of following t</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">6</td>
+<td>Communication tactics</td>
+<td>I've been getting several calls monthly to my cellphone now daily from Portfolio</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">7</td>
+<td>Communication tactics</td>
+<td>This company called me sometimes up to 5 times a day even though I had told them</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">8</td>
+<td>Communication tactics</td>
+<td>On XX/XX/XXXX, I received a call from MCM Midland Management LLC. I never author</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">9</td>
+<td>Communication tactics</td>
+<td>I called the number back because of constant calls and emails and The gentleman</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">10</td>
+<td>Communication tactics</td>
+<td>I informed the company when they called and told them Ive recently lost my job a</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">11</td>
+<td>Communication tactics</td>
+<td>Tower loan keeps calling every day 7 or more times a day. They are calling my hu</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">12</td>
+<td>Problem with a purchase shown on your statement</td>
+<td>Im being harassed by Victoria Secret. They are CONSTANTLY calling my phone all d</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">13</td>
+<td>Communication tactics</td>
+<td>ON XXXX I saw a charge off on my credit report from company Caine &amp; Weiner i cal</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">14</td>
+<td>Communication tactics</td>
+<td>On Monday XX/XX/2023 at XXXX I began to receive repeated text messages from mult</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">15</td>
+<td>Communication tactics</td>
+<td>Midland Credit XXXX has consistently called me multiple times a week, including</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">16</td>
+<td>Communication tactics</td>
+<td>MCM or midland credit management has now called me back to back within 2 seconds</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">17</td>
+<td>Dealing with your lender or servicer</td>
+<td>I am being harassed by Navient, although I received approval for debt relief fro</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">18</td>
+<td>Communication tactics</td>
+<td>Comenity Bank repeatedly calls me up to 10-15 times a day for payment on my cred</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">19</td>
+<td>Communication tactics</td>
+<td>Hello, Ive been receiving none stop phone calls from this number with NO voicema</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>18 of the top 20, from a single query written in plain language. We can read twenty complaints instead of the whole 390, and that is the whole point of retrieval. Imagine if instead of 390 we used the millions that the CFPB holds; we would never be able to read all of it.</p>
+<p>This is already an excellent result, but vector search is not always the perfect tool for everything. Watch what happens when the query is an exact token instead of a meaning. Some complaints cite chapter and verse of debt-collection law, we will search for the FDCPA, statute 15 U.S.C. 1692, which is a law that protects consumers from abusive, deceptive, and unfair debt collection practices by third-party collection agencies.</p>
+<p>This time we skip our <code>search</code> helper and write the query directly, with a <code>CASE</code> column (Notebook 2’s if-else statement) that labels which law each hit actually cites.</p>
+<div id="b2725f27" class="cell" data-execution_count="20">
+<div class="sourceCode cell-code" id="cb33"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a>qv_law <span class="op">=</span> embed([<span class="st">"section 1692 FDCPA violation"</span>])[<span class="dv">0</span>].tolist()</span>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a>warehouse.execute(<span class="st">"""SELECT round(array_cosine_distance(embedding, CAST(? AS FLOAT[384])), 3) AS distance,</span></span>
+<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a><span class="st">                            CASE WHEN narrative LIKE '</span><span class="sc">%1692%</span><span class="st">' THEN 'cites 1692, the FDCPA'</span></span>
+<span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a><span class="st">                                 WHEN narrative LIKE '</span><span class="sc">%1681%</span><span class="st">' THEN 'cites 1681, the FCRA'</span></span>
+<span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a><span class="st">                                 ELSE 'cites no statute' END AS law_cited,</span></span>
+<span id="cb33-7"><a href="#cb33-7" aria-hidden="true" tabindex="-1"></a><span class="st">                            substr(narrative, 1, 60) AS start_of_narrative</span></span>
+<span id="cb33-8"><a href="#cb33-8" aria-hidden="true" tabindex="-1"></a><span class="st">                     FROM complaint ORDER BY distance LIMIT 5"""</span>, [qv_law]).df()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="20">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">distance</th>
+<th data-quarto-table-cell-role="th">law_cited</th>
+<th data-quarto-table-cell-role="th">start_of_narrative</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>0.559</td>
+<td>cites 1681, the FCRA</td>
+<td>I am reporting an FCRA violation on my credit account with J</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>0.566</td>
+<td>cites 1681, the FCRA</td>
+<td>In accordance with the Fair Credit Reporting act XXXX Accou</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>0.578</td>
+<td>cites 1681, the FCRA</td>
+<td>In accordance with the Fair Credit Reporting act XXXX Accoun</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>0.579</td>
+<td>cites no statute</td>
+<td>In accordance with United States Codes and Federally protect</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">4</td>
+<td>0.589</td>
+<td>cites no statute</td>
+<td>On XXXX XXXX 2023 XXXX was garnished from my Wells Fargo che</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>Read the <code>law_cited</code> column top to bottom: three statements cite statute 1681, the Fair Credit Reporting Act, a <em>different</em> law, two cite no statute at all, and the complaints that actually cite 1692 appear nowhere in the top five. To a meaning model, legal boilerplate all looks alike, and digits carry almost no meaning. Now using Notebook 4’s tool.</p>
+<div id="11faa22a" class="cell" data-execution_count="21">
+<div class="sourceCode cell-code" id="cb34"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a>pd.read_sql(<span class="st">"""SELECT issue,</span></span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a><span class="st">                      substr(narrative, MAX(instr(narrative, '1692') - 40, 1), 110) AS text_around_1692</span></span>
+<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a><span class="st">               FROM complaint WHERE narrative LIKE '</span><span class="sc">%1692%</span><span class="st">'"""</span>, lite)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="21">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">issue</th>
+<th data-quarto-table-cell-role="th">text_around_1692</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>Communication tactics</td>
+<td>tory remark which violates 15 U.S. Code 1692e - False or misleading representations ( 8 ) Commun...</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>Communication tactics</td>
+<td>pal of this account. Pursuant to 15 USC 1692c ( c ) I am hereby ordering Convergent Outsourcing ...</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>Exactly two complaints cite statute 1692, chapter and verse, and SQL’s normal <code>LIKE</code> returns just those two flawlessly. When we are looking for an exact name or value, keyword search is the correct tool. Real systems utilize a best of both worlds and run a <strong>filtered vector search</strong>: hard SQL filters for what must be exact (like our legal statute above), vector ranking for parts where meaning is valuable. In SQL they combine naturally. (Vector databases also sell a cousin of this idea under the name <em>hybrid search</em>, which fuses a keyword relevance score with the vector similarity score instead of filtering first.) Let’s look at harassment complaints, but only from Texas:</p>
+<div id="655ddc8b" class="cell" data-execution_count="22">
+<div class="sourceCode cell-code" id="cb35"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a>warehouse.execute(<span class="st">"""SELECT state, round(array_cosine_distance(embedding, CAST(? AS FLOAT[384])), 3) AS distance,</span></span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a><span class="st">                            substr(narrative, 1, 80) AS start_of_narrative</span></span>
+<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a><span class="st">                     FROM complaint</span></span>
+<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a><span class="st">                     WHERE state = 'TX'</span></span>
+<span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a><span class="st">                     ORDER BY distance LIMIT 3"""</span>, [qv]).df()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="22">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">state</th>
+<th data-quarto-table-cell-role="th">distance</th>
+<th data-quarto-table-cell-role="th">start_of_narrative</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>TX</td>
+<td>0.394</td>
+<td>Hello, Ive been receiving none stop phone calls from this number with NO voicema</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>TX</td>
+<td>0.423</td>
+<td>I was called frequently and when trying to get clarification on the issue, I was</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>TX</td>
+<td>0.440</td>
+<td>ON XXXX XXXX TOLD ME THEY WILL NOT CONTACT ME ANY MORE TO MY PHONE NUMBER XXXX.</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p><code>WHERE</code> narrows to Texas exactly, the distance orders by meaning, and all three are collector-harassment stories. Exactly what we wanted to find.</p>
+</section>
+<section id="chunking-is-a-grain-decision" class="level2">
+<h2 class="anchored" data-anchor-id="chunking-is-a-grain-decision">7. Chunking is a grain decision</h2>
+<p>One design decision remains before this search is ready: what is one <em>row</em>? Notebook 2 named it the grain of a table. In retrieval the same question is called <strong>chunking</strong>: when documents are long, what unit do you embed, the whole document or its pieces? The grain determines what your retrieval system can find.</p>
+<p>Our 390 narratives were short enough to embed whole. But the CFPB also receives long, multi-page complaints, and we downloaded three real ones alongside the sample. Each is several paragraphs long. We will search for one specific detail in one of the stories: the fraud cost the author refinancing, and student loans for their daughter’s education. We print the three complaints below along with id, and state. Our target is <strong>6627407</strong> which is the complaint for California.</p>
+<div id="d23db805" class="cell" data-execution_count="23">
+<div class="sourceCode cell-code" id="cb36"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a>longs <span class="op">=</span> pd.read_csv(<span class="st">"datasets/cfpb_long_complaints.csv"</span>)</span>
+<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a>longs[<span class="st">"narrative"</span>] <span class="op">=</span> longs[<span class="st">"narrative"</span>].<span class="bu">str</span>.replace(<span class="st">"</span><span class="ch">\r</span><span class="st">"</span>, <span class="st">""</span>) </span>
+<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(longs[[<span class="st">"complaint_id"</span>, <span class="st">"issue"</span>, <span class="st">"state"</span>]])</span>
+<span id="cb36-4"><a href="#cb36-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"lengths:"</span>, longs[<span class="st">"narrative"</span>].<span class="bu">str</span>.<span class="bu">len</span>().tolist())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>   complaint_id                               issue state
+0       6627407   Attempts to collect debt not owed    CA
+1       6632901  False statements or representation    NY
+2       6636826   Attempts to collect debt not owed    TX
+lengths: [2220, 3162, 2510]</code></pre>
+</div>
+</div>
+<p>We are back in plain numpy here, away from DuckDB’s distance column, so we score with cosine similarity itself: <code>v @ question</code>, bigger means closer, exactly like section 4. <code>ascending=False</code> sorts the table best-first.</p>
+<blockquote class="blockquote">
+<p><strong>Predict first.</strong> We embed each complaint as one full text-block and search for the education-loans detail. How well do we do?</p>
+</blockquote>
+<div id="06b8c6a4" class="cell" data-execution_count="24">
+<div class="sourceCode cell-code" id="cb38"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a>doc_vectors <span class="op">=</span> embed([t.replace(<span class="st">"</span><span class="ch">\n</span><span class="st">"</span>, <span class="st">" "</span>) <span class="cf">for</span> t <span class="kw">in</span> longs[<span class="st">"narrative"</span>]])</span>
+<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a>question <span class="op">=</span> embed([<span class="st">"the fraud made me unable to get student loans for my daughter"</span>])[<span class="dv">0</span>]</span>
+<span id="cb38-3"><a href="#cb38-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb38-4"><a href="#cb38-4" aria-hidden="true" tabindex="-1"></a>longs[<span class="st">"similarity"</span>] <span class="op">=</span> [<span class="bu">round</span>(<span class="bu">float</span>(v <span class="op">@</span> question), <span class="dv">3</span>) <span class="cf">for</span> v <span class="kw">in</span> doc_vectors]</span>
+<span id="cb38-5"><a href="#cb38-5" aria-hidden="true" tabindex="-1"></a>longs[[<span class="st">"complaint_id"</span>, <span class="st">"issue"</span>, <span class="st">"similarity"</span>]].sort_values(<span class="st">"similarity"</span>, ascending<span class="op">=</span><span class="va">False</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="24">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">complaint_id</th>
+<th data-quarto-table-cell-role="th">issue</th>
+<th data-quarto-table-cell-role="th">similarity</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>6627407</td>
+<td>Attempts to collect debt not owed</td>
+<td>0.452</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>6632901</td>
+<td>False statements or representation</td>
+<td>0.390</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>6636826</td>
+<td>Attempts to collect debt not owed</td>
+<td>0.364</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>The right complaint does score highest, at 0.452 against 0.390 and 0.364, but a margin of 0.06 is too small to blindly trust. The reason is <strong>dilution</strong>: one sentence about a daughter’s student loans was averaged together with multiple-pages of context, disputes, and lawyers. All three documents ended up making the same over-arching general point, “long identity-theft complaint”, so picking out a small detail becomes hard for our model at this grain. Now let’s split every complaint into paragraphs and embed those instead.</p>
+<div id="36936026" class="cell" data-execution_count="25">
+<div class="sourceCode cell-code" id="cb39"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a>paragraphs <span class="op">=</span> []</span>
+<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> cid, text <span class="kw">in</span> <span class="bu">zip</span>(longs[<span class="st">"complaint_id"</span>], longs[<span class="st">"narrative"</span>]):</span>
+<span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> number, para <span class="kw">in</span> <span class="bu">enumerate</span>(text.split(<span class="st">"</span><span class="ch">\n\n</span><span class="st">"</span>), <span class="dv">1</span>):</span>
+<span id="cb39-4"><a href="#cb39-4" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> para.strip():</span>
+<span id="cb39-5"><a href="#cb39-5" aria-hidden="true" tabindex="-1"></a>            paragraphs.append({<span class="st">"complaint_id"</span>: cid, <span class="st">"paragraph"</span>: number, <span class="st">"text"</span>: para.strip()})</span>
+<span id="cb39-6"><a href="#cb39-6" aria-hidden="true" tabindex="-1"></a>para_df <span class="op">=</span> pd.DataFrame(paragraphs)</span>
+<span id="cb39-7"><a href="#cb39-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb39-8"><a href="#cb39-8" aria-hidden="true" tabindex="-1"></a>para_vectors <span class="op">=</span> embed(para_df[<span class="st">"text"</span>].tolist())</span>
+<span id="cb39-9"><a href="#cb39-9" aria-hidden="true" tabindex="-1"></a>para_df[<span class="st">"similarity"</span>] <span class="op">=</span> [<span class="bu">round</span>(<span class="bu">float</span>(v <span class="op">@</span> question), <span class="dv">3</span>) <span class="cf">for</span> v <span class="kw">in</span> para_vectors]</span>
+<span id="cb39-10"><a href="#cb39-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb39-11"><a href="#cb39-11" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(para_df.sort_values(<span class="st">"similarity"</span>, ascending<span class="op">=</span><span class="va">False</span>).iloc[<span class="dv">0</span>][<span class="st">"text"</span>])</span>
+<span id="cb39-12"><a href="#cb39-12" aria-hidden="true" tabindex="-1"></a>para_df.sort_values(<span class="st">"similarity"</span>, ascending<span class="op">=</span><span class="va">False</span>).head(<span class="dv">3</span>)[[<span class="st">"complaint_id"</span>, <span class="st">"paragraph"</span>, <span class="st">"similarity"</span>, <span class="st">"text"</span>]]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>In XXXX, I began receiving calls and letters from Persolve LLC demanding payment for this fraudulent debt. Despite providing proof that the debt was not mine, they refused to remove it from my credit report. As a result, I was denied refinancing for my home, student loans for my daughter 's education, and personal credit cards. As a XXXX  of a company, I was also unable to obtain a corporate card or small business loan, despite our company 's earnings of over {&gt;= $1,000,000} per year.</code></pre>
+</div>
+<div class="cell-output cell-output-display" data-execution_count="25">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">complaint_id</th>
+<th data-quarto-table-cell-role="th">paragraph</th>
+<th data-quarto-table-cell-role="th">similarity</th>
+<th data-quarto-table-cell-role="th">text</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>6627407</td>
+<td>3</td>
+<td>0.614</td>
+<td>In XXXX, I began receiving calls and letters from Persolve LLC demanding payment for this fraudu...</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>6627407</td>
+<td>2</td>
+<td>0.540</td>
+<td>In XXXX, my identity was stolen and several accounts were opened using my information, including...</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">11</td>
+<td>6636826</td>
+<td>1</td>
+<td>0.401</td>
+<td>In XX/XX/XXXX I was planning to buy a home, so I applied for a mortgage. My application was deni...</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>The correct case wins at <span class="math inline">\(0.614\)</span>. Second place, at <span class="math inline">\(0.540\)</span>, is a neighbouring paragraph from the same complaint; the best paragraph from any <em>other</em> complaint is down at 0.401. The margin grew from <span class="math inline">\(0.06\)</span> at document grain to <span class="math inline">\(0.21\)</span> at paragraph grain, a more trustworthy gap. If we chunk too big then signals dilute; chunk too small (for example single words) and there is no meaning left to embed at all. Choosing that grain is a core design decision of every retrieval system you will ever build.</p>
+</section>
+<section id="conclusion" class="level2">
+<h2 class="anchored" data-anchor-id="conclusion">8. Conclusion</h2>
+<p>The request said this should take an hour. It took the whole notebook, but we finished! The single keyword matched 163 of 390 complaints and told us almost nothing. The four-pattern chain caught 20 of the 65 harassment stories and dragged in 6 unrelated entries. The embedding search got 18 of its top 20 right from one plain sentence, and even surfaced harassment stories that were filed under other labels. But it’s not perfect: it cannot read “never”, and it can’t find statute numbers that <code>LIKE</code> finds perfectly. So instead of choosing one we combine them: <code>LIKE</code> for details and embeddings for meaning.</p>
+<p>The big idea to take away is that <strong>meaning itself can now live in a database.</strong> Once text becomes coordinates in space, searching by meaning is just <code>ORDER BY distance LIMIT 5</code>, and it works alongside every SQL tool from this stream. Still, nothing we built actually <em>reads</em> these complaints; ranking them is not the same as understanding them. Reading is a job for a language model, and plugging one into everything we have built, the schema, the pipeline, the validation, and now this search, is Notebook 11. One notebook left, and it puts the whole stream together! We will build a Retrieval-Augmented Generation (RAG) system, a framework that improves LLM accuracy significantly by grounding its responses.</p>
+</section>
+<section id="appendix-the-landscape-beyond-tables" class="level2">
+<h2 class="anchored" data-anchor-id="appendix-the-landscape-beyond-tables">Appendix: the landscape beyond tables</h2>
+<p>Storage follows the shape of the data, and because of that, every shape has grown its own product category:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Shape of the data</th>
+<th>Category</th>
+<th>Names you will meet</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>rows and columns</td>
+<td>relational</td>
+<td>SQLite, DuckDB, PostgreSQL (Notebooks 1 to 9)</td>
+</tr>
+<tr class="even">
+<td>nested documents</td>
+<td>document store</td>
+<td>MongoDB, CouchDB</td>
+</tr>
+<tr class="odd">
+<td>key and value, at speed</td>
+<td>key-value store</td>
+<td>Redis, Memcached</td>
+</tr>
+<tr class="even">
+<td>nodes and edges</td>
+<td>graph database</td>
+<td>Neo4j, Neptune (ex: Notebook 8’s DAGs could be stored here)</td>
+</tr>
+<tr class="odd">
+<td>vectors</td>
+<td>vector database</td>
+<td>Pinecone, Chroma, pgvector, sqlite-vec, DuckDB’s vss extension</td>
+</tr>
+</tbody>
+</table>
+<p>For vectors specifically the boundary is dissolving: PostgreSQL can use vectors through <code>pgvector</code>, SQLite through <code>sqlite-vec</code>, DuckDB through its <code>vss</code> extension, so the “vector database” is increasingly just a column type in the database you already run. That is exactly how we used it in this notebook: a <code>FLOAT[384]</code> column in plain DuckDB.</p>
+</section>
+<section id="connections" class="level2">
+<h2 class="anchored" data-anchor-id="connections">Connections</h2>
+<ul>
+<li><strong>Back to <a href="../../docs/Data_Engineer/notebook_09_pipelines_two.html">Notebook 9</a>:</strong> the pipeline happily loads and validates batches of text like this one, checking counts, nulls, and schema. No check we wrote could ever judge what the text <em>means</em>. We use embeddings to fix that gap.</li>
+<li><strong>Forward to <a href="../../docs/Data_Engineer/notebook_11_capstone_rag.html">Notebook 11</a>:</strong> the capstone. A language model finally joins us and reads what this notebook’s search retrieves, and everything underneath, schema, ETL, validation, lineage, becomes one complete system you build.</li>
+</ul>
+<section id="references" class="level3">
+<h3 class="anchored" data-anchor-id="references">References</h3>
+<ul>
+<li>Consumer Financial Protection Bureau. <em>Consumer Complaint Database.</em> https://www.consumerfinance.gov/data-research/consumer-complaints/ The source of every narrative in this notebook: public domain, published with consumer consent, scrubbed of identifying details (<a href="https://www.consumerfinance.gov/complaint/data-use/">how the CFPB shares complaint data</a>). Our 390-row sample comes from March 2023 across six issue categories.</li>
+<li>Reimers, N., &amp; Gurevych, I. (2019). <em>Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks.</em> EMNLP 2019. The paper behind the sentence-transformers family our model comes from.</li>
+<li>Hugging Face model card. <em>sentence-transformers/all-MiniLM-L6-v2.</em> https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2 The exact model, its training recipe, and the mean-pooling code section 4 adapts.</li>
+<li>DuckDB documentation. <em>Array functions and the vss extension.</em> https://duckdb.org/docs/stable/sql/functions/array and https://duckdb.org/docs/stable/core_extensions/vss <code>array_cosine_distance</code> and friends, plus the HNSW index for when corpora outgrow full scans.</li>
+<li>Garcia, A. <em>sqlite-vec.</em> https://github.com/asg017/sqlite-vec Vector search inside SQLite, proof that even the smallest database in this stream can hold the newest shape.</li>
+</ul>
+<hr>
+
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<button id="scroll-to-top" aria-label="Back to top">
+  <svg width="18" height="18" viewbox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M12 19V5M12 5L5 12M12 5L19 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path>
+  </svg>
+</button>
+
+<style>
+#scroll-to-top {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  z-index: 999;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+
+  /* Follows the active Comet theme (light/dark) automatically,
+     since these are the same Bootstrap vars compiled from
+     comet_theme.scss / comet_theme_dark.scss */
+  background-color: var(--bs-primary, #041746);
+  color: #FFFFFF;
+
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(10px);
+  transition: opacity 0.2s ease, transform 0.2s ease, background-color 0.2s ease;
+}
+
+#scroll-to-top.is-visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+#scroll-to-top:hover,
+#scroll-to-top:focus-visible {
+  background-color: var(--bs-secondary, #CC7A00);
+  outline: none;
+}
+
+#scroll-to-top svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Tooltip shown on hover/focus, to the left so it stays in the viewport */
+#scroll-to-top::after {
+  content: "Back to top";
+  position: absolute;
+  right: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background-color: rgba(0, 0, 0, 0.8);
+  color: #FFFFFF;
+  font-size: 0.8rem;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+#scroll-to-top:hover::after,
+#scroll-to-top:focus-visible::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+@media (max-width: 768px) {
+  #scroll-to-top {
+    bottom: 20px;
+    right: 16px;
+    width: 40px;
+    height: 40px;
+  }
+}
+</style>
+
+<script>
+(function () {
+  var btn = document.getElementById("scroll-to-top");
+  if (!btn) return;
+
+  var toggleVisibility = function () {
+    if (window.scrollY > 300) {
+      btn.classList.add("is-visible");
+    } else {
+      btn.classList.remove("is-visible");
+    }
+  };
+
+  window.addEventListener("scroll", toggleVisibility, { passive: true });
+  toggleVisibility();
+
+  btn.addEventListener("click", function () {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+})();
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const disableStylesheet = (stylesheets) => {
+    for (let i=0; i < stylesheets.length; i++) {
+      const stylesheet = stylesheets[i];
+      stylesheet.rel = 'prefetch';
+    }
+  }
+  const enableStylesheet = (stylesheets) => {
+    for (let i=0; i < stylesheets.length; i++) {
+      const stylesheet = stylesheets[i];
+      stylesheet.rel = 'stylesheet';
+    }
+  }
+  const manageTransitions = (selector, allowTransitions) => {
+    const els = window.document.querySelectorAll(selector);
+    for (let i=0; i < els.length; i++) {
+      const el = els[i];
+      if (allowTransitions) {
+        el.classList.remove('notransition');
+      } else {
+        el.classList.add('notransition');
+      }
+    }
+  }
+  const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+    const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+    const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+    let newTheme = '';
+    if(darkModeDefault) {
+      newTheme = isAlternate ? baseTheme : alternateTheme;
+    } else {
+      newTheme = isAlternate ? alternateTheme : baseTheme;
+    }
+    const changeGiscusTheme = () => {
+      // From: https://github.com/giscus/giscus/issues/336
+      const sendMessage = (message) => {
+        const iframe = document.querySelector('iframe.giscus-frame');
+        if (!iframe) return;
+        iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+      }
+      sendMessage({
+        setConfig: {
+          theme: newTheme
+        }
+      });
+    }
+    const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+    if (isGiscussLoaded) {
+      changeGiscusTheme();
+    }
+  }
+  const toggleColorMode = (alternate) => {
+    // Switch the stylesheets
+    const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+    manageTransitions('#quarto-margin-sidebar .nav-link', false);
+    if (alternate) {
+      enableStylesheet(alternateStylesheets);
+      for (const sheetNode of alternateStylesheets) {
+        if (sheetNode.id === "quarto-bootstrap") {
+          toggleBodyColorMode(sheetNode);
+        }
+      }
+    } else {
+      disableStylesheet(alternateStylesheets);
+      toggleBodyColorPrimary();
+    }
+    manageTransitions('#quarto-margin-sidebar .nav-link', true);
+    // Switch the toggles
+    const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+    for (let i=0; i < toggles.length; i++) {
+      const toggle = toggles[i];
+      if (toggle) {
+        if (alternate) {
+          toggle.classList.add("alternate");     
+        } else {
+          toggle.classList.remove("alternate");
+        }
+      }
+    }
+    // Hack to workaround the fact that safari doesn't
+    // properly recolor the scrollbar when toggling (#1455)
+    if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+      manageTransitions("body", false);
+      window.scrollTo(0, 1);
+      setTimeout(() => {
+        window.scrollTo(0, 0);
+        manageTransitions("body", true);
+      }, 40);  
+    }
+  }
+  const isFileUrl = () => { 
+    return window.location.protocol === 'file:';
+  }
+  const hasAlternateSentinel = () => {  
+    let styleSentinel = getColorSchemeSentinel();
+    if (styleSentinel !== null) {
+      return styleSentinel === "alternate";
+    } else {
+      return false;
+    }
+  }
+  const setStyleSentinel = (alternate) => {
+    const value = alternate ? "alternate" : "default";
+    if (!isFileUrl()) {
+      window.localStorage.setItem("quarto-color-scheme", value);
+    } else {
+      localAlternateSentinel = value;
+    }
+  }
+  const getColorSchemeSentinel = () => {
+    if (!isFileUrl()) {
+      const storageValue = window.localStorage.getItem("quarto-color-scheme");
+      return storageValue != null ? storageValue : localAlternateSentinel;
+    } else {
+      return localAlternateSentinel;
+    }
+  }
+  const darkModeDefault = false;
+  let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+  // Dark / light mode switch
+  window.quartoToggleColorScheme = () => {
+    // Read the current dark / light value 
+    let toAlternate = !hasAlternateSentinel();
+    toggleColorMode(toAlternate);
+    setStyleSentinel(toAlternate);
+    toggleGiscusIfUsed(toAlternate, darkModeDefault);
+  };
+  // Ensure there is a toggle, if there isn't float one in the top right
+  if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+    const a = window.document.createElement('a');
+    a.classList.add('top-right');
+    a.classList.add('quarto-color-scheme-toggle');
+    a.href = "";
+    a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+    const i = window.document.createElement("i");
+    i.classList.add('bi');
+    a.appendChild(i);
+    window.document.body.appendChild(a);
+  }
+  // Switch to dark mode if need be
+  if (hasAlternateSentinel()) {
+    toggleColorMode(true);
+  } else {
+    toggleColorMode(false);
+  }
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+          // target, if specified
+          link.setAttribute("target", "_blank");
+          if (link.getAttribute("rel") === null) {
+            link.setAttribute("rel", "noopener");
+          }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      // TODO in 1.5, we should make sure this works without a callout special case
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+ <a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc-sa/4.0/80x15.png"></a>.  <a rel="license" href="https://ubcecon.github.io/comet-open/pages/copyright.html">See details.</a>
+  </li>  
+</ul>
+    </div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/ubcecon/praxis-ubc/issues/new" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></div>
+    <div class="nav-footer-right">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+ The Praxis Project and UBC are located on the traditional, ancestral and unceded territory of the xʷməθkʷəy̓əm (Musqueam) and Sḵwx̱wú7mesh (Squamish) peoples.
+  </li>  
+</ul>
+    </div>
+  </div>
+</footer>
+<script>var lightboxQuarto = GLightbox({"descPosition":"bottom","selector":".lightbox","closeEffect":"zoom","openEffect":"zoom","loop":false});
+window.onload = () => {
+  lightboxQuarto.on('slide_before_load', (data) => {
+    const { slideIndex, slideNode, slideConfig, player, trigger } = data;
+    const href = trigger.getAttribute('href');
+    if (href !== null) {
+      const imgEl = window.document.querySelector(`a[href="${href}"] img`);
+      if (imgEl !== null) {
+        const srcAttr = imgEl.getAttribute("src");
+        if (srcAttr && srcAttr.startsWith("data:")) {
+          slideConfig.href = srcAttr;
+        }
+      }
+    } 
+  });
+
+  lightboxQuarto.on('slide_after_load', (data) => {
+    const { slideIndex, slideNode, slideConfig, player, trigger } = data;
+    if (window.Quarto?.typesetMath) {
+      window.Quarto.typesetMath(slideNode);
+    }
+  });
+
+};
+          </script>
+
+
+
+
+</body></html>
