@@ -7,8 +7,6 @@ on the chart surface. Chrome is deliberately recessive.
 
 import numpy as np
 
-from . import config as cfg
-
 SURFACE = "#fcfcfb"
 INK = "#0b0b0b"
 INK_2 = "#52514e"

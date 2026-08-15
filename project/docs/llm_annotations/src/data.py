@@ -1,7 +1,4 @@
-"""Loading, splitting and scoring."""
-
-import hashlib
-import re
+"""Loading, splitting and scoring the hand-labelled comments."""
 
 import numpy as np
 import pandas as pd
@@ -10,15 +7,8 @@ from . import config as cfg
 
 
 def load_gold() -> pd.DataFrame:
+    """The 1,043 comments a human labelled for constructiveness."""
     return pd.read_csv(cfg.GOLD_CSV)
-
-
-def load_c3() -> pd.DataFrame:
-    return pd.read_csv(cfg.C3_CSV)
-
-
-def _norm_hash(text) -> str:
-    return hashlib.sha1(re.sub(r"\s+", " ", str(text)).strip().lower().encode()).hexdigest()
 
 
 def balanced_sample(df, label_col, n_per_class, seed, positive="yes", exclude=None):
@@ -42,19 +32,16 @@ def gold_splits(gold=None):
     return evaluation.reset_index(drop=True), probe.reset_index(drop=True)
 
 
-def c3_training_split(c3=None, gold=None, n_per_class=1000):
-    """The comments the model was fine-tuned on, with any gold comments removed first."""
-    c3 = load_c3() if c3 is None else c3
+def length_by_class(gold=None) -> pd.DataFrame:
+    """How long is a comment of each class? The clue the model can learn instead."""
     gold = load_gold() if gold is None else gold
-    leaked = set(gold.comment_text.map(_norm_hash))
-    clean = c3.loc[~c3.comment_text.map(_norm_hash).isin(leaked)]
-    clean = clean.dropna(subset=["comment_text", "constructive_binary"])
-    clean = clean.assign(label=np.where(clean.constructive_binary == 1, "yes", "no"))
-    # Matches how the training set was drawn; see the fine-tuning section.
-    train = balanced_sample(clean, "label", 100, cfg.SEED)
-    train = balanced_sample(clean, "label", 250, cfg.SEED + 2, exclude=train.index)
-    return clean, balanced_sample(clean, "label", n_per_class, cfg.SEED + 3,
-                                  exclude=train.index).reset_index(drop=True)
+    rows = []
+    for label, name in (("yes", "constructive"), ("no", "not constructive")):
+        n = gold.loc[gold.is_constructive == label, "comment_text"].str.len()
+        rows.append({"humans said": name, "comments": len(n),
+                     "median length": f"{n.median():.0f} characters",
+                     "longest tenth": f"over {n.quantile(0.9):.0f} characters"})
+    return pd.DataFrame(rows).set_index("humans said")
 
 
 # ------------------------------------------------------------------ scoring
@@ -83,12 +70,11 @@ def metrics(human, model) -> dict:
     from sklearn.metrics import accuracy_score, f1_score
 
     h, m, unparsed = _binary(human, model)
-    out = {"accuracy": accuracy_score(h, m),
-           "f1": f1_score(h, m, zero_division=0),
-           "cohen_kappa": float(_kappa(h, m))}
-    out["predicted_yes"] = float(np.mean(m))
-    out["unparsed"] = unparsed
-    return out
+    return {"accuracy": accuracy_score(h, m),
+            "f1": f1_score(h, m, zero_division=0),
+            "cohen_kappa": float(_kappa(h, m)),
+            "predicted_yes": float(np.mean(m)),
+            "unparsed": unparsed}
 
 
 def confusion(human, model, names=("constructive", "not constructive")) -> pd.DataFrame:
@@ -101,18 +87,3 @@ def confusion(human, model, names=("constructive", "not constructive")) -> pd.Da
     t.index.name = t.columns.name = None
     t["share the model agreed"] = (np.diag(t.to_numpy()) / t.sum(axis=1)).round(2)
     return t
-
-
-def length_report(cmv, gold) -> pd.DataFrame:
-    """Are the two classes the same length? The confound worth checking."""
-    rows = []
-    for name, series in (
-        ("CMV persuasive", cmv.loc[cmv.persuasive == "yes", "comment_text"]),
-        ("CMV not persuasive", cmv.loc[cmv.persuasive == "no", "comment_text"]),
-        ("SOCC constructive", gold.loc[gold.is_constructive == "yes", "comment_text"]),
-        ("SOCC not constructive", gold.loc[gold.is_constructive == "no", "comment_text"]),
-    ):
-        n = series.str.len()
-        rows.append({"set": name, "n": len(n), "median chars": int(n.median()),
-                     "p90 chars": int(n.quantile(0.9))})
-    return pd.DataFrame(rows)
