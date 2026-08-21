@@ -77,6 +77,25 @@ def metrics(human, model) -> dict:
             "unparsed": unparsed}
 
 
+SCOREBOARD = {"accuracy": "accuracy",
+              "cohen_kappa": "agreement (kappa)",
+              "predicted_yes": "calls it constructive"}
+
+
+def scoreboard(human, models: dict) -> pd.DataFrame:
+    """The three numbers this notebook argues from, one column per model.
+
+    `metrics` returns more than these three. The rest are there when you want them, but a
+    table of numbers nobody explains is worse than a smaller table, so this is what gets
+    shown: how often the model is right, how much of that it earned, and how often it says
+    "constructive" at all.
+    """
+    return pd.DataFrame({
+        name: {label: metrics(human, answers)[key] for key, label in SCOREBOARD.items()}
+        for name, answers in models.items()
+    })
+
+
 def confusion(human, model, names=("constructive", "not constructive")) -> pd.DataFrame:
     """Counts with both axes spelled out, so neither has to be decoded."""
     yes, no = names
