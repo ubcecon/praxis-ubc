@@ -25,54 +25,6 @@ media/                           four plots, written by the notebook itself
 model_call_scripts/              everything that needs a GPU or the network
 ```
 
-Inside `model_call_scripts/`:
-
-| File | Needs | What it does |
-|---|---|---|
-| `cached_run.py` | nothing | Constants, `RUBRIC`, and the cache reader. The only file the notebook imports. |
-| `paths.py` | nothing | Resolves where the big downloads live. Import it before `transformers`. |
-| `build_data.py` | network | Downloads both corpora, writes the csv files in `data/`. |
-| `gpu_run.py` | GPU | Runs the models, writes `cache/`. |
-| `train_adapter.py` | GPU | Trains an adapter, writes `data/artifacts/`. |
-| `paths.env.example` | nothing | Template for your local paths. Copy to `paths.env`, which is gitignored. |
-
-## What is committed, and what regenerates it
-
-Everything the notebook reads is in the repo already. This table is for working out what to rerun after a change.
-
-| Committed file | Rows | Written by |
-|---|---|---|
-| `data/civil_eval.csv` | 200 | `build_data.py --civil` |
-| `data/civil_probe.csv` | 200 | `build_data.py --civil` |
-| `data/civil_train.csv` | 1,000 | `build_data.py --civil` |
-| `data/rater_votes.csv` | 448,000 | `build_data.py --civil` |
-| `data/detox_eval.csv` | 800 | `build_data.py --detox` |
-| `data/detox_votes.csv` | 80,739 | `build_data.py --detox` |
-| `cache/..._8292b552a2b9c235.json` | 1,200 answers | `gpu_run.py` (base model) |
-| `cache/..._qlora-toxicity__8292b552a2b9c235.json` | 1,200 answers | `gpu_run.py` (fine-tuned) |
-| `data/artifacts/train_log_plain.json` | | `train_adapter.py --tag plain` |
-| `data/artifacts/probe_checkpoints_plain.npz` | | `train_adapter.py --tag plain` |
-| `media/*.png` | | the notebook, via `savefig` |
-
-The four plots in `media/` are outputs, not inputs. Running the notebook rewrites them, so expect a dirty tree afterwards even when nothing changed.
-
-## Which notebook section needs which file
-
-If you break one of these, this is the section that fails.
-
-| Section | Reads |
-|---|---|
-| 1. Labelling comments at scale | `civil_train.csv`, `rater_votes.csv` |
-| 1A. Check whether one feature already predicts toxicity | writes `confound_audit.png` |
-| 2. Asking a model to annotate | both `cache/` files |
-| 3. Judging the labels, and What the humans managed | `rater_votes.csv`, `detox_votes.csv` |
-| 4. Fine-tuning with QLoRA | `train_log_plain.json`, writes `training_loss.png` |
-| 5. When did training stop helping? | `probe_checkpoints_plain.npz`, writes `learning.png` |
-| 6. Does it label better? | both `cache/` files, writes `before_after.png` |
-| 7. Does it work on different data? | the `cache/` entries for `detox_eval.csv` |
-
-The notebook calls `cached_run.annotate()`, which raises `MissingAnswers` rather than calling a model. A miss means the cache and the csv files have drifted apart, so rerun `gpu_run.py`.
-
 ## What you need
 
 A CUDA GPU with 8 GB of memory. Scoring peaks at roughly 2 GB and training at 4.4 GB, so 8 GB leaves room and 6 GB would very likely work.
