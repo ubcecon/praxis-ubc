@@ -1,8 +1,7 @@
 """Run the models on the GPU and save every answer into cache/.
 
-    . ./scripts/env.ps1
-    pyenv model_call_scripts/gpu_run.py --calibrate 50   # time it before committing
-    pyenv model_call_scripts/gpu_run.py                  # score all three sets
+    python -s model_call_scripts/gpu_run.py --calibrate 50   # time it before committing
+    python -s model_call_scripts/gpu_run.py                  # score all three sets
 
 Saves the label the model writes for each comment, keyed by model, adapter and prompt text,
 so the notebook replays them with no GPU. Resumable: anything already in cache/ is skipped.
@@ -21,26 +20,27 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import os
 import re
 import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-import torch
-from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
-
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+# paths must precede transformers: HF_HOME is read the moment huggingface_hub is imported, and setting it any later is ignored in silence.
+from model_call_scripts import paths  # noqa: E402
+
+import torch  # noqa: E402
+from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer  # noqa: E402
+
 from model_call_scripts.cached_run import ADAPTER, RUBRIC, read_set  # noqa: E402
 
-CACHE_DIR = ROOT / "cache"
+paths.check_import_order()
 
-# The adapters are 78 MB each and live outside the repo.
-BUILD = Path(os.environ.get("LLM_ANNOT_BUILD", r"D:\ml_cache\llm_annotations_build"))
-ADAPTERS = Path(os.environ.get("LLM_ANNOT_ADAPTERS", BUILD / "models" / "adapters"))
+CACHE_DIR = ROOT / "cache"
+ADAPTERS = paths.ADAPTERS
 
 MODEL_ID = "unsloth/Qwen3-1.7B-unsloth-bnb-4bit"
 MAX_COMMENT_TOKENS = 400
@@ -60,7 +60,7 @@ def load(adapter_name: str | None = None):
         return _LOADED[key]
 
     tok = AutoTokenizer.from_pretrained(MODEL_ID)
-    tok.padding_side = "left"                      
+    tok.padding_side = "left"
     if tok.pad_token is None:
         tok.pad_token = tok.eos_token
 
@@ -345,7 +345,6 @@ def calibrate(n):
     gen_rate = st.per_minute
     print(f"  generation  {st}")
 
-    t1 = time.time()
     _, stp = score_pyes(comments, ids, RUBRIC, None, write=False)
     pyes_rate = stp.per_minute
     print(f"  P(yes)      {stp}")
@@ -357,7 +356,7 @@ def calibrate(n):
     print(f"\n  {total:,} comments x {n_variants} variants = {total * n_variants:,} of each")
     print(f"  projected: {gen_min:.0f} min generating + {pyes_min:.0f} min scoring "
           f"= {(gen_min + pyes_min) / 60:.1f} hours")
-    print(f"  plus training, measured at about 24 minutes per adapter")
+    print("  plus training, measured at about 24 minutes per adapter")
     print(f"  (measured in {time.time() - t0:.0f}s of wall clock)")
     return 0
 
@@ -367,7 +366,7 @@ def main():
     ap.add_argument("--calibrate", type=int, metavar="N",
                     help="time N comments on the base model and project, writing nothing")
     ap.add_argument("--only", choices=list(VARIANTS),
-                    help="score one variant instead of all three")
+                    help="score one variant instead of both")
     ap.add_argument("--pyes", action="store_true",
                     help="also save P(yes) per comment; nothing in the notebook reads it")
     args = ap.parse_args()

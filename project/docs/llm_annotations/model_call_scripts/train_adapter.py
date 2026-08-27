@@ -1,7 +1,7 @@
 """Fine-tune one QLoRA adapter on a Civil Comments sample. Needs the GPU.
 
-    . ./scripts/env.ps1
-    pyenv model_call_scripts/train_adapter.py --train-csv data/civil_train.csv         --adapter qlora-toxicity --tag plain
+    python -s model_call_scripts/train_adapter.py --train-csv data/civil_train.csv \\
+        --adapter qlora-toxicity --tag plain
 
 About 31 minutes for 200 steps on an RTX 2070 SUPER. Every 20 steps it does two things:
 pushes the probe set through the model and saves what it recorded, and writes a checkpoint
@@ -18,21 +18,26 @@ import threading
 import time
 from pathlib import Path
 
-import numpy as np
-import pandas as pd
-import psutil
-import torch
-from torch.utils.data import Dataset
-from transformers import (AutoConfig, AutoModelForCausalLM, AutoTokenizer, Trainer,
-                          TrainerCallback, TrainingArguments)
-
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+
+# paths must precede transformers: HF_HOME is read the moment huggingface_hub is imported, and setting it any later is ignored in silence.
+from model_call_scripts import paths  # noqa: E402
+
+import numpy as np  # noqa: E402
+import pandas as pd  # noqa: E402
+import psutil  # noqa: E402
+import torch  # noqa: E402
+from torch.utils.data import Dataset  # noqa: E402
+from transformers import (AutoConfig, AutoModelForCausalLM, AutoTokenizer,  # noqa: E402
+                          Trainer, TrainerCallback, TrainingArguments)
 
 from model_call_scripts import gpu_run  # noqa: E402
 from model_call_scripts.cached_run import (  # noqa: E402
     DATA, MODEL_ID, RUBRIC, SEED, read_set,
 )
+
+paths.check_import_order()
 
 ARTIFACTS = DATA / "artifacts"
 ADAPTERS = gpu_run.ADAPTERS
@@ -64,7 +69,7 @@ class LabelledComments(Dataset):
 
     def __init__(self, texts, labels, tok):
         self.rows = []
-        for text, label in zip(texts, labels):
+        for text, label in zip(texts, labels, strict=True):
             prompt = tok.apply_chat_template(
                 [{"role": "user", "content": RUBRIC.format(comment=text)}],
                 tokenize=False, add_generation_prompt=True, enable_thinking=False,
@@ -191,7 +196,7 @@ def main():
 
     torch.cuda.reset_peak_memory_stats()
     targs = TrainingArguments(
-        # Outside the repo. Nothing is saved here (save_strategy="no"), but the Trainer creates the directory regardless and the repo's cache/ holds model answers only.
+        # Outside the repo. The Trainer creates the directory regardless, and the repo's cache/ holds model answers only.
         output_dir=str(ADAPTERS.parent.parent / "scratch" / "trainer_toxicity"),
         per_device_train_batch_size=args.batch_size,
         gradient_accumulation_steps=args.grad_accum,

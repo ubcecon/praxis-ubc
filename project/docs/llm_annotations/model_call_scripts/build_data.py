@@ -19,6 +19,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from model_call_scripts import paths  # noqa: E402  (sets HF_HOME on import)
 from model_call_scripts.cached_run import (  # noqa: E402
     DATA, N_EVAL_PER_CLASS, N_PROBE_PER_CLASS, N_TRAIN, SEED, TOXIC_BAR, balanced_sample,
 )
@@ -121,7 +122,7 @@ def build_civil():
 # ----------------------------------------------------------------- wikipedia detox
 
 FIGSHARE = "https://api.figshare.com/v2/articles/4563973/files"
-DETOX_CACHE = Path(r"D:\ml_cache\detox")     # 114 MB of source tsv, kept out of the repo
+DETOX_CACHE = paths.DETOX       # 114 MB of source tsv, kept out of the repo
 N_PER_CLASS = 400
 
 
