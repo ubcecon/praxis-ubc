@@ -1,7 +1,7 @@
 ---
 title: Understanding the Website and Repository
 author: Alex Ronczewski
-date: 2026-07-19
+date: 2026-08-26
 number-sections: true
 ---
 
@@ -14,10 +14,13 @@ number-sections: true
 5. [Navigation & Index Pages](#5-navigation--index-pages)
 6. [GitHub Actions CI/CD Pipeline](#6-github-actions-cicd-pipeline)
 7. [Local Development & Testing](#7-local-development--testing)
+8. [Adding Content End to End](#8-adding-content-end-to-end)
+9. [Maintenance, Known Issues and Gotchas](#9-maintenance-known-issues-and-gotchas)
+10. [Handover Notes](#10-handover-notes)
 
 ## 1. Overview
 
-This notebook will go over the structure of the praxis-ubc repository and website including all of the build pipelines, and files powering them. This is not a style guide or repository guidelines, those can be found under `praxis-ubc\documentation\style_guide` and `README.md`. 
+This markdown doc will go over the structure of the praxis-ubc repository and website including all of the build pipelines, and files powering them. This is not a style guide or repository guidelines, those can be found under `praxis-ubc\documentation\style_guide` and `README.md`.
 
 The repository uses:
 
@@ -25,24 +28,60 @@ The repository uses:
 - **Docker** for Containerization
 - **GitHub Actions** for CI/CD Pipelines
 
+Sections 1 to 7 explain how everything works. Section 8 is the checklist for adding a notebook, section 9 is a list of the problems we have run into and how to fix them, and section 10 is a handover section covering what has been added, what is unfinished, and where the accounts live. If you are new to the repository, sections 9 and 10 are probably the most useful place to start.
+
 ## 2. Repository Structure
 
-The key file paths are: 
+The key file paths are:
 
-| File/Directory                         | Purpose                                         |
-|-----------------------------------------|-------------------------------------------------|
-| .github/workflows/comet_main.yml        | Automates Build & Deployment                    |
-| meta/building/.dockerfile               | Defines build environment                       |
-| meta/building/sub_new.dockerfile        | Base image configuration                        |
-| meta/scripts/clean_ipynb_titles.py      | Preprocesses notebook metadata used in comet_main.yml |
-| project/_quarto.yml                     | Site configuration & navigation                 |
-| project/docs/                           | Content files (.qmd, .ipynb, .html, media, datasets) |
-| project/pages/index/                    | Homepage & index pages                          |
-| .gitignore                              | Excludes files from version control             |
-| .gitattributes                          | Configures Git LFS                              |
+| File/Directory                          | Purpose                                                            |
+|-----------------------------------------|--------------------------------------------------------------------|
+| .github/workflows/comet_main.yml        | The real build & deploy workflow                                    |
+| .github/workflows/main.yml              | Older cut-down copy of the same workflow, kept as a fallback        |
+| meta/building/.dockerfile               | Defines the build environment, renders the site                     |
+| meta/building/sub_new.dockerfile        | Base image configuration, pushed to DockerHub separately            |
+| meta/building/launch_notebook.html      | Per-notebook "Launch this notebook" button, injected at build time  |
+| meta/building/renv.lock                 | R package lockfile copied into the image                            |
+| meta/scripts/clean_ipynb_titles.py      | Rewrites the YAML header into a title block after `quarto convert`  |
+| meta/scripts/convert_ipynb_callouts.py  | Rewrites Quarto callouts as HTML tables for Jupyter/Colab           |
+| meta/scripts/clean_ipynb_images.py      | Rewrites Quarto figure/column layouts as plain HTML                 |
+| meta/scripts/add_colab_setup.py         | Adds the Colab data-clone cell to each converted notebook           |
+| meta/scripts/re_render_qmd_files.py     | Retired helper from the old pre-rendered .html workflow             |
+| meta/testing/linter.py                  | Very small .qmd sanity checker run at the start of the workflow     |
+| project/_quarto.yml                     | Site configuration & navigation                                     |
+| project/_freeze/                        | Pre-computed code output, this is what puts results on the website  |
+| project/_extensions/                    | Quarto Lua filters (`answers`, `collapse-callout`)                  |
+| project/comet_theme.scss                | Light theme                                                         |
+| project/comet_theme_dark.scss           | Dark theme                                                          |
+| project/comet_theme.json                | Light code syntax highlighting                                      |
+| project/comet_theme_dark.json           | Dark code syntax highlighting                                       |
+| project/styles.css                      | Plain CSS applied on top of both themes                             |
+| project/metadata.html                   | Injected into `<head>`: SEO keywords, analytics, theme image swap    |
+| project/scroll_to_top.html              | Injected into `<body>`: the back-to-top button                      |
+| project/404.qmd                         | Custom not-found page                                               |
+| project/index.qmd                       | Homepage                                                            |
+| project/docs/                           | Content files (.qmd, media, datasets)                               |
+| project/pages/index/                    | Class and stream landing pages                                      |
+| project/media/                          | Site-level images, logos and the stream icons used as thumbnails    |
+| .gitignore                              | Excludes files from version control                                 |
+| .gitattributes                          | Configures Git LFS                                                  |
+| .dockerignore                           | Limits what gets sent to the Docker daemon                          |
 
+If you are working on purely notebooks and not on the repository "backend" aspects of prAxIs then the most important directory for you `project/docs/`. All of the notebooks, media and datasets which they run of are here under folders for each topic/class.
 
-If you are working on purely notebooks and not on the repository or "backend" aspects of prAxIs then this the most important directory for you `project/docs/`. All of the notebooks, media and datasets which they run of are here under folders for each topic/class. 
+### 2.1 The Branch Model
+
+There are three branches that actually matter, everything else is feature work that gets merged into `main` and deleted.
+
+| Branch             | Who writes to it            | What lives there                                                       |
+|--------------------|-----------------------------|------------------------------------------------------------------------|
+| `main`             | You, via pull request       | Source of truth: .qmd sources, `_freeze`, config, workflows, data       |
+| `praxis-notebooks` | The workflow, via a bot PR  | Converted .ipynb files plus their data, this is what students launch    |
+| `gh-pages`         | The workflow, force-pushed  | Rendered static HTML, this is what the public website serves            |
+
+You never edit `praxis-notebooks` or `gh-pages` by hand. They are both outputs of `comet_main.yml`. `gh-pages` is overwritten completely on every deploy, and `praxis-notebooks` receives a pull request from a bot branch called `praxis-notebooks-update` which you review and merge.
+
+`praxis-notebooks` holds both the .qmd and the converted .ipynb for every notebook, since JupyterOpen and Colab need the .ipynb while some people prefer working from the .qmd. There is also a stray `final-notebooks/` directory at its root left over from an old run of the workflow. Nothing links to it and it causes no problems, but it is safe to delete.
 
 ## 3. Docker Build System
 
@@ -68,15 +107,23 @@ This base dockerfile is saved to [DockerHub](https://hub.docker.com/) so it can 
 - Creates an output directory with `mkdir`
 - Renders the entire website with `quarto render --output-dir /app/output`. Because `_quarto.yml` sets `freeze: true`, no notebook code is executed during this render: all code output comes from the pre-computed freeze cache committed under `project/_freeze`. This is how the website shows code output without the Docker image needing any Python/R packages or datasets, see [6.2 Showing Code Output with Quarto Freeze](#62-showing-code-output-with-quarto-freeze).
 - Strips any leftover `polyfill.io` script tag out of the rendered HTML with a `sed` command. The current base image already uses a Quarto version that never adds this script, so this step is really just a leftover from the malware fix. It can be dropped in the future, but right now it causes no issue so it stays.
-- Injects the per-notebook "Launch this notebook" button by appending `meta/building/launch_notebook.html` into the `<body>` of every rendered page. This is described in [4. Quarto Configuration & Website Structure](#4-quarto-configuration--website-structure).
+- Injects the per-notebook "Launch this notebook" button by appending `meta/building/launch_notebook.html` into the `<body>` of every rendered page. This is described in [4.5 The Per-Notebook Launch Button](#45-the-per-notebook-launch-button).
 
 Finally it starts from nginx:alpine base for minimal resource use. Alpine Linux is very lightweight so it is perfect for this use case.  It then copies the rendered HTML content into Nginx’s served directory and finally exposes port 80 and runs Nginx in foreground mode.
 
-It is important to note that all of the file path's in this section like `/app/output` don't exist on the repository and rather exist within the Docker image's and can't be accessed and manipulated the same way as path's in Windows File Explorer or the Github Repository. 
+It is important to note that all of the file path's in this section like `/app/output` don't exist on the repository and rather exist within the Docker image's and can't be accessed and manipulated the same way as path's in Windows File Explorer or the Github Repository.
+
+### .dockerignore
+
+`.dockerignore` at the repository root controls what gets sent to the Docker daemon when the image is built. It excludes `.git`, `project/_site`, `project/site_libs`, `project/.quarto` and every `__pycache__`, which keeps the build context small and stops stale local render output from ending up in the image.
+
+There is a warning comment at the top of that file: never add `project/_freeze` or anything under `project/docs` to `.dockerignore`. The freeze cache is the only source of code output on the website, so excluding it strips every plot and printed result from the built site. The pages still render, they just come out with empty output blocks, which is easy to miss until someone reports it.
 
 ## 4. Quarto Configuration & Website Structure
 
-The "Instructions" for Quarto building the website are located under `project/_quarto.yml` The file explicity specifies that this project is a website and along with other configuration like how to behave during preview and what resources to use. 
+The "Instructions" for Quarto building the website are located under `project/_quarto.yml` The file explicity specifies that this project is a website and along with other configuration like how to behave during preview and what resources to use.
+
+### 4.1 render, resources and execute
 
 Under **render:** _quarto.yml specifies which files and folders to include in the build process for the website. We include:
 
@@ -86,33 +133,107 @@ Under **render:** _quarto.yml specifies which files and folders to include in th
 - "*.ipynb"
 - "*.r"
 
-These tags all include `*` meaning that Quarto include files by pattern `media/*` means all files under folders called media/ are included and `*.qmd` means all .qmd files are included. When we use `!` it means we are ignoring these files. For our .qmd and .ipynb files we also have tags under **execute**:
+These tags all include `*` meaning that Quarto include files by pattern `media/*` means all files under folders called media/ are included and `*.qmd` means all .qmd files are included. When we use `!` it means we are ignoring these files.
+
+There are three `!` exclusions on `main` at the moment and each is there on purpose:
+
+- `!in_progress/*` is a general catch-all for draft material.
+- `!docs/CTree_CEA/ctree_cea_2026/praxis_presentation.qmd` is a Reveal.js conference presentation, so it is not a web page we need to display/render.
+- `!docs/setup_rise.ipynb` is the one-time RISE setup notebook. It is meant to be *run*, not read, so it ships to `praxis-notebooks` but never becomes a page. See `documentation/rise_documentation.qmd`.
+
+Above `render:` there is also a **resources:** block. Quarto only copies files it knows about into the output, so anything referenced by raw HTML instead of Markdown has to be listed here explicitly. That is why the placeholder images for the listing cards and the two animated logo gifs appear in that list. If you add a new asset and it 404s on the built site but works in preview, this block is the first place to look.
+
+For our .qmd and .ipynb files we also have tags under **execute**:
 
 - eval: false means notebooks are not executed during site build.
 - keep-ipynb: false indicates not to keep output .ipynb files.
 - cache: false avoids using or keeping any cache created by computations.
 - freeze: true means the build never executes code, it re-uses the pre-computed results committed under `project/_freeze`. Notebooks that should show code output override `eval` in their own header and are executed once locally by the author, see [6.2 Showing Code Output with Quarto Freeze](#62-showing-code-output-with-quarto-freeze).
 
-The next section of `project/_quarto.yml` corresponds to the websites appearance and navigation. We can configure all aspects of how the final website looks including: favicon, footer, navbar, title etc. The most important is the Navbar section which represents the Navigation Bar at the top of the [prAxIs Website](https://ubcecon.github.io/praxis-ubc/). We created the navbar itself and then add tags for text and file paths. An example of this is: 
+### 4.2 Navigation and the Launch Menu
+
+The next section of `project/_quarto.yml` corresponds to the websites appearance and navigation. We can configure all aspects of how the final website looks including: favicon, footer, navbar, title etc. The most important is the Navbar section which represents the Navigation Bar at the top of the [prAxIs Website](https://ubcecon.github.io/praxis-ubc/). We created the navbar itself and then add tags for text and file paths. An example of this is:
 
 ```{bash}
 - text: "SOCI-280"
  file: pages/index/index_SOCI280.qmd
 ```
 
-Which creates a button with "SOCI-280" written on it that redirects to the page: `pages/index/index_SOCI280.qmd` which acts as a landing page for all of our SOCI-280 related notebooks and outline. 
+Which creates a button with "SOCI-280" written on it that redirects to the page: `pages/index/index_SOCI280.qmd` which acts as a landing page for all of our SOCI-280 related notebooks and outline.
 
-Lower down we have the Launch prAxIs menu which consists of links for JupyterOpen, Syzygy, Google Collab, Local Download and the Github Repository. The links for JupyterOpen, Syzygy, and Google Collab pulls the praxis-notebooks branch of the repository and opens it in the online code editor. Finally we have the `format:` section where we select **.css** themes from `styles.css` and `comet_theme.scss`. This section also enables lightbox (`lightbox: match: auto`), which lets readers click any image or plot on the site to zoom it full screen. The `match: auto` setting applies it to every figure automatically, no per-image unique code is needed.
+Lower down we have the Launch prAxIs menu which consists of links for JupyterOpen, Syzygy, Google Collab, Local Download and the Github Repository. The links for JupyterOpen, Syzygy, and Google Collab pulls the praxis-notebooks branch of the repository and opens it in the online code editor.
 
-The Launch prAxIs menu above launches the *whole* repository. There is also a **per-notebook launch button**: every rendered notebook page on the website gets a small "Launch this notebook" dropdown (with JupyterOpen and Google Colab options) directly under its title. This button is not part of `_quarto.yml`, it is injected at build time by the `.dockerfile`, which appends `meta/building/launch_notebook.html` into each page. That HTML file holds a hard-coded list of the notebooks that should get the button along with the JupyterOpen/Colab URLs they point to, so if you add a new launchable notebook you have to add its path to that list. JupyterOpen pulls the notebook's data folder by itself through its `git-pull` link, but Colab does not, so the workflow also runs `add_colab_setup.py` (described in Section 6.1) to add a setup cell that clones the data folder when the notebook is opened in Colab.
+Every one of those links is a hand-written URL with the branch name `praxis-notebooks` baked into it. The JupyterOpen and Syzygy links are `git-pull` URLs with the repository URL percent-encoded in a query parameter, the Colab link points at `github/ubcecon/praxis-ubc/blob/praxis-notebooks/`, and Launch Locally is a GitHub zip download of the same branch. If the branch is ever renamed, all five of these break.
 
-Inside `format:` there is also `include-in-header: metadata.html`. This injects `project/metadata.html` into the `<head>` of every page. That file holds the site's SEO keywords plus two analytics tools we use to track how people find and use the site: a **Google Search Console** verification tag (which lets us see search traffic, the queries people search, and indexing data in [Search Console](https://search.google.com/search-console)) and a **Cloudflare Web Analytics** beacon (which gives us page view and visitor counts without using cookies). If you ever need to move the analytics to a different account, the verification token and the Cloudflare beacon token both live in `project/metadata.html`.
+One oddity in the navbar: on the right side there is an entry that is literally `text: " | "` with `href: "#"`. It is only there as a visual separator between the Launch menu and the GitHub icon on desktop. On mobile it would show up as a stray menu row, so `styles.css` and both theme files hide it with a selector that targets nav links whose `href` ends in `#` and which are not dropdown toggles. If you add a real nav item whose href is `#` it will disappear on mobile, and this is why.
 
-It also contains a small script that swaps the light and dark versions of images when the site theme is toggled. 
+### 4.3 Themes, Syntax Highlighting and CSS
+
+Inside `format:` we select the light and dark Bootstrap themes (`comet_theme.scss` and `comet_theme_dark.scss`), the light and dark code highlight styles (`comet_theme.json` and `comet_theme_dark.json`), and the plain stylesheet `styles.css`. Quarto puts a light/dark toggle in the navbar automatically once two themes are declared.
+
+The two `.scss` files define the palette as Sass variables (`$primary`, `$navbar-bg`, `$body-bg`, `$code-block-bg` and so on) and then add a block of `scss:rules` overrides underneath. The dark theme carries extra rules the light one does not need, mostly because ipywidgets output (which is used in some interactive notebooks) ignores the Sass theme entirely and has to be forced to the right colour with `!important`, and because Quarto falls back to a light-theme default for `$code-block-bg` if you leave it unset, which makes the dark theme + inpywidget output look very ugly.
+
+The two `.json` files are Quarto syntax highlighting themes. They exist so the code cells match the site palette instead of using Quarto's stock highlighting.
+
+`styles.css` handles everything that is not a theme variable: navbar sizing, the fixed 56px header height, the mobile burger-menu fix, and the hover-lift animation on the listing cards. The card section contains two workarounds. The thumbnails are forced to `height: 200px` to beat an inline 150px that Quarto writes into the markup, and thumbnails whose path contains `stream_icons/` get `object-fit: contain` instead of the default crop, because those icons are full-bleed designs that look wrong cropped. The hover block is wrapped in a `prefers-reduced-motion` guard.
+
+One important thing about the navbar CSS: it is triplicated. The navbar and mobile-menu rules exist in `styles.css`, `comet_theme.scss` and `comet_theme_dark.scss`. Quarto compiles the two `.scss` files independently and the plain CSS loads at a different point in the cascade, and getting the fixed-height navbar to behave in both themes was easier with all three copies than with one. So **if you change a navbar rule you have to change it in all three files**, otherwise the site looks correct in one theme and broken in the other.
+
+### 4.4 Lightbox, Scroll-to-Top, and the Header Injection
+
+`format:` also enables lightbox (`lightbox: match: auto`), which lets readers click any image or plot on the site to zoom it full screen. The `match: auto` setting applies it to every figure automatically, no per-image unique code is needed.
+
+`include-after-body:` is a list of two files that are injected at the end of every page, `scroll_to_top.html` and `command_palette.html`. The second one is covered in [4.7 Site Search and the Command Palette](#47-site-search-and-the-command-palette). If you add a third, remember this key only takes a list because it was changed from a single value, so keep the list syntax.
+
+`project/scroll_to_top.html` is self-contained: it is a `<button>`, a `<style>` block, and a small script. The button is hidden until the reader scrolls past 300px, at which point a class toggle fades it in. It colours itself from `var(--bs-primary)` with a hard-coded fallback, which is why it follows the active theme without needing a copy per theme.
+
+`include-in-header: metadata.html` injects `project/metadata.html` into the `<head>` of every page. That file holds three separate things:
+
+1. The site's SEO keywords.
+2. Two analytics tools we use to track how people find and use the site: a **Google Search Console** verification tag (which lets us see search traffic, the queries people search, and indexing data in [Search Console](https://search.google.com/search-console)) and a **Cloudflare Web Analytics** beacon (which gives us page view and visitor counts without using cookies). If you ever need to move the analytics to a different account, the verification token and the Cloudflare beacon token both live in `project/metadata.html`.
+3. A small script that swaps the light and dark versions of images when the site theme is toggled. It looks for any `<img>` carrying both a `data-light-src` and a `data-dark-src` attribute and rewrites its `src` when `body` gains or loses the `quarto-dark` class, watching for that with a `MutationObserver`. The homepage logo is the main user of this. If you want a new image to be theme-aware, you write it as raw HTML with those two data attributes instead of Markdown.
+
+### 4.5 The Per-Notebook Launch Button
+
+The Launch prAxIs menu in the navbar launches the *whole* repository. There is also a **per-notebook launch button**: every rendered notebook page on the website gets a small "Launch this notebook" dropdown (with JupyterOpen and Google Colab options) directly under its title.
+
+This button is not part of `_quarto.yml`. It is injected at build time by the `.dockerfile`, which appends `meta/building/launch_notebook.html` into the `<body>` of every rendered page. The injection is guarded: the `sed` command only runs on files that do not already contain the string `praxis-launch-notebook`, so re-running the build never double-injects it.
+
+Because it is appended to every page, the script works out on its own whether the page it is on should get a button. It does this at load time:
+
+1. It looks for `/docs/` in `window.location.pathname`. If the path does not contain it, this is a landing page or a static page, so the script stops.
+2. It strips the leading path and the `.html` extension, producing something like `docs/OCR/ocr_notebook`.
+3. It checks that string against a hard-coded `NOTEBOOKS` array at the top of the file. If it is not in the list, the script stops.
+4. If it is in the list, it builds two URLs and injects a Bootstrap dropdown into `#title-block-header`, falling back to the top of `main.content` if that header does not exist.
+
+This means adding a notebook to the website does not give it a launch button. You have to add its `docs/CLASS/filename` path (no extension) to the `NOTEBOOKS` array by hand. 
+
+The two URLs the script builds behave differently:
+
+- **JupyterOpen** gets a `git-pull` URL with `urlpath` pointing at the specific notebook and `branch=praxis-notebooks`. JupyterOpen clones the whole branch, so the notebook's data folder comes along for free and relative paths just work.
+- **Colab** gets a plain `colab.research.google.com/github/...` URL. Colab fetches *only the single .ipynb file*, so relative data paths would break. That is what `add_colab_setup.py` exists for, see [6.1](#61-explaining-comet_mainyml).
+
+### 4.6 Quarto Extensions
+
+`project/_extensions/` holds two Lua filters.
+
+`answers` is ours (made by Professor Graves). It is declared globally in `_quarto.yml` under `filters:`, so it runs on every page. It supports the hidden-answer blocks used in the exercise sections of notebooks.
+
+`collapse-callout` is a third-party filter from `shafayetShafee` that makes callout blocks collapsible in HTML output. It is **not** declared globally. It is opted into per file, in that file's own header, along with a config block saying which callout types default to collapsed. The homepage does this, and a handful of notebooks use `::: {.callout-note collapse="true"}` directly.
+
+Both extensions are committed into the repository instead of being installed at build time. This is intentional, the Docker build cannot run `quarto add`, so an extension that is not committed will not be there when the site builds.
+
+### 4.7 Site Search and the Command Palette
+
+Search is configured in the `website:` block of `_quarto.yml`. It used to be a bare `search: true`, and is now a block that sets `location: navbar`, `type: overlay`, `limit: 20`, `collapse-after: 2`, `show-item-context: true` and `keyboard-shortcut: ["/"]`. 
+
+The search index itself is generated by Quarto at build time into `search.json` at the site root. You do not maintain it, but it does mean search only knows about pages that were in the render.
+
+`project/command_palette.html` is injected through `include-after-body` and does the rest. It re-skins Quarto's search widget to match the site palette, defines a light and dark set of `--px-pal-*` custom properties, and adds a `Ctrl+K` / `Cmd+K` handler on top of the `/` shortcut Quarto already provides. The keyboard handler calls `window.quartoOpenSearch()`, which is a global that `quarto-search.js` exposes once it has initialised, so the handler checks the function exists before doing anything.
 
 ## 5. Navigation and Index Pages
 
-Under `project/pages/index` there are .qmd index files for each class and one for all pages. Each of these files have a .qmd style header with the title and then `contents:`. Here the contents are file paths which are showed under the Class landing page. 
+Under `project/pages/index` there are .qmd index files for each class and one for all pages. Each of these files have a .qmd style header with the title and then `contents:`. Here the contents are file paths which are showed under the Class landing page.
 
 An example of this is the Index for SOCI 280:
 ```{bash}
@@ -123,7 +244,30 @@ An example of this is the Index for SOCI 280:
 
 When we navigate to the [SOCI-280 Page](https://ubcecon.github.io/praxis-ubc/pages/index/index_SOCI280.html) on the website we see that there are two notebooks below, the first being `SOCI-280/soci_280_bert` and the second being the `soci_280_lesson_plan`.
 
-For each index below the .qmd header there space for a text block which has information on the class and sometimes has the Lesson Plan. 
+For each index below the .qmd header there space for a text block which has information on the class and sometimes has the Lesson Plan.
+
+### 5.1 How a Listing Card is Built
+
+The listing block in each index file does more than list paths. The important keys are:
+
+- `id:` names the listing. Further down the page there is an empty div with the matching id (`::: {#all}` / `:::`) and that div is where Quarto injects the rendered cards. If you copy an index file and forget to rename *both*, the cards render into the wrong place or not at all.
+- `type: grid` gives the card layout. Quarto also offers `default` and `table`.
+- `fields: [image, title, date, description]` decides which pieces of front matter appear on each card.
+- `categories: true` produces the clickable tag filter down the right side.
+- `image-placeholder:` is the fallback thumbnail for any entry that does not declare its own.
+- `sort: false` keeps the listed order instead of sorting by date. The stream indexes use this because the notebooks are meant to be read in numbered order.
+
+Everything a card shows comes out of the **target notebook's own YAML header**, not the index file. A notebook that should appear on a listing needs `title`, `date`, `description`, `image` and `categories` in its header. The `image` path is site-absolute (`/media/stream_icons/whatever.png`), which is why it resolves correctly from an index page two directories down.
+
+The card thumbnails for the multi-notebook streams live in `project/media/stream_icons/`. They are named per notebook so each entry in a stream gets its own icon.
+
+The `categories` values drive the tag filter, and the filter is a plain string match. A notebook tagged `machine learning` and another tagged `Machine Learning` produce two separate filter entries that each show half the results. Keep tags lowercase and consistent with what already exists on the site before inventing a new one.
+
+### 5.2 Adding, Hiding and Removing Entries
+
+The convention used throughout these files is to comment a line out with `#` rather than delete it when something is temporarily off the site. You can see this in `all.qmd`, where the transformers notebook and one lesson plan are commented out, and in `_quarto.yml`, where the HIST-414 navbar entry is commented out. If a page seems to have vanished from the site, grep for its filename with the comment markers included before assuming it was deleted.
+
+A notebook has to be listed in **two** places to be fully visible: its own class or stream index, and `pages/index/all.qmd`, which is what the "All Topics" navbar item points at. Adding it to only one is the usual mistake.
 
 ## 6. GitHub Actions CI/CD Pipeline
 
@@ -134,10 +278,12 @@ This section is much longer so it will be subdivided into:
 
 ### 6.1 Explaining comet_main.yml
 
-**comet_main.yml** can be found under `.github/workflows/comet_main.yml` it is the most important file in the repository as it automates building, preparing, rendering, syncing, and deploying our notebooks to the website. This is a Github Actions workflow which can be manually activated at the [Actions: Build and Deploy section of the Github Repository](https://github.com/ubcecon/praxis-ubc/actions/workflows/comet_main.yml). 
-Many workflows trigger on pull request or commit, we only want to update the website when we are are sure the changes are correct and ready for deployment, so our workflow only triggers manually because of `workflow_dispatch:` does not have any associated variable below it. 
+**comet_main.yml** can be found under `.github/workflows/comet_main.yml` it is the most important file in the repository as it automates building, preparing, rendering, syncing, and deploying our notebooks to the website. This is a Github Actions workflow which can be manually activated at the [Actions: Build and Deploy section of the Github Repository](https://github.com/ubcecon/praxis-ubc/actions/workflows/comet_main.yml).
+Many workflows trigger on pull request or commit, we only want to update the website when we are are sure the changes are correct and ready for deployment, so our workflow only triggers manually because of `workflow_dispatch:` does not have any associated variable below it.
 
-We will go through each section and explain what each job and related sub-job does. 
+There is a second workflow file, `.github/workflows/main.yml`, with the same display name ("Build and Deploy"). It is an older cut-down copy that has only the `build` and `deploy` jobs, so it publishes the website without touching `praxis-notebooks` at all. It is kept as a fallback for when you want to push a website-only change quickly, and because the two share a display name it is easy to launch the wrong one from the Actions tab. **Check which file you are running before you dispatch it.** If you only ever need one, `comet_main.yml` is the one to keep. `comet_main.yml` is also pinned on Github for that reason. 
+
+We will go through each section and explain what each job and related sub-job does.
 
 #### The `Build` Job: 
 
@@ -167,30 +313,35 @@ This job depends on the successful completion of the `Build` Job.
 1. Checkout Source Notebooks:
 Checks out all notebooks and supporting files into a directory named `source-notebooks`.
 
-2. Remove Rendered Files:
-Deletes previously rendered (output) HTML and Markdown files from the source notebooks directory to avoid including them in later steps.
+2. Fetch LFS Content for the Scans OCR Loads:
+Runs `git lfs pull --include="*.jp2"` inside the checked-out copy. Git LFS files arrive as small pointer text files on a normal checkout, so without this step the OCR notebook ships to `praxis-notebooks` with pointer stubs instead of the actual scans and fails the moment a student runs it.
 
-3. Checkout Datasets:
+Do not make this a blanket LFS pull. If a data file ever comes through as a pointer the tempting fix is to set `lfs: true` on the checkout or drop the `--include` filter, but `.gitattributes` tracks `*.data`, `*.db`, `*.dta`, `*.pth`, `*.npy` and `*.jp2` through LFS, and one of those is a 1.7 GB `latest.db` in SOCI-415. Pulling all of it blows up the runner's disk and the workflow time. `.jp2` is the only LFS-tracked type the notebooks load at runtime. If a new notebook needs another LFS type, add that one extension to the `--include` list. There is a comment saying this above the step in `comet_main.yml`.
+
+3. Remove Rendered Files:
+Deletes previously rendered (output) HTML and Markdown files from the source notebooks directory to avoid including them in later steps. This is a leftover from the pre-freeze workflow and is mostly a no-op now, but it also strips stray `.md` files, which is why files like `possible_extensions.md` do not end up on `praxis-notebooks`.
+
+4. Checkout Datasets:
 Retrieves the latest datasets from the main branch, into a directory named datasets.
 
-4. Organize Structure:
+5. Organize Structure:
 
-- Uses rsync to copy only desired files these include notebooks, data, and image types from `source-notebooks/project/docs/` to `final-notebooks/docs/`. If new files are being added it is important to check that the file extension is present here. You can see the list of file ending in a list on this step. 
+- Uses rsync to copy only desired files these include notebooks, data, and image types from `source-notebooks/project/docs/` to `final-notebooks/docs/`. If new files are being added it is important to check that the file extension is present here. You can see the list of file ending in a list on this step.
 - Iterates over a list of notebook directories, checks for dataset directories in these notebook directories, and copies them into the final structure.
 - If the dataset directory isn't found, it prints a warning.
 - Outputs the path of the prepared notebooks directory for subsequent jobs.
 
-5. Create Master ZIP of All Notebooks:
+6. Create Master ZIP of All Notebooks:
 Zips up all files in `final-notebooks/docs/` into `all-notebooks.zip` which can be easily downloaded.
 
-6. Upload Notebooks Artifact:
+7. Upload Notebooks Artifact:
 Uploads the prepared notebooks as an artifact named notebooks.
 
-7. Upload ZIP Artifact:
+8. Upload ZIP Artifact:
 Uploads the zipped notebook collection as an artifact named `all-notebooks-zip`. The workflow errors if no such file is found.
 
-8. Print Directory Structure:
-Prints the complete tree of final-notebooks for debugging and review.
+9. Print Directory Structure:
+Prints the complete tree of final-notebooks for debugging and review. This is the easiest way to debug a missing-data problem, since it shows exactly what survived the rsync filter.
 
 #### The `render-notebooks` Job:
 
@@ -214,6 +365,8 @@ Installs a compatible Python version for use by conversion and cleaning scripts.
 - Converts each .qmd (Quarto Markdown) notebook to .ipynb (Jupyter Notebook) using the `quarto convert` command, skipping files with "plan" or "stub" in their name to ignore lesson plans and redirect stubs.
 - Runs the four scripts on each converted .ipynb in order, warning if conversion fails.
 
+The `find` that drives this loop has three filters on it and each one is there for a reason. `! -path "*/slideshow/*"` skips Reveal.js presentation sources, which are not notebooks and produce garbage when converted. `! -name "*plan*"` skips lesson plans, which are prose documents for instructors. `! -name "*stub*"` skips redirect stubs, which no longer exist after the freeze migration but the filter is harmless and cheap to leave in place. **These are substring matches on the whole filename**, so a notebook called `notebook_05_designing_data.qmd` is fine but one called `notebook_05_lesson_planning.qmd` would be silently skipped. Watch out for that when naming files.
+
 It is important to note what this Python script does and why it is here. There was an issue when we *launch* the notebooks to JupyterOpen, Google Collab or any other online code execution platform that the titles on the .ipynb Jupyter notebooks were not displaying correctly. It is caused by the command `quarto convert` and how it works. Quarto expects the first cell to be a raw cell, but the conversion process sometimes creates it as a markdown cell instead. This lead to the titles being displayed in a very ugly manner. The fix is running the `clean_ipynb_titles.py` Python script on all of the .ipynb files. 
 
 The script parses out the YAML using regular expressions, extracts key information: title, author, and date, then replaces the YAML block with formatted Markdown content so it is displayed correctly. The rest of the first cell's content is retained after the generated title block. This fixes the ugly titles.
@@ -224,9 +377,13 @@ The other three scripts were added later and all deal with the same underlying i
 
 `clean_ipynb_images.py` handles images. Quarto's figure and multi-column layouts (`::: {layout-ncol=2}`, `::: {.columns}`, and `![alt](src){width="50%"}` style attributes) do not render in Jupyter or Colab, so images go missing or the attributes print as literal text. The script rewrites these blocks as plain HTML image tables that display anywhere, and drops the trailing `{...}` attribute clutter.
 
-`add_colab_setup.py` supports the per-notebook launch button (see [4. Quarto Configuration & Website Structure](#4-quarto-configuration--website-structure)). It inserts a setup cell near the top of the notebook that, clones that notebook's data folder from the `praxis-notebooks` branch so the notebook's relative data paths resolve. The cell does nothing on JupyterOpen, which already pulls the data folder through its launch link.
+`add_colab_setup.py` supports the per-notebook launch button (see [4.5 The Per-Notebook Launch Button](#45-the-per-notebook-launch-button)). It inserts a setup cell near the top of the notebook that clones that notebook's data folder from the `praxis-notebooks` branch so the notebook's relative data paths resolve. The cell does nothing on JupyterOpen, which already pulls the data folder through its launch link.
 
-The scripts run in order (titles, callouts, images, then Colab setup). 
+It detects Colab by wrapping the cell body in a `try: import google.colab` / `except ImportError: pass`, so on any other platform the cell does nothing. On Colab it runs a sparse, blob-filtered, depth-1 clone of `praxis-notebooks`, sets the sparse-checkout to that notebook's directory, and `%cd`s into it. The sparse checkout is what keeps this fast, without it Colab would pull the entire branch including every dataset in every course.
+
+The script works out which directory to check out by finding `docs` in the notebook's path and taking everything from there to the parent folder. It inserts the cell at index 1 if the first cell is markdown (which it is, because `clean_ipynb_titles.py` has already run and put the title block there) and at index 0 otherwise, so the setup cell is always the first thing a student runs.
+
+The scripts run in order (titles, callouts, images, then Colab setup) and **that order matters**. `clean_ipynb_titles.py` has to be first because it creates the markdown title cell that `add_colab_setup.py` positions itself against, and `add_colab_setup.py` has to be last because it should not have its own cell rewritten by the callout and image scripts.
 
 6. Upload Converted Notebooks:
 Uploads the rendered (converted and cleaned) notebooks as an artifact named rendered-notebooks. Fails if no files are found.
@@ -252,6 +409,8 @@ Sets the git user name and email for making commits as a GitHub Actions bot.
 5. Create Pull Request:
 Uses the `peter-evans` action to create a pull request from a temporary branch (praxis-notebooks-update) to the `praxis-notebooks` branch (this is the branch that is pulled in `_quarto.yml` for the launch menu), containing the latest rendered notebooks and datasets. The PR includes a formatted body and commit title/message. The temporary sync branch is deleted after the PR is created.
 
+This is the one step in the pipeline that still needs a person. The workflow finishing successfully does not mean the launchable notebooks are updated, it means a pull request is waiting. Until someone merges it the website has the new content and JupyterOpen/Colab still have the old. This is almost always the cause when a notebook has been updated on the site but the launch button still opens the old version.
+
 #### The `Deploy` Job:
 
 This job depends on the successful completion of the `Build` Job. Meaning it can run even if prepare, render and sync notebooks all fail. 
@@ -270,15 +429,28 @@ Uses the `peaceiris` GitHub Pages action to publish everything in site-content t
 
 That is all of the jobs in **comet_main.yml**, before we move on to Section 6.2 there are some minor remarks which can be helpful for editing the **comet_main.yml**.
 
+##### Minor remarks for comet_main.yml
+
 1. Github Secrets:
 
-Certain Jobs require admin permissions (Creating a Pull Request and Deploying to Github Pages), in order to not put tokens and access codes in a public repository we use Github Secrets. This is a security measure, you can read more [here](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets).
+Certain Jobs require admin permissions (Creating a Pull Request and Deploying to Github Pages), in order to not put tokens and access codes in a public repository we use Github Secrets. This is a security measure, you can read more [here](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets). Both jobs currently use the built-in `secrets.GITHUB_TOKEN`, which GitHub creates for each run automatically, so there is no personal access token to rotate and nothing expires. If the PR creation ever starts failing with a permissions error, check Settings -> Actions -> General -> Workflow permissions on the repository, because that setting controls what the built-in token is allowed to do.
 
 2. Ref:
 
-Often you have to run **comet_main.yml** on a different branch to test some new change. You will have to change the `Ref:` tag on *Checkout datasets* from `prepare notebooks` and *Checkout main branch* from `sync-notebooks`. If the `Ref:` tags are not changed the workflow will fail. 
+Sometimes you have to run **comet_main.yml** on a different branch to test some new change. You will have to change the `Ref:` tag on *Checkout datasets* from `prepare notebooks` and *Checkout main branch* from `sync-notebooks`. If the `Ref:` tags are not changed the workflow will fail.
 
-3. If you have trouble visualizing the output and how all of these jobs link together you can view the workflow visually at [The Github Actions Page](https://github.com/ubcecon/praxis-ubc/actions/runs/19557283413), here you can see the run time and output of each job and sub-job. 
+The reason is that dispatching the workflow from a branch checks out that branch for the steps using a plain `actions/checkout`, but those two steps have `ref: main` hard-coded so they keep pulling `main`. You end up with a build that mixes your branch's notebooks with main's datasets, which either fails or succeeds with the wrong content. Change both, test, and change them back before merging, otherwise the next production run builds off your test branch. 99% of the time hardcoding to main is ok here, but keep this in mind. 
+
+3. Job dependencies:
+
+`deploy` depends on `build` only. `prepare-notebooks`, `render-notebooks` and `sync-notebooks` form a separate chain that also hangs off `build`. So the website deploys even if the notebook sync chain fails completely, which is intentional, a broken rsync filter should not stop a typo fix from going live. It also means a green run does not tell you the notebook sync worked, you have to check the individual jobs.
+
+
+4. The linter:
+
+The first step of `build` runs `meta/testing/linter.py` over every `.qmd` under `project/docs/`. It is a very small script (about 30 lines) that checks four things: that `$$` is on its own line, that ``` fences are on their own line, that `---` appears exactly twice, and that `<div>` and `</div>` counts match. It writes any complaints to `lint_output.txt` and prints them.
+
+It never fails the build. It sets an output variable called `linting_failed` that nothing downstream reads, so the lint output is advisory and you have to look at the log yourself. It also produces false positives on newer notebooks, mostly on `---` inside YAML-like blocks and on inline `$$`, and the line numbers it reports come from `lines.index(l)`, which returns the first matching line instead of the current one, so they are often wrong.
 
 ### 6.2 Showing Code Output with Quarto Freeze
 
@@ -301,12 +473,33 @@ execute:
 - Commit the .qmd together with its new `_freeze` folder. That is the whole change: no Dockerfile edits, no `!` exclusions in `_quarto.yml`, and no stub or index changes are needed.
 - Whenever the code in the notebook changes, re-render locally the same way so the freeze cache is refreshed, and commit the updated `_freeze` folder.
 
-Two warnings from past incidents:
+#### Rendering with the pinned Quarto version
 
-- Render the freeze cache with a Quarto version matching the Docker image (currently **1.4.557**, so any 1.4.x). A newer local Quarto writes `_freeze`/`site_libs` files that the 1.4 render in Docker can mix badly with, this previously broke the listing filter on the index pages.
-- Do not add `embed-resources: true` to notebook headers. It was part of the old pre-rendered .html workflow that freeze replaced, and it inlines every plot and library into the page, which made pages tens of megabytes and very slow to load.
+The Docker image uses Quarto **1.4.557**, and your machine most likely has a newer Quarto on the PATH (mine was 1.5.57). A newer Quarto writes `_freeze` and `site_libs` files in a format the 1.4 render in Docker mixes badly with. The symptom is that the category filter on the listing pages stops working across the whole site, not just on the notebook you rendered, which makes it hard to trace back to the render that caused it.
+
+The way around this is to keep a portable copy of 1.4.557 outside the PATH and call it by its full path:
+
+1. Download the portable zip for 1.4.557 from the [Quarto releases page](https://github.com/quarto-dev/quarto-cli/releases/tag/v1.4.557) and unzip it somewhere stable. On the machine this document was written on that is `D:\quarto-1.4.557`.
+2. From `project/`, render with the full path instead of the bare command:
+
+```{bash}
+D:\quarto-1.4.557\bin\quarto.exe render docs/CLASS/FILENAME.qmd
+```
+
+3. Check the render banner says 1.4.557 before you trust the output.
+
+Do not use a plain `quarto render` for a freeze render unless you have checked that `quarto --version` returns 1.4.x. The two versions produce output that looks identical locally and only diverges once the Docker build mixes them.
+
+#### Other things to know about freeze
+
+- Do not add `embed-resources: true` to notebook headers. It was part of the old pre-rendered .html workflow that freeze replaced, and it inlines every plot and library into the page, which made pages tens of megabytes and very slow to load. This was the cause of the slow page loads reported in late 2025.
+- `project/_freeze` is currently around 100 MB and it grows every time a notebook is re-rendered. That is expected and it has to stay committed, since it is the only source of code output for the build. Do not gitignore it.
+- Each `execute-results/html.json` stores a `"hash"` of the source document and a `"markdown"` field holding the whole executed document, YAML header and prose included. With `freeze: true` the build renders from that stored markdown instead of the file on disk, which is why a text-only edit does not show up until you re-render.
+- If you need to force a full re-render of one notebook, delete its folder under `project/_freeze/docs/CLASS/` and render again.
 
 Before freeze (Summer 2026) we handled code output by committing self-contained pre-rendered .html files, excluding their .qmd's from the build, and adding redirect stubs. That workflow is fully retired: the Dockerfile no longer removes .qmd files or copies .html files, and the stubs have been deleted.
+
+Two files from that old workflow are still in the repository and are historical only: `meta/scripts/re_render_qmd_files.py` and `meta/scripts/Using_the_re-rended_script.md`. The script parses `_quarto.yml` for `!` exclusions, checks each excluded file for `embed-resources: true` headers, renders it, and copies the resulting `.html` next to the source. All of that is now wrong, so do not run it. They are kept because they document how things used to work and a couple of old branches still reference them.
 
 ## 7. Local Development & Testing
 
@@ -461,6 +654,135 @@ docker run -d -p 8080:80 praxis-ubc-site
 
 This will run the image inside of a container which can then be viewed with the URL `http://localhost:8080`. Open a browser and type in this URL, you will see the prAxIs website displayed locally with all of the notebooks rendered and your new changes. 
 
-## 8.0 Conclusion
+## 8. Adding Content End to End
 
-This concludes our notebook on the structure of the praxis-ubc repository and website including all of the build pipelines, and files powering them. This is not a style guide or repository guidelines, those can be found under `praxis-ubc\documentation\style_guide` and `README.md`. 
+This section is the checklist version of everything above. It assumes the notebook is already written and its data is in place.
+
+### 8.1 Adding a Single Notebook
+
+1. Put the `.qmd` in `project/docs/CLASS/` and its data alongside it in `datasets/` or `data/`.
+2. Give it a full YAML header: `title`, `author`, `date`, `image`, `description`, `categories`, and an `execute:` block with `eval: true`, `echo: true`, `output: true` if it should show code output. Copy an existing notebook's header instead of writing one from scratch.
+3. Check every data file extension the notebook loads against the rsync include list in `comet_main.yml` ([6.1](#61-explaining-comet_mainyml)). Add any that are missing.
+4. Render the freeze cache locally with the pinned Quarto 1.4.557 ([6.2](#62-showing-code-output-with-quarto-freeze)).
+5. Add the notebook path to its class index under `project/pages/index/` and to `pages/index/all.qmd`.
+6. Add `docs/CLASS/filename` (no extension) to the `NOTEBOOKS` array in `meta/building/launch_notebook.html`.
+7. If it needs a card thumbnail, put the image in `project/media/stream_icons/` and point the header's `image:` at `/media/stream_icons/whatever.png`.
+8. Commit the `.qmd`, its data and the new `_freeze` folder together, on a branch, via pull request.
+9. After the merge, dispatch `comet_main.yml` from the Actions tab.
+10. Merge the `praxis-notebooks-update` pull request the workflow opens.
+11. Check the live page, then check the launch button opens the notebook on both JupyterOpen and Colab.
+
+Steps 3, 6 and 10 are the ones that get sometimes forgotten.
+
+### 8.2 Adding a New Course or Stream
+
+Everything in 8.1 for each notebook, plus:
+
+1. Create `project/pages/index/index_<NAME>.qmd`. Copy an existing one, and rename both the listing `id:` and the matching empty div at the bottom.
+2. Add a navbar entry for it in `_quarto.yml` under Courses.
+3. Add every notebook to `pages/index/all.qmd` as well.
+4. If the stream has an intended reading order, set `sort: false` on its listing so Quarto keeps the order you wrote rather than sorting by date.
+5. Add the stream's icons to `project/media/stream_icons/`.
+
+### 8.3 Removing or Hiding Content
+
+To hide a page temporarily, comment out its line in the index files with `#`. To remove it properly, delete the `.qmd`, its `_freeze` folder, its index entries and its line in `launch_notebook.html`. A leftover `_freeze` folder for a deleted notebook does no harm but is confusing later, and a leftover `launch_notebook.html` entry does nothing at all, since the script only runs on pages that exist.
+
+### 8.4 Changing How the Site Looks
+
+- Colours, fonts and spacing: the two `.scss` files.
+- Code syntax colours: the two `.json` files.
+- Layout, navbar sizing and card behaviour: `styles.css`, remembering the navbar rules are triplicated ([4.3](#43-themes-syntax-highlighting-and-css)).
+- Something injected on every page: `metadata.html` for `<head>`, `scroll_to_top.html` for the end of `<body>`, `launch_notebook.html` for the build-time injection.
+
+Test with `docker build` and `docker run` in both light and dark mode and at mobile width before opening a pull request. Most of the visual bugs this site has had were dark-mode-only or mobile-only.
+
+## 9. Maintenance, and old Known Issues 
+
+These are the problems we have run into in the past: 
+
+### 9.1 Common Problems and What Causes Them
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| Notebook text changed but the site still shows the old text | Freeze caches prose, not just output | Re-render the notebook locally with 1.4.557 and commit the updated `_freeze` |
+| Notebook launches but crashes on a missing data file | The file's extension is not in the rsync include list | Add the extension in `comet_main.yml`, re-run the workflow |
+| Launch button opens an old version of the notebook | The `praxis-notebooks-update` PR was never merged | Merge it |
+| Notebook page has no launch button at all | Its path was never added to `NOTEBOOKS` in `launch_notebook.html` | Add it |
+| Category filter stops working across the whole site | `_freeze`/`site_libs` were written by a newer Quarto than 1.4.557 | Re-render with the pinned version |
+| Pages are enormous and load slowly | `embed-resources: true` in a notebook header | Remove it, re-render |
+| Site looks right in light mode and broken in dark, or vice versa | A navbar rule changed in one of the three CSS locations but not all three | Change all three |
+| Data file arrives as a short text file of git hashes | Git LFS pointer, the file was not pulled | Add its extension to the `--include` on the LFS pull step, not a blanket pull |
+| Workflow succeeds but the site is unchanged | You ran `main.yml` instead of `comet_main.yml`, or the deploy job succeeded while the sync chain failed | Check which workflow file ran, and check each job |
+| Plots and outputs are gone from every page | `project/_freeze` got excluded from the Docker build context | Check `.dockerignore` |
+
+### 9.2 The Quarto Version Pin
+
+The Docker image is pinned to Quarto 1.4.557 and the pin matters in both directions. Going below 1.4 brings back the `polyfill.io` problem the base image was rebuilt to fix. Going above it means rebuilding and republishing the base image on DockerHub, and every `_freeze` folder in the repository is then potentially stale against the new version.
+
+If you do upgrade Quarto, the order is: bump the version in `sub_new.dockerfile`, rebuild and push the base image, download the matching portable version locally, then re-render every frozen notebook with it. Do this on a branch and check the listing pages carefully before merging, since the listing filter is the first thing that breaks when versions are mixed.
+
+### 9.3 Accounts and Tokens
+
+There is not much here, but you should know where it all lives.
+
+The two workflow jobs that need permissions both use the built-in `secrets.GITHUB_TOKEN`, so there is no personal access token anywhere and nothing to rotate. If necessary ask Professor Graves for help with this. 
+
+The Google Search Console verification tag and the Cloudflare Web Analytics beacon token are both in `project/metadata.html`. They are in a public file, which is fine, both are meant to be public. Moving either to a different account is a one-line edit in that file. If necessary ask Professor Graves for help with this. 
+
+The base image `alexr951/comet-base:safe` is on my personal DockerHub. It will stay up, so nothing needs to change, but if you would rather build and host your own then `meta/building/sub_new.dockerfile` is all you need, and then update the `FROM` line at the top of `.dockerfile`. Message me if anything about it is unclear (alex.ronczewski@gmail.com).
+
+Published notebooks are archived on Zenodo with persistent DOIs, see `README.md`.
+
+### 9.4 Things That Look Broken But Are Not
+
+- "Warning: Dataset directory not found" in the prepare-notebooks log. Expected for every course using the newer `datasets/` naming, see [6.1](#61-explaining-comet_mainyml).
+- Lint complaints in the build log. The linter has false positives and never fails the build, see [6.1](#61-explaining-comet_mainyml).
+- The `polyfill.io` sed step in the Dockerfile. It matches nothing now and is a leftover we chose to keep.
+- The `*stub*` filter in the conversion loop. Stubs no longer exist, so it does nothing.
+- A stray `final-notebooks/` folder at the root of `praxis-notebooks`. Old workflow artifact, nothing references it.
+- Two workflow files with the same display name. Confusing, but the second one is kept as a fallback, see [6.1](#61-explaining-comet_mainyml).
+
+## 10. Handover Notes
+
+### 10.1 What Was Added Recently
+
+The infrastructure changed a lot over 2026, and a lot of the older material and older branches predate those changes. Roughly in order:
+
+- The freeze migration (Summer 2026), which replaced the pre-rendered `.html` workflow entirely. This is the biggest change of the lot, and it makes most of what old branches and old documentation say about code output wrong.
+- The Quarto bump from 1.3.450 to 1.4.557 and the base image rename from `jlgraves/comet-test:test` to `alexr951/comet-base:safe`, both in response to the `polyfill.io` attack.
+- The four .ipynb cleanup scripts, added one at a time as launched notebooks turned out to lose their titles, callouts, images and data paths.
+- The per-notebook launch button, which is the reason `add_colab_setup.py` exists.
+- The dark theme, meaning both `.scss` files, both syntax highlighting `.json` files, and the ipywidgets colour forcing that had to come with it.
+- Smaller site work: the scroll-to-top button, the hover-lift listing cards, lightbox, the custom 404 page and the mobile burger-menu fix.
+- The search command palette, merged into main on 2026-08-27 as PR #167. See [4.7 Site Search and the Command Palette](#47-site-search-and-the-command-palette).
+- Analytics, both Google Search Console and Cloudflare Web Analytics, through `metadata.html`.
+- RISE support for interactive slideshows on JupyterOpen, written up separately in `documentation/rise_documentation.qmd`.
+- The LFS include filter on the workflow checkout, added after a blanket LFS pull tried to fetch a 1.7 GB database.
+
+### 10.2 Unfinished Work/Leftover Branches
+
+The remote branch list was cleaned up in August 2026, so what is on `origin` now is close to just the live work. Everything below is accurate as of **2026-08-28**. Two things to keep in mind while reading it. First, deleting a branch on GitHub does not delete it from anyone's local clone, so an older clone will still list dozens of branches that are gone from the remote.. Second, the older branches here predate the freeze migration and carry pre-rendered `.html` files that no longer mean anything, so check the diff before merging one into `main`.
+
+The branches with infrastructure work on them:
+
+- `COMET_PRAXIS_Merge` is the long-running effort to merge COMET's content into this repository. It is very large (over 1400 files) and carries a freeze migration of COMET's own notebooks. This one is a whole project on its own. 
+- `path-visualization` is the interactive path/tree page for the COMET merge. It also touches `comet_main.yml`, `.dockerfile`, `launch_notebook.html` and the conversion scripts, and adds `meta/scripts/suppress_stata_license_banner.py`, so read its diff carefully before merging any of it.
+- `revealjs_slides` adds a `revealjs` slide format to the AMNE-376, ECON-227 and SOCI-280 notebook headers, with the extra freeze caches that come with a second output format. This is the non-RISE way of getting slides out of a notebook and is worth a look if RISE ever becomes more trouble than it is worth.
+- `requirements_file` is a draft `meta/sandbox_requirements/requirements.in` and `.txt` listing what the modules need to run. It is one commit from June 2025 and never went anywhere, but it is the closest thing we have to a dependency list if someone wants to build a sandbox environment.
+- `rise_fix_attempt` is a single SLIDES.ipynb of the SOCI-280 notebook from the RISE work.
+
+The rest of what is on `origin` is notebook and lesson content, not infrastructure: `llm_annotations` (in progress, with an untracked `project/docs/llm_annotations/` folder still in my working tree), `History_and_News`, `ph_first_revision`, `programming_historian_publication`, `zero_shot_ph`, `econ-articles-bert-notebook`, `CTREE`, `227_ctree`, `image_analysis_demo`, `typo-fixes`, `main-edits` and `intro_to_transformers`.
+
+### 10.3 Related Documentation
+
+- `documentation/style_guide.qmd` covers notebook writing conventions, headers, formatting and code style.
+- `documentation/rise_documentation.qmd` covers why RISE slideshows need a setup notebook on JupyterOpen and what that notebook does.
+- `documentation/writing_self_tests.qmd` covers building self-tests into notebooks for formative feedback.
+- `meta/scripts/Using_the_re-rended_script.md` describes the retired pre-freeze workflow and is historical only.
+- `README.md` covers repository guidelines, branch discipline, the LFS policy and the Zenodo archive.
+- `CODE_OF_CONDUCT.md` is the project code of conduct.
+
+## 11. Conclusion
+
+This concludes our document on the structure of the praxis-ubc repository and website including all of the build pipelines, and files powering them. This is not a style guide or repository guidelines, those can be found under `praxis-ubc\documentation\style_guide` and `README.md`.
