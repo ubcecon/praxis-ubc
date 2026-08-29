@@ -48,16 +48,14 @@ ul.task-list li input[type="checkbox"] {
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
-  "collapse-after": 3,
+  "collapse-after": 2,
   "panel-placement": "end",
   "type": "overlay",
-  "limit": 50,
+  "limit": 20,
   "keyboard-shortcut": [
-    "f",
-    "/",
-    "s"
+    "/"
   ],
-  "show-item-context": false,
+  "show-item-context": true,
   "language": {
     "search-no-results-text": "No results",
     "search-matching-documents-text": "matching documents",
@@ -66,7 +64,7 @@ ul.task-list li input[type="checkbox"] {
     "search-more-match-text": "more match in this document",
     "search-more-matches-text": "more matches in this document",
     "search-clear-button-title": "Clear",
-    "search-text-placeholder": "",
+    "search-text-placeholder": "Search notebooks, topics, courses…",
     "search-detached-cancel-button-title": "Cancel",
     "search-submit-button-title": "Submit",
     "search-label": "Search"
@@ -488,7 +486,7 @@ window.Quarto = {
   </div>
 </div>
 <div class="list grid quarto-listing-cols-3">
-<div class="g-col-1" data-index="0" data-categories="Python,natural language processing,sentiment analysis,SOCI 280" data-listing-date-sort="1753315200000" data-listing-file-modified-sort="1786667809149" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="43" data-listing-word-count-sort="8479">
+<div class="g-col-1" data-index="0" data-categories="Python,natural language processing,sentiment analysis,SOCI 280" data-listing-date-sort="1753315200000" data-listing-file-modified-sort="1787967633018" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="43" data-listing-word-count-sort="8479">
 <a href="../../docs/SOCI-280/soci_280_bert.html" class="quarto-grid-link">
 <div class="quarto-grid-item card h-100 card-left">
 <p class="card-img-top">
@@ -510,7 +508,7 @@ An introduction to BERT-based NLP using online examples of disinformation and ex
 </div>
 </a>
 </div>
-<div class="g-col-1" data-index="1" data-categories="Python,natural language processing,sentiment analysis,SOCI 280,lesson plan" data-listing-date-sort="1753315200000" data-listing-file-modified-sort="1786667809149" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="5" data-listing-word-count-sort="816">
+<div class="g-col-1" data-index="1" data-categories="Python,natural language processing,sentiment analysis,SOCI 280,lesson plan" data-listing-date-sort="1753315200000" data-listing-file-modified-sort="1787967633018" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="5" data-listing-word-count-sort="816">
 <a href="../../docs/SOCI-280/soci_280_lesson_plan.html" class="quarto-grid-link">
 <div class="quarto-grid-item card h-100 card-left">
 <p class="card-img-top"><img src="placeholder_images/placeholder.png" style="height: 150px;"  class="thumbnail-image card-img"/></p>
@@ -649,6 +647,352 @@ No matching items
   btn.addEventListener("click", function () {
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
+})();
+</script>
+<style>
+/* Re-skin of Quarto's overlay search (Algolia autocomplete). */
+
+:root {
+  /* Referenced by quarto-search.scss and autocomplete.umd.js, never defined by Quarto. */
+  --aa-detached-modal-media-query: (min-width: 576px);
+  --aa-detached-modal-max-height: 60vh;
+  --aa-spacing-half: 0.5rem;
+
+  --px-pal-bg: #ffffff;
+  --px-pal-header-bg: #f8f9fa;
+  --px-pal-fg: #041746;
+  --px-pal-muted: rgba(4, 23, 70, 0.62);
+  --px-pal-border: rgba(4, 23, 70, 0.14);
+  --px-pal-active: rgba(0, 82, 204, 0.1);
+  --px-pal-accent: #cc7a00;
+  --px-pal-mark-bg: rgba(204, 122, 0, 0.24);
+  --px-pal-scrim: rgba(4, 23, 70, 0.42);
+  --px-pal-shadow: 0 1.5rem 3.5rem rgba(4, 23, 70, 0.3);
+}
+
+body.quarto-dark {
+  --px-pal-bg: #16212f;
+  --px-pal-header-bg: #1a2332;
+  --px-pal-fg: #e8e8e8;
+  --px-pal-muted: rgba(232, 232, 232, 0.62);
+  --px-pal-border: rgba(255, 255, 255, 0.13);
+  --px-pal-active: rgba(92, 159, 255, 0.16);
+  --px-pal-accent: #ff8c42;
+  --px-pal-mark-bg: rgba(255, 140, 66, 0.26);
+  --px-pal-scrim: rgba(0, 0, 0, 0.6);
+  --px-pal-shadow: 0 1.5rem 3.5rem rgba(0, 0, 0, 0.55);
+}
+
+/* Navbar trigger */
+
+/* Quarto pins the overlay trigger to a 40px box sized for the icon alone. */
+.navbar #quarto-search.type-overlay .aa-Autocomplete {
+  width: auto;
+}
+
+.navbar .aa-DetachedSearchButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 32px;
+  padding: 0 0.4rem 0 0.6rem;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 999px;
+  background-color: rgba(255, 255, 255, 0.08);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.navbar .aa-DetachedSearchButton:hover,
+.navbar .aa-DetachedSearchButton:focus-visible {
+  background-color: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.42);
+}
+
+.navbar .aa-DetachedSearchButton .aa-DetachedSearchButtonIcon {
+  display: inline-flex;
+  align-items: center;
+}
+
+.navbar #quarto-search.type-overlay .aa-DetachedSearchButton svg,
+.navbar #quarto-search.type-overlay .aa-DetachedSearchButton svg.aa-SubmitIcon {
+  width: 17px;
+  height: 17px;
+  opacity: 0.9;
+}
+
+.praxis-search-label {
+  font-size: 0.875rem;
+  line-height: 1;
+}
+
+.praxis-search-kbd {
+  padding: 0.2rem 0.35rem;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 4px;
+  background-color: rgba(255, 255, 255, 0.12);
+  color: inherit;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.72rem;
+  line-height: 1;
+}
+
+@media (max-width: 991.98px) {
+  .praxis-search-label,
+  .praxis-search-kbd {
+    display: none;
+  }
+
+  .navbar .aa-DetachedSearchButton {
+    height: auto;
+    padding: 0 0.25rem;
+    border-color: transparent;
+    background-color: transparent;
+  }
+}
+
+/* Overlay */
+
+.aa-DetachedOverlay {
+  background-color: var(--px-pal-scrim);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+}
+
+/* Full-bleed sheet below sm, where the modal modifier is not applied. */
+.aa-DetachedContainer {
+  width: 100%;
+  border: 0;
+  border-radius: 0;
+  background: var(--px-pal-bg);
+  color: var(--px-pal-fg);
+  box-shadow: none;
+}
+
+.aa-DetachedContainer--modal {
+  top: 12vh;
+  width: 92%;
+  max-width: 720px;
+  border: 1px solid var(--px-pal-border);
+  border-radius: 0.75rem;
+  box-shadow: var(--px-pal-shadow);
+}
+
+/* Quarto leaves these square and lets overflow: hidden clip them, which is what frays the corners. */
+.aa-DetachedContainer--modal .aa-DetachedFormContainer {
+  border-top-left-radius: 0.75rem;
+  border-top-right-radius: 0.75rem;
+}
+
+.aa-DetachedContainer--modal::after {
+  border-bottom-left-radius: 0.75rem;
+  border-bottom-right-radius: 0.75rem;
+}
+
+/* Input row */
+
+.aa-DetachedFormContainer {
+  align-items: center;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--px-pal-border);
+  background-color: var(--px-pal-bg);
+}
+
+.aa-DetachedContainer .aa-Form,
+.aa-DetachedContainer .aa-Form:focus-within {
+  border: 0;
+  background-color: transparent;
+  box-shadow: none;
+  outline: none;
+}
+
+.aa-DetachedContainer .aa-Input {
+  color: var(--px-pal-fg);
+  font-size: 1.05rem;
+}
+
+.aa-DetachedContainer .aa-Input::placeholder {
+  color: var(--px-pal-muted);
+  opacity: 1;
+}
+
+.aa-DetachedContainer .aa-InputWrapperPrefix svg,
+.aa-DetachedContainer .aa-InputWrapperSuffix svg {
+  color: var(--px-pal-muted);
+  opacity: 1;
+}
+
+.aa-DetachedCancelButton {
+  padding: 0.25rem 0.55rem;
+  border: 1px solid var(--px-pal-border);
+  border-radius: 6px;
+  color: var(--px-pal-muted);
+}
+
+.aa-DetachedCancelButton:hover,
+.aa-DetachedCancelButton:focus {
+  border-color: var(--px-pal-border);
+  background-color: var(--px-pal-header-bg);
+  color: var(--px-pal-fg);
+  box-shadow: none;
+}
+
+/* Results */
+
+.aa-DetachedContainer .aa-Panel {
+  border: 0;
+  background-color: var(--px-pal-bg);
+}
+
+.aa-DetachedOverlay .aa-SourceHeader .search-result-header {
+  padding: 0.35rem 0.9rem;
+  border-top: 1px solid var(--px-pal-border);
+  border-bottom: 1px solid var(--px-pal-border);
+  background-color: var(--px-pal-header-bg);
+  color: var(--px-pal-muted);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.aa-DetachedOverlay li.aa-Item[aria-selected="false"] .search-item,
+.aa-DetachedOverlay li.aa-Item[aria-selected="false"] .search-item.search-result-more,
+.aa-DetachedOverlay li.aa-Item[aria-selected="false"] .search-item .search-result-section,
+.aa-DetachedOverlay li.aa-Item[aria-selected="false"] .search-item .search-result-text,
+.aa-DetachedOverlay li.aa-Item[aria-selected="false"] .search-item .search-result-title-container,
+.aa-DetachedOverlay li.aa-Item[aria-selected="false"] .search-item .search-result-text-container,
+.aa-DetachedOverlay .aa-Item .search-result-doc:not(.document-selectable) .search-result-title-container {
+  background-color: var(--px-pal-bg);
+  color: var(--px-pal-fg);
+}
+
+.aa-DetachedOverlay li.aa-Item[aria-selected="true"] .search-item,
+.aa-DetachedOverlay li.aa-Item[aria-selected="true"] .search-item.search-result-more,
+.aa-DetachedOverlay li.aa-Item[aria-selected="true"] .search-item .search-result-section,
+.aa-DetachedOverlay li.aa-Item[aria-selected="true"] .search-item .search-result-text,
+.aa-DetachedOverlay li.aa-Item[aria-selected="true"] .search-item .search-result-title-container,
+.aa-DetachedOverlay li.aa-Item[aria-selected="true"] .search-item .search-result-text-container {
+  background-color: var(--px-pal-active);
+  color: var(--px-pal-fg);
+}
+
+/* Inset shadow rather than a border, so the row does not shift as the selection moves. */
+.aa-DetachedOverlay li.aa-Item[aria-selected="true"] .search-item {
+  box-shadow: inset 3px 0 0 0 var(--px-pal-accent);
+}
+
+.aa-DetachedOverlay .aa-Item .search-result-doc {
+  border-top-color: var(--px-pal-border);
+}
+
+.aa-DetachedOverlay .search-item .search-result-crumbs,
+.aa-DetachedOverlay .search-item i.bi {
+  color: var(--px-pal-muted);
+}
+
+.aa-DetachedOverlay li.aa-Item[aria-selected="true"] .search-item mark.search-match,
+.aa-DetachedOverlay li.aa-Item[aria-selected="false"] .search-item mark.search-match {
+  padding: 0 1px;
+  border-radius: 2px;
+  background-color: var(--px-pal-mark-bg);
+  color: inherit;
+  font-weight: 600;
+}
+
+/* Quarto reserves 32px for this pseudo-element but never gives it a content property. */
+.aa-DetachedContainer::after {
+  content: "\2191\2193 navigate  \00b7  \21b5 open  \00b7  esc close";
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  height: 34px;
+  padding: 0 0.9rem;
+  border-top: 1px solid var(--px-pal-border);
+  background-color: var(--px-pal-header-bg);
+  color: var(--px-pal-muted);
+  font-size: 0.75rem;
+}
+
+@media (max-width: 575.98px) {
+  .aa-DetachedContainer::after {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .aa-DetachedOverlay {
+    animation: px-pal-fade 0.12s ease-out;
+  }
+
+  .aa-DetachedContainer--modal {
+    animation: px-pal-rise 0.16s cubic-bezier(0.2, 0.8, 0.3, 1);
+  }
+}
+
+@keyframes px-pal-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes px-pal-rise {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.985);
+  }
+}
+</style>
+
+<script>
+(function () {
+  var isMac = /Mac|iPod|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+  var chord = isMac ? "⌘K" : "Ctrl K";
+
+  // quarto-search.js exposes quartoOpenSearch() globally once it has initialised.
+  document.addEventListener("keydown", function (event) {
+    if (event.key !== "k" && event.key !== "K") return;
+    if (event.altKey || !(event.metaKey || event.ctrlKey)) return;
+    if (typeof window.quartoOpenSearch !== "function") return;
+    event.preventDefault();
+    window.quartoOpenSearch();
+  });
+
+  function decorate() {
+    var button = document.querySelector(".navbar .aa-DetachedSearchButton");
+    if (!button) return false;
+    if (button.querySelector(".praxis-search-label")) return true;
+
+    var label = document.createElement("span");
+    label.className = "praxis-search-label";
+    label.textContent = "Search";
+
+    var kbd = document.createElement("kbd");
+    kbd.className = "praxis-search-kbd";
+    kbd.textContent = chord;
+
+    button.appendChild(label);
+    button.appendChild(kbd);
+    button.setAttribute("aria-label", "Search (" + chord + ")");
+    return true;
+  }
+
+  function start() {
+    if (decorate()) return;
+
+    // The button is built by autocomplete after this script runs.
+    var target = document.getElementById("quarto-search");
+    if (!target) return;
+    var observer = new MutationObserver(function () {
+      if (decorate()) observer.disconnect();
+    });
+    observer.observe(target, { childList: true, subtree: true });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", start);
+  } else {
+    start();
+  }
 })();
 </script>
 <script id="quarto-html-after-body" type="application/javascript">
