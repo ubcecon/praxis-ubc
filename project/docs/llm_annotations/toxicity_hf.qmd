@@ -3,6 +3,10 @@ title: "Toxicity Classification"
 jupyter: python3
 execute:
   eval: true
+format:
+  html:
+    code-fold: true
+    code-summary: "Show code"
 ---
 
 **Content warning:** this document shows real online comments, and some of them are abusive.
@@ -76,7 +80,7 @@ for label in ("no", "yes"):
 
 ## Train/test split
 
-40 comments go to training (20 toxic and 20 non-toxic). The remaining 30 are held out for testing (15 per class). The 20 in-context examples are selected from the training set and are not part of the test set.
+40 comments go to training (20 toxic and 20 non-toxic). The remaining 30 are held out for testing (15 per class). The 40 in-context examples are the whole training set (20 toxic and 20 non-toxic) and are not part of the test set.
 
 ```{python}
 test = pd.concat([
@@ -86,8 +90,8 @@ test = pd.concat([
 train = data.drop(test.index).reset_index(drop=True)
 test = test.reset_index(drop=True)
 few_shot_examples = pd.concat([
-    train[train.is_toxic == "yes"].sample(10, random_state=SEED),
-    train[train.is_toxic == "no"].sample(10, random_state=SEED),
+    train[train.is_toxic == "yes"].sample(20, random_state=SEED),
+    train[train.is_toxic == "no"].sample(20, random_state=SEED),
 ]).sample(frac=1, random_state=SEED).reset_index(drop=True)
 
 print(f"train: {len(train)}   test: {len(test)}   few-shot examples: {len(few_shot_examples)}")
@@ -131,14 +135,21 @@ show_confusion(lexicon_pred, "Profanity lexicon")
 **Zero-shot** means the model is given no labelled examples ("zero shots"). It sees only the rating instructions and the comment to label, so it must decide what counts as toxic from the instructions and what it learned during pretraining.
 
 ```{python}
-INSTRUCTIONS = """You are rating comments from an English-language news website for toxicity.
+INSTRUCTIONS = """You will see a comment posted on an English-language news website in 2015-2017.
+A panel of ordinary crowd workers rated it. Predict whether at least half of them would rate it Toxic or Very Toxic.
 
-Answer "yes" if the comment is Toxic or Very Toxic:
-- Very Toxic: very hateful, aggressive, or disrespectful, or very likely to make someone leave the discussion.
-- Toxic: rude, disrespectful, or unreasonable, or somewhat likely to make someone leave the discussion.
+Raters used these definitions:
+- Very Toxic: very hateful, aggressive, or disrespectful; very likely to make someone leave the discussion.
+- Toxic: rude, disrespectful, or unreasonable; somewhat likely to make someone leave the discussion.
+- Hard to Say / Not Toxic: everything else.
 
-Answer "no" if the comment is Hard to Say or Not Toxic.
+How these raters usually decide:
+- Insults aimed at a person or group count as toxic, even mild ones ("idiot", "stupid", "clown", "liar", "pathetic").
+- Profanity aimed at someone counts as toxic. Profanity used only for emphasis often does not.
+- Strong disagreement, sarcasm, or harsh criticism of ideas, policies, or institutions is NOT toxic unless it insults people.
+- Mentioning a race, religion, gender, or sexuality is NOT toxic by itself.
 
+Answer "yes" if most raters would call it Toxic or Very Toxic, otherwise "no".
 Reply with exactly one word: yes or no. Do not include JSON, an explanation, punctuation, or any other text."""
 
 
@@ -153,6 +164,8 @@ def classify(text, system):
             messages=[{"role": "system", "content": system},
                       {"role": "user", "content": f'Comment:\n"""{text}"""'}],
             temperature=0,
+            # Turn off Qwen's "thinking" so the reply is just the label.
+            extra_body={"chat_template_kwargs": {"enable_thinking": False}},
         )
         content = response.choices[0].message.content or ""
         label = content.strip().lower()
@@ -175,13 +188,13 @@ zero_shot.head()
 show_confusion(zero_shot.label, "LLM zero-shot")
 ```
 
-## 3. LLM, few-shot (20 in-context examples)
+## 3. LLM, few-shot (40 in-context examples)
 
-**Few-shot** means the model is given a few labelled examples ("shots") in the prompt before the comment to label. Here it gets 20. The only difference from zero-shot is these examples: the instructions, the model and the test comments are the same.
+**Few-shot** means the model is given a few labelled examples ("shots") in the prompt before the comment to label. Here it gets 40. The only difference from zero-shot is these examples: the instructions, the model and the test comments are the same.
 
-This is a form of **in-context learning (ICL)**, which means giving a model labeled examples in the prompt rather than retraining it. Here, we provide 20 comments—10 toxic and 10 non-toxic—so the model can see how human annotators applied the labels. The model itself does not change; the examples only affect its responses while they are included in the prompt.
+This is a form of **in-context learning (ICL)**, which means giving a model labeled examples in the prompt rather than retraining it. Here, we provide 40 comments—20 toxic and 20 non-toxic—so the model can see how human annotators applied the labels. The model itself does not change; the examples only affect its responses while they are included in the prompt.
 
-The prompt is the same instructions as above, followed by the 20 balanced in-context examples and their human labels.
+The prompt is the same instructions as above, followed by the 40 balanced in-context examples and their human labels.
 
 ```{python}
 examples = "\n\n".join(
@@ -196,7 +209,7 @@ few_shot.head()
 ```
 
 ```{python}
-show_confusion(few_shot.label, "LLM with 20 examples")
+show_confusion(few_shot.label, "LLM with 40 examples")
 ```
 
 ## 4. Logistic regression on Qwen embeddings
