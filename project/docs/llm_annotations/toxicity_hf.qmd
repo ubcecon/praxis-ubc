@@ -1,0 +1,251 @@
+---
+title: "Toxicity Classification"
+jupyter: python3
+execute:
+  eval: true
+---
+
+**Content warning:** this document shows real online comments, and some of them are abusive.
+
+Before rendering, set your API key for the UBC AI gateway as an environment variable. The key never goes in this file:
+
+```bash
+export LLM_API_KEY="your-key-here"
+```
+
+```{python}
+import os
+import random
+import re
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from openai import OpenAI
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import ConfusionMatrixDisplay, accuracy_score
+from sklearn.model_selection import GridSearchCV, StratifiedKFold
+
+SEED = 20260810
+random.seed(SEED)
+np.random.seed(SEED)
+URL = "https://huggingface.co/api/datasets/google/civil_comments/parquet/default/test/0.parquet"
+
+API_KEY = os.environ.get("LLM_API_KEY")
+if not API_KEY:
+    raise RuntimeError("Set the LLM_API_KEY environment variable before rendering.")
+
+client = OpenAI(base_url="https://ai-gateway.apps.ltic.ubc.ca/v1", api_key=API_KEY)
+MODEL = "qwen3.6-35b-a3b"
+EMBEDDING_MODEL = "qwen3-embedding-0.6b"
+```
+
+## The dataset
+
+**Civil Comments** is a set of comments posted on English-language news sites between 2015 and 2017. Each comment was shown to a panel of crowdworkers, who rated how toxic it was. A comment's `toxicity` score is the share of its panel who called it toxic. We call a comment **toxic** if at least half the panel said so.
+
+We draw a reproducible balanced sample of 70 comments from the Hugging Face test split: 35 toxic and 35 non-toxic. We reserve 30 comments (15 per class) as a held-out test set and use the other 40 (20 per class) for training. The logistic-regression regularization strength is selected by five-fold cross-validation within the 40 training comments only.
+
+```{python}
+df = pd.read_parquet(URL)
+df["comment_id"] = df.index.astype(str)
+df["is_toxic"] = np.where(df.toxicity >= 0.5, "yes", "no")
+pool = df.rename(columns={"text": "comment_text"})
+
+data = pd.concat([
+    pool[pool.is_toxic == "yes"].sample(35, random_state=SEED),
+    pool[pool.is_toxic == "no"].sample(35, random_state=SEED),
+]).sample(frac=1, random_state=SEED).reset_index(drop=True)
+
+data.is_toxic.value_counts()
+```
+
+Two examples:
+
+```{python}
+for label in ("no", "yes"):
+    row = data[(data.is_toxic == label) & data.comment_text.str.len().between(60, 240)].iloc[0]
+    print(f"[{label}]  {row.toxicity:.0%} of raters said toxic")
+    print(row.comment_text, "\n")
+```
+
+## The task
+
+- **Input:** one comment.
+- **Output:** exactly `yes` or `no`, where `yes` means toxic.
+
+## Train/test split
+
+40 comments go to training (20 toxic and 20 non-toxic). The remaining 30 are held out for testing (15 per class). The 20 in-context examples are selected from the training set and are not part of the test set.
+
+```{python}
+test = pd.concat([
+    data[data.is_toxic == "yes"].sample(15, random_state=SEED + 1),
+    data[data.is_toxic == "no"].sample(15, random_state=SEED + 1),
+]).sample(frac=1, random_state=SEED + 2)
+train = data.drop(test.index).reset_index(drop=True)
+test = test.reset_index(drop=True)
+few_shot_examples = pd.concat([
+    train[train.is_toxic == "yes"].sample(10, random_state=SEED),
+    train[train.is_toxic == "no"].sample(10, random_state=SEED),
+]).sample(frac=1, random_state=SEED).reset_index(drop=True)
+
+print(f"train: {len(train)}   test: {len(test)}   few-shot examples: {len(few_shot_examples)}")
+```
+
+```{python}
+results = {}
+
+
+def show_confusion(pred, title):
+    accuracy = accuracy_score(test.is_toxic, pred)
+    results[title] = {"accuracy": accuracy}
+    print(f"{title} accuracy: {accuracy:.1%}")
+    fig, ax = plt.subplots(figsize=(4, 4))
+    ConfusionMatrixDisplay.from_predictions(
+        test.is_toxic, pred, labels=["no", "yes"],
+        display_labels=["not toxic", "toxic"], cmap="Blues", colorbar=False, ax=ax)
+    ax.set_xlabel("predicted")
+    ax.set_ylabel("human label")
+    ax.set_title(title)
+    plt.show()
+```
+
+## 1. Profanity lexicon
+
+A comment is labelled toxic if it contains at least one word from a fixed list of insults.
+
+```{python}
+LEXICON = ["damn", "hell", "crap", "idiot", "idiots", "stupid", "dumb", "moron", "morons",
+           "shut up", "loser", "losers", "pathetic", "garbage", "trash", "scum", "clown",
+           "clowns", "liar", "liars", "coward", "cowards", "disgusting", "ignorant",
+           "hypocrite", "hypocrites", "jerk", "fool", "fools", "shame on"]
+LEXICON_RE = re.compile(r"\b(" + "|".join(LEXICON) + r")\b", re.IGNORECASE)
+
+lexicon_pred = np.where(test.comment_text.str.contains(LEXICON_RE), "yes", "no")
+show_confusion(lexicon_pred, "Profanity lexicon")
+```
+
+## 2. LLM, zero-shot
+
+**Zero-shot** means the model is given no labelled examples ("zero shots"). It sees only the rating instructions and the comment to label, so it must decide what counts as toxic from the instructions and what it learned during pretraining.
+
+```{python}
+INSTRUCTIONS = """You are rating comments from an English-language news website for toxicity.
+
+Answer "yes" if the comment is Toxic or Very Toxic:
+- Very Toxic: very hateful, aggressive, or disrespectful, or very likely to make someone leave the discussion.
+- Toxic: rude, disrespectful, or unreasonable, or somewhat likely to make someone leave the discussion.
+
+Answer "no" if the comment is Hard to Say or Not Toxic.
+
+Reply with exactly one word: yes or no. Do not include JSON, an explanation, punctuation, or any other text."""
+
+
+MAX_RETRIES = 3
+
+
+def classify(text, system):
+    # If the reply is not exactly "yes" or "no", ask again, up to MAX_RETRIES more times.
+    for attempt in range(1 + MAX_RETRIES):
+        response = client.chat.completions.create(
+            model=MODEL,
+            messages=[{"role": "system", "content": system},
+                      {"role": "user", "content": f'Comment:\n"""{text}"""'}],
+            temperature=0,
+        )
+        content = response.choices[0].message.content or ""
+        label = content.strip().lower()
+        if label in ("yes", "no"):
+            return {"label": label}
+    raise ValueError(
+        f"Expected exactly 'yes' or 'no' after {1 + MAX_RETRIES} attempts; last reply was {content!r}")
+
+
+def run(system):
+    # Calls the model for every test comment on each render (no caching).
+    return pd.DataFrame([classify(text, system) for text in test.comment_text])
+
+
+zero_shot = run(INSTRUCTIONS)
+zero_shot.head()
+```
+
+```{python}
+show_confusion(zero_shot.label, "LLM zero-shot")
+```
+
+## 3. LLM, few-shot (20 in-context examples)
+
+**Few-shot** means the model is given a few labelled examples ("shots") in the prompt before the comment to label. Here it gets 20. The only difference from zero-shot is these examples: the instructions, the model and the test comments are the same.
+
+This is a form of **in-context learning (ICL)**, which means giving a model labeled examples in the prompt rather than retraining it. Here, we provide 20 comments—10 toxic and 10 non-toxic—so the model can see how human annotators applied the labels. The model itself does not change; the examples only affect its responses while they are included in the prompt.
+
+The prompt is the same instructions as above, followed by the 20 balanced in-context examples and their human labels.
+
+```{python}
+examples = "\n\n".join(
+    f'Comment:\n"""{row.comment_text}"""\nlabel: {row.is_toxic}'
+    for row in few_shot_examples.itertuples())
+
+FEW_SHOT = (INSTRUCTIONS
+            + "\n\nHere are labelled examples rated by human annotators:\n\n" + examples)
+
+few_shot = run(FEW_SHOT)
+few_shot.head()
+```
+
+```{python}
+show_confusion(few_shot.label, "LLM with 20 examples")
+```
+
+## 4. Logistic regression on Qwen embeddings
+
+Qwen turns each comment into a numerical representation. Logistic regression uses labeled comments to learn which comments are toxic.
+
+```{python}
+#| echo: false
+embedding_response = client.embeddings.create(
+    model=EMBEDDING_MODEL,
+    input=data.comment_text.fillna("").astype(str).tolist(),
+)
+embedding_items = sorted(embedding_response.data, key=lambda item: item.index)
+embeddings = np.asarray([item.embedding for item in embedding_items], dtype=np.float32)
+
+id_to_position = {comment_id: i for i, comment_id in enumerate(data.comment_id.astype(str))}
+train_positions = [id_to_position[c] for c in train.comment_id.astype(str)]
+test_positions = [id_to_position[c] for c in test.comment_id.astype(str)]
+X_train = embeddings[train_positions]
+X_test = embeddings[test_positions]
+
+cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=SEED)
+search = GridSearchCV(
+    LogisticRegression(max_iter=5000, random_state=SEED),
+    param_grid={"C": [1e-4, 1e-3, 1e-2, 1e-1, 1, 10, 100]},
+    scoring="balanced_accuracy", cv=cv, refit=True, n_jobs=1)
+search.fit(X_train, train.is_toxic)
+embedding_lr = search.best_estimator_
+print(f"Selected C: {search.best_params_['C']}   CV balanced accuracy: {search.best_score_:.3f}")
+embedding_pred = embedding_lr.predict(X_test)
+show_confusion(embedding_pred, "Qwen embeddings + logistic regression")
+```
+
+```{python}
+#| echo: false
+#| output: asis
+correct = embedding_pred == test.is_toxic.to_numpy()
+is_toxic = test.is_toxic.to_numpy() == "yes"
+scores = results["Qwen embeddings + logistic regression"]
+print(
+    f"In this test, it correctly labeled {correct.sum()} of {len(test)} comments "
+    f"({scores['accuracy']:.0%} accuracy): "
+    f"{correct[is_toxic].sum()} of {is_toxic.sum()} toxic comments and "
+    f"{correct[~is_toxic].sum()} of {(~is_toxic).sum()} non-toxic comments."
+)
+```
+
+## Comparison
+
+```{python}
+pd.DataFrame(results).T.round(3)
+```
