@@ -18,6 +18,7 @@ export LLM_API_KEY="your-key-here"
 ```
 
 ```{python}
+import json
 import os
 import random
 import re
@@ -30,7 +31,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import ConfusionMatrixDisplay, accuracy_score
 from sklearn.model_selection import GridSearchCV, StratifiedKFold
 
-SEED = 20260810
+SEED = 1975
 random.seed(SEED)
 np.random.seed(SEED)
 URL = "https://huggingface.co/api/datasets/google/civil_comments/parquet/default/test/0.parquet"
@@ -150,34 +151,53 @@ How these raters usually decide:
 - Mentioning a race, religion, gender, or sexuality is NOT toxic by itself.
 
 Answer "yes" if most raters would call it Toxic or Very Toxic, otherwise "no".
-Reply with exactly one word: yes or no. Do not include JSON, an explanation, punctuation, or any other text."""
+
+Reply with only a JSON object, with the reason first and then the label:
+{"reason": "<one very short sentence>", "label": "yes" or "no"}
+Do not include any other text."""
 
 
+SYSTEM_PROMPT = "You are a helpful harmless assistant."
 MAX_RETRIES = 3
 
 
-def classify(text, system):
-    # If the reply is not exactly "yes" or "no", ask again, up to MAX_RETRIES more times.
+def parse_reply(content):
+    # Read the JSON object in the reply; return None if it is missing or the label is not yes/no.
+    match = re.search(r"\{.*\}", content, re.DOTALL)
+    if not match:
+        return None
+    try:
+        reply = json.loads(match.group())
+    except json.JSONDecodeError:
+        return None
+    label = str(reply.get("label", "")).strip().lower()
+    if label not in ("yes", "no"):
+        return None
+    return {"reason": str(reply.get("reason", "")).strip(), "label": label}
+
+
+def classify(text, instructions):
+    # If the reply is not valid JSON with a yes/no label, ask again, up to MAX_RETRIES more times.
     for attempt in range(1 + MAX_RETRIES):
         response = client.chat.completions.create(
             model=MODEL,
-            messages=[{"role": "system", "content": system},
-                      {"role": "user", "content": f'Comment:\n"""{text}"""'}],
+            messages=[{"role": "system", "content": SYSTEM_PROMPT},
+                      {"role": "user", "content": f'{instructions}\n\nComment:\n"""{text}"""'}],
             temperature=0,
-            # Turn off Qwen's "thinking" so the reply is just the label.
+            # Turn off Qwen's "thinking" so the reply is just the JSON.
             extra_body={"chat_template_kwargs": {"enable_thinking": False}},
         )
         content = response.choices[0].message.content or ""
-        label = content.strip().lower()
-        if label in ("yes", "no"):
-            return {"label": label}
+        result = parse_reply(content)
+        if result is not None:
+            return result
     raise ValueError(
-        f"Expected exactly 'yes' or 'no' after {1 + MAX_RETRIES} attempts; last reply was {content!r}")
+        f"Expected JSON with a yes/no label after {1 + MAX_RETRIES} attempts; last reply was {content!r}")
 
 
-def run(system):
+def run(instructions):
     # Calls the model for every test comment on each render (no caching).
-    return pd.DataFrame([classify(text, system) for text in test.comment_text])
+    return pd.DataFrame([classify(text, instructions) for text in test.comment_text])
 
 
 zero_shot = run(INSTRUCTIONS)
